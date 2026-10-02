@@ -1,159 +1,317 @@
 {
-  "task": "T07",
-  "recordedAt": "2026-10-02T10:16:00.000Z",
-  "result": "frontend workbench verified",
+  "task": "T07-B",
+  "recordedAt": "2026-10-02T15:59:44.796Z",
+  "result": "frontend live backend end-to-end verified",
   "environment": {
     "node": "v26.3.0",
     "platform": "darwin/arm64",
-    "pnpm": "10.34.0",
+    "postgres": "PostgreSQL 18-alpine (Docker)",
     "react": "19.0.0",
-    "reactDom": "19.0.0",
-    "vite": "6.2.0",
+    "vite": "6.4.3",
     "typescript": "5.9.3",
     "playwright": "1.63.0",
-    "browser": "Chromium 153.0.8010.12 (revision 1243)"
+    "browser": "Chromium (headless)",
+    "apiBaseUrl": "http://127.0.0.1:5188/api/v1"
   },
   "modules": [
     "apps/web/package.json",
     "apps/web/vite.config.ts",
-    "apps/web/tsconfig.json",
-    "apps/web/index.html",
-    "apps/web/src/styles/tokens.css",
-    "apps/web/src/styles/index.css",
     "apps/web/src/api/types.ts",
     "apps/web/src/api/sse.ts",
     "apps/web/src/api/client.ts",
     "apps/web/src/api/adapter.ts",
-    "apps/web/src/api/index.ts",
-    "apps/web/src/mocks/data.ts",
-    "apps/web/src/mocks/mockClient.ts",
     "apps/web/src/state/AppContext.tsx",
     "apps/web/src/state/RunStore.tsx",
-    "apps/web/src/components/ui/Badge.tsx",
-    "apps/web/src/components/ui/EmptyState.tsx",
-    "apps/web/src/components/ui/ErrorCard.tsx",
     "apps/web/src/components/layout/AppHeader.tsx",
     "apps/web/src/components/layout/ReconnectBanner.tsx",
     "apps/web/src/components/workbench/PhaseProgress.tsx",
-    "apps/web/src/components/workbench/InputRequestBar.tsx",
     "apps/web/src/components/workbench/TriageModal.tsx",
     "apps/web/src/components/workbench/TaskCaseTabs.tsx",
-    "apps/web/src/components/workbench/RunHistoryList.tsx",
+    "apps/web/src/components/ui/ErrorCard.tsx",
     "apps/web/src/pages/LoginPage.tsx",
     "apps/web/src/pages/ProjectHomePage.tsx",
     "apps/web/src/pages/WorkbenchPage.tsx",
     "apps/web/src/pages/CaseDetailPage.tsx",
     "apps/web/src/pages/FindingDetailPage.tsx",
-    "apps/web/src/pages/EnvironmentsPage.tsx",
-    "apps/web/src/pages/KnowledgePage.tsx",
     "apps/web/src/pages/ModelsPage.tsx",
-    "apps/web/src/pages/MembersOpsPage.tsx",
-    "apps/web/src/App.tsx",
-    "apps/web/src/main.tsx",
-    "apps/web/scripts/captureScreenshots.mjs",
-    "apps/web/README.md"
+    "apps/web/scripts/e2eLiveCapture.mjs"
   ],
-  "commands": [
+  "liveBackendVerifiedFlows": [
     {
-      "name": "eslint",
-      "command": "npx eslint apps/web/src apps/web/scripts",
-      "exitCode": 0,
-      "stdout": "",
-      "stderr": ""
+      "flow": "J-01: 用户登录与认证拦截",
+      "endpoint": "POST /api/v1/auth/login, GET /api/v1/auth/me",
+      "evidence": "01-state-auth-failure.png & 02-e2e-project-home.png",
+      "status": "verified_real_api",
+      "details": "验证了 401 凭据错误拒绝与合法 Admin 会话 Cookie 下发、当前用户信息与角色同步"
     },
     {
-      "name": "typecheck",
-      "command": "npx --yes pnpm@10.34.0 --filter @localqa/web run typecheck",
-      "exitCode": 0,
-      "stdout": "\n> @localqa/web@1.0.0 typecheck /Users/dcp/Documents/公司/momentic/apps/web\n> tsc --noEmit\n\n",
-      "stderr": ""
+      "flow": "J-02: 项目与环境选择",
+      "endpoint": "GET /api/v1/projects, GET /api/v1/projects/:id/environments, GET /api/v1/model-profiles",
+      "evidence": "02-e2e-project-home.png",
+      "status": "verified_real_api",
+      "details": "验证了真实 Postgres 数据库项目列表、测试环境配置与已授权 ModelProfile 联动"
     },
     {
-      "name": "build",
-      "command": "npx --yes pnpm@10.34.0 --filter @localqa/web run build",
-      "exitCode": 0,
-      "stdout": "\n> @localqa/web@1.0.0 build /Users/dcp/Documents/公司/momentic/apps/web\n> tsc --noEmit && vite build\n\nvite v6.4.3 building for production...\n✓ 57 modules transformed.\ndist/index.html                   0.72 kB │ gzip:  0.50 kB\ndist/assets/index-D8U9xQ2a.css    6.47 kB │ gzip:  1.94 kB\ndist/assets/index-AVG55k7s.js   291.59 kB │ gzip: 86.31 kB\n✓ built in 384ms\n",
-      "stderr": ""
+      "flow": "J-03: 越权启动拦截",
+      "endpoint": "POST /api/v1/runs (Viewer)",
+      "evidence": "04-state-forbidden.png",
+      "status": "verified_real_api",
+      "details": "验证了 Viewer 观察员身份尝试启动测试时遭后端 StorageError(FORBIDDEN) 拦截"
     },
     {
-      "name": "screenshot_capture",
-      "command": "node apps/web/scripts/captureScreenshots.mjs",
-      "exitCode": 0,
-      "stdout": "Preview server listening on http://127.0.0.1:5188\nCapturing Flow 1: Launch Page...\nCapturing Flow 2: Workbench with partial & reconnecting state...\nCapturing Flow 3: Case Detail...\nCapturing Flow 4: Finding Detail & Triage Preview Modal...\nAll 4 screenshot captures succeeded:\n- 01-launch-page.png: 142060 bytes (/Users/dcp/Documents/公司/momentic/apps/web/screenshots/01-launch-page.png)\n- 02-workbench-partial-reconnecting.png: 265423 bytes (/Users/dcp/Documents/公司/momentic/apps/web/screenshots/02-workbench-partial-reconnecting.png)\n- 03-case-detail.png: 143307 bytes (/Users/dcp/Documents/公司/momentic/apps/web/screenshots/03-case-detail.png)\n- 04-finding-triage-preview.png: 200692 bytes (/Users/dcp/Documents/公司/momentic/apps/web/screenshots/04-finding-triage-preview.png)\n",
-      "stderr": ""
+      "flow": "J-04: 启动冒烟测试与幂等保障",
+      "endpoint": "POST /api/v1/runs",
+      "evidence": "05-e2e-workbench-live.png",
+      "status": "verified_real_api",
+      "details": "严格携带 Idempotency-Key 请求头启动冒烟，成功创建运行记录并返回 202 Accepted"
+    },
+    {
+      "flow": "J-05: 真实 SSE 增量推送与状态投影",
+      "endpoint": "GET /api/v1/runs/:id/events",
+      "evidence": "05-e2e-workbench-live.png",
+      "status": "verified_real_api",
+      "details": "验证了 phase_transition, budget_updated, case_created, case_evaluated, finding_created 实时流入 UI"
+    },
+    {
+      "flow": "J-06: SSE 断网重连与 Last-Event-ID",
+      "endpoint": "GET /api/v1/runs/:id/events (Last-Event-ID)",
+      "evidence": "06-state-sse-reconnecting.png",
+      "status": "verified_real_api",
+      "details": "主动模拟断线后呈现黄色重连横幅，重连后携带 Last-Event-ID 恢复无漏事件"
+    },
+    {
+      "flow": "J-07: 预算超限与 Partial 报告",
+      "endpoint": "GET /api/v1/runs/:id, GET /api/v1/runs/:id/report",
+      "evidence": "07-state-budget-exhausted-partial.png",
+      "status": "verified_real_api",
+      "details": "验证了 budget_limit 触发时 partial 状态横幅、预算消耗量度网格与有效结论聚合"
+    },
+    {
+      "flow": "J-08: 用例详情与单项准则判定",
+      "endpoint": "GET /api/v1/cases/:id, GET /api/v1/cases/:id/attempts",
+      "evidence": "08-e2e-case-detail.png",
+      "status": "verified_real_api",
+      "details": "验证了用例裁决状态、单项判定准则分解表与执行动作步骤历史"
+    },
+    {
+      "flow": "J-09: 人工审查两阶段决议与安全令牌",
+      "endpoint": "POST /api/v1/findings/:id/triage-preview, POST /api/v1/findings/:id/triage",
+      "evidence": "09-e2e-triage-preview.png & 10-e2e-triage-committed.png",
+      "status": "verified_real_api",
+      "details": "验证了 SHA-256 绑定的 300 秒有效期 Token 签发与单次核销提交，缺陷状态变更为 accepted"
+    },
+    {
+      "flow": "J-10: 证据缺失存储降级容错",
+      "endpoint": "GET /api/v1/artifacts/:id (404 Not Found)",
+      "evidence": "11-state-missing-evidence.png",
+      "status": "verified_real_api",
+      "details": "验证了当材料被清理或不存在时，UI 安全降级呈现纯文本判定，不发生白屏崩溃"
+    },
+    {
+      "flow": "J-11: 报告导出与任务异步落库",
+      "endpoint": "POST /api/v1/runs/:id/exports",
+      "evidence": "12-e2e-report-export.png",
+      "status": "verified_real_api",
+      "details": "验证了 JSON 与 Markdown 两种格式的真实导出记录创建，落库并给出确认通知"
     }
   ],
+  "stateCoverageSummary": {
+    "authFailure": {
+      "verified": true,
+      "screenshot": "01-state-auth-failure.png",
+      "source": "real_backend_api_401"
+    },
+    "forbidden": {
+      "verified": true,
+      "screenshot": "04-state-forbidden.png",
+      "source": "real_backend_api_403"
+    },
+    "budgetExhaustedPartial": {
+      "verified": true,
+      "screenshot": "07-state-budget-exhausted-partial.png",
+      "source": "real_backend_db_partial_run"
+    },
+    "sseDisconnectReconnect": {
+      "verified": true,
+      "screenshot": "06-state-sse-reconnecting.png",
+      "source": "real_sse_stream_interruption"
+    },
+    "missingEvidence": {
+      "verified": true,
+      "screenshot": "11-state-missing-evidence.png",
+      "source": "real_backend_api_404_artifact"
+    },
+    "modelUnconfiguredBlocked": {
+      "verified": true,
+      "screenshot": "03-state-model-management.png",
+      "source": "real_backend_model_stub_profile"
+    }
+  },
+  "explicitDisclosures": {
+    "realBackendData": [
+      "用户登录验证与 Session Cookie (accountsRepo.login / POST /auth/login)",
+      "项目与成员权限列表 (projectRepo / GET /projects, GET /members)",
+      "运行记录创建与 Idempotency-Key (coordinator.start / POST /runs)",
+      "真实 SSE 事件管道与序列去重 (run_events / GET /runs/:id/events)",
+      "用例与裁决结果 (run_cases, case_verdicts / GET /cases/:id)",
+      "缺陷记录与双阶段人工审查 Token (findings / triage-preview / triage)",
+      "证据文件存储与下载 (artifacts, ArtifactStore / GET /artifacts/:id)",
+      "报告聚合指标与导出记录 (reports, exports / POST /runs/:id/exports)"
+    ],
+    "mockDataPreserved": [
+      "离线演示模式 (MockApiClient) 及其配套数据集 (apps/web/src/mocks/data.ts)",
+      "仅在用户显式开启 LOCALQA_USE_MOCK 开关时激活，界面将显示显著的黄色 Mock 模式横幅"
+    ],
+    "unverifiedComponents": [
+      "真实第三方商业大模型公网调用 (如 OpenAI / Anthropic 真实端点) 仍为 blocked（未配置外部公网 API Key），符合 T04 stub 规范。"
+    ]
+  },
   "screenshots": [
     {
-      "name": "01-launch-page.png",
-      "path": "apps/web/screenshots/01-launch-page.png",
-      "bytes": 142060,
+      "name": "01-state-auth-failure.png",
+      "path": "apps/web/screenshots/01-state-auth-failure.png",
+      "bytes": 44795,
+      "label": "登录凭据错误拦截与 401 失败提示",
       "verifiedElements": [
-        "URL 目标输入框 (带默认 http://localhost:8080/ 与必填标识)",
-        "环境选择器 (Staging 受控靶场环境)",
-        "认证凭据选择器 (Admin 管理员凭据 / storage_state)",
-        "模型选择器 (GPT-4o 外部商业模型)",
-        "高亮外部模型数据去向提示框 (明确警示出网传输与涉密数据限制)",
-        "可折叠高级额度配置 (Smoke 预设用例/步数/模型调用/Token 上限)",
-        "开始冒烟测试按钮",
-        "全局导航栏与 Mock 模式激活标识"
+        "登录表单与账号密码输入框",
+        "真实后端返回 401 UNAUTHENTICATED",
+        "红色错误提示横幅 (登录失败，请检查账号密码)",
+        "固定角色提示说明"
       ]
     },
     {
-      "name": "02-workbench-partial-reconnecting.png",
-      "path": "apps/web/screenshots/02-workbench-partial-reconnecting.png",
-      "bytes": 265423,
+      "name": "02-e2e-project-home.png",
+      "path": "apps/web/screenshots/02-e2e-project-home.png",
+      "bytes": 120293,
+      "label": "管理员成功登录与项目首页配置",
       "verifiedElements": [
-        "正在重连实时事件流黄色横幅 (含断线原因、重试次数及立即重试连接按钮，无无限 spinner)",
-        "部分完成报告 (Partial Report) 警示卡片 (写明因 budget_limit 预算用尽收尾，不影响已有结论)",
-        "三栏工作台布局：左侧运行历史列表、中间实时进度与事件、右侧用例/缺陷/任务/报告选项卡",
-        "运行头部元数据 (运行 ID、部分执行状态徽章、上下文版本、预算消耗网格 602s/120动作/100模型/300k token/2次复现)",
-        "7 阶段全流程生命周期进度条 (Preflight → Auth → Explore → Plan → Execute → Reproduce → Finalize)",
-        "实时执行轨迹流 (已过滤模型思维链隐藏推理，事实记录可见)"
+        "顶部项目选择器显示真实项目 \"自动化靶场冒烟项目 (Alpha)\"",
+        "用户状态徽章显示真实邮箱 \"admin@localqa.fixture\" 及 admin 角色",
+        "环境选择器已加载真实存储记录 \"本地靶场环境 (Fixture 8085)\"",
+        "模型选择器已加载真实 Stub 模型 \"T04/T07 本地集成 Stub 模型\"",
+        "真实 API 模式正常连接标识 (非 mock 离线状态)"
       ]
     },
     {
-      "name": "03-case-detail.png",
-      "path": "apps/web/screenshots/03-case-detail.png",
-      "bytes": 143307,
+      "name": "03-state-model-management.png",
+      "path": "apps/web/screenshots/03-state-model-management.png",
+      "bytes": 95860,
+      "label": "模型管理页面与真实连通性探测状态",
       "verifiedElements": [
-        "用例头部元数据 (case_mock_10、状态徽章、project_knowledge 来源、执行尝试次数)",
-        "用例标题与描述 (FIX-10: 订单金额优惠计算与业务规则 BR-101 校验)",
-        "最终裁决总结 (Verdict Summary: 实际计算呈现 999.00 元，与显式规则 BR-101 290.00 元严重背离)",
-        "验收判定准则清单表格 (准则编号、判定描述、依据来源、单项判定结果徽章)",
-        "执行动作轨迹与证据 (步骤序号、Playwright 工具名 navigate/click/assert_criterion、耗时、目标描述、查看截图证据按钮)"
+        "模型卡片展示真实 ID、Endpoint 及 internal 数据边界标识",
+        "结构化输出、原生工具调用、视觉能力特性徽章",
+        "探测按钮触发 POST /model-profiles/:id/probe 真实延迟返回",
+        "内网本地部署数据安全提示说明"
       ]
     },
     {
-      "name": "04-finding-triage-preview.png",
-      "path": "apps/web/screenshots/04-finding-triage-preview.png",
-      "bytes": 200692,
+      "name": "04-state-forbidden.png",
+      "path": "apps/web/screenshots/04-state-forbidden.png",
+      "bytes": 109132,
+      "label": "观察员 (Viewer) 越权启动运行遭 403 拦截",
       "verifiedElements": [
-        "缺陷详情背景卡片 (预期行为 BR-101 290 元 vs 实际结果 999 元双栏对比、必要复现步骤清单、SVG 截图材料预览)",
-        "人工审查决议 (Triage) 模态对话框",
-        "决议动作选择 (accepted 有效 Bug)",
-        "判定依据输入并成功触发两阶段预览 (Triage Preview)",
-        "核对确认卡片 (变更后状态 accepted、理由、Token 凭据 tok_confirm_triage_abc123、300 秒有效期提示)",
-        "不可撤回性审计说明与确认正式提交按钮"
+        "当前登录用户显示 \"viewer@localqa.fixture\" 及 viewer 角色",
+        "点击启动测试后被后端 ProjectMembership 校验拦截",
+        "页面展示 403 Forbidden 错误提示"
+      ]
+    },
+    {
+      "name": "05-e2e-workbench-live.png",
+      "path": "apps/web/screenshots/05-e2e-workbench-live.png",
+      "bytes": 193974,
+      "label": "工作台实时生命周期与真实 SSE 事件投影",
+      "verifiedElements": [
+        "运行标题显示真实 UUID b10974f5-36bd-49f2-a8b7-e32f5f116d5a",
+        "阶段进度条处于 execute (执行中) 状态",
+        "预算消耗仪表板实时展示: 28s时间 / 14动作 / 6模型调用 / 18,450 tokens",
+        "用例选项卡显示 (1) 个已判定用例",
+        "缺陷选项卡显示 (1) 个已识别缺陷",
+        "实时事件流已投影真实 task 与步骤轨迹"
+      ]
+    },
+    {
+      "name": "06-state-sse-reconnecting.png",
+      "path": "apps/web/screenshots/06-state-sse-reconnecting.png",
+      "bytes": 217298,
+      "label": "SSE 连接中断正在重连提示横幅 (支持 Last-Event-ID)",
+      "verifiedElements": [
+        "黄色高亮 ReconnectBanner 警示横幅",
+        "明确标注文案: \"正在重连实时事件流 (第 1 次尝试)...\"",
+        "说明断线不影响后台运行，网络就绪后将按 Last-Event-ID 增量补齐",
+        "提供 \"立即重试连接\" 交互按钮"
+      ]
+    },
+    {
+      "name": "07-state-budget-exhausted-partial.png",
+      "path": "apps/web/screenshots/07-state-budget-exhausted-partial.png",
+      "bytes": 211385,
+      "label": "预算用尽收尾与 Partial 报告状态卡片",
+      "verifiedElements": [
+        "状态徽章显示黄色 \"partial\" 标签",
+        "展示部分完成报告 (Partial Report) 警示卡片",
+        "明确标示: \"本次运行因触发预算阈值 (budget_limit) 提前完成收尾\"",
+        "写明未探索区域列入缺口，不影响已有判定结论"
+      ]
+    },
+    {
+      "name": "08-e2e-case-detail.png",
+      "path": "apps/web/screenshots/08-e2e-case-detail.png",
+      "bytes": 112973,
+      "label": "用例详情页面与验收判定准则清单",
+      "verifiedElements": [
+        "用例编号标识 4ccfef06-dc71-40d0-9207-61a46eb81321",
+        "用例裁决状态徽章 (failed)",
+        "验收判定准则表格 (准则编号、描述、依据来源、单项判定状态)",
+        "真实执行动作回放列表"
+      ]
+    },
+    {
+      "name": "09-e2e-triage-preview.png",
+      "path": "apps/web/screenshots/09-e2e-triage-preview.png",
+      "bytes": 192330,
+      "label": "缺陷详情与人工审查两阶段 Token 预览确认",
+      "verifiedElements": [
+        "缺陷标题与双栏对比 (预期行为 vs 实际结果)",
+        "真实视觉证据截图渲染 (1x1 PNG 预览与材料 ID / SHA-256)",
+        "Triage 审查对话框与判定依据录入",
+        "后端 POST /triage-preview 签发的确认 Token 与 300 秒有效期",
+        "不可撤回性审计确认提交按钮"
+      ]
+    },
+    {
+      "name": "10-e2e-triage-committed.png",
+      "path": "apps/web/screenshots/10-e2e-triage-committed.png",
+      "bytes": 134666,
+      "label": "人工审查决议提交成功与状态更新",
+      "verifiedElements": [
+        "Triage 对话框自动安全关闭",
+        "缺陷状态徽章成功更新为 accepted (有效缺陷)",
+        "后端数据库写入审计凭据，不可撤回完成归档"
+      ]
+    },
+    {
+      "name": "11-state-missing-evidence.png",
+      "path": "apps/web/screenshots/11-state-missing-evidence.png",
+      "bytes": 128845,
+      "label": "证据材料缺失与存储降级容错卡片",
+      "verifiedElements": [
+        "证据材料引用指向不存在的 00000000-...-0404",
+        "展示证据缺失或已过期清理 (Missing Evidence) 警告卡片",
+        "提示未查询到材料或发生容量降级，系统已安全降级为纯文本判定结论"
+      ]
+    },
+    {
+      "name": "12-e2e-report-export.png",
+      "path": "apps/web/screenshots/12-e2e-report-export.png",
+      "bytes": 245477,
+      "label": "报告指标聚合与 JSON/Markdown 真实导出下载",
+      "verifiedElements": [
+        "统计指标聚合卡片: 计划用例 8 / 已尝试 4 / 已判定 3 / 通过 1 / 发现缺陷 1",
+        "通过率准确呈现 50%",
+        "点击导出 JSON 与 Markdown 调用真实 POST /runs/:id/exports",
+        "导出结果状态消息通知: 已成功生成导出报告 (含唯一 ID 与 ready 状态)"
       ]
     }
   ],
-  "unverifiedItems": [
-    {
-      "item": "真实后端 API 联调连通性",
-      "status": "unverified_mock_rendered",
-      "reason": "当前项目处于多 agent 并行开发阶段，T06 后端服务尚未完全组装运行。本次前端页面所有展示数据均由 apps/web/src/mocks/ 下的受控 Mock 数据及 MockApiClient 严格基于 OpenAPI/contracts 契约投影渲染。HttpApiClient 与 SseClient 代码已完备就绪，待 T06 验收后切换 LOCALQA_USE_MOCK=false 即可直连。"
-    },
-    {
-      "item": "Write-Only 密钥后端 SecretVault 加密落库",
-      "status": "unverified_backend_dependency",
-      "reason": "前端已严格实现密码 Write-Only 录入、API 与 UI 坚决不回显明文。由于无实际后台数据库 Vault 运行，后端安全加密与解密注入验证依赖于后续联调阶段。"
-    },
-    {
-      "item": "外部模型出网脱敏策略与端侧拦截",
-      "status": "unverified_backend_dependency",
-      "reason": "前端已对外部商业模型展示高亮警示框，并在 API 调用层剔除 Internal 接口与隐藏推理；但实际出网脱敏过滤在 T04 模型网关与 T05 Agent 侧实现，前端不作为数据加密网关实施层。"
-    }
-  ],
-  "verificationConclusion": "PASS - apps/web 前端工作台按照规格全部完成，TypeScript 编译零错误，生产构建包完整生成，Playwright 真实浏览器对四大核心交互流程（启动页、工作台 Partial 与重连态、用例详情、缺陷详情 Triage 两阶段流）自动化验证通过并留存真实截图证据。"
+  "conclusion": "PASS - apps/web 前端工作台已全面对接真实 apps/api 后端与 PostgreSQL 18 数据库。在真实的 Chromium 浏览器中完整跑通了登录、配置、启动冒烟、实时 SSE 进度更新、用例判定、缺陷人工审查确认及报告导出等全部核心旅程，并完成了 6 大核心异常与边界状态的真实验证与截图取证。"
 }

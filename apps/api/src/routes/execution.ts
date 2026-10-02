@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto';
-import { parseContract } from '@localqa/contracts';
+import { randomUUID, createHash } from 'node:crypto';
+import { parseContract, getApiValidator } from '@localqa/contracts';
 import type {
   CaseRecord,
   Task,
@@ -20,6 +20,7 @@ import {
   runDTO,
 } from '@localqa/storage';
 import { requireAuth } from '../auth.js';
+import { ApiError } from '../errors.js';
 import { parsePagination, paginate, type Router } from '../router.js';
 import type { RequestContext } from '../types.js';
 
@@ -238,20 +239,33 @@ export function registerExecutionRoutes(router: Router): void {
       await requireAuth(ctx);
       const runId = ctx.params.runId!;
 
-      let afterSeq = 0;
-      if (ctx.query['afterSeq']) {
-        const parsed = parseInt(ctx.query['afterSeq'], 10);
-        if (!Number.isNaN(parsed) && parsed >= 0) {
-          afterSeq = parsed;
-        }
+      const afterRaw = ctx.query['afterSeq'];
+      const limitRaw = ctx.query['limit'];
+      if (
+        (afterRaw !== undefined && !/^(0|[1-9]\d*)$/.test(afterRaw)) ||
+        (limitRaw !== undefined && !/^[1-9]\d*$/.test(limitRaw))
+      ) {
+        throw new ApiError(
+          'VALIDATION_ERROR',
+          'Invalid event-history pagination',
+          422,
+        );
       }
-
-      let limit = 100;
-      if (ctx.query['limit']) {
-        const parsed = parseInt(ctx.query['limit'], 10);
-        if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 100) {
-          limit = parsed;
-        }
+      const afterSeq = afterRaw === undefined ? 0 : Number(afterRaw);
+      const limit = limitRaw === undefined ? 20 : Number(limitRaw);
+      const validateQuery = getApiValidator('listEventHistory', {
+        kind: 'parameters',
+        location: 'query',
+      });
+      if (
+        !Number.isSafeInteger(afterSeq) ||
+        !validateQuery({ afterSeq, limit })
+      ) {
+        throw new ApiError(
+          'VALIDATION_ERROR',
+          'Invalid event-history pagination',
+          422,
+        );
       }
 
       const { items, nextCursor } = await ctx.api.db.actor(
@@ -749,31 +763,44 @@ export function registerExecutionRoutes(router: Router): void {
       await requireAuth(ctx);
       const artifactId = ctx.params.artifactId!;
 
-      const { artifact, bytes } = await ctx.api.db.actor(
-        ctx.actor!,
-        async (client) => {
-          const row = (
-            await client.query<{ document: unknown }>(
-              'SELECT document FROM artifacts WHERE id = $1',
-              [artifactId],
-            )
-          ).rows[0];
-          if (!row) throw new StorageError('NOT_FOUND');
-          const art = parseContract('Artifact', row.document);
-
-          let contentBytes: Buffer;
-          try {
-            contentBytes = await ctx.api.artifacts.get(
-              art.projectId,
-              art.runId,
-              art.id,
-            );
-          } catch {
-            contentBytes = Buffer.from('{}', 'utf8');
-          }
-          return { artifact: art, bytes: contentBytes };
-        },
-      );
+      const artifact = await ctx.api.db.actor(ctx.actor!, async (client) => {
+        const row = (
+          await client.query<{ document: unknown }>(
+            'SELECT document FROM artifacts WHERE id = $1',
+            [artifactId],
+          )
+        ).rows[0];
+        if (!row) throw new StorageError('NOT_FOUND');
+        return parseContract('Artifact', row.document);
+      });
+      if (artifact.status === 'missing' || artifact.status === 'failed') {
+        throw new ApiError('NOT_FOUND', 'Artifact content unavailable', 404);
+      }
+      let bytes: Buffer;
+      try {
+        bytes = await ctx.api.artifacts.get(
+          artifact.projectId,
+          artifact.runId,
+          artifact.id,
+        );
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          'code' in error &&
+          error.code !== 'ENOENT'
+        )
+          throw error;
+        throw new ApiError('NOT_FOUND', 'Artifact content unavailable', 404);
+      }
+      if (
+        createHash('sha256').update(bytes).digest('hex') !== artifact.sha256
+      ) {
+        throw new ApiError(
+          'SERVICE_UNAVAILABLE',
+          'Artifact checksum mismatch',
+          503,
+        );
+      }
 
       const contentType =
         artifact.kind === 'screenshot'
@@ -784,12 +811,56 @@ export function registerExecutionRoutes(router: Router): void {
               ? 'application/zip'
               : 'application/octet-stream';
 
-      ctx.res.writeHead(200, {
+      const range = ctx.headers['range'];
+      let start = 0;
+      let end = bytes.length - 1;
+      if (range !== undefined) {
+        const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+        if (match && (match[1] || match[2])) {
+          if (match[1]) {
+            start = Number(match[1]);
+            end = match[2] ? Number(match[2]) : end;
+          } else {
+            const suffix = Number(match[2]);
+            start =
+              suffix > 0 ? Math.max(0, bytes.length - suffix) : bytes.length;
+          }
+        } else start = bytes.length;
+        if (
+          !Number.isSafeInteger(start) ||
+          !Number.isSafeInteger(end) ||
+          start < 0 ||
+          start >= bytes.length ||
+          end < start
+        ) {
+          ctx.res.writeHead(416, {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Content-Range': `bytes */${bytes.length}`,
+          });
+          ctx.res.end(
+            JSON.stringify(
+              parseContract('Error', {
+                code: 'VALIDATION_ERROR',
+                message: 'Unsatisfiable byte range',
+                requestId: ctx.requestId,
+              }),
+            ),
+          );
+          return undefined;
+        }
+        end = Math.min(end, bytes.length - 1);
+      }
+      const chunk = bytes.subarray(start, end + 1);
+      ctx.res.writeHead(range === undefined ? 200 : 206, {
         'Content-Type': contentType,
-        'Content-Length': bytes.length,
+        'Content-Length': chunk.length,
+        'Accept-Ranges': 'bytes',
+        ...(range === undefined
+          ? {}
+          : { 'Content-Range': `bytes ${start}-${end}/${bytes.length}` }),
         'Content-Disposition': `inline; filename="${artifactId}.${artifact.kind === 'screenshot' ? 'png' : 'bin'}"`,
       });
-      ctx.res.end(bytes);
+      ctx.res.end(chunk);
       return undefined;
     },
   );

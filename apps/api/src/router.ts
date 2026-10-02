@@ -1,4 +1,6 @@
 import type { RouteHandler, RouteMatch } from './types.js';
+import { getApiValidator } from '@localqa/contracts';
+import { ApiError } from './errors.js';
 
 interface RouteDefinition {
   method: string;
@@ -73,28 +75,36 @@ export function parsePagination(query: Record<string, string>): {
   offset: number;
   cursor: string | null;
 } {
-  let limit = 20;
-  if (query['limit']) {
-    const parsed = parseInt(query['limit'], 10);
-    if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 100) {
-      limit = parsed;
-    }
+  const rawLimit = query['limit'];
+  if (rawLimit !== undefined && !/^[1-9]\d*$/.test(rawLimit)) {
+    throw new ApiError('VALIDATION_ERROR', 'Invalid limit', 422);
   }
+  const limit = rawLimit === undefined ? 20 : Number(rawLimit);
+  // Use the authoritative OpenAPI integer boundary rather than silently resetting.
+  const validate = getApiValidator('listEventHistory', {
+    kind: 'parameters',
+    location: 'query',
+  });
+  if (!validate({ limit }))
+    throw new ApiError('VALIDATION_ERROR', 'Invalid limit', 422);
 
   let offset = 0;
-  const cursor = query['cursor'] || null;
-  if (cursor) {
-    try {
-      const decoded = Buffer.from(cursor, 'base64url').toString('utf8');
-      const num = parseInt(decoded, 10);
-      if (!Number.isNaN(num) && num >= 0) {
-        offset = num;
-      }
-    } catch {
-      // Invalid cursor defaults to 0
+  const cursor = query['cursor'] ?? null;
+  if (cursor !== null) {
+    if (!/^[A-Za-z0-9_-]+$/.test(cursor) || cursor.length > 2000) {
+      throw new ApiError('VALIDATION_ERROR', 'Invalid cursor', 422);
     }
+    const decoded = Buffer.from(cursor, 'base64url').toString('utf8');
+    if (
+      !/^(0|[1-9]\d*)$/.test(decoded) ||
+      Buffer.from(decoded).toString('base64url') !== cursor
+    ) {
+      throw new ApiError('VALIDATION_ERROR', 'Invalid cursor', 422);
+    }
+    offset = Number(decoded);
+    if (!Number.isSafeInteger(offset))
+      throw new ApiError('VALIDATION_ERROR', 'Invalid cursor', 422);
   }
-
   return { limit, offset, cursor };
 }
 

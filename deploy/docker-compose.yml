@@ -35,12 +35,16 @@ services:
     build:
       context: ..
       dockerfile: deploy/images/web.Dockerfile
+      args:
+        LOCALQA_UID: ${LOCALQA_UID:-1001}
+        LOCALQA_GID: ${LOCALQA_GID:-1001}
     container_name: localqa-web
     restart: unless-stopped
     read_only: true
     user: '${LOCALQA_UID:-1001}:${LOCALQA_GID:-1001}'
     tmpfs:
       - /tmp:rw,nosuid,size=64m
+      - /home/localqa:rw,nosuid,size=64m,mode=1777
     healthcheck:
       test: ['CMD', 'node', '/app/web-entry.mjs', '--check']
       interval: 10s
@@ -58,12 +62,16 @@ services:
     build:
       context: ..
       dockerfile: deploy/images/api.Dockerfile
+      args:
+        LOCALQA_UID: ${LOCALQA_UID:-1001}
+        LOCALQA_GID: ${LOCALQA_GID:-1001}
     container_name: localqa-api
     restart: unless-stopped
     read_only: true
     user: '${LOCALQA_UID:-1001}:${LOCALQA_GID:-1001}'
     tmpfs:
       - /tmp:rw,nosuid,size=64m
+      - /home/localqa:rw,nosuid,size=64m,mode=1777
     env_file:
       - path: .env
         required: false
@@ -93,12 +101,16 @@ services:
     build:
       context: ..
       dockerfile: deploy/images/orchestrator.Dockerfile
+      args:
+        LOCALQA_UID: ${LOCALQA_UID:-1001}
+        LOCALQA_GID: ${LOCALQA_GID:-1001}
     container_name: localqa-orchestrator
     restart: unless-stopped
     read_only: true
     user: '${LOCALQA_UID:-1001}:${LOCALQA_GID:-1001}'
     tmpfs:
       - /tmp:rw,nosuid,size=64m
+      - /home/localqa:rw,nosuid,size=64m,mode=1777
     env_file:
       - path: .env
         required: false
@@ -138,6 +150,9 @@ services:
     build:
       context: ..
       dockerfile: deploy/images/worker.Dockerfile
+      args:
+        LOCALQA_UID: ${LOCALQA_UID:-1001}
+        LOCALQA_GID: ${LOCALQA_GID:-1001}
     container_name: localqa-worker
     restart: unless-stopped
     read_only: true

@@ -70,6 +70,24 @@ export function registerInternalRoutes(router: Router): void {
     return { scope, proof };
   };
 
+  const withLeaseErrors = async <T>(work: () => Promise<T>): Promise<T> => {
+    try {
+      return await work();
+    } catch (error) {
+      if (
+        error instanceof StorageError &&
+        (error.code === 'LEASE_EXPIRED' || error.code === 'SCOPE_CHANGED')
+      ) {
+        throw new ApiError(
+          'LEASE_EXPIRED',
+          'Lease or scope is no longer current',
+          409,
+        );
+      }
+      throw error;
+    }
+  };
+
   // POST /internal/v1/leases/claim
   router.post('/internal/v1/leases/claim', async (ctx: RequestContext) => {
     checkInternal(ctx);
@@ -123,18 +141,15 @@ export function registerInternalRoutes(router: Router): void {
       const taskId = ctx.params.taskId!;
       const input = parseContract('HeartbeatInput', ctx.body);
 
-      const { scope, proof } = await extractScopeAndProof(
-        ctx,
-        taskId,
-        input.fencingToken,
-        input.contextVersion,
-      );
-
-      const heartbeatResult = await ctx.api.coordinator.leases.heartbeat(
-        scope,
-        proof,
-        45,
-      );
+      const heartbeatResult = await withLeaseErrors(async () => {
+        const { scope, proof } = await extractScopeAndProof(
+          ctx,
+          taskId,
+          input.fencingToken,
+          input.contextVersion,
+        );
+        return ctx.api.coordinator.leases.heartbeat(scope, proof, 45);
+      });
 
       ctx.res.statusCode = 200;
       return parseContract('HeartbeatResult', heartbeatResult);
@@ -149,17 +164,14 @@ export function registerInternalRoutes(router: Router): void {
       const taskId = ctx.params.taskId!;
       const input = parseContract('TaskComplete', ctx.body);
 
-      const { scope, proof } = await extractScopeAndProof(
-        ctx,
-        taskId,
-        input.fencingToken,
-      );
-
-      const completed = await ctx.api.coordinator.leases.complete(
-        scope,
-        proof,
-        input,
-      );
+      const completed = await withLeaseErrors(async () => {
+        const { scope, proof } = await extractScopeAndProof(
+          ctx,
+          taskId,
+          input.fencingToken,
+        );
+        return ctx.api.coordinator.leases.complete(scope, proof, input);
+      });
 
       ctx.res.statusCode = 200;
       return parseContract('Task', completed);
@@ -337,34 +349,41 @@ export function registerInternalRoutes(router: Router): void {
       throw new ApiError('FORBIDDEN', 'X-Lease-Token header is required', 403);
     }
 
-    // Support both multipart/form-data and JSON with base64 file
+    // The internal transport contract permits multipart only; never accept base64 JSON.
     let taskId = '';
     let kind: Artifact['kind'] = 'screenshot';
     let redaction: Artifact['redaction'] = 'applied';
     let fileBuffer: Buffer = Buffer.alloc(0);
 
     const contentType = ctx.headers['content-type'] || '';
-    if (contentType.includes('multipart/form-data')) {
-      const boundaryMatch = contentType.match(/boundary=([^\s;]+)/);
-      if (boundaryMatch) {
-        const boundary = boundaryMatch[1]!;
-        const parts = parseMultipart(ctx.rawBody, boundary);
-        taskId = parts['taskId']?.toString('utf8').trim() || '';
-        kind = (parts['kind']?.toString('utf8').trim() ||
-          'screenshot') as Artifact['kind'];
-        redaction = (parts['redaction']?.toString('utf8').trim() ||
-          'applied') as Artifact['redaction'];
-        fileBuffer = parts['file'] || Buffer.alloc(0);
-      }
-    } else if (typeof ctx.body === 'object' && ctx.body !== null) {
-      const b = ctx.body as Record<string, unknown>;
-      taskId = String(b['taskId'] || '');
-      kind = (b['kind'] || 'screenshot') as Artifact['kind'];
-      redaction = (b['redaction'] || 'applied') as Artifact['redaction'];
-      if (typeof b['file'] === 'string') {
-        fileBuffer = Buffer.from(b['file'], 'base64');
-      }
+    if (!/^multipart\/form-data\s*;/i.test(contentType)) {
+      throw new ApiError(
+        'VALIDATION_ERROR',
+        'multipart/form-data is required',
+        422,
+      );
     }
+    const boundaryMatch = contentType.match(
+      /(?:^|;)\s*boundary=(?:"([^"]+)"|([^\s;]+))/i,
+    );
+    if (!boundaryMatch)
+      throw new ApiError(
+        'VALIDATION_ERROR',
+        'Multipart boundary is required',
+        422,
+      );
+    const parts = parseMultipart(
+      ctx.rawBody,
+      boundaryMatch[1] || boundaryMatch[2]!,
+    );
+    taskId = parts['taskId']?.toString('utf8').trim() || '';
+    kind = (parts['kind']?.toString('utf8').trim() ||
+      'screenshot') as Artifact['kind'];
+    redaction = (parts['redaction']?.toString('utf8').trim() ||
+      'applied') as Artifact['redaction'];
+    if (!parts['file'])
+      throw new ApiError('VALIDATION_ERROR', 'Multipart file is required', 422);
+    fileBuffer = parts['file'];
 
     if (!taskId) {
       throw new ApiError('VALIDATION_ERROR', 'taskId is required', 422);
@@ -379,14 +398,15 @@ export function registerInternalRoutes(router: Router): void {
     const job = await ctx.api.db.actor(ctx.api.adminActor, async (client) => {
       const row = (
         await client.query<{ run_id: string }>(
-          'SELECT run_id FROM jobs WHERE id = $1',
-          [taskId],
+          'SELECT run_id FROM jobs WHERE id = $1 AND project_id = $2',
+          [taskId, scope.projectId],
         )
       ).rows[0];
       return row;
     });
 
-    const runId = job?.run_id || randomUUID();
+    if (!job) throw new StorageError('NOT_FOUND');
+    const runId = job.run_id;
     const now = new Date().toISOString();
 
     const artifactDoc: Artifact = parseContract('Artifact', {

@@ -29,10 +29,13 @@ export function registerSseRoutes(router: Router): void {
       ctx.headers['last-event-id'] || ctx.query['lastEventId'];
     let lastSeq = 0;
     if (lastEventIdHeader) {
-      const parsed = parseInt(lastEventIdHeader, 10);
-      if (!Number.isNaN(parsed) && parsed >= 0) {
-        lastSeq = parsed;
+      if (!/^(0|[1-9]\d*)$/.test(lastEventIdHeader)) {
+        throw new ApiError('VALIDATION_ERROR', 'Invalid Last-Event-ID', 422);
       }
+      const parsed = Number(lastEventIdHeader);
+      if (!Number.isSafeInteger(parsed))
+        throw new ApiError('VALIDATION_ERROR', 'Invalid Last-Event-ID', 422);
+      lastSeq = parsed;
     }
 
     // Check for expired events (410 EVENTS_EXPIRED)
@@ -51,10 +54,7 @@ export function registerSseRoutes(router: Router): void {
     });
 
     if (seqRange.minSeq !== null && seqRange.maxSeq !== null) {
-      if (
-        (lastSeq > 0 && lastSeq < seqRange.minSeq - 1) ||
-        lastSeq > seqRange.maxSeq
-      ) {
+      if (lastSeq > 0 && lastSeq < seqRange.minSeq - 1) {
         throw new ApiError(
           'EVENTS_EXPIRED',
           'Requested event sequence has expired. Re-fetch full state.',
@@ -78,8 +78,6 @@ export function registerSseRoutes(router: Router): void {
       ctx.res.write(
         `id: ${event.seq}\nevent: ${event.type}\ndata: ${json}\n\n`,
       );
-      // Framing without event type for default onmessage listeners
-      ctx.res.write(`id: ${event.seq}\ndata: ${json}\n\n`);
     };
 
     let currentSeq = lastSeq;

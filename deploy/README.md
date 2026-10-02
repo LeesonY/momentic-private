@@ -52,7 +52,7 @@ LocalQA 采用基于 Docker Compose 的多容器隔离架构，划分为前端�
 | **Worker 内部身份**     | `deploy/secrets/worker_identity.json`                     | JSON，权限 `0400` 或 `0600`                     | Worker 进程向内部协调器/租约端口认证的私有令牌                                          |
 | **初始管理员密码**      | `deploy/secrets/admin_initial_password`                   | 单行纯文本（≥12字符）                           | 仅在系统初次初始化执行 `bootstrap-admin.mjs` 时消费一次，完成后入口关闭                 |
 
-应用侧 Node 出站 HTTPS 私有 CA 可放 `deploy/ca/company-ca.pem`（只读挂载 `/etc/localqa/ca`），在 `.env` 显式设置 `NODE_EXTRA_CA_CERTS=/etc/localqa/ca/company-ca.pem`。Chromium 独立证书信任链还需目标宿主/镜像验证，不可假设 Node CA 自动生效；入口 TLS 证书和私钥仅挂给 gateway 的 `/etc/nginx/certs`。
+nginx 仅 `/api/v1/runs/{runId}/events` SSE location 禁用 `proxy_buffering`（API 同时返回 `X-Accel-Buffering: no`；前者已足够，不依赖后者），其他 `/api/` 走普通代理，`/` 到 web:8080。应用侧 Node 出站 HTTPS 私有 CA 可放 `deploy/ca/company-ca.pem`（只读挂载 `/etc/localqa/ca`），在 `.env` 显式设置 `NODE_EXTRA_CA_CERTS=/etc/localqa/ca/company-ca.pem`。Chromium 独立证书信任链还需目标宿主/镜像验证，不可假设 Node CA 自动生效；入口 TLS 证书和私钥仅挂给 gateway 的 `/etc/nginx/certs`。
 
 ### T09-B1 镜像构建与就绪边界
 
@@ -64,7 +64,7 @@ docker compose -f deploy/docker-compose.yml build api worker orchestrator web
 # Orchestrator DB/schema/Vault 与成功 tick 时间戳；Worker DB/schema 与沙箱探针时间戳。
 ```
 
-镜像运行 UID/GID 默认为 1001:1001，容器根只读；数据库/材料位于命名卷，Worker HOME/scratch 与 `/tmp` 为 tmpfs。首次挂载命名卷需确认 UID 1001 对材料卷可写。构建缓存先按 lockfile `pnpm fetch`，再安装 workspace 并构建依赖闭包；`deploy/images/*.Dockerfile.dockerignore` 供 BuildKit 使用，根目录 `.dockerignore` 供 legacy builder 使用，两者排除本地凭据/证据。`T09-images.json` 里的本地镜像 ID/digest 不等同于推送后注册表多架构 digest。默认 Playwright worker 镜像 `v1.63.0-noble`，运行时 Node 24；没有 `--no-sandbox`。Worker 健康是**浏览器容量**而非可领取任务。API 就绪不依赖模型配置，使管理员能够进入设置；启动仍需 DB 迁移、KEK 和 Worker 身份文件。
+镜像运行 UID/GID 默认为 1001:1001；运行镜像创建 `localqa` 系统账号（Playwright 基镜像的 `pwuser` 同 UID 时重命名），`HOME` 与 passwd 中的目录一致。自定义 LOCALQA_UID/GID 须用 Compose 同值重建镜像；容器根只读，API/Web/Orchestrator HOME 及 Worker HOME/scratch 与 `/tmp` 为 tmpfs。数据库/材料位于命名卷。首次挂载命名卷需确认 UID 1001 对材料卷可写。构建缓存先按 lockfile `pnpm fetch`，再安装 workspace 并构建依赖闭包；`deploy/images/*.Dockerfile.dockerignore` 供 BuildKit 使用，根目录 `.dockerignore` 供 legacy builder 使用，两者排除本地凭据/证据。`T09-images.json` 里的本地镜像 ID/digest 不等同于推送后注册表多架构 digest。默认 Playwright worker 镜像 `v1.63.0-noble`，运行时 Node 24；没有 `--no-sandbox`。Worker 健康是**浏览器容量**而非可领取任务。API 就绪不依赖模型配置，使管理员能够进入设置；启动仍需 DB 迁移、KEK 和 Worker 身份文件。
 
 ---
 

@@ -32,10 +32,6 @@ const STATUS_MAP: Record<string, number> = {
   ARTIFACT_TOO_LARGE: 413,
   LEASE_EXPIRED: 409,
   ACTION_OUTCOME_UNKNOWN: 409,
-  POLICY_DENIED: 403,
-  BUDGET_EXCEEDED: 422,
-  INPUT_TIMEOUT: 408,
-  USER_CANCELLED: 409,
 };
 
 export function toApiErrorResponse(
@@ -53,8 +49,11 @@ export function toApiErrorResponse(
     status = error.status ?? STATUS_MAP[code] ?? 500;
     details = error.details;
   } else if (error instanceof StorageError) {
-    code = error.code;
-    message = error.message;
+    code = error.code === 'SCOPE_CHANGED' ? 'LEASE_EXPIRED' : error.code;
+    message =
+      code === 'LEASE_EXPIRED'
+        ? 'Lease or scope is no longer current'
+        : error.message;
     status = STATUS_MAP[code] ?? 500;
   } else if (error instanceof DomainError) {
     code = (

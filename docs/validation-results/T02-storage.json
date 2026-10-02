@@ -356,6 +356,7 @@
     "changes": [
       "currentLease separates an expired lease_until (LEASE_EXPIRED, database clock) from a live lease whose context_version or run status does not match (SCOPE_CHANGED). Heartbeat still reports cancelRequested and does not throw SCOPE_CHANGED.",
       "attemptDTO formats startedAt and finishedAt as UTC RFC3339 with a Z suffix, same as runDTO. Database transactions and pool connections set TimeZone to UTC."
-    ]
+    ],
+    "cleanupStatus": "删了 packages/storage/.evidence/tests.log（本轮 verify 的测试日志，证据未引用），回查已不存在。容器 localqa-t02-375fb45b、localqa-t02-4676da4e 与匿名卷 936ecf2e4211、7fa098d28644 回查均不存在。postgres.env 与 kek 文件不存在。未删 postgres:18-alpine 与 mcr.microsoft.com/playwright:v1.63.0-noble，未跑 builder prune（本轮没有构建镜像）。他人的 localqa-t07-pg 容器和原 T02 .evidence 日志保留。"
   }
 }

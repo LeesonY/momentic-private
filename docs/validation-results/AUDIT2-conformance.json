@@ -1,0 +1,309 @@
+{
+  "title": "第二轮契约一致性审计（apps/api、apps/web 客户端、packages/report、deploy 配置）",
+  "date": "2026-10-02",
+  "mode": "report-only",
+  "changedPackages": false,
+  "claims": {
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalled": false,
+    "postgresUsed": false,
+    "playwrightLaunched": false
+  },
+  "host": {
+    "node": "v26.3.0",
+    "platform": "darwin",
+    "probedAt": "2026-10-02T15:50:54Z"
+  },
+  "method": "只读源码，并用已安装的 @localqa/contracts（packages/contracts/dist）做校验。临时脚本曾放在 spikes/audit2/check.mjs，跑完已删除；下面每条 validator 都是当时的实测结果，不依赖该脚本。未改产品代码，未跑 git，未安装依赖，未启动 Postgres、浏览器或容器。上一轮 AUDIT-contract-conformance.json 的 13 项不符合不在本次范围。",
+  "contracts": [
+    "docs/contracts/openapi.json",
+    "docs/contracts/domain.schema.json",
+    "docs/contracts/events.schema.json",
+    "docs/contracts/report.schema.json",
+    "docs/03-data-and-api.md §3 §4 §6 §7 §8",
+    "packages/contracts/src/config.ts",
+    "packages/contracts/src/errors.ts ERROR_HTTP_STATUS"
+  ],
+  "counts": {
+    "符合": 10,
+    "不符合": 13,
+    "无法判定": 1
+  },
+  "items": [
+    {
+      "id": "api.operations",
+      "package": "apps/api",
+      "checkpoint": "60 个操作的路径、方法、状态码、命名 schema",
+      "conclusion": "符合",
+      "summary": "openapi.json 与路由注册都是 60 个，路径+方法一一对应，没有只存在于一边的操作。每个操作的成功状态码，以及具名请求/响应 schema 名，都出现在对应处理函数的 statusCode/writeHead 与 parseContract 调用里。openapi 的 components.schemas 与 domain.schema.json 的 $defs 深比较后无差异；events.schema.json 的 RunEvent、report.schema.json 的 Summary 与 domain 中同名定义相同。healthReady 的 200 与 503 都返回 Health，与 openapi 一致。uploadArtifact 的请求体是内联 multipart，不是具名 schema；处理函数读取了 taskId、kind、redaction、file。另有一条未写入契约的 JSON 体，见 api.upload-binding。",
+      "location": "apps/api/src/routes/auth.ts:14",
+      "contract": "docs/contracts/openapi.json 共 60 个 operationId（login 至 uploadArtifact）。8 个带 Internal tag，52 个为公共操作。",
+      "repro": "对 60 个 operation 取 method+path，与 apps/api/src/routes 里 60 处 router.get/post/patch/put/delete 比较：onlyInOpenApi=[]，onlyInRoutes=[]。具名 schema 缺失列表只含 uploadArtifact 的内联 object，人工阅读 internal.ts:347 确认 multipart 字段被解析。schemaDrift=[]。",
+      "validator": "组件 schema 与 domain $defs 规范化 $ref 后 JSON 相等。getApiValidator('login') 拒绝带 username 的请求体，也拒绝带 token 的 200 响应。"
+    },
+    {
+      "id": "api.error-envelope",
+      "package": "apps/api",
+      "checkpoint": "错误信封",
+      "conclusion": "符合",
+      "summary": "错误响应经 parseContract('Error') 生成，只含 code、message、requestId，details 可选。多余的 stack 字段校验失败。校验失败的异常消息是「Invalid 契约名」，不会把请求里的口令写进 message。未预期的 Error 被改写成 SERVICE_UNAVAILABLE 和固定句子。当前抛出点都没有传入 details；sanitizeDetails 会按键名把 password、secret、cookie、token、prompt、authorization、stack 换成 [REDACTED]，但不扫描值内容。",
+      "location": "apps/api/src/errors.ts:83",
+      "contract": "docs/03-data-and-api.md §4 第 98 行：错误为 {code,message,requestId,details?}，details 不含堆栈、密钥、浏览器 cookie 或原始 prompt。domain.schema.json Error additionalProperties false。",
+      "repro": "parseContract('LoginInput', {email, password:'secret-value-should-not-echo', stack:'Error: secret-value-should-not-echo'}) 抛 ContractValidationError，message 为 Invalid LoginInput，messageHasSecret=false。带 stack 的 Error 对象校验失败：additionalProperties。最小 {code,message,requestId} 通过。",
+      "validator": "errorOk=true；errorStack=false；loginLeak.messageHasSecret=false。"
+    },
+    {
+      "id": "api.pagination",
+      "package": "apps/api",
+      "checkpoint": "分页形状、默认与上限",
+      "conclusion": "符合",
+      "summary": "13 个游标列表走 parsePagination/paginate：默认 limit 20，只接受 1 到 100，返回 {items, nextCursor}。UserPage 等页类型把 nextCursor 列为必需。listEventHistory 也返回 RunEventPage，但默认值不同，见 api.query-bounds。openapi 里 listUsers、listProjects、listMembers、listEnvironment、listAuthProfile、listKnowledge、listModels 的 parameters 为空，实现仍按 §4 分页；响应 schema 仍然匹配。",
+      "location": "apps/api/src/router.ts:76",
+      "contract": "docs/03-data-and-api.md §4 第 96 行：数组以 {items,nextCursor} 返回，默认 20、最多 100。domain UserPage required 含 nextCursor，items maxItems 100。",
+      "repro": "router.ts:76 默认 20；79 行仅当 1<=limit<=100 才覆盖。paginate（101–113 行）切片并在还有剩余时给出 base64url nextCursor，否则 null。validateContract('UserPage', {items:[]}) 失败，缺 nextCursor；{items:[], nextCursor:null} 通过。",
+      "validator": "userPageMissingCursor ok=false；userPageOk ok=true。"
+    },
+    {
+      "id": "api.sse-payload",
+      "package": "apps/api",
+      "checkpoint": "SSE 事件校验、心跳、断开",
+      "conclusion": "符合",
+      "summary": "写出前 parseContract('RunEvent')。id 设为十进制 seq。type 与 payload 不匹配会被拒绝。心跳是注释 `: ping`，间隔 15 秒，不是 RunEvent。客户端断开只清定时器，不取消运行。请求头 Last-Event-ID 会被读取。历史与增量都按 seq > lastSeq 升序发送。轮询错误被吞掉、连接保持打开，契约没有要求因此断开。双帧和超前游标另计。",
+      "location": "apps/api/src/routes/sse.ts:104",
+      "contract": "docs/03-data-and-api.md §6 第 156–160 行。events.schema.json RunEvent：id 模式 ^[1-9][0-9]*$，seq 最小 1，allOf 按 type 约束 payload。",
+      "repro": "phase.changed 加 {phase:'plan', contextVersion:1} 通过。去掉 contextVersion 失败：/payload 缺 contextVersion。id='0' 失败，不匹配 ^[1-9][0-9]*$。sse.ts:125 写 `: ping`，间隔 15000。req close（175 行）只 clearInterval。",
+      "validator": "phaseEvent ok=true；phaseMismatch ok=false；eventIdZero ok=false。events RunEvent 与 domain RunEvent 相等。"
+    },
+    {
+      "id": "web.no-internal",
+      "package": "apps/web",
+      "checkpoint": "Internal tag 是否漏进公共客户端",
+      "conclusion": "符合",
+      "summary": "8 个内部 operationId（claimTask、heartbeatTask、completeTask、reserveAction、completeAction、completeModelRequest、resolveCredential、uploadArtifact）没有出现在 apps/web/src/api。源码里没有 /internal/ 路径。getApiValidator 默认拒绝 claimTask，必须显式 internal:true。ModelsPage 的 dataBoundary==='internal' 是模型部署位置的界面文案，不是 OpenAPI 的 Internal tag。",
+      "location": "apps/web/src/api/types.ts:25",
+      "contract": "docs/03-data-and-api.md §4.1 第 133 行：前端生成 client 时排除 Internal tag。openapi.json info：Internal endpoints are not exposed through the public reverse proxy。",
+      "repro": "在 types.ts、client.ts、sse.ts 中查找 8 个内部 operationId 与字符串 /internal/，结果为空。packages/contracts 的 publicOperationIds 长度为 52，internalOperationIds 长度为 8。",
+      "validator": "getApiValidator('claimTask') 抛出 Operation unavailable: claimTask。传入 {internal:true} 后不再因 tag 拒绝。"
+    },
+    {
+      "id": "web.sse-dedupe",
+      "package": "apps/web",
+      "checkpoint": "SSE 按 seq 去重",
+      "conclusion": "符合",
+      "summary": "onmessage 在 seq <= lastSeq 时直接丢弃，然后才把 lastSeq 推进。lastSeq 从 0 开始，而契约 seq 最小为 1，所以首条事件不会被丢掉。相同 seq 的第二帧会被丢掉。比 lastSeq 更小的迟到事件会被丢掉；出现空洞时更大的 seq 仍会接受，契约只要求去重，没有要求补洞。重连没有设置请求头 Last-Event-ID，见本条备注：它把序号放在查询参数 lastEventId。服务端同时读这个查询参数，所以这条客户端能恢复，但参数名不是 openapi 声明的那个头。",
+      "location": "apps/web/src/api/sse.ts:71",
+      "contract": "docs/03-data-and-api.md §6 第 160 行：客户端按 seq 去重，重连带 Last-Event-ID。openapi streamEvents 的参数是 header Last-Event-ID，不是 query。",
+      "repro": "sse.ts:71 若 rawEvent.seq <= this.lastSeq 则 return，否则 lastSeq = seq。53–54 行仅当 lastSeq>0 时设置查询参数 lastEventId。17 行注释写了 Last-Event-ID，代码没有设置该头。服务端 sse.ts:28 同时读 last-event-id 头和 lastEventId 查询。",
+      "validator": "无独立校验器。去重条件是源码分支，不是 schema。"
+    },
+    {
+      "id": "report.summary",
+      "package": "@localqa/report",
+      "checkpoint": "统计语义与零分母",
+      "conclusion": "符合",
+      "summary": "planned、attempted、evaluated、passRate、attemptRate 与 §3 公式一致。evaluated 为 0 时 passRate 为 null，planned 为 0 时 attemptRate 为 null。每个 run_cases 行只产生一个 outcome：有最终 verdict 用其 status（passed、issue_found、blocked、inconclusive），有尝试但无 verdict 为 inconclusive，否则 not_run。返回前 parseContract('Summary')。schema 也接受分母为 0 时的数字 0，所以单靠校验器守不住 null 规则；当前源码写的是 null。",
+      "location": "packages/report/src/builder/summary.ts:37",
+      "contract": "docs/03-data-and-api.md §3 第 80–85 行。report.schema.json Summary 的 11 个必需字段；passRate/attemptRate 为 0–1 或 null。CaseRecord.outcome 为五个枚举。Verdict.status 没有 not_run。",
+      "repro": "summary.ts:41–48 在 evaluated===0 或 planned===0 时写入 null。report.ts:203–216 每个 case 行 push 一次 outcome。全 0 的 Summary 校验通过。evaluated=0 且 passRate=0 的对象也能通过 schema，但函数不会这样返回。",
+      "validator": "summaryEmpty ok=true（两个比率为 null）。summaryZeroEval ok=true（passRate null，attemptRate 0）。summaryBadZero ok=true，说明 schema 比散文更松。"
+    },
+    {
+      "id": "report.document",
+      "package": "@localqa/report",
+      "checkpoint": "Report 必需字段",
+      "conclusion": "符合",
+      "summary": "build() 组装 schemaVersion、example、generatedAt、run、summary、cases、findings、reproductions、artifacts、modelUsage、coverageGaps、cleanupStatus、warnings，然后 parseContract('Report')。非法嵌套文档会让整次构建失败，而不是改写后放出。cleanupStatus 的取值映射另计。",
+      "location": "packages/report/src/builder/report.ts:301",
+      "contract": "report.schema.json Report.required 与上述 13 个字段相同，additionalProperties false。",
+      "repro": "report.ts:301–317 把这些字段交给 parseContract('Report', reportData)。本轮没有连库构造一份完整 Report。",
+      "validator": "未对整份 Report 做端到端样本（缺 Run 等大对象，且未连库）。字段集合与 schema required 逐项对照过。"
+    },
+    {
+      "id": "report.artifact-domain",
+      "package": "@localqa/report",
+      "checkpoint": "报告内 Artifact.status",
+      "conclusion": "符合",
+      "summary": "报告 JSON 里的 artifacts 直接来自已存储的 Artifact 文档，再由 parseContract('Report') 约束。status 枚举是 available、degraded、missing、failed，与 report.schema.json 相同。构建器没有把 degraded 改写成别的值。导出 manifest 的另一套状态见 report.manifest-degraded。",
+      "location": "packages/report/src/builder/report.ts:101",
+      "contract": "report.schema.json Artifact.status enum，第 1142–1149 行。必需字段含 status、redaction、error。",
+      "repro": "report.ts:95–101 读取 artifacts.document，309 行原样放入 Report。domain 与 report schema 的 Artifact.status 枚举相同。",
+      "validator": "两份 schema 的 status enum 都是 available|degraded|missing|failed。"
+    },
+    {
+      "id": "config.keys",
+      "package": "deploy",
+      "checkpoint": "CONFIG_KEYS 与示例值",
+      "conclusion": "符合",
+      "summary": "config.ts 有 15 个键。deploy/.env.example 全部给出，没有缺键。带 default 的 9 个键与示例值一致。EVENT_RETENTION_DAYS 没有默认值，示例显式写 30。示例满足注释中的约束：心跳 10 小于租约 45，轮询 1000 毫秒，OTP 等待 300 秒，PUBLIC_ORIGIN 为 https。示例里多出来的 POSTGRES_USER、POSTGRES_DB、POSTGRES_PASSWORD_FILE、GATEWAY_HTTP_PORT、GATEWAY_HTTPS_PORT、LOCALQA_UID、LOCALQA_GID、LOCALQA_WORKER_IMAGE 不属于 CONFIG_KEYS，compose 用它们做端口、用户和镜像。compose 的 environment 还写了 HOME、TMPDIR、PLAYWRIGHT_BROWSERS_PATH。LOCALQA_WEB_IMAGE、LOCALQA_API_IMAGE、LOCALQA_ORCHESTRATOR_IMAGE 只在 compose 插值里出现，.env.example 没有，compose 自带镜像名默认值。进程是否在缺少 .env 时拒绝启动，见 config.required-at-boot。",
+      "location": "packages/contracts/src/config.ts:4",
+      "contract": "packages/contracts/src/config.ts CONFIG_KEYS 与第 58–59 行的约束。deploy/.env.example 第 21–79 行。",
+      "repro": "15 个键 missingInExample=[]。defaultCompare 里每个带 default 的键 exampleMatchesDefault=true。heartbeat=10，lease=45，poll=1000，otp=300，originHttps=true。",
+      "validator": "直接读取 CONFIG_KEYS 与 .env.example，不是 JSON Schema。"
+    },
+    {
+      "id": "api.http-status-map",
+      "package": "apps/api",
+      "checkpoint": "错误码的 HTTP 状态",
+      "conclusion": "不符合",
+      "summary": "STATUS_MAP 给四个在契约里没有 HTTP 状态的码指定了状态：POLICY_DENIED 403、BUDGET_EXCEEDED 422、INPUT_TIMEOUT 408、USER_CANCELLED 409。403 在 §7 里留给 FORBIDDEN（成员存在但角色不足）。SCOPE_CHANGED 不在这张表里，StorageError 会落到 500，同时响应体仍带原来的 code。heartbeat 与 complete 直接调用租约方法，不捕获 SCOPE_CHANGED。reserveAction 把存储错误收成 200 的 ActionPermit，那条路径不走这张 HTTP 表。",
+      "location": "apps/api/src/errors.ts:35",
+      "contract": "docs/03-data-and-api.md §7 第 179–182 行：POLICY_DENIED / SCOPE_CHANGED 是动作不执行；BUDGET_EXCEEDED / INPUT_TIMEOUT / USER_CANCELLED 是保留部分报告。packages/contracts/src/errors.ts:21–28 这四个码以及 SCOPE_CHANGED 的 HTTP 都是 null。",
+      "repro": "errors.ts:35–38 写出上述四个状态。58 行 StorageError 使用 STATUS_MAP[code] ?? 500。packages/storage/src/leases.ts:128 在租约仍有效但范围变化时 throw new StorageError('SCOPE_CHANGED')。apps/api/src/routes/internal.ts:133 和 158 没有 catch。",
+      "validator": "ERROR_HTTP_STATUS 与 API 表对比，只有这四个码从 null 变成了具体 HTTP 状态。SCOPE_CHANGED 两边都没有表项，运行时用 500。"
+    },
+    {
+      "id": "api.sse-double-frame",
+      "package": "apps/api",
+      "checkpoint": "SSE 帧",
+      "conclusion": "不符合",
+      "summary": "每个 RunEvent 被写成两条 SSE 记录：第一条带 id、event=type 和 data；第二条只有 id 和 data。契约描述的是一条帧。浏览器若同时监听具名事件和 onmessage，会看到两次，除非自己按 seq 去掉。当前 Web 客户端只挂 onmessage，所以只拿到第二条，再按 seq 去掉重复。",
+      "location": "apps/api/src/routes/sse.ts:78",
+      "contract": "docs/contracts/openapi.json streamEvents 的 description：SSE framing uses id=seq, event=type and JSON data=RunEvent。",
+      "repro": "sse.ts:78–82 连续 ctx.res.write 两次，第二次模板没有 event 字段。两条的 id 都是 event.seq，data 都是同一份 JSON。",
+      "validator": "帧数是源码事实。单条 RunEvent JSON 本身能通过校验，见 api.sse-payload。"
+    },
+    {
+      "id": "api.sse-cursor-ahead",
+      "package": "apps/api",
+      "checkpoint": "Last-Event-ID 与 EVENTS_EXPIRED",
+      "conclusion": "不符合",
+      "summary": "lastSeq 大于当前最大 seq 时返回 410 EVENTS_EXPIRED。该码的契约含义是事件已过期、需要重新取快照。比现有最大序号还新的游标不是过期，客户端会被要求整段重拉。小于最小序号减 1 的判断才对应保留窗口已滑过。",
+      "location": "apps/api/src/routes/sse.ts:55",
+      "contract": "docs/03-data-and-api.md §7：EVENTS_EXPIRED 为 410，重新取得快照。openapi Last-Event-ID 只约束数字形式，没有把超前序号定义成过期。",
+      "repro": "sse.ts:53–62：若 lastSeq>0 且 lastSeq < minSeq-1，或者 lastSeq > maxSeq，抛 ApiError('EVENTS_EXPIRED', ..., 410)。例如库中最大 seq 为 4，请求 Last-Event-ID: 5，会 410。",
+      "validator": "未连库。分支不依赖外部输入以外的状态。"
+    },
+    {
+      "id": "api.query-bounds",
+      "package": "apps/api",
+      "checkpoint": "分页与事件历史的默认值、越界查询",
+      "conclusion": "不符合",
+      "summary": "合法的 1–100 见 api.pagination。越界时不返回 422：limit 不是 1–100 就保持默认 20；非法 cursor 当成偏移 0，会再次返回第一页。listEventHistory 在省略 limit 时用 100，不是 §4 的默认 20；非法 afterSeq 或越界 limit 同样被忽略。这些查询参数没有走 getApiValidator。",
+      "location": "apps/api/src/router.ts:77",
+      "contract": "docs/03-data-and-api.md §4 第 96 行默认 20、最多 100。openapi 中带 limit 的参数 schema 为 integer minimum 1 maximum 100（listEventHistory 在 openapi.json:2185）。listEventHistory 另有 afterSeq minimum 0。",
+      "repro": "router.ts:77–81：解析失败或小于 1 或大于 100 时不改 limit。86–95 行非法 cursor 的 offset 保持 0。execution.ts:249 初始 limit=100；242–254 行非法 afterSeq/limit 保持原值。",
+      "validator": "RunEventPage 接受 nextCursor 为十进制序号字符串（probe ok=true）。越界查询的 HTTP 行为来自源码，未发真实请求。"
+    },
+    {
+      "id": "api.download-body",
+      "package": "apps/api",
+      "checkpoint": "工件下载",
+      "conclusion": "不符合",
+      "summary": "读取二进制失败时仍返回 200，正文是两个字符的 {}。截图还会标成 image/png。没有实现 Range。openapi 的成功体是 application/octet-stream；实现按 kind 改成 image/png、application/json、application/zip 或 octet-stream。Content-Disposition 有设置。",
+      "location": "apps/api/src/routes/execution.ts:771",
+      "contract": "docs/contracts/openapi.json downloadArtifact 的 200 内容类型是 application/octet-stream。docs/03-data-and-api.md §4.1 第 129 行：授权流式材料，支持合适的 Range 与 Content-Disposition。§8 第 203 行：材料不可得时记录 status/error，不写打不开的假链接。",
+      "repro": "execution.ts:771–773 catch 后 contentBytes = Buffer.from('{}', 'utf8')。778–792 行按 kind 设 Content-Type，然后 200 写完字节。源码中没有 range 处理。",
+      "validator": "未连存储。失败分支是 catch 里的常量。"
+    },
+    {
+      "id": "api.upload-binding",
+      "package": "apps/api",
+      "checkpoint": "内部工件上传",
+      "conclusion": "不符合",
+      "summary": "openapi 只声明 multipart/form-data。实现在此之外接受 JSON，并把 file 当 base64。jobs 表没有对应任务时，runId 用随机 UUID 继续保存，而不是 NOT_FOUND。这样上传不绑定到该任务所属的运行。kind/redaction 最终会进 parseContract('Artifact')，非法枚举会变成 422。",
+      "location": "apps/api/src/routes/internal.ts:389",
+      "contract": "docs/contracts/openapi.json uploadArtifact 的 requestBody 只有 multipart，必需 taskId、kind、redaction、file。docs/03-data-and-api.md §5 第 152 行：按 lease 绑定归属上传。",
+      "repro": "internal.ts:359–366 在非 multipart 时从 JSON 读取 taskId/kind/redaction/file。379–389 行查不到 job 时 runId = randomUUID()，随后仍 upload。",
+      "validator": "响应侧 parseContract('Artifact') 仍在 392 与 420 行。请求侧 JSON 体不在 openapi content 里。"
+    },
+    {
+      "id": "deploy.sse-proxy-path",
+      "package": "deploy",
+      "checkpoint": "SSE 代理缓冲",
+      "conclusion": "不符合",
+      "summary": "免缓冲的 nginx location 匹配 /api/v1/projects/{projectId}/runs/{runId}/events。契约和实现的路径是 /api/v1/runs/{runId}/events，实际落到 location /api/，那里没有 proxy_buffering off。API 响应带了 X-Accel-Buffering: no。nginx 通常会因此关掉这一次响应的缓冲，但本轮没有启动 nginx，不能证明线上代理真的不缓冲。",
+      "location": "deploy/config/nginx.conf:72",
+      "contract": "docs/03-data-and-api.md §6 第 160 行：代理禁用该连接缓冲。openapi streamEvents 路径为 /api/v1/runs/{runId}/events。",
+      "repro": "nginx.conf:72 的正则含 /projects/。88–96 行 location /api/ 没有 proxy_buffering off。apps/api/src/routes/sse.ts:11 注册的是 /api/v1/runs/{runId}/events。sse.ts:71 设置 X-Accel-Buffering: no。Web 客户端请求的也是 /api/v1/runs/{runId}/events。",
+      "validator": "未启动 nginx。路径不一致是文本事实。"
+    },
+    {
+      "id": "web.login",
+      "package": "apps/web",
+      "checkpoint": "login 类型",
+      "conclusion": "不符合",
+      "summary": "客户端把登录输入写成 email、username、password 都可选，把结果写成 {token, user}。LoginInput 必需 email 与 password，且不允许 username。LoginResult 必需 user 与 expiresAt，不允许 token。运行时响应被 as T 断言，没有走校验器。",
+      "location": "apps/web/src/api/client.ts:76",
+      "contract": "domain.schema.json LoginInput（必需 email、password，additionalProperties false）与 LoginResult（必需 user、expiresAt）。openapi login 的请求与 200 响应使用这两个名字。",
+      "repro": "client.ts:76–80 与 types.ts:78–82。validateContract('LoginInput', {email:'a@b.co', username:'a', password:'password1'}) 失败：additionalProperties。{token, user} 作为 LoginResult 失败：缺 expiresAt，且 token 是多余字段。同形的合法 LoginResult 通过。",
+      "validator": "loginUsername ok=false；loginResultToken ok=false；loginResultOk ok=true。getApiValidator('login') 的请求与 200 响应结论相同。"
+    },
+    {
+      "id": "web.page-types",
+      "package": "apps/web",
+      "checkpoint": "列表返回类型",
+      "conclusion": "不符合",
+      "summary": "列表方法的声明返回值是 {items: T[]}，丢掉了必需的 nextCursor。服务端分页响应因此和客户端类型不等价。涉及 listUsers、listProjects、listMembers、listEnvironments、listAuthProfiles、listKnowledge、listModels、listRuns、listRunCases、listCaseAttempts、listRunTasks、listTaskSteps、listRunFindings。",
+      "location": "apps/web/src/api/client.ts:95",
+      "contract": "domain UserPage 及同类 Page：required 为 items 与 nextCursor。openapi 这些操作的 200 响应 $ref 到对应 Page。",
+      "repro": "client.ts:95 listUsers、99 listProjects、124 listMembers、128 listEnvironments、144 listAuthProfiles、160 listKnowledge、180 listModels、190 listRuns、277 listRunCases、285 listCaseAttempts、291 listRunTasks、295 listTaskSteps、303 listRunFindings。types.ts 的 ApiClient 签名相同。",
+      "validator": "validateContract('UserPage', {items:[]}) ok=false，缺 nextCursor。"
+    },
+    {
+      "id": "web.client-shapes",
+      "package": "apps/web",
+      "checkpoint": "其余手写请求/响应类型",
+      "conclusion": "不符合",
+      "summary": "没有从 openapi 生成客户端，HttpApiClient 用 as T 收下 JSON。probeModel 声明 {healthy, latencyMs}，契约是 ModelProbeResult。cancelRun 声明 {success:boolean}，服务端 202 返回 Run。healthReady 声明 {status, checks}，Health 必需 status 与 version，没有 checks。updateProject 发送 Partial<Project>，ProjectPatch 必需 expectedVersion 且不允许 id。createEnvironment 发送 Partial<Environment>，EnvironmentCreate 必需 name、baseUrl、allowedOrigins、tlsPolicy。createAuthProfile 同样把 AuthProfile 的局部当成 AuthProfileCreate（必需 name、mode、allowedOrigins）。createRun 的输入类型含 description、modelProfileId、config、budgetOverrides；这些字段不在 RunCreate 里。发送前会丢掉 modelProfileId 和 config，description 改名为 brief，因此实际 JSON 可以合法，但声明类型并不等价，传入的模型配置不会到达服务端。sendRunMessage 与 respondToInput 把响应当成 void；服务端分别返回 202 Run 和 200 InputRequest。",
+      "location": "apps/web/src/api/client.ts:184",
+      "contract": "domain ModelProbeResult、Run、Health、ProjectPatch、EnvironmentCreate、AuthProfileCreate、RunCreate、MessageInput、InputRequest。openapi 对应操作的成功响应。",
+      "repro": "client.ts:184 probeModel；248 cancelRun；364 healthReady；114 updateProject；134 createEnvironment；151 createAuthProfile；198–245 createRun；252 sendRunMessage；266 respondToInput。73 行 return res.json() as Promise<T>。服务端：models.ts:86 返回 ModelProbeResult；runs.ts:252 返回 Run；health.ts:23 返回 Health；runs.ts:309 返回 Run；runs.ts:386 返回 InputRequest。",
+      "validator": "ModelProbeResult {healthy,latencyMs} ok=false。Run {success:true} ok=false。Health {status:'ok', checks:{db:true}} ok=false；{status:'not_ready', version:'1.0.0'} ok=true。ProjectPatch 带 id 失败，缺 expectedVersion。RunCreate 带 description、modelProfileId、config、budgetOverrides 失败；只带 projectId、targetUrl、brief、mode 通过。ProjectCreate {name} 通过。KnowledgeCreate {title,text,kind} 通过。"
+    },
+    {
+      "id": "web.missing-operations",
+      "package": "apps/web",
+      "checkpoint": "公共操作是否进了客户端类型",
+      "conclusion": "不符合",
+      "summary": "PublicOperationName 是手写联合，没有引用 publicOperationIds。相对 52 个公共操作，缺 streamEvents、listEventHistory、downloadArtifact。streamEvents 另有 SseClient，不在这个联合里。listEventHistory 和 downloadArtifact 没有客户端方法。healthLive 写在联合类型里，HttpApiClient 没有对应方法。",
+      "location": "apps/web/src/api/types.ts:25",
+      "contract": "packages/contracts 导出的 publicOperationIds，来自 openapi 中不含 Internal tag 的 operationId。docs/03 §4.1 列出 GET event-history 与 GET artifacts/{id}/content。",
+      "repro": "types.ts:25–74 的联合在 healthReady 结束，中间没有 streamEvents、listEventHistory、downloadArtifact。73 行有 healthLive。client.ts 的方法止于 healthReady（364 行），没有 healthLive。",
+      "validator": "publicOperationIds 与该联合的差集为这三个 id。联合里多出来的 accepted 等五个字符串是 triage disposition，不是 operationId。"
+    },
+    {
+      "id": "report.cleanup",
+      "package": "@localqa/report",
+      "checkpoint": "cleanupStatus",
+      "conclusion": "不符合",
+      "summary": "终态运行（completed、cancelled、failed）一律写成 cleanupStatus succeeded。running、awaiting_input、cancelling 写成 pending。其余是 not_required。枚举里的 running、failed、manual_required 不会被赋给这个字段。失败的运行也会显示清理成功，清理失败被藏起来。证据缺失仍可能进 warnings，那不能代替 cleanupStatus。",
+      "location": "packages/report/src/builder/report.ts:292",
+      "contract": "report.schema.json Report.cleanupStatus 枚举：not_required、pending、running、succeeded、failed、manual_required（第 72–81 行）。docs/02-technical-design.md 第 78 行：清理失败和证据缺失作为报告警告及 cleanupStatus 记录，不能隐藏。",
+      "repro": "report.ts:292–298。run.status 为 failed 时走第一个分支，cleanupStatus='succeeded'。源码没有把 cleanupStatus 设为 failed、manual_required 或 running。",
+      "validator": "这些字符串都在枚举内，所以 parseContract('Report') 不会拦住错误映射。本轮没有连库。"
+    },
+    {
+      "id": "report.manifest-degraded",
+      "package": "@localqa/report",
+      "checkpoint": "导出条目的降级状态",
+      "conclusion": "不符合",
+      "summary": "导出 manifest 的 status 是 available、missing、too_large、redacted，不是契约里的 Artifact.status。redaction failed 记为 redacted，超过 25MiB 记为 too_large，missing 或 failed 记为 missing，这些情况不写 relativePath。domain 的 degraded 没有单独分支，会落到 available 并写上 relativePath。Markdown 只在 manifest 不是 available 时打印 status 和 error。降级工件因此变成一条普通链接。",
+      "location": "packages/report/src/validation/references.ts:64",
+      "contract": "report.schema.json Artifact.status 含 degraded，与 available 并列。docs/03-data-and-api.md §8 第 203 行：材料不可得时记录 status/error，不写假链接。",
+      "repro": "references.ts:68–87。条件只识别 redaction failed、bytes>25MiB、status missing 或 failed。degraded 且文件视为存在时 status 保持 available，relativePath 设为 artifacts/{id}{ext}。markdown.ts:117 仅在 available 且有 relativePath 时输出链接。",
+      "validator": "manifest 这四个状态不在 Artifact.status 枚举里。Report JSON 本身仍保留 domain status，见 report.artifact-domain。"
+    },
+    {
+      "id": "config.required-at-boot",
+      "package": "deploy",
+      "checkpoint": "必需配置在启动时是否强制",
+      "conclusion": "无法判定",
+      "summary": "api、orchestrator、worker 的 env_file 都是 required: false。六个 required:true 的键只存在于可选的 .env，compose 没有把它们写成 environment。未启动这些服务，不能判断进程在缺少 DATABASE_URL 等键时会拒绝启动，还是带着空值继续跑。",
+      "location": "deploy/docker-compose.yml:67",
+      "contract": "packages/contracts/src/config.ts：DATABASE_URL、PUBLIC_ORIGIN、DATA_DIR、MASTER_KEY_FILE、WORKER_IDENTITY_FILE、EVENT_RETENTION_DAYS 为 required true。",
+      "repro": "docker-compose.yml:67–69、102–104、151–153 都是 env_file path .env 且 required: false。本轮没有 docker compose up。",
+      "validator": "未运行。键名对照见 config.keys。"
+    }
+  ],
+  "本次未覆盖的范围": [
+    "没有对 60 个操作发真实 HTTP 请求，也没有连 Postgres。状态码和 schema 名来自源码对照，不代表数据库里的文档一定能通过 parseContract。",
+    "apps/worker、packages/orchestrator、packages/storage、packages/browser、packages/model-gateway、packages/agents 不在本轮对象内。只在 SCOPE_CHANGED 会从租约层冒泡到 API 时引用了 storage。",
+    "上一轮已修复的 13 项没有重测。",
+    "没有核对 migrations 是否保证 run_cases 每个计划用例一行。统计代码是按查询到的行计数的。",
+    "Web 的 ExportInput、TriageInput、InputResponse、MessageInput 只对照了源码字段，没有各造一份最小合法对象。已造对象写在对应条目的 validator 里。",
+    "nginx 只核对了 SSE 路径和 /internal 没有单独反代。没有审 TLS、限流和其余 location。公网入口没有 /internal/ 的 location，/internal 会落到静态站点 location /，这不是本轮的不符合项。",
+    "没有调用模型，没有启动浏览器，没有把 macOS 结果写成 Linux 结论。"
+  ],
+  "清理状态": "已删除 spikes/audit2/check.mjs，并 rmdir spikes/audit2（目录已不在）。已删除 /tmp/audit2-raw.json。未创建容器、卷或网络。回查 docker ps 没有名称含 audit 或 localqa-t02 的容器。未删除 postgres:18-alpine 与 playwright 镜像，未改 spikes/audit、既有证据文件和其他任务的容器。"
+}

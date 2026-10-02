@@ -24,6 +24,10 @@ import {
 } from '@localqa/storage';
 import { smokeCase, criteriaHash } from '@localqa/domain';
 import { createApiContext, createApiServer } from '../dist/index.js';
+import { parsePagination } from '../dist/router.js';
+import { toApiErrorResponse } from '../dist/errors.js';
+import { StorageError } from '@localqa/storage';
+import { DomainError } from '@localqa/domain';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const testEvidenceDir = `${root}apps/api/.evidence`;
@@ -760,6 +764,15 @@ test('T06-8: SSE Streaming, Event Framing, and 410 EVENTS_EXPIRED Recovery', asy
 
   assert.ok(receivedData.includes('id: 1'));
   assert.ok(receivedData.includes('run.updated'));
+  const completeFrames = receivedData
+    .split('\n\n')
+    .filter((frame) => frame.includes('data: '));
+  assert.ok(completeFrames.length >= 1);
+  for (const frame of completeFrames) {
+    assert.equal((frame.match(/^id: /gm) || []).length, 1);
+    assert.equal((frame.match(/^event: /gm) || []).length, 1);
+    assert.equal((frame.match(/^data: /gm) || []).length, 1);
+  }
 
   // Verify event-history endpoint:
   const history = await apiRequest(
@@ -773,19 +786,33 @@ test('T06-8: SSE Streaming, Event Framing, and 410 EVENTS_EXPIRED Recovery', asy
   assert.ok(history.json.items.length >= 2);
   parseContract('RunEventPage', history.json);
 
-  // Test 410 EVENTS_EXPIRED (Last-Event-ID beyond max sequence)
-  const expiredRes = await fetch(
-    `${baseUrl}/api/v1/runs/${testRun.id}/events`,
-    {
-      headers: {
-        Cookie: operatorCookie,
-        'Last-Event-ID': '99999',
-      },
-    },
+  // A cursor beyond the current maximum is not an expired cursor.
+  const futureController = new AbortController();
+  const future = await fetch(`${baseUrl}/api/v1/runs/${testRun.id}/events`, {
+    headers: { Cookie: operatorCookie, 'Last-Event-ID': '99999' },
+    signal: futureController.signal,
+  });
+  assert.equal(future.status, 200);
+  futureController.abort();
+  const badCursor = await apiRequest(
+    'GET',
+    `/api/v1/runs/${testRun.id}/event-history?afterSeq=1junk`,
+    { cookie: operatorCookie },
   );
-  assert.equal(expiredRes.status, 410);
-  const expiredJson = await expiredRes.json();
-  assert.equal(expiredJson.code, 'EVENTS_EXPIRED');
+  assert.equal(badCursor.status, 422);
+  const defaultHistory = await apiRequest(
+    'GET',
+    `/api/v1/runs/${testRun.id}/event-history`,
+    { cookie: operatorCookie },
+  );
+  assert.equal(defaultHistory.status, 200);
+  assert.ok(defaultHistory.json.items.length <= 20);
+  const badLimit = await apiRequest(
+    'GET',
+    `/api/v1/runs/${testRun.id}/event-history?limit=101`,
+    { cookie: operatorCookie },
+  );
+  assert.equal(badLimit.status, 422);
 
   recordTest('sse_streaming_and_events', true);
 });
@@ -1129,4 +1156,144 @@ test('T06-12: Report, Export, and Artifact Lifecycle', async () => {
   parseContract('Export', getExp.json);
 
   recordTest('report_and_exports', true);
+});
+
+test('T06 regression: pagination and stable lease errors', async () => {
+  for (const query of [
+    { limit: '101' },
+    { limit: '1junk' },
+    { limit: '0' },
+    { cursor: '%%%' },
+    { cursor: Buffer.from('7junk').toString('base64url') },
+  ]) {
+    assert.throws(
+      () => parsePagination(query),
+      (e) => e.code === 'VALIDATION_ERROR',
+    );
+  }
+  assert.equal(parsePagination({}).limit, 20);
+  assert.equal(
+    parsePagination({ cursor: Buffer.from('2').toString('base64url') }).offset,
+    2,
+  );
+  const invalidPage = await apiRequest(
+    'GET',
+    `/api/v1/runs?projectId=${projectAlpha.id}&limit=101`,
+    { cookie: operatorCookie },
+  );
+  assert.equal(invalidPage.status, 422);
+  const invalidCursor = await apiRequest(
+    'GET',
+    `/api/v1/runs?projectId=${projectAlpha.id}&cursor=MTJqdW5r`,
+    { cookie: operatorCookie },
+  );
+  assert.equal(invalidCursor.status, 422);
+  const scoped = toApiErrorResponse(
+    new StorageError('SCOPE_CHANGED'),
+    randomUUID(),
+  );
+  assert.equal(scoped.status, 409);
+  assert.equal(scoped.body.code, 'LEASE_EXPIRED');
+  for (const code of [
+    'POLICY_DENIED',
+    'BUDGET_EXCEEDED',
+    'INPUT_TIMEOUT',
+    'USER_CANCELLED',
+  ]) {
+    const response = toApiErrorResponse(new DomainError(code), randomUUID());
+    assert.equal(response.body.code, 'VALIDATION_ERROR');
+    assert.equal(response.status, 422);
+  }
+  recordTest('pagination_and_stable_lease_errors', true);
+});
+
+test('T06 regression: artifact Range, missing bytes and multipart-only upload', async () => {
+  const bytes = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
+  const artId = randomUUID();
+  const sha256 = createHash('sha256').update(bytes).digest('hex');
+  const doc = parseContract('Artifact', {
+    id: artId,
+    projectId: projectAlpha.id,
+    runId: testRun.id,
+    kind: 'screenshot',
+    status: 'available',
+    bytes: bytes.length,
+    sha256,
+    redaction: 'not_needed',
+    contentUrl: `/api/v1/artifacts/${artId}/content`,
+    error: null,
+    createdAt: new Date().toISOString(),
+    taskId: null,
+    stepId: null,
+    caseId: null,
+    snapshotId: null,
+  });
+  const dir = `${testEvidenceDir}/artifacts/${projectAlpha.id}/${testRun.id}`;
+  mkdirSync(dir, { recursive: true });
+  const file = `${dir}/${artId}`;
+  writeFileSync(file, bytes);
+  try {
+    await db.actor({ userId: adminUser.id }, (client) =>
+      client.query(
+        "INSERT INTO artifacts(id,project_id,run_id,document,retain_until) VALUES($1,$2,$3,$4,clock_timestamp()+interval '1 day')",
+        [artId, projectAlpha.id, testRun.id, doc],
+      ),
+    );
+    const url = `${baseUrl}/api/v1/artifacts/${artId}/content`;
+    const full = await fetch(url, { headers: { Cookie: operatorCookie } });
+    assert.equal(full.status, 200);
+    assert.deepEqual(Buffer.from(await full.arrayBuffer()), bytes);
+    const partial = await fetch(url, {
+      headers: { Cookie: operatorCookie, Range: 'bytes=2-5' },
+    });
+    assert.equal(partial.status, 206);
+    assert.equal(
+      partial.headers.get('content-range'),
+      `bytes 2-5/${bytes.length}`,
+    );
+    assert.deepEqual(
+      Buffer.from(await partial.arrayBuffer()),
+      bytes.subarray(2, 6),
+    );
+    const suffix = await fetch(url, {
+      headers: { Cookie: operatorCookie, Range: 'bytes=-3' },
+    });
+    assert.equal(suffix.status, 206);
+    assert.deepEqual(
+      Buffer.from(await suffix.arrayBuffer()),
+      bytes.subarray(-3),
+    );
+    const invalid = await fetch(url, {
+      headers: { Cookie: operatorCookie, Range: 'bytes=999-' },
+    });
+    assert.equal(invalid.status, 416);
+    assert.equal(
+      invalid.headers.get('content-range'),
+      `bytes */${bytes.length}`,
+    );
+    rmSync(file);
+    const missing = await apiRequest(
+      'GET',
+      `/api/v1/artifacts/${artId}/content`,
+      { cookie: operatorCookie },
+    );
+    assert.equal(missing.status, 404);
+    assert.equal(missing.json.code, 'NOT_FOUND');
+    const jsonUpload = await apiRequest('POST', '/internal/v1/artifacts', {
+      headers: { 'X-Lease-Token': 'invalid' },
+      body: { taskId: randomUUID(), file: bytes.toString('base64') },
+    });
+    assert.equal(jsonUpload.status, 422);
+    const missingJob = await apiRequest('POST', '/internal/v1/artifacts', {
+      headers: {
+        'X-Lease-Token': 'invalid',
+        'Content-Type': 'multipart/form-data; boundary=test',
+      },
+      body: `--test\r\nContent-Disposition: form-data; name="taskId"\r\n\r\n${randomUUID()}\r\n--test\r\nContent-Disposition: form-data; name="file"; filename="a.png"\r\n\r\nhello\r\n--test--\r\n`,
+    });
+    assert.equal(missingJob.status, 404);
+    recordTest('artifact_range_missing_and_multipart', true);
+  } finally {
+    rmSync(file, { force: true });
+  }
 });
