@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FIX-02: Delayed Rendering, Spinner & Long Connection</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>FIX-02: Delayed Rendering & Spinner</h1>
+    <nav class="main-nav">
+      <a href="/">← Back to Home</a>
+    </nav>
+  </header>
+
+  <main role="main" data-testid="main-content">
+    <h2>Delayed Content with Background Stream</h2>
+    <div class="notice">
+      <strong>Oracle Condition:</strong> The dynamic data renders after ~1.2s delay. A continuous Server-Sent Events (SSE) stream runs in the background. Tests must wait on the DOM element <code>[data-testid="delayed-content-ready"]</code>, NOT rely on <code>networkidle</code> (which will hang).
+    </div>
+
+    <!-- Long-lived connection indicator -->
+    <div style="margin-bottom: 20px;">
+      <span style="font-weight: 500;">Background Connection Status: </span>
+      <span class="badge badge-warning" id="sse-indicator" data-testid="sse-status-indicator">Connecting to SSE stream...</span>
+      <span id="sse-heartbeat-counter" style="font-size: 0.85rem; color: var(--text-muted); margin-left: 8px;">Heartbeats: 0</span>
+    </div>
+
+    <!-- Spinner & Dynamic Content Area -->
+    <div id="dynamic-container" class="card" style="min-height: 180px; text-align: center; padding: 32px;">
+      <div id="loading-spinner-wrapper">
+        <div class="spinner" data-testid="loading-spinner"></div>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Fetching delayed resource from <code>/api/fix-02/data</code>...</p>
+      </div>
+
+      <div id="delayed-content-wrapper" style="display: none;">
+        <div class="badge badge-success" data-testid="delayed-content-ready" style="font-size: 1rem; padding: 8px 16px; margin-bottom: 16px;">
+          ✓ Dynamic Data Loaded Successfully
+        </div>
+        <div id="records-list" style="text-align: left; max-width: 400px; margin: 0 auto;"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // 1. Establish persistent SSE stream in background (makes networkidle hang)
+    let heartbeatCount = 0;
+    const evtSource = new EventSource('/api/fix-02/stream');
+    const sseIndicator = document.getElementById('sse-indicator');
+    const sseCounter = document.getElementById('sse-heartbeat-counter');
+
+    evtSource.onopen = () => {
+      sseIndicator.textContent = "Persistent SSE Stream Active (Never Idle)";
+      sseIndicator.className = "badge badge-info";
+    };
+
+    evtSource.onmessage = (event) => {
+      heartbeatCount++;
+      sseCounter.textContent = `Heartbeats: ${heartbeatCount}`;
+    };
+
+    evtSource.onerror = () => {
+      sseIndicator.textContent = "SSE Disconnected";
+      sseIndicator.className = "badge badge-danger";
+    };
+
+    // 2. Fetch delayed data
+    async function fetchDelayedData() {
+      try {
+        const res = await fetch('/api/fix-02/data?delay=1200');
+        const json = await res.json();
+
+        // Hide spinner
+        document.getElementById('loading-spinner-wrapper').style.display = 'none';
+
+        // Show delayed content ready
+        const readyWrapper = document.getElementById('delayed-content-wrapper');
+        readyWrapper.style.display = 'block';
+
+        const listDiv = document.getElementById('records-list');
+        listDiv.innerHTML = `
+          <ul style="list-style: none; padding: 0;">
+            ${json.payload.records.map(r => `<li style="padding: 6px 0; border-bottom: 1px solid var(--border);" data-testid="record-${r.id}"><strong>${r.id}</strong>: ${r.label} <span class="badge badge-success">${r.status}</span></li>`).join('')}
+          </ul>
+        `;
+      } catch (err) {
+        console.error("Error fetching delayed data:", err);
+      }
+    }
+
+    fetchDelayedData();
+  </script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FIX-06: Frames & Popups</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>FIX-06: Same-Origin & Cross-Origin Frames, Popups</h1>
+    <nav class="main-nav">
+      <a href="/">← Back to Home</a>
+    </nav>
+  </header>
+
+  <main role="main" data-testid="main-content">
+    <h2>Frames & Multi-Page Testing</h2>
+    <div class="notice">
+      <strong>Oracle Condition:</strong>
+      <ul>
+        <li>Same-origin iframe: Accessible DOM nodes inside <code>#same-origin-iframe</code>.</li>
+        <li>Sandboxed / Cross-origin iframe: Scope checks applied; inaccessible frames recorded as gaps or blocked, not fabricated.</li>
+        <li>Popup: Opening a new tab creates a new Page target ID with verifiable content.</li>
+      </ul>
+    </div>
+
+    <!-- Section 1: Same-Origin Iframe -->
+    <section class="card" style="margin-bottom: 24px;">
+      <h3>1. Same-Origin Iframe</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
+        URL: <code>/fix-06-same-origin-frame.html</code>
+      </p>
+      <iframe id="same-origin-iframe" src="/fix-06-same-origin-frame.html" data-testid="iframe-same-origin" style="width: 100%; height: 160px; border: 1px solid var(--border); border-radius: 4px;"></iframe>
+    </section>
+
+    <!-- Section 2: Sandboxed / Cross-Origin Iframe -->
+    <section class="card" style="margin-bottom: 24px;">
+      <h3>2. Sandboxed Cross-Origin Simulation Frame</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
+        URL: <code>/fix-06-mock-cross-origin-frame.html</code> (restricted sandbox)
+      </p>
+      <iframe id="cross-origin-iframe" sandbox="allow-scripts" src="/fix-06-mock-cross-origin-frame.html" data-testid="iframe-cross-origin" style="width: 100%; height: 160px; border: 1px solid var(--border); border-radius: 4px;"></iframe>
+    </section>
+
+    <!-- Section 3: Popup / New Window -->
+    <section class="card">
+      <h3>3. Popup Window / New Tab</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+        Triggers a new page in a separate browser tab target.
+      </p>
+      <a href="/fix-06-popup.html" target="_blank" class="btn" data-testid="btn-open-popup">Open Popup in New Window</a>
+    </section>
+  </main>
+</body>
+</html>

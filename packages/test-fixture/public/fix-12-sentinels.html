@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FIX-12: Secret & Sentinel Values for Redaction Verification</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>FIX-12: Secret Sentinels & Redaction Policy</h1>
+    <nav class="main-nav">
+      <a href="/">← Back to Home</a>
+    </nav>
+  </header>
+
+  <main role="main" data-testid="main-content">
+    <h2>Sensitive Sentinel Injections</h2>
+    <div class="notice">
+      <strong>Oracle & Redaction Policy (NFR-002, AC-014):</strong>
+      <p>This page emits predefined sentinel tokens across 4 distinct channels. LocalQA must sanitize and redact these strings from public exports, logs, artifacts, and reports.</p>
+    </div>
+
+    <!-- Sentinel Manifest Table -->
+    <section class="card" style="margin-bottom: 24px;">
+      <h3>Active Sentinel Definitions</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Channel</th>
+            <th>Sentinel Target String</th>
+            <th>Inspection Location</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>URL Query</strong></td>
+            <td><code>SENTINEL_TOKEN_SECRET_XYZ8899</code></td>
+            <td>Query param: <code>?auth_token=...</code></td>
+          </tr>
+          <tr>
+            <td><strong>Password Input</strong></td>
+            <td><code>SENTINEL_PASSWORD_SUPER_SECRET_9999</code></td>
+            <td>DOM: <code>[data-testid="sensitive-input-pass"]</code></td>
+          </tr>
+          <tr>
+            <td><strong>Browser Console</strong></td>
+            <td><code>SENTINEL_API_KEY_LIVE_QA_TEST_7777</code></td>
+            <td>Browser DevTools Console log & warn</td>
+          </tr>
+          <tr>
+            <td><strong>Network Body</strong></td>
+            <td><code>SENTINEL_NETWORK_HEADER_bearer_token_9900</code></td>
+            <td>Fetch response payload from <code>/api/fix-12/network-sentinel</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Interactive Triggers -->
+    <div class="card-grid">
+      <!-- 1. Query URL -->
+      <div class="card">
+        <h4>1. URL Query Sentinel</h4>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">Reload page with sentinel embedded in query string.</p>
+        <a href="/fix-12-sentinels.html?auth_token=SENTINEL_TOKEN_SECRET_XYZ8899" class="btn btn-secondary" style="font-size: 0.8rem;" data-testid="link-sentinel-query">
+          Load Page with Query Sentinel
+        </a>
+      </div>
+
+      <!-- 2. Form Field -->
+      <div class="card">
+        <h4>2. Form Password Field</h4>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">Pre-filled password field masked for redaction.</p>
+        <input type="password" value="SENTINEL_PASSWORD_SUPER_SECRET_9999" data-testid="sensitive-input-pass" style="width: 100%; padding: 6px; border: 1px solid var(--border); border-radius: 4px;" readonly>
+      </div>
+
+      <!-- 3. Console Emitter -->
+      <div class="card">
+        <h4>3. Console Output Emitter</h4>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">Emits sentinel to devtools console stream.</p>
+        <button class="btn" style="font-size: 0.8rem;" data-testid="btn-emit-console" onclick="emitConsoleSentinels()">Emit to Console</button>
+        <span id="console-status" style="font-size: 0.8rem; color: var(--text-muted); margin-left: 6px;"></span>
+      </div>
+
+      <!-- 4. Network Request -->
+      <div class="card">
+        <h4>4. Network Sentinel Request</h4>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">Issues fetch request with sentinel payload.</p>
+        <button class="btn" style="font-size: 0.8rem;" data-testid="btn-fetch-network" onclick="fetchNetworkSentinel()">Fetch Network Sentinel</button>
+        <div id="network-result" style="font-size: 0.8rem; margin-top: 6px;"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    function emitConsoleSentinels() {
+      console.log("AUTH DEBUG: Bearer SENTINEL_TOKEN_SECRET_XYZ8899");
+      console.warn("EXPOSED KEY WARNING: SENTINEL_API_KEY_LIVE_QA_TEST_7777");
+      document.getElementById('console-status').textContent = "Sentinels written to console!";
+    }
+
+    async function fetchNetworkSentinel() {
+      const res = await fetch('/api/fix-12/network-sentinel?token=SENTINEL_TOKEN_SECRET_XYZ8899', {
+        headers: { 'X-Sentinel-Token': 'SENTINEL_NETWORK_HEADER_bearer_token_9900' }
+      });
+      const data = await res.json();
+      document.getElementById('network-result').innerHTML = `<code style="font-size: 0.75rem;">${JSON.stringify(data)}</code>`;
+    }
+
+    // Auto emit on initial load
+    emitConsoleSentinels();
+  </script>
+</body>
+</html>

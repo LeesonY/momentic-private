@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FIX-05: DOM Ambiguity, Duplicate Text & Reordering</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>FIX-05: Ambiguity, Hidden Elements & Reordering</h1>
+    <nav class="main-nav">
+      <a href="/">← Back to Home</a>
+    </nav>
+  </header>
+
+  <main role="main" data-testid="main-content">
+    <h2>DOM Edge Cases Testing</h2>
+    <div class="notice">
+      <strong>Oracle Condition:</strong>
+      <ul>
+        <li><strong>Duplicate Text:</strong> 9 buttons share the identical label "Inspect". Agent must use unique <code>data-testid</code>, <code>aria-label</code>, or semantic container hierarchy rather than naive text search to target the intended entity.</li>
+        <li><strong>Hidden Elements:</strong> Elements with <code>display: none</code> or <code>visibility: hidden</code> must not be treated as clickable targets.</li>
+        <li><strong>DOM Rearrangement:</strong> After shuffling order, actions based on stale coordinates or positional nth-child selectors fail. Agent must re-locate targets semantically.</li>
+      </ul>
+    </div>
+
+    <!-- Section 1: Duplicate Text Buttons (9 Items) -->
+    <section class="card" style="margin-bottom: 24px;">
+      <h3>1. Duplicate Text Buttons (9 Rows with identical "Inspect" button text)</h3>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 12px;">
+        Each row has identical button text "Inspect", but distinct target IDs and data-testids.
+      </p>
+
+      <div id="items-container" style="display: flex; flex-direction: column; gap: 10px;">
+        <div class="card" id="card-alpha" style="display: flex; justify-content: space-between; align-items: center;" data-item-id="LQA_ALPHA_001">
+          <div><strong>Item Alpha</strong> <code>(LQA_ALPHA_001)</code> - Database Cluster Primary Node</div>
+          <button class="btn btn-secondary" data-testid="btn-inspect-alpha" aria-label="Inspect Item Alpha" onclick="inspectItem('LQA_ALPHA_001')">Inspect</button>
+        </div>
+
+        <div class="card" id="card-beta" style="display: flex; justify-content: space-between; align-items: center;" data-item-id="LQA_BETA_002">
+          <div><strong>Item Beta</strong> <code>(LQA_BETA_002)</code> - Cache Cluster Sentinel Node</div>
+          <button class="btn btn-secondary" data-testid="btn-inspect-beta" aria-label="Inspect Item Beta" onclick="inspectItem('LQA_BETA_002')">Inspect</button>
+        </div>
+
+        <div class="card" id="card-gamma" style="display: flex; justify-content: space-between; align-items: center;" data-item-id="LQA_GAMMA_003">
+          <div><strong>Item Gamma</strong> <code>(LQA_GAMMA_003)</code> - Worker Dispatcher Queue</div>
+          <button class="btn btn-secondary" data-testid="btn-inspect-gamma" aria-label="Inspect Item Gamma" onclick="inspectItem('LQA_GAMMA_003')">Inspect</button>
+        </div>
+
+        <div class="card" id="card-delta" style="display: flex; justify-content: space-between; align-items: center;" data-item-id="LQA_DELTA_004">
+          <div><strong>Item Delta</strong> <code>(LQA_DELTA_004)</code> - API Gateway Ingress Proxy</div>
+          <button class="btn btn-secondary" data-testid="btn-inspect-delta" aria-label="Inspect Item Delta" onclick="inspectItem('LQA_DELTA_004')">Inspect</button>
+        </div>
+
+        <div class="card" id="card-epsilon" style="display: flex; justify-content: space-between; align-items: center;" data-item-id="LQA_EPSILON_005">
+          <div><strong>Item Epsilon</strong> <code>(LQA_EPSILON_005)</code> - SSE Event Broadcaster</div>
+          <button class="btn btn-secondary" data-testid="btn-inspect-epsilon" aria-label="Inspect Item Epsilon" onclick="inspectItem('LQA_EPSILON_005')">Inspect</button>
+        </div>
+
+        <div class="card" id="card-zeta" style="display: flex; justify-content: space-between; align-items: center;" data-item-id="LQA_ZETA_006">
+          <div><strong>Item Zeta</strong> <code>(LQA_ZETA_006)</code> - Vault Key Management Service</div>
+          <button class="btn btn-secondary" data-testid="btn-inspect-zeta" aria-label="Inspect Item Zeta" onclick="inspectItem('LQA_ZETA_006')">Inspect</button>
+        </div>
+
+        <div class="card" id="card-eta" style="display: flex; justify-content: space-between; align-items: center;" data-item-id="LQA_ETA_007">
+          <div><strong>Item Eta</strong> <code>(LQA_ETA_007)</code> - Artifact Blob Storage Store</div>
+          <button class="btn btn-secondary" data-testid="btn-inspect-eta" aria-label="Inspect Item Eta" onclick="inspectItem('LQA_ETA_007')">Inspect</button>
+        </div>
+
+        <div class="card" id="card-theta" style="display: flex; justify-content: space-between; align-items: center;" data-item-id="LQA_THETA_008">
+          <div><strong>Item Theta</strong> <code>(LQA_THETA_008)</code> - Playwright Headless Session Pool</div>
+          <button class="btn btn-secondary" data-testid="btn-inspect-theta" aria-label="Inspect Item Theta" onclick="inspectItem('LQA_THETA_008')">Inspect</button>
+        </div>
+
+        <div class="card" id="card-iota" style="display: flex; justify-content: space-between; align-items: center;" data-item-id="LQA_IOTA_009">
+          <div><strong>Item Iota</strong> <code>(LQA_IOTA_009)</code> - Task Scheduler Occurrence Engine</div>
+          <button class="btn btn-secondary" data-testid="btn-inspect-iota" aria-label="Inspect Item Iota" onclick="inspectItem('LQA_IOTA_009')">Inspect</button>
+        </div>
+      </div>
+
+      <div style="margin-top: 14px;">
+        <span>Last Inspected Target: </span>
+        <span id="inspect-result-badge" class="badge badge-info" data-testid="inspected-result">None</span>
+      </div>
+    </section>
+
+    <!-- Section 2: Hidden Elements -->
+    <section class="card" style="margin-bottom: 24px;">
+      <h3>2. Non-interactive & Hidden Buttons</h3>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 12px;">
+        These buttons exist in the DOM but are invisible/hidden. An agent should never click them.
+      </p>
+
+      <div>
+        <button class="btn" style="display: none;" data-testid="hidden-ghost-btn" onclick="alert('Ghost clicked!')">Display None Button</button>
+        <button class="btn" style="visibility: hidden;" data-testid="invisible-ghost-btn" onclick="alert('Invisible clicked!')">Visibility Hidden Button</button>
+        <button class="btn" style="opacity: 0; pointer-events: none;" data-testid="transparent-ghost-btn">Opacity 0 Button</button>
+        <span class="badge badge-success">Visible Baseline Target</span>
+      </div>
+    </section>
+
+    <!-- Section 3: DOM Rearrangement -->
+    <section class="card">
+      <h3>3. Dynamic DOM Rearrangement</h3>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 12px;">
+        Clicking this button shuffles the order of items in section 1, invalidating stale snapshot geometry.
+      </p>
+      <button id="btn-reorder" class="btn" data-testid="btn-trigger-reorder" onclick="reorderItems()">Shuffle DOM Layout</button>
+      <span id="reorder-status" style="font-size: 0.85rem; color: var(--text-muted); margin-left: 8px;">Order: Normal</span>
+    </section>
+  </main>
+
+  <script>
+    async function inspectItem(targetId) {
+      const res = await fetch('/api/fix-05/inspect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetId })
+      });
+      const data = await res.json();
+      const badge = document.getElementById('inspect-result-badge');
+      badge.textContent = data.targetId;
+      badge.className = 'badge badge-success';
+    }
+
+    let isReversed = false;
+    function reorderItems() {
+      const container = document.getElementById('items-container');
+      const cards = Array.from(container.children);
+      cards.reverse().forEach(card => container.appendChild(card));
+      isReversed = !isReversed;
+      document.getElementById('reorder-status').textContent = `Order: ${isReversed ? 'Reversed (DOM Mutated)' : 'Normal'}`;
+    }
+  </script>
+</body>
+</html>

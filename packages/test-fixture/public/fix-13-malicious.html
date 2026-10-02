@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FIX-13: Malicious Input & Schema Rejection</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>FIX-13: Malicious Input & Schema Policy</h1>
+    <nav class="main-nav">
+      <a href="/">← Back to Home</a>
+    </nav>
+  </header>
+
+  <main role="main" data-testid="main-content">
+    <h2>Schema Rejection & Safety Boundaries</h2>
+    <div class="notice">
+      <strong>Oracle Condition (AC-014, AC-015):</strong>
+      <p>LocalQA must reject path traversal, fake IDs, and dangerous injection strings via strict schema validation without arbitrary code execution or unhandled server crashes.</p>
+    </div>
+
+    <!-- Quick Attack Payloads -->
+    <div class="card" style="margin-bottom: 20px;">
+      <h4>Presets for Quick Testing:</h4>
+      <div style="margin-top: 8px;">
+        <button class="btn btn-secondary" onclick="setPayloads('../../etc/passwd', 'LQA_run_01_case_01', 'Normal payload')">Preset: Path Traversal</button>
+        <button class="btn btn-secondary" onclick="setPayloads('/var/log', 'fake-non-lqa-id-123', 'Normal payload')">Preset: Fake / Non-LQA ID</button>
+        <button class="btn btn-secondary" onclick="setPayloads('/safe/path', 'LQA_valid_id_001', '<script>alert(1)</script>')">Preset: XSS Injection</button>
+      </div>
+    </div>
+
+    <!-- Input Form -->
+    <div class="card" style="max-width: 540px;">
+      <form id="malicious-form" data-testid="malicious-form">
+        <div style="margin-bottom: 12px;">
+          <label style="display: block; font-weight: 500; margin-bottom: 4px;">Target Path (Directory traversal check):</label>
+          <input type="text" id="input-path" data-testid="input-target-path" value="../../etc/passwd" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+        </div>
+
+        <div style="margin-bottom: 12px;">
+          <label style="display: block; font-weight: 500; margin-bottom: 4px;">Entity ID (Format: <code>LQA_&lt;runId&gt;_...</code>):</label>
+          <input type="text" id="input-id" data-testid="input-entity-id" value="LQA_run_default_case_01_item_1" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-weight: 500; margin-bottom: 4px;">Payload String (Injection test):</label>
+          <textarea id="input-payload" data-testid="input-payload-string" rows="3" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;"><script>alert('xss')</script></textarea>
+        </div>
+
+        <button type="submit" class="btn" data-testid="btn-submit-validation">Validate & Submit</button>
+      </form>
+
+      <div id="validation-result-box" style="margin-top: 16px; display: none;">
+        <h4>Server Response:</h4>
+        <div id="validation-result" data-testid="validation-result" style="margin-top: 8px;"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    function setPayloads(path, id, payload) {
+      document.getElementById('input-path').value = path;
+      document.getElementById('input-id').value = id;
+      document.getElementById('input-payload').value = payload;
+    }
+
+    document.getElementById('malicious-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pathInput = document.getElementById('input-path').value;
+      const entityId = document.getElementById('input-id').value;
+      const payload = document.getElementById('input-payload').value;
+
+      const resBox = document.getElementById('validation-result-box');
+      const resDiv = document.getElementById('validation-result');
+      resBox.style.display = 'block';
+
+      try {
+        const res = await fetch('/api/fix-13/validate-input', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pathInput, entityId, payload })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          resDiv.innerHTML = `
+            <div class="notice" style="background: #f0fdf4; border-left-color: var(--success);">
+              <strong>Status 200 OK:</strong> ${data.message}<br>
+              <strong>Sanitized Output:</strong> <code>${data.sanitizedPayload}</code>
+            </div>`;
+        } else {
+          resDiv.innerHTML = `
+            <div class="notice notice-danger">
+              <strong>Status ${res.status} Rejected:</strong> <code>${data.error}</code><br>
+              <p>${data.message}</p>
+            </div>`;
+        }
+      } catch (err) {
+        resDiv.innerHTML = `<span class="badge badge-danger">Fetch failed</span>`;
+      }
+    });
+  </script>
+</body>
+</html>

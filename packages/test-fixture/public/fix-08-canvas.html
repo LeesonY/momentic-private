@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FIX-08: HTML5 Canvas Visual Page</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>FIX-08: Canvas Rendering & Vision Verification</h1>
+    <nav class="main-nav">
+      <a href="/">← Back to Home</a>
+    </nav>
+  </header>
+
+  <main role="main" data-testid="main-content">
+    <h2>HTML5 Canvas Visual Content</h2>
+
+    <div class="notice notice-warning" data-testid="canvas-capability-indicator" data-requires-vision="true">
+      <strong>Vision Capability Required:</strong>
+      <p>The chart below is drawn entirely within an HTML5 <code>&lt;canvas&gt;</code> element. There are no underlying DOM text nodes for text-only LLMs or screen readers to scrape.</p>
+      <p><strong>Oracle:</strong> If the model adapter lacks image/vision support, the test must accurately mark this check as <code>inconclusive</code> / <code>unverified</code>, rather than fabricating a pass.</p>
+    </div>
+
+    <div class="card" style="text-align: center; padding: 24px;">
+      <canvas id="qa-test-canvas" data-testid="test-canvas" width="640" height="320" style="max-width: 100%; border: 1px solid var(--border); border-radius: 6px; background: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);"></canvas>
+      <p style="margin-top: 12px; font-size: 0.85rem; color: var(--text-muted);">
+        All metrics, labels, and watermark codes are rendered exclusively as canvas pixels.
+      </p>
+    </div>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('qa-test-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Background & Title
+    ctx.fillStyle = "#f8fafc";
+    ctx.fillRect(0, 0, 640, 320);
+
+    ctx.fillStyle = "#1e293b";
+    ctx.font = "bold 18px sans-serif";
+    ctx.fillText("Quarterly Telemetry Visual Report", 40, 40);
+
+    ctx.fillStyle = "#64748b";
+    ctx.font = "12px sans-serif";
+    ctx.fillText("Watermark Token: CANVAS_VERIFIED_7749", 40, 65);
+
+    // Draw Axes
+    ctx.strokeStyle = "#cbd5e1";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(50, 90);
+    ctx.lineTo(50, 270);
+    ctx.lineTo(590, 270);
+    ctx.stroke();
+
+    // Bars
+    const data = [
+      { label: "Phase 1", value: 140, color: "#3b82f6" },
+      { label: "Phase 2", value: 200, color: "#10b981" },
+      { label: "Phase 3", value: 90,  color: "#f59e0b" },
+      { label: "Phase 4", value: 170, color: "#8b5cf6" }
+    ];
+
+    data.forEach((item, index) => {
+      const x = 90 + index * 120;
+      const y = 270 - item.value;
+      const barWidth = 60;
+
+      // Draw bar
+      ctx.fillStyle = item.color;
+      ctx.fillRect(x, y, barWidth, item.value);
+
+      // Value label on top
+      ctx.fillStyle = "#1e293b";
+      ctx.font = "bold 13px sans-serif";
+      ctx.fillText(`${item.value} ms`, x + 5, y - 8);
+
+      // Axis label
+      ctx.fillStyle = "#64748b";
+      ctx.font = "12px sans-serif";
+      ctx.fillText(item.label, x + 8, 290);
+    });
+  </script>
+</body>
+</html>

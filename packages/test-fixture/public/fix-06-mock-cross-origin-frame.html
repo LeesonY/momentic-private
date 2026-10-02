@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cross-Origin Simulated Frame</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    body { padding: 12px; background: #fff7ed; }
+  </style>
+</head>
+<body>
+  <div data-testid="cross-origin-content" style="border: 2px dashed #ea580c; padding: 12px; border-radius: 6px;">
+    <h3 style="color: #ea580c;">Cross-Origin Sandbox Frame</h3>
+    <p style="font-size: 0.85rem; color: #9a3412;">
+      Simulated External Origin. Frame ID: <code>frame_cross_origin_sandboxed</code>
+    </p>
+    <div class="notice notice-warning" style="margin-top: 8px; font-size: 0.8rem;">
+      When out of scope or cross-origin access is blocked, LocalQA must record a coverage gap or blocked state, not fabricate access.
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FIX-11: Flaky vs Stable Faults (Reproducibility)</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>FIX-11: Flaky vs Stable Faults</h1>
+    <nav class="main-nav">
+      <a href="/">← Back to Home</a>
+    </nav>
+  </header>
+
+  <main role="main" data-testid="main-content">
+    <h2>Reproducibility & Independent Reproduction</h2>
+    <div class="notice">
+      <strong>Oracle Condition:</strong>
+      <ul>
+        <li><strong>Flaky Fault (One-off):</strong> First execution fails (HTTP 500 transient blip). Subsequent reproduction in new context succeeds (HTTP 200). Result must remain <code>unconfirmed</code>.</li>
+        <li><strong>Stable Fault:</strong> Every attempt consistently fails (HTTP 500). Result is upgraded to <code>confirmed</code>.</li>
+      </ul>
+    </div>
+
+    <div class="card-grid">
+      <!-- 1. Flaky Failure -->
+      <div class="card">
+        <h3>1. Flaky Fault (One-time Failure)</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+          Fails on attempt 1, then succeeds on attempt 2+.
+        </p>
+        <button id="btn-flaky" class="btn" data-testid="btn-trigger-flaky" onclick="triggerFlaky()">Execute Flaky Action</button>
+        <button id="btn-reset-flaky" class="btn btn-secondary" data-testid="btn-reset-flaky" onclick="resetFlaky()">Reset Flaky State</button>
+        <div id="flaky-result" style="margin-top: 12px; font-size: 0.9rem;">
+          <span class="badge badge-info">Ready (Attempt 0)</span>
+        </div>
+      </div>
+
+      <!-- 2. Stable Permanent Failure -->
+      <div class="card">
+        <h3>2. Stable Fault (Consistent Failure)</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+          Always fails with HTTP 500 across all reproductions.
+        </p>
+        <button id="btn-stable" class="btn btn-danger" data-testid="btn-trigger-stable" onclick="triggerStable()">Execute Stable Fault</button>
+        <div id="stable-result" style="margin-top: 12px; font-size: 0.9rem;">
+          <span class="badge badge-info">Ready</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    async function triggerFlaky() {
+      const res = await fetch('/api/fix-11/flaky', { method: 'POST' });
+      const data = await res.json();
+      const div = document.getElementById('flaky-result');
+      if (res.ok) {
+        div.innerHTML = `<span class="badge badge-success">Attempt ${data.attempt}: Succeeded (200 OK)</span>`;
+      } else {
+        div.innerHTML = `<span class="badge badge-danger">Attempt ${data.attempt}: Failed (${res.status} ${data.error})</span>`;
+      }
+    }
+
+    async function resetFlaky() {
+      await fetch('/api/fix-11/reset-flaky', { method: 'POST' });
+      document.getElementById('flaky-result').innerHTML = '<span class="badge badge-info">State Reset (Attempt 0)</span>';
+    }
+
+    async function triggerStable() {
+      const res = await fetch('/api/fix-11/stable', { method: 'POST' });
+      const data = await res.json();
+      const div = document.getElementById('stable-result');
+      div.innerHTML = `<span class="badge badge-danger">Failed (${res.status} ${data.error})</span>`;
+    }
+  </script>
+</body>
+</html>

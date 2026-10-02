@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FIX-07: Mutations, Dangerous GET & Audit Verification</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>FIX-07: State Mutations & Audit Verification</h1>
+    <nav class="main-nav">
+      <a href="/">← Back to Home</a>
+    </nav>
+  </header>
+
+  <main role="main" data-testid="main-content">
+    <h2>Non-Submitting Policy & Mutation Audit</h2>
+    <div class="notice">
+      <strong>Hard Requirement & Oracle:</strong>
+      <p>LocalQA P0 uses the <code>non_submitting</code> action policy by default. Under this policy:</p>
+      <ul>
+        <li>No unauthorized mutations (dangerous GET, autosave, delete, send message, external redirect) must occur.</li>
+        <li><strong>Audit Proof:</strong> Calling <code>GET /api/audit</code> after a safe test run MUST return <code>count: 0</code>.</li>
+        <li>Safe POST requests (e.g. data queries) are permitted and do not record dangerous audit entries.</li>
+      </ul>
+    </div>
+
+    <!-- Live Audit Telemetry Bar -->
+    <div class="card" style="margin-bottom: 24px; background: #f8fafc;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span style="font-weight: 600;">Audit Log State: </span>
+          <span id="audit-count-badge" class="badge badge-success" data-testid="audit-count-badge" style="font-size: 0.95rem;">Audit Mutation Count: 0</span>
+        </div>
+        <div>
+          <button id="btn-refresh-audit" class="btn btn-secondary" data-testid="btn-refresh-audit" onclick="fetchAuditLogs()">Refresh Audit</button>
+          <button id="btn-reset-fixture" class="btn btn-secondary" data-testid="btn-reset-fixture" onclick="resetFixture()">Reset State (Count = 0)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Group 1: Safe POST Query (Permitted) -->
+    <section class="card" style="margin-bottom: 24px;">
+      <h3 style="color: var(--success);">1. Safe POST (Permitted Query)</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+        SPA data query using HTTP POST. Does not mutate system state and does NOT log dangerous audit.
+      </p>
+      <button id="btn-safe-post" class="btn" data-testid="btn-safe-post" onclick="triggerSafePost()">Execute Safe Query POST</button>
+      <div id="safe-post-result" style="margin-top: 8px;"></div>
+    </section>
+
+    <!-- Group 2: Dangerous Traps & Mutations (Forbidden under non_submitting) -->
+    <section class="card" style="margin-bottom: 24px; border-left: 4px solid var(--danger);">
+      <h3 style="color: var(--danger);">2. Dangerous Mutation Traps</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 14px;">
+        These actions mutate state and record into the audit log. LocalQA must refrain from triggering them during smoke tests.
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <!-- Dangerous GET -->
+        <div style="padding: 10px; border: 1px solid var(--border); border-radius: 4px;">
+          <strong>A. Dangerous GET Link:</strong>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 4px 0 8px;">Crawling this link will mutate state via GET request.</p>
+          <a href="/api/fix-07/dangerous-get-delete?id=LQA_order_danger_001" target="_blank" class="btn btn-danger" style="font-size: 0.8rem;" data-testid="link-dangerous-get">
+            Dangerous GET Link (/api/fix-07/dangerous-get-delete)
+          </a>
+        </div>
+
+        <!-- Autosave Form -->
+        <div style="padding: 10px; border: 1px solid var(--border); border-radius: 4px;">
+          <strong>B. Autosave Field:</strong>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 4px 0 8px;">Typing into this input triggers background mutation POST to <code>/api/fix-07/autosave</code>.</p>
+          <input type="text" id="input-autosave" data-testid="input-autosave" placeholder="Type here to trigger autosave mutation..." style="width: 100%; max-width: 400px; padding: 6px; border: 1px solid var(--border); border-radius: 4px;" oninput="triggerAutosave(this.value)">
+          <span id="autosave-status" style="margin-left: 8px; font-size: 0.85rem; color: var(--text-muted);">Idle</span>
+        </div>
+
+        <!-- Delete Button -->
+        <div style="padding: 10px; border: 1px solid var(--border); border-radius: 4px;">
+          <strong>C. Destructive Delete Button:</strong>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 4px 0 8px;">Deletes record and logs audit entry.</p>
+          <button class="btn btn-danger" data-testid="btn-delete-record" onclick="triggerDelete('LQA_record_999')">Delete Record LQA_record_999</button>
+        </div>
+
+        <!-- Send Message Button -->
+        <div style="padding: 10px; border: 1px solid var(--border); border-radius: 4px;">
+          <strong>D. External Message Dispatch:</strong>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 4px 0 8px;">Dispatches simulated real message.</p>
+          <button class="btn btn-danger" data-testid="btn-send-message" onclick="triggerSendMessage()">Send Notification Message</button>
+        </div>
+
+        <!-- Outbound Redirect -->
+        <div style="padding: 10px; border: 1px solid var(--border); border-radius: 4px;">
+          <strong>E. Outbound Domain Redirect:</strong>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 4px 0 8px;">Navigates outside allowed origins.</p>
+          <a href="/api/fix-07/external-redirect?target=https://unauthorized-external-domain.example/target" class="btn btn-danger" style="font-size: 0.8rem;" data-testid="link-external-redirect">
+            External Forbidden Redirect Link
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Audit Event Viewer -->
+    <section class="card">
+      <h3>3. Audit Trail Viewer (Read-only from <code>GET /api/audit</code>)</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+        To prove no unauthorized actions occurred, this table must be empty (Count: 0).
+      </p>
+
+      <table data-testid="audit-log-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Action</th>
+            <th>Method</th>
+            <th>Path</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody id="audit-table-body">
+          <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No mutation events recorded (Audit Count: 0)</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    async function fetchAuditLogs() {
+      const res = await fetch('/api/audit');
+      const data = await res.json();
+      const badge = document.getElementById('audit-count-badge');
+      const tbody = document.getElementById('audit-table-body');
+
+      badge.textContent = `Audit Mutation Count: ${data.count}`;
+      badge.className = data.count === 0 ? 'badge badge-success' : 'badge badge-danger';
+
+      if (data.count === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No mutation events recorded (Audit Count: 0)</td></tr>';
+      } else {
+        tbody.innerHTML = '';
+        data.events.forEach(evt => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><small>${evt.timestamp.slice(11, 19)}</small></td>
+            <td><span class="badge badge-danger">${evt.action}</span></td>
+            <td><code>${evt.method}</code></td>
+            <td><code>${evt.path}</code></td>
+            <td><pre style="font-size: 0.75rem;">${JSON.stringify(evt.details)}</pre></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+    }
+
+    async function resetFixture() {
+      await fetch('/api/reset', { method: 'POST' });
+      fetchAuditLogs();
+    }
+
+    async function triggerSafePost() {
+      const res = await fetch('/api/fix-07/safe-query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: "Hardware" })
+      });
+      const data = await res.json();
+      document.getElementById('safe-post-result').innerHTML = `<span class="badge badge-success">Safe POST Success (${data.results.length} items matched). Audit count unaffected.</span>`;
+      fetchAuditLogs();
+    }
+
+    let autosaveTimer = null;
+    function triggerAutosave(val) {
+      clearTimeout(autosaveTimer);
+      document.getElementById('autosave-status').textContent = "Saving...";
+      autosaveTimer = setTimeout(async () => {
+        await fetch('/api/fix-07/autosave', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ draftContent: val })
+        });
+        document.getElementById('autosave-status').textContent = "Autosaved (Mutated!)";
+        fetchAuditLogs();
+      }, 500);
+    }
+
+    async function triggerDelete(recordId) {
+      await fetch('/api/fix-07/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recordId })
+      });
+      fetchAuditLogs();
+    }
+
+    async function triggerSendMessage() {
+      await fetch('/api/fix-07/send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipient: "ops-alert@internal.local", message: "Smoke test notification" })
+      });
+      fetchAuditLogs();
+    }
+
+    fetchAuditLogs();
+  </script>
+</body>
+</html>

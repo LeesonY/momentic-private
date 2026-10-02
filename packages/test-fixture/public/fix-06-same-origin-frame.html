@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Same-Origin Frame</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    body { padding: 12px; background: #f0fdf4; }
+  </style>
+</head>
+<body>
+  <div data-testid="same-origin-content" style="border: 2px dashed #16a34a; padding: 12px; border-radius: 6px;">
+    <h3 style="color: #16a34a;">Same-Origin Frame Content</h3>
+    <p style="font-size: 0.85rem; color: #166534;">
+      Frame ID: <code>frame_same_origin_001</code>
+    </p>
+    <button class="btn btn-secondary" style="font-size: 0.8rem; margin-top: 8px;" data-testid="btn-frame-action" onclick="this.textContent = 'Frame Clicked!'">Click Inside Frame</button>
+  </div>
+</body>
+</html>

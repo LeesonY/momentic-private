@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FIX-14: Large DOM & Oversized Downloads</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>FIX-14: Large DOM & Oversized Downloads</h1>
+    <nav class="main-nav">
+      <a href="/">← Back to Home</a>
+    </nav>
+  </header>
+
+  <main role="main" data-testid="main-content">
+    <h2>Resource Quotas & Degraded Handling</h2>
+    <div class="notice">
+      <strong>Oracle Condition (NFR-011, AC-015):</strong>
+      <ul>
+        <li><strong>Huge DOM (&gt;10,000 nodes):</strong> Tests browser snapshot memory, token limits (12,000 token cap), and recorder (rrweb/trace) degradation handling.</li>
+        <li><strong>Oversized Download (30 MB):</strong> Exceeds the default single artifact quota of 25 MiB. System must degrade cleanly with explicit quota logging, not silently crash.</li>
+        <li><strong>HTTP Range Requests:</strong> Supports partial content download resumption.</li>
+      </ul>
+    </div>
+
+    <div class="card-grid">
+      <!-- 1. Huge DOM Page -->
+      <div class="card">
+        <h3>1. Massive DOM Tree Page</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+          Renders a page with 3,000 cards and over 10,000 nested DOM nodes.
+        </p>
+        <a href="/fix-14-large/huge-dom?count=3000" target="_blank" class="btn" data-testid="link-huge-dom">
+          Open 3000-Card DOM Page (&gt;10,000 Nodes)
+        </a>
+      </div>
+
+      <!-- 2. Oversized Download -->
+      <div class="card">
+        <h3>2. Oversized 30MB File Download</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+          Streams 30 MiB of binary data, intentionally exceeding the 25 MiB artifact limit.
+        </p>
+        <a href="/api/fix-14/download-large?sizeMb=30" class="btn btn-danger" data-testid="link-download-large">
+          Download 30 MB Stream (Quota Breaker)
+        </a>
+        <div style="margin-top: 10px;">
+          <a href="/api/fix-14/download-large?sizeMb=5" class="btn btn-secondary" style="font-size: 0.8rem;" data-testid="link-download-small">
+            Download Safe 5 MB Stream
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FIX-04: Role Differences (Viewer vs Admin)</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>FIX-04: Role Capabilities (Viewer vs Admin)</h1>
+    <nav class="main-nav">
+      <a href="/">← Back to Home</a>
+    </nav>
+  </header>
+
+  <main role="main" data-testid="main-content">
+    <h2>RBAC Role Separation</h2>
+
+    <!-- Policy Banner -->
+    <div class="notice" data-testid="role-policy-notice">
+      <strong>Explicit Role Policy:</strong>
+      <p>1. <strong>Admin role:</strong> Full access to system configuration and administrative actions.</p>
+      <p>2. <strong>Viewer role:</strong> Read-only access. Administrative buttons are intentionally omitted from the UI and forbidden via API.</p>
+      <p>3. <strong>Oracle:</strong> Missing admin buttons in Viewer mode is expected behavior and MUST NOT be flagged as a bug.</p>
+    </div>
+
+    <!-- Active Role Switcher / Indicator -->
+    <div class="card" style="margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span>Current Session Role: </span>
+          <span id="active-role-badge" class="badge badge-info" data-testid="role-badge">Checking session...</span>
+        </div>
+        <div>
+          <button class="btn btn-secondary" onclick="switchRole('viewer')">Switch to Viewer</button>
+          <button class="btn btn-secondary" onclick="switchRole('admin')">Switch to Admin</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shared Content (Both Admin & Viewer can see) -->
+    <div class="card" style="margin-bottom: 24px;">
+      <h3>General Dashboard (Visible to all authenticated roles)</h3>
+      <p style="color: var(--text-muted); margin-bottom: 12px;">Both Viewer and Admin can view system telemetry and audit counts.</p>
+      <div style="display: flex; gap: 16px;">
+        <div class="card" style="flex: 1; text-align: center;">
+          <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">4</div>
+          <div style="font-size: 0.85rem; color: var(--text-muted);">Allocated Slots</div>
+        </div>
+        <div class="card" style="flex: 1; text-align: center;">
+          <div style="font-size: 1.5rem; font-weight: 700; color: var(--success);">Healthy</div>
+          <div style="font-size: 0.85rem; color: var(--text-muted);">Cluster Status</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin Panel (Only visible to Admin) -->
+    <div id="admin-panel" class="card" data-testid="admin-panel" style="display: none; border-left: 4px solid var(--primary);">
+      <h3 style="color: var(--primary); margin-bottom: 8px;">Admin Control Panel (Admin Only)</h3>
+      <p style="color: var(--text-muted); margin-bottom: 16px;">Privileged operations restricted to administrators.</p>
+      <div>
+        <button id="btn-toggle-maintenance" class="btn" data-testid="btn-system-settings">Toggle Maintenance Mode</button>
+        <button id="btn-purge-cache" class="btn btn-danger" data-testid="btn-purge-cache">Purge Global Cache</button>
+      </div>
+      <div id="admin-action-result" style="margin-top: 12px;"></div>
+    </div>
+
+    <!-- Viewer Restricted Notice (Shown when in Viewer mode) -->
+    <div id="viewer-notice" class="card" data-testid="viewer-restricted-notice" style="display: none; background: #f8fafc;">
+      <h4 style="color: var(--text-muted);">Viewer Restricted View</h4>
+      <p style="font-size: 0.9rem; color: var(--text-muted);">
+        Administrative controls are hidden. Per policy, viewers cannot alter configuration.
+      </p>
+    </div>
+  </main>
+
+  <script>
+    async function loadSession() {
+      const res = await fetch('/api/auth/me');
+      const data = await res.json();
+      const badge = document.getElementById('active-role-badge');
+      const adminPanel = document.getElementById('admin-panel');
+      const viewerNotice = document.getElementById('viewer-notice');
+
+      if (res.ok && data.success && data.user) {
+        badge.textContent = `Role: ${data.user.role.toUpperCase()} (${data.user.name})`;
+        badge.className = data.user.role === 'admin' ? 'badge badge-success' : 'badge badge-warning';
+
+        if (data.user.role === 'admin') {
+          adminPanel.style.display = 'block';
+          viewerNotice.style.display = 'none';
+        } else {
+          adminPanel.style.display = 'none';
+          viewerNotice.style.display = 'block';
+        }
+      } else {
+        badge.textContent = 'Role: ANONYMOUS';
+        badge.className = 'badge badge-danger';
+        adminPanel.style.display = 'none';
+        viewerNotice.style.display = 'block';
+      }
+    }
+
+    async function switchRole(role) {
+      const creds = role === 'admin' 
+        ? { username: 'admin@localqa.fixture', password: 'AdminPass123!' }
+        : { username: 'viewer@localqa.fixture', password: 'ViewerPass123!' };
+      
+      await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(creds)
+      });
+      loadSession();
+    }
+
+    async function executeAdminAction() {
+      const res = await fetch('/api/fix-04/admin-action', { method: 'POST' });
+      const data = await res.json();
+      const resultDiv = document.getElementById('admin-action-result');
+      if (res.ok) {
+        resultDiv.innerHTML = `<span class="badge badge-success">${data.message} (Maintenance: ${data.maintenanceMode})</span>`;
+      } else {
+        resultDiv.innerHTML = `<span class="badge badge-danger">HTTP ${res.status}: ${data.message || data.error}</span>`;
+      }
+    }
+
+    document.getElementById('btn-toggle-maintenance').addEventListener('click', executeAdminAction);
+    document.getElementById('btn-purge-cache').addEventListener('click', executeAdminAction);
+
+    loadSession();
+  </script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "name": "@localqa/test-fixture",
+  "version": "1.0.0",
+  "description": "LocalQA Controlled Test Fixture Site",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js",
+    "test:browser": "playwright test"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "express": "^4.22.3"
+  },
+  "keywords": [
+    "localqa",
+    "fixture",
+    "testing",
+    "playwright"
+  ],
+  "author": "LocalQA",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.49.1"
+  }
+}

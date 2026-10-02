@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FIX-06: Popup Window Target</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1 data-testid="popup-title">Popup Page (New Tab/Target Window)</h1>
+  </header>
+
+  <main role="main" data-testid="main-content">
+    <div class="notice">
+      <strong>Oracle Condition:</strong> Browser agent must handle new Page/Tab context, attach to the popup window ID, and locate <code>[data-testid="popup-content"]</code>.
+    </div>
+
+    <div class="card" data-testid="popup-content">
+      <h3>Popup Content Verification Area</h3>
+      <p style="margin: 8px 0; font-size: 0.95rem;">
+        Page ID: <code data-testid="popup-page-id">page_popup_tab_fixed_target</code>
+      </p>
+      <p style="color: var(--text-muted); font-size: 0.85rem;">
+        This page opened in a dedicated browser target.
+      </p>
+      <button class="btn btn-secondary" onclick="window.close()" data-testid="btn-close-popup">Close Window</button>
+    </div>
+  </main>
+</body>
+</html>

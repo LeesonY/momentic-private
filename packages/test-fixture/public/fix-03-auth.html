@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FIX-03: Authentication, State Reuse & Session Expiry</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>FIX-03: Login & State Reuse</h1>
+    <nav class="main-nav">
+      <a href="/">← Back to Home</a>
+    </nav>
+  </header>
+
+  <main role="main" data-testid="main-content">
+    <h2>Authentication & Session Management</h2>
+    <div class="notice">
+      <strong>Oracle Condition:</strong>
+      <ul>
+        <li>Successful login displays fixed node: <code>[data-testid="auth-success-badge"]</code>.</li>
+        <li>State reuse: Existing valid cookie allows direct access without re-login.</li>
+        <li>Expired session: Displays <code>[data-testid="session-expired-badge"]</code> and blocks access.</li>
+        <li>Invalid credentials: Displays <code>[data-testid="auth-error-badge"]</code>; user remains unauthenticated.</li>
+      </ul>
+    </div>
+
+    <!-- Quick Credentials Helper -->
+    <div class="card" style="margin-bottom: 20px; background: #f8fafc;">
+      <h4>Pre-configured Test Accounts:</h4>
+      <ul style="margin: 8px 0 12px 20px; font-size: 0.875rem;">
+        <li><strong>Admin:</strong> <code>admin@localqa.fixture</code> / <code>AdminPass123!</code> (Role: admin)</li>
+        <li><strong>Viewer:</strong> <code>viewer@localqa.fixture</code> / <code>ViewerPass123!</code> (Role: viewer)</li>
+        <li><strong>Expired:</strong> <code>expired@localqa.fixture</code> / <code>ExpiredPass123!</code> (Role: viewer, session expired)</li>
+      </ul>
+      <div>
+        <button class="btn btn-secondary" onclick="fillCreds('admin@localqa.fixture', 'AdminPass123!')">Fill Admin</button>
+        <button class="btn btn-secondary" onclick="fillCreds('viewer@localqa.fixture', 'ViewerPass123!')">Fill Viewer</button>
+        <button class="btn btn-secondary" onclick="fillCreds('expired@localqa.fixture', 'ExpiredPass123!')">Fill Expired</button>
+      </div>
+    </div>
+
+    <!-- Expired Session Alert (shown when ?session=expired or API 401 SESSION_EXPIRED) -->
+    <div id="expired-alert" class="notice notice-danger" data-testid="session-expired-badge" style="display: none;">
+      <strong>Session Expired:</strong> Your current session token has expired or is invalid. Please log in again.
+    </div>
+
+    <!-- Error Alert -->
+    <div id="error-alert" class="notice notice-danger" data-testid="auth-error-badge" style="display: none;">
+      Invalid credentials provided. Authentication failed.
+    </div>
+
+    <!-- Authenticated State View -->
+    <div id="authenticated-view" style="display: none;" class="card">
+      <div class="badge badge-success" data-testid="auth-success-badge" style="font-size: 1.1rem; padding: 10px 20px; margin-bottom: 16px;">
+        ✓ Authenticated as: <span id="user-display-name"></span> (<span id="user-display-role"></span>)
+      </div>
+      <p style="margin-bottom: 16px; color: var(--text-muted);">
+        Session cookie is active and reusable across tabs and contexts.
+      </p>
+      <div>
+        <button id="btn-test-protected" class="btn" data-testid="btn-test-protected">Call Protected API</button>
+        <button id="btn-logout" class="btn btn-danger" data-testid="btn-logout">Log Out</button>
+      </div>
+      <div id="protected-api-result" style="margin-top: 12px; font-size: 0.9rem;"></div>
+    </div>
+
+    <!-- Unauthenticated Login Form -->
+    <div id="login-form-view" class="card" style="max-width: 440px;">
+      <h3 style="margin-bottom: 16px;">Log In</h3>
+      <form id="login-form" data-testid="login-form">
+        <div style="margin-bottom: 14px;">
+          <label for="username" style="display: block; font-weight: 500; margin-bottom: 4px;">Email / Username</label>
+          <input type="text" id="username" name="username" data-testid="input-username" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;" required>
+        </div>
+        <div style="margin-bottom: 18px;">
+          <label for="password" style="display: block; font-weight: 500; margin-bottom: 4px;">Password</label>
+          <input type="password" id="password" name="password" data-testid="input-password" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;" required>
+        </div>
+        <button type="submit" class="btn" data-testid="btn-login-submit" style="width: 100%;">Sign In</button>
+      </form>
+    </div>
+  </main>
+
+  <script>
+    function fillCreds(u, p) {
+      document.getElementById('username').value = u;
+      document.getElementById('password').value = p;
+    }
+
+    // Check query params for forced expired state
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('session') === 'expired') {
+      document.getElementById('expired-alert').style.display = 'block';
+    }
+
+    // Check current auth status (Demonstrates session state reuse)
+    async function checkCurrentSession() {
+      try {
+        const res = await fetch('/api/auth/me');
+        const data = await res.json();
+        if (res.ok && data.success && data.user) {
+          showAuthenticated(data.user);
+        } else {
+          if (data.error === 'SESSION_EXPIRED') {
+            document.getElementById('expired-alert').style.display = 'block';
+          }
+          showLoginForm();
+        }
+      } catch (err) {
+        showLoginForm();
+      }
+    }
+
+    function showAuthenticated(user) {
+      document.getElementById('login-form-view').style.display = 'none';
+      document.getElementById('authenticated-view').style.display = 'block';
+      document.getElementById('user-display-name').textContent = user.name || user.email;
+      document.getElementById('user-display-role').textContent = user.role;
+      document.getElementById('error-alert').style.display = 'none';
+    }
+
+    function showLoginForm() {
+      document.getElementById('login-form-view').style.display = 'block';
+      document.getElementById('authenticated-view').style.display = 'none';
+    }
+
+    // Form submit
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      document.getElementById('error-alert').style.display = 'none';
+      document.getElementById('expired-alert').style.display = 'none';
+
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          // If expired user was chosen, check session right away to see rejection
+          if (username === 'expired@localqa.fixture') {
+            document.getElementById('expired-alert').style.display = 'block';
+            showLoginForm();
+          } else {
+            showAuthenticated(data);
+          }
+        } else {
+          document.getElementById('error-alert').style.display = 'block';
+        }
+      } catch (err) {
+        document.getElementById('error-alert').style.display = 'block';
+      }
+    });
+
+    // Logout
+    document.getElementById('btn-logout').addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      showLoginForm();
+    });
+
+    // Test protected API
+    document.getElementById('btn-test-protected').addEventListener('click', async () => {
+      const res = await fetch('/api/fix-03/protected');
+      const data = await res.json();
+      const resDiv = document.getElementById('protected-api-result');
+      if (res.ok) {
+        resDiv.innerHTML = `<span class="badge badge-success">200 OK: ${data.message}</span>`;
+      } else {
+        resDiv.innerHTML = `<span class="badge badge-danger">${res.status} Error: ${data.message || data.error}</span>`;
+      }
+    });
+
+    checkCurrentSession();
+  </script>
+</body>
+</html>

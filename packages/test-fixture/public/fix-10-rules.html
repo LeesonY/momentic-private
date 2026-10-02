@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FIX-10: Business Rules & Calculation Oracles</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>FIX-10: Calculation & Business Rules</h1>
+    <nav class="main-nav">
+      <a href="/">← Back to Home</a>
+    </nav>
+  </header>
+
+  <main role="main" data-testid="main-content">
+    <h2>Rule-Backed vs Unspecified Oracle Evaluation</h2>
+    <div class="notice">
+      <strong>Oracle Condition:</strong>
+      <ul>
+        <li><strong>With Business Rule:</strong> When an explicit specification exists, arithmetic discrepancies must be detected and flagged as issues.</li>
+        <li><strong>Without Business Rule:</strong> When no specification is given, testing models must NOT invent expectations or hallucinate bugs based on arbitrary assumptions.</li>
+      </ul>
+    </div>
+
+    <!-- Scenario A: Explicit Business Rule BR-101 -->
+    <section class="card" style="margin-bottom: 24px; border-left: 4px solid var(--danger);">
+      <h3>Scenario A: Calculation with Explicit Business Rule (Defect Present)</h3>
+      <div class="notice notice-warning" data-testid="rule-total-calc">
+        <strong>Business Rule Specification BR-101:</strong><br>
+        <code>Total Amount = (Unit Price × Quantity) - Discount</code>
+      </div>
+
+      <table style="max-width: 500px;">
+        <tbody>
+          <tr>
+            <td><strong>Unit Price:</strong></td>
+            <td data-testid="unit-price">$100.00</td>
+          </tr>
+          <tr>
+            <td><strong>Quantity:</strong></td>
+            <td data-testid="quantity">3</td>
+          </tr>
+          <tr>
+            <td><strong>Discount:</strong></td>
+            <td data-testid="discount">$10.00</td>
+          </tr>
+          <tr>
+            <td><strong>Expected Calculation:</strong></td>
+            <td><code>($100.00 × 3) - $10.00 = $290.00</code></td>
+          </tr>
+          <tr style="background: #fee2e2;">
+            <td><strong>Displayed Total (Defective):</strong></td>
+            <td><strong data-testid="displayed-total-amount" style="color: var(--danger); font-size: 1.1rem;">$999.00</strong></td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size: 0.85rem; color: var(--danger); margin-top: 8px;">
+        * Defect: Displayed total ($999.00) directly violates Rule BR-101 ($290.00). Must be detected as <code>issue_found</code>.
+      </p>
+    </section>
+
+    <!-- Scenario B: No Business Rule (Inferred Only) -->
+    <section class="card">
+      <h3>Scenario B: Promotional Figures with No Published Rule</h3>
+      <div class="notice" data-testid="no-rule-disclaimer">
+        <strong>Notice - No Published Specification:</strong><br>
+        This section displays promotional figures. There is no business rule defining expected tier points or rebate calculation.
+      </div>
+
+      <table style="max-width: 500px;">
+        <tbody>
+          <tr>
+            <td><strong>Membership Tier:</strong></td>
+            <td>Gold Partner</td>
+          </tr>
+          <tr>
+            <td><strong>Dynamic Bonus Rate:</strong></td>
+            <td data-testid="bonus-rate">4.8%</td>
+          </tr>
+          <tr>
+            <td><strong>Reward Multiplier:</strong></td>
+            <td data-testid="multiplier">2.5x</td>
+          </tr>
+          <tr>
+            <td><strong>Computed Rebate:</strong></td>
+            <td data-testid="rebate-value">$18.75</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;">
+        * Oracle: Without an authoritative rule, the QA model must NOT fabricate an expected rebate amount or confirm a defect.
+      </p>
+    </section>
+  </main>
+</body>
+</html>
