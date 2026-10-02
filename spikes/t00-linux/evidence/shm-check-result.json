@@ -1,0 +1,11 @@
+{
+  "shmDf": "Filesystem      Size  Used Avail Use% Mounted on\nshm              16M     0   16M   0% /dev/shm",
+  "test1StandardShm": {
+    "passed": true,
+    "error": null
+  },
+  "test2FallbackTmp": {
+    "passed": true,
+    "error": null
+  }
+}

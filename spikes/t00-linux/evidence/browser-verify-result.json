@@ -1,0 +1,13 @@
+{
+  "browserVersion": "153.0.8010.12",
+  "pageStatus": 200,
+  "hasNoSandboxFlag": false,
+  "screenshotBytes": 265850,
+  "domSnapshotLength": 14015,
+  "canvasFontMetrics": {
+    "text": "测试中文字体渲染能力",
+    "width": 160,
+    "font": "16px sans-serif"
+  },
+  "shmUsage": "Filesystem     1B-blocks  Used Available Use% Mounted on\nshm             67108864     0  67108864   0% /dev/shm"
+}

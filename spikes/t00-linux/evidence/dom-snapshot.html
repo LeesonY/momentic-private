@@ -1,0 +1,265 @@
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8">
+  <title>LocalQA Test Fixture Site - Home &amp; FIX-01</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1 data-testid="app-title">LocalQA Test Fixture</h1>
+      <p style="color: var(--text-muted); font-size: 0.875rem;">Controlled Test Ground for Playwright / Model Smoke Testing</p>
+    </div>
+    <div id="auth-status-bar">
+      <span class="badge badge-info" id="current-user-badge" data-testid="current-user-badge">Role: Anonymous</span>
+      <a href="/fix-03-auth.html" class="btn btn-secondary" style="font-size: 0.8rem; padding: 4px 8px;">Login</a>
+    </div>
+  </header>
+
+  <nav class="main-nav" data-testid="primary-navigation">
+    <a href="/" data-testid="nav-home">Home (FIX-01)</a>
+    <a href="/fix-02-delayed.html" data-testid="nav-fix-02">Delayed (FIX-02)</a>
+    <a href="/fix-03-auth.html" data-testid="nav-fix-03">Auth (FIX-03)</a>
+    <a href="/fix-04-roles.html" data-testid="nav-fix-04">Roles (FIX-04)</a>
+    <a href="/fix-05-dom-ambiguity.html" data-testid="nav-fix-05">DOM Ambiguity (FIX-05)</a>
+    <a href="/fix-06-frames.html" data-testid="nav-fix-06">Frames (FIX-06)</a>
+    <a href="/fix-07-mutations.html" data-testid="nav-fix-07">Mutations &amp; Audit (FIX-07)</a>
+    <a href="/fix-08-canvas.html" data-testid="nav-fix-08">Canvas (FIX-08)</a>
+    <a href="/fix-09-faults.html" data-testid="nav-fix-09">Faults (FIX-09)</a>
+    <a href="/fix-10-rules.html" data-testid="nav-fix-10">Rules (FIX-10)</a>
+    <a href="/fix-11-reproducibility.html" data-testid="nav-fix-11">Reproducibility (FIX-11)</a>
+    <a href="/fix-12-sentinels.html" data-testid="nav-fix-12">Sentinels (FIX-12)</a>
+    <a href="/fix-13-malicious.html" data-testid="nav-fix-13">Malicious Input (FIX-13)</a>
+    <a href="/fix-14-large.html" data-testid="nav-fix-14">Large DOM/Download (FIX-14)</a>
+  </nav>
+
+  <main role="main" data-testid="main-content" style="margin-top: 16px;">
+    <h2 data-testid="welcome-heading" style="margin-bottom: 12px;">FIX-01: Navigation, Main Content, Tabs, Accordion, Pagination</h2>
+    <p style="margin-bottom: 20px; color: var(--text-muted);">
+      This page validates semantic tags (&lt;header&gt;, &lt;nav&gt;, &lt;main role="main"&gt;), fixed visible nodes, tab switching, collapsible sections, and paginated dynamic data requests.
+    </p>
+
+    <!-- Tab Section -->
+    <section class="card" style="margin-bottom: 24px;">
+      <h3 style="margin-bottom: 12px;">Tabs Component</h3>
+      <div class="tab-headers" data-testid="tab-headers">
+        <button class="tab-btn active" data-tab="tab-overview" data-testid="tab-btn-overview">Overview</button>
+        <button class="tab-btn" data-tab="tab-details" data-testid="tab-btn-details">Details</button>
+        <button class="tab-btn" data-tab="tab-specs" data-testid="tab-btn-specs">Specifications</button>
+      </div>
+
+      <div id="tab-overview" class="tab-panel active" data-testid="tab-panel-overview">
+        <p><strong>Overview:</strong> The LocalQA fixture provides a safe, reproducible environment for automated testing without mutating production databases.</p>
+      </div>
+      <div id="tab-details" class="tab-panel" data-testid="tab-panel-details">
+        <p><strong>Details:</strong> All seeded test entities follow the strict naming convention <code>LQA_&lt;runId&gt;_&lt;caseId&gt;_...</code>.</p>
+      </div>
+      <div id="tab-specs" class="tab-panel" data-testid="tab-panel-specs">
+        <p><strong>Specifications:</strong> Standard Chromium viewport 1440x900. P0 non_submitting policy by default.</p>
+      </div>
+    </section>
+
+    <!-- Accordion / Collapsible Section -->
+    <section class="card" style="margin-bottom: 24px;">
+      <h3 style="margin-bottom: 12px;">Collapsible / Accordion Sections</h3>
+      <details data-testid="accordion-section-1" style="margin-bottom: 12px; border: 1px solid var(--border); padding: 8px 12px; border-radius: 4px;">
+        <summary style="cursor: pointer; font-weight: 600;" data-testid="accordion-summary-1">System Architecture Notes</summary>
+        <p style="margin-top: 8px; font-size: 0.9rem; color: var(--text-muted);">
+          The fixture runs independently on Node.js. It features an in-memory audit store and mock seed generators.
+        </p>
+      </details>
+      <details data-testid="accordion-section-2" style="border: 1px solid var(--border); padding: 8px 12px; border-radius: 4px;">
+        <summary style="cursor: pointer; font-weight: 600;" data-testid="accordion-summary-2">Testing Preconditions</summary>
+        <p style="margin-top: 8px; font-size: 0.9rem; color: var(--text-muted);">
+          Before executing a test suite, invoke <code>POST /api/reset</code> to clear prior state and return audit count to 0.
+        </p>
+      </details>
+    </section>
+
+    <!-- Pagination Section -->
+    <section class="card" style="margin-bottom: 24px;">
+      <h3 style="margin-bottom: 8px;">Pagination Component (Seeded Items)</h3>
+      <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 12px;">
+        Fetches paginated items from <code>GET /api/fix-01/items</code> with unique identifiers.
+      </p>
+
+      <table data-testid="items-table">
+        <thead>
+          <tr>
+            <th>Item ID</th>
+            <th>Name</th>
+            <th>SKU</th>
+            <th>Price</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="items-table-body" data-testid="items-table-body"><tr data-testid="row-LQA_run_default_case_01_item_1">
+            <td><code>LQA_run_default_case_01_item_1</code></td>
+            <td>Fixture Test Item #1</td>
+            <td>SKU-1001</td>
+            <td>$29.99</td>
+            <td><span class="badge badge-success">active</span></td>
+          </tr><tr data-testid="row-LQA_run_default_case_01_item_2">
+            <td><code>LQA_run_default_case_01_item_2</code></td>
+            <td>Fixture Test Item #2</td>
+            <td>SKU-1002</td>
+            <td>$59.98</td>
+            <td><span class="badge badge-success">active</span></td>
+          </tr></tbody>
+      </table>
+
+      <div class="pagination" data-testid="pagination-controls">
+        <button id="btn-prev-page" class="btn btn-secondary" data-testid="btn-prev-page" disabled="">Previous</button>
+        <span id="page-indicator" data-testid="page-indicator" style="font-weight: 500;">Page 1 of 3</span>
+        <button id="btn-next-page" class="btn btn-secondary" data-testid="btn-next-page">Next</button>
+      </div>
+    </section>
+
+    <!-- Scenario Index Grid -->
+    <section style="margin-top: 32px;">
+      <h3 style="margin-bottom: 16px;">All Test Fixture Scenarios (FIX-01 to FIX-14)</h3>
+      <div class="card-grid">
+        <div class="card">
+          <h4>FIX-01 Navigation &amp; Layout</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 6px 0;">Main content, semantic layout, tabs, accordion, pagination.</p>
+          <a href="/" class="btn" style="font-size: 0.8rem;">Open Current</a>
+        </div>
+        <div class="card">
+          <h4>FIX-02 Delayed &amp; Spinner</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 6px 0;">Async rendering, spinner, persistent SSE connection.</p>
+          <a href="/fix-02-delayed.html" class="btn" style="font-size: 0.8rem;">Open FIX-02</a>
+        </div>
+        <div class="card">
+          <h4>FIX-03 Auth &amp; State Reuse</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 6px 0;">Login form, cookie reuse, expired session rejection.</p>
+          <a href="/fix-03-auth.html" class="btn" style="font-size: 0.8rem;">Open FIX-03</a>
+        </div>
+        <div class="card">
+          <h4>FIX-04 Viewer vs Admin</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 6px 0;">Role differences, RBAC controls hidden from viewers.</p>
+          <a href="/fix-04-roles.html" class="btn" style="font-size: 0.8rem;">Open FIX-04</a>
+        </div>
+        <div class="card">
+          <h4>FIX-05 DOM Ambiguity</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 6px 0;">Duplicate text, hidden buttons, dynamic DOM reordering.</p>
+          <a href="/fix-05-dom-ambiguity.html" class="btn" style="font-size: 0.8rem;">Open FIX-05</a>
+        </div>
+        <div class="card">
+          <h4>FIX-06 Frames &amp; Popups</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 6px 0;">Same-origin iframe, cross-origin sandbox, window popups.</p>
+          <a href="/fix-06-frames.html" class="btn" style="font-size: 0.8rem;">Open FIX-06</a>
+        </div>
+        <div class="card">
+          <h4>FIX-07 Mutations &amp; Audit</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 6px 0;">Dangerous GET, autosave, delete, audit proof count = 0.</p>
+          <a href="/fix-07-mutations.html" class="btn" style="font-size: 0.8rem;">Open FIX-07</a>
+        </div>
+        <div class="card">
+          <h4>FIX-08 Canvas Visual</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 6px 0;">HTML5 canvas rendering requiring vision capability.</p>
+          <a href="/fix-08-canvas.html" class="btn" style="font-size: 0.8rem;">Open FIX-08</a>
+        </div>
+        <div class="card">
+          <h4>FIX-09 Faults &amp; Dead Buttons</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 6px 0;">404 links, 500 server errors, blank pages, dead buttons.</p>
+          <a href="/fix-09-faults.html" class="btn" style="font-size: 0.8rem;">Open FIX-09</a>
+        </div>
+        <div class="card">
+          <h4>FIX-10 Business Rules</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 6px 0;">Explicit calculation rule vs unspecified promotional policy.</p>
+          <a href="/fix-10-rules.html" class="btn" style="font-size: 0.8rem;">Open FIX-10</a>
+        </div>
+        <div class="card">
+          <h4>FIX-11 Flaky vs Stable</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 6px 0;">One-time transient fault vs permanent reproducible failure.</p>
+          <a href="/fix-11-reproducibility.html" class="btn" style="font-size: 0.8rem;">Open FIX-11</a>
+        </div>
+        <div class="card">
+          <h4>FIX-12 Sentinels &amp; Redaction</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 6px 0;">Query token, password, console, and network sentinels.</p>
+          <a href="/fix-12-sentinels.html" class="btn" style="font-size: 0.8rem;">Open FIX-12</a>
+        </div>
+        <div class="card">
+          <h4>FIX-13 Malicious Input</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 6px 0;">Path traversal, fake IDs, XSS / SQL injection sanitization.</p>
+          <a href="/fix-13-malicious.html" class="btn" style="font-size: 0.8rem;">Open FIX-13</a>
+        </div>
+        <div class="card">
+          <h4>FIX-14 Large DOM &amp; Download</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 6px 0;">Massive 3000-node DOM page, &gt;25MB oversized file download.</p>
+          <a href="/fix-14-large.html" class="btn" style="font-size: 0.8rem;">Open FIX-14</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>LocalQA Controlled Test Fixture © 2026. Ops API: <code>POST /api/reset</code> | <code>POST /api/seed</code> | <code>GET /api/audit</code></p>
+  </footer>
+
+  <script>
+    // Tab switching logic
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        const targetPanel = document.getElementById(btn.dataset.tab);
+        if (targetPanel) targetPanel.classList.add('active');
+      });
+    });
+
+    // Pagination logic
+    let currentPage = 1;
+    const limit = 2;
+
+    async function loadItems(page) {
+      try {
+        const res = await fetch(`/api/fix-01/items?page=${page}&limit=${limit}`);
+        const data = await res.json();
+        currentPage = data.page;
+        document.getElementById('page-indicator').textContent = `Page ${data.page} of ${data.totalPages || 1}`;
+        document.getElementById('btn-prev-page').disabled = data.page <= 1;
+        document.getElementById('btn-next-page').disabled = data.page >= data.totalPages;
+
+        const tbody = document.getElementById('items-table-body');
+        tbody.innerHTML = '';
+        data.items.forEach(item => {
+          const tr = document.createElement('tr');
+          tr.setAttribute('data-testid', `row-${item.id}`);
+          tr.innerHTML = `
+            <td><code>${item.id}</code></td>
+            <td>${item.name}</td>
+            <td>${item.sku}</td>
+            <td>$${item.price}</td>
+            <td><span class="badge ${item.status === 'active' ? 'badge-success' : 'badge-warning'}">${item.status}</span></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error("Failed to load items", err);
+      }
+    }
+
+    document.getElementById('btn-prev-page').addEventListener('click', () => {
+      if (currentPage > 1) loadItems(currentPage - 1);
+    });
+    document.getElementById('btn-next-page').addEventListener('click', () => {
+      loadItems(currentPage + 1);
+    });
+
+    // Check user session
+    fetch('/api/auth/me')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.user) {
+          document.getElementById('current-user-badge').textContent = `Role: ${data.user.role} (${data.user.name})`;
+          document.getElementById('current-user-badge').className = "badge badge-success";
+        }
+      })
+      .catch(() => {});
+
+    loadItems(1);
+  </script>
+
+
+</body></html>

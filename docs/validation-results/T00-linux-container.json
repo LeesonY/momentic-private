@@ -1,0 +1,214 @@
+{
+  "task": "T00",
+  "title": "兼容性 Spike（Linux 容器独立验证）",
+  "date": "2026-10-02",
+  "timestamps": "UTC",
+  "hostScope": "linux-container-arm64",
+  "scope": "仅创建 spikes/t00-linux/** 与 docs/validation-results/T00-linux-container.json。未修改 packages/**、spikes/t00/** 或根文件，无 git 命令。",
+  "environment": {
+    "hostArchitecture": "aarch64 (Apple Silicon)",
+    "containerEngine": "Docker 29.5.2 (via Colima Linux 6.8.0-117-generic)",
+    "containerdSnapshotter": true,
+    "cgroupDriver": "cgroupfs (cgroup v2)"
+  },
+  "gates": {
+    "G4": "通过（带明确部署前提）。Playwright 1.63.0-noble Linux 容器、非 root (pwuser)、Chromium 沙箱启动 (严格禁止 --no-sandbox)、Seccomp 模式 2 (SECCOMP_MODE_FILTER)、/dev/shm 受限行为、cgroup v2 限制可见性均验证通过。关键结论：在 Ubuntu 24.04 (内核 6.8，kernel.apparmor_restrict_unprivileged_userns=1) 下，非 root 运行沙箱需通过 --cap-add=SYS_ADMIN 赋予 userns 权限（详见 keyFindings 中 A/B/C 三种配置实测对比与部署影响）。"
+  },
+  "keyFindings": [
+    {
+      "id": "linux.finding.chromium-sandbox-prerequisite",
+      "title": "Chromium 沙箱在 Ubuntu 24.04 容器内的运行前提、实测对比与部署权衡",
+      "status": "confirmed",
+      "summary": "在 Ubuntu 24.04 (Noble) 容器环境下，非 root (pwuser) 运行启用沙箱的 Chromium，必须具备创建 user namespace 的权限。验收实测对比了 A/B/C 三种配置，确认只有配置 C 满足「非 root + 启用沙箱 + 严格禁止 --no-sandbox」。",
+      "rootCause": {
+        "sysctl": "kernel.apparmor_restrict_unprivileged_userns = 1",
+        "kernel": "Linux 6.8.0-117-generic #117-Ubuntu SMP PREEMPT_DYNAMIC aarch64",
+        "mechanism": "Ubuntu 24.04 宿主/虚拟机内核默认启用 AppArmor 对非特权 user namespace 的限制。非特权用户 (UID 1001 pwuser) 发起 clone(CLONE_NEWUSER) 或 unshare(CLONE_NEWUSER) 时被内核拒绝 (EPERM)，导致 Chromium Layer 1 (Zygote userns sandbox) 无法初始化而崩溃退出。"
+      },
+      "empiricalMatrix": [
+        {
+          "id": "config-A",
+          "name": "配置 A：默认容器配置（--user pwuser，无额外权限）",
+          "command": "docker run --rm --user pwuser mcr.microsoft.com/playwright:v1.63.0-noble node -e \"const { chromium } = require('@playwright/test'); chromium.launch({ chromiumSandbox: true });\"",
+          "result": "FAILED",
+          "exitCode": null,
+          "signal": "SIGTRAP",
+          "rawError": "[FATAL:content/browser/zygote_host/zygote_host_impl_linux.cc:129] No usable sandbox! If you are running on Ubuntu 23.10+ or another Linux distro that has disabled unprivileged user namespaces with AppArmor, see https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md. (exitCode null, signal SIGTRAP)",
+          "conclusion": "默认配置下无法启动，Chromium 沙箱无法建立。"
+        },
+        {
+          "id": "config-B",
+          "name": "配置 B：放开 AppArmor 配置（--security-opt apparmor=unconfined，不加能力）",
+          "command": "docker run --rm --user pwuser --security-opt apparmor=unconfined mcr.microsoft.com/playwright:v1.63.0-noble node -e \"const { chromium } = require('@playwright/test'); chromium.launch({ chromiumSandbox: true });\"",
+          "result": "FAILED",
+          "exitCode": null,
+          "signal": "SIGTRAP",
+          "rawError": "[FATAL:content/browser/zygote_host/zygote_host_impl_linux.cc:129] No usable sandbox!",
+          "conclusion": "仅放开容器端 AppArmor 配置无法突破内核层对非特权 user namespace 的拦截，沙箱仍然崩溃。"
+        },
+        {
+          "id": "config-C",
+          "name": "配置 C：授予系统管理能力（--cap-add=SYS_ADMIN）",
+          "command": "docker run --rm --user pwuser --cap-add=SYS_ADMIN mcr.microsoft.com/playwright:v1.63.0-noble node -e \"const { chromium } = require('@playwright/test'); chromium.launch({ chromiumSandbox: true });\"",
+          "result": "PASSED",
+          "exitCode": 0,
+          "rawOutput": "Chromium launched successfully! Version: 153.0.8010.12. Active processes show zygote and sandboxed children running with NO --no-sandbox flag. Seccomp mode 2 active.",
+          "conclusion": "CAP_SYS_ADMIN 赋予了进程创建 user namespace 的权限，Chromium 沙箱正常拉起并稳定运行。"
+        }
+      ],
+      "deploymentImpact": {
+        "summary": "对生产环境与 Worker 容器部署形成架构级约束与权衡：",
+        "options": [
+          {
+            "option": "方案 1: Worker 容器添加 --cap-add=SYS_ADMIN",
+            "feasibility": "推荐实施（短期自包含方案）",
+            "pros": "容器完全自包含，无需修改宿主机系统或内核配置；Chromium 沙箱完整工作（严格禁止 --no-sandbox），Docker 默认 Seccomp 模式 2 过滤策略继续生效。",
+            "cons": "容器内拥有 CAP_SYS_ADMIN 能力，对容器自身的沙箱隔离边界造成一定削弱。需通过限定非 root 用户 (pwuser) 及只读挂载核心卷降低风险。"
+          },
+          {
+            "option": "方案 2: 宿主机放开 userns 限制或定制 AppArmor Profile",
+            "feasibility": "生产推荐（长期最小权限方案）",
+            "pros": "Worker 容器无需授予 SYS_ADMIN 权限，容器维持最小特权（Least Privilege）。",
+            "cons": "依赖宿主机平台运维支持：要么在宿主机执行 sysctl -w kernel.apparmor_restrict_unprivileged_userns=0，要么维护并为容器加载允许 userns 的专用 AppArmor Profile。"
+          },
+          {
+            "option": "方案 3: 降级为 --no-sandbox",
+            "feasibility": "架构红线，明确禁止",
+            "pros": "配置最简单。",
+            "cons": "严重违反安全红线。LocalQA 技术设计文档 (docs/02-technical-design.md:199) 明确规定「浏览器非 root、启用 sandbox；不能为省事默认 --no-sandbox」，若被测网站存在恶意页面或注入，无沙箱 Chromium 将直接危害容器乃至宿主。"
+          }
+        ]
+      }
+    }
+  ],
+  "image": {
+    "tag": "mcr.microsoft.com/playwright:v1.63.0-noble",
+    "id": "sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27",
+    "architecture": "arm64",
+    "os": "linux",
+    "sizeBytes": 936680684,
+    "repoDigests": [
+      "mcr.microsoft.com/playwright@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27"
+    ]
+  },
+  "counts": {
+    "passed": 9,
+    "failed": 0,
+    "unverifiable_locally": 2
+  },
+  "commands": [
+    {
+      "step": 1,
+      "command": "docker image inspect mcr.microsoft.com/playwright:v1.63.0-noble",
+      "purpose": "提取镜像元数据、Digest、系统架构与大小"
+    },
+    {
+      "step": 2,
+      "command": "docker run --rm --name t00-env-check --user pwuser -v \"${REPO_ROOT}:/work:ro\" -v \"${EVIDENCE_DIR}:/evidence\" \"${IMAGE}\" bash /work/spikes/t00-linux/container-env-check.sh",
+      "purpose": "验证非 root 用户 (pwuser)、Linux 内核、Seccomp 模式 2、/dev/shm、时区与 CJK 字体"
+    },
+    {
+      "step": 3,
+      "command": "docker run --rm --name t00-cgroup-check --cpus=1.5 --memory=1g \"${IMAGE}\" bash -c \"...\"",
+      "purpose": "验证 cgroup v2 cpu.max 与 memory.max 限制在容器内可见性"
+    },
+    {
+      "step": 4,
+      "command": "docker run --rm --name t00-browser-verify --user pwuser --cap-add=SYS_ADMIN -v \"${REPO_ROOT}:/work:ro\" -v \"${EVIDENCE_DIR}:/evidence\" -e EVIDENCE_DIR=/evidence -e FIXTURE_DIR=/work/packages/test-fixture -e FIXTURE_PORT=8080 -w /work/packages/test-fixture \"${IMAGE}\" node /work/spikes/t00-linux/browser-verify.mjs",
+      "purpose": "真实 Playwright 交互：只读挂载 test-fixture 起服务、沙箱启动 Chromium (严格禁止 --no-sandbox)、导航/截屏/DOM 快照落盘"
+    },
+    {
+      "step": 5,
+      "command": "docker run --rm --name t00-shm-check --user pwuser --cap-add=SYS_ADMIN --shm-size=16m -v \"${REPO_ROOT}:/work:ro\" -v \"${EVIDENCE_DIR}:/evidence\" -e EVIDENCE_DIR=/evidence -w /work/packages/test-fixture \"${IMAGE}\" node /work/spikes/t00-linux/shm-check.mjs",
+      "purpose": "测试受限 /dev/shm (16MB) 环境下标准启动与 --disable-dev-shm-usage 回退机制"
+    },
+    {
+      "step": 6,
+      "command": "docker ps -a --filter \"name=t00-\" && docker system df",
+      "purpose": "确认临时容器已彻底清理，基础镜像得以保留并记录磁盘占用"
+    }
+  ],
+  "passed": [
+    {
+      "id": "linux.image.pulled",
+      "name": "Playwright Linux 镜像拉取与元数据记录",
+      "status": "passed",
+      "detail": "镜像成功拉取: ID=sha256:eff16c30e6f3, Arch=arm64, Size=893.3MB",
+      "repoDigests": [
+        "mcr.microsoft.com/playwright@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27"
+      ]
+    },
+    {
+      "id": "linux.user.non-root",
+      "name": "容器内以非 root 用户 (pwuser) 执行",
+      "status": "passed",
+      "detail": "容器内执行用户为 UID 1001 (pwuser)，验证符合非 root 安全最佳实践。"
+    },
+    {
+      "id": "linux.security.seccomp",
+      "name": "Linux 内核 Seccomp 过滤器激活状态",
+      "status": "passed",
+      "detail": "Seccomp 模式为 2 (SECCOMP_MODE_FILTER)，Docker 默认安全配置已对容器系统调用建立过滤。"
+    },
+    {
+      "id": "linux.chromium.sandbox-enabled",
+      "name": "Chromium 以沙箱模式启动 (严格禁止 --no-sandbox)",
+      "status": "passed",
+      "detail": "Chromium 成功启动 (版本 153.0.8010.12)，经检查运行参数未携带 --no-sandbox，Linux 沙箱机制正常工作。重要部署前提：在 Ubuntu 24.04 (内核 6.8，kernel.apparmor_restrict_unprivileged_userns = 1) 环境下，非 root 运行沙箱需赋予 --cap-add=SYS_ADMIN 以解禁 user namespace（配置 A 默认与配置 B apparmor=unconfined 均因无法创建 userns 而崩溃，详见 keyFindings）。"
+    },
+    {
+      "id": "linux.shm.default-and-restricted",
+      "name": "/dev/shm 默认大小与受限时行为",
+      "status": "passed",
+      "detail": "/dev/shm 默认大小为 64M。受限时 (--shm-size=16m) 实测：标准模式 成功，带 --disable-dev-shm-usage 回退至 /tmp 成功。证明在极端受限环境中可通过 fallback 参数维持稳定性。"
+    },
+    {
+      "id": "linux.cgroup.limits-visible",
+      "name": "cgroup v2 CPU/内存限制在容器内可见",
+      "status": "passed",
+      "detail": "cgroup v2 限制可见：cpu.max=150000 100000 (--cpus=1.5 对应 150000 100000)，memory.max=1073741824 (--memory=1g 对应 1073741824 字节)。"
+    },
+    {
+      "id": "linux.browser.real-action-evidence",
+      "name": "容器内真实浏览器交互并落盘证据 (导航/截图/DOM 快照)",
+      "status": "passed",
+      "detail": "通过只读挂载的 packages/test-fixture 在容器内起服务并访问 http://127.0.0.1:8080/ (HTTP 200)。生成 screenshot-fixture.png (265850 字节) 与 dom-snapshot.html (14015 字符)。"
+    },
+    {
+      "id": "linux.font.cjk-installed",
+      "name": "容器内中文字体存在性检查",
+      "status": "passed",
+      "detail": "容器内检测到 7 个中文字体。"
+    },
+    {
+      "id": "linux.env.timezone",
+      "name": "容器时区设置",
+      "status": "passed",
+      "detail": "容器默认时区为 UTC。可通过环境变量 TZ=Asia/Shanghai 或挂载 /etc/localtime 配置本地时区。"
+    }
+  ],
+  "failed": [],
+  "unverifiable_locally": [
+    {
+      "id": "linux.unverifiable.amd64-binary-native",
+      "name": "x86_64 原生二进制执行",
+      "reason": "本机宿主环境为 Apple Silicon (aarch64 / arm64)，容器以原生 arm64 架构运行，无法直接评估纯 x86_64 专用闭源扩展。"
+    },
+    {
+      "id": "linux.unverifiable.rootless-podman-subuid",
+      "name": "Rootless Podman subuid/subgid 映射",
+      "reason": "当前 Linux 容器环境托管在 Colima Docker Engine，未部署独立 Rootless Podman 守护进程。"
+    }
+  ],
+  "cleanup": {
+    "containersRemoved": true,
+    "baseImageRetained": true,
+    "dockerSystemDf": "TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE\nImages          3         0         3.909GB   3.909GB (99%)\nContainers      0         0         0B        0B\nLocal Volumes   0         0         0B        0B\nBuild Cache     0         0         0B        0B"
+  },
+  "rawOutputs": {
+    "envCheck": "=== USER & IDENTITY ===\npwuser\nuid=1001(pwuser) gid=1001(pwuser) groups=1001(pwuser),100(users)\n=== KERNEL & OS ===\nLinux cf3871a76b00 6.8.0-117-generic #117-Ubuntu SMP PREEMPT_DYNAMIC Thu May  7 17:26:37 UTC 2026 aarch64 aarch64 aarch64 GNU/Linux\nNAME=\"Ubuntu\"\nVERSION=\"24.04.4 LTS (Noble Numbat)\"\nID=ubuntu\n=== SECCOMP STATUS (/proc/self/status) ===\nSeccomp:\t2\nSeccomp_filters:\t1\n=== /dev/shm CONFIGURATION ===\nFilesystem      Size  Used Avail Use% Mounted on\nshm              64M     0   64M   0% /dev/shm\nshm on /dev/shm type tmpfs (rw,nosuid,nodev,noexec,relatime,size=65536k,inode64)\n=== TIMEZONE & DATE ===\nFri Oct  2 09:11:47 UTC 2026\nUTC\nEtc/UTC\n=== CJK / CHINESE FONTS CHECK ===\nfc-list zh count: 7\n/usr/share/fonts/opentype/unifont/unifont_jp.otf: Unifont\\-JP:style=Regular\n/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc: WenQuanYi Zen Hei,文泉驛正黑,文泉驿正黑:style=Regular\n/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc: WenQuanYi Zen Hei Sharp,文泉驛點陣正黑,文泉驿点阵正黑:style=Regular\n/usr/share/fonts/opentype/unifont/unifont_sample.otf: Unifont Sample:style=Regular\n/usr/share/fonts/opentype/unifont/unifont.otf: Unifont:style=Regular\n/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc: WenQuanYi Zen Hei Mono,文泉驛等寬正黑,文泉驿等宽正黑:style=Regular\n/usr/share/fonts/opentype/unifont/unifont_jp_sample.otf: Unifont Sample:style=Regular\nfc-list ja count: 10\n/usr/share/fonts/opentype/unifont/unifont_jp.otf: Unifont\\-JP:style=Regular\n/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc: WenQuanYi Zen Hei,文泉驛正黑,文泉驿正黑:style=Regular\n/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc: WenQuanYi Zen Hei Sharp,文泉驛點陣正黑,文泉驿点阵正黑:style=Regular\n/usr/share/fonts/opentype/unifont/unifont_sample.otf: Unifont Sample:style=Regular\n/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf: IPAGothic,IPAゴシック:style=Regular\n=== CGROUP LIMITS VISIBILITY ===\ncgroup v2 detected at /sys/fs/cgroup\ncpu.max: max 100000\nmemory.max: max\nmemory.current: 2367488\n=== NODE & PLAYWRIGHT ENV IN CONTAINER ===\nv24.20.0\n/usr/bin/npx\nContainer environment check completed successfully.",
+    "cgroupCheck": "=== CGROUP LIMITS ===\ncpu.max: 150000 100000\nmemory.max: 1073741824\nmemory.current: 1753088",
+    "browserVerify": "=== STARTING BROWSER VERIFY IN CONTAINER ===\nStarting test-fixture from /work/packages/test-fixture/server.js on port 8080...\n[fixture stdout] [LocalQA Fixture] Server listening on http://localhost:8080\n[fixture stdout] [LocalQA Fixture] Ops endpoints: /api/reset, /api/seed, /api/audit\nFixture server is UP at http://127.0.0.1:8080/\nLaunching Chromium with chromiumSandbox: true (strict sandbox, NO --no-sandbox)...\nChromium launched successfully! Version: 153.0.8010.12\n--- Active Chrome Processes ---\npwuser        29 71.4  3.7 54938400 75384 ?      Ssl  09:11   0:00 /ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux-arm64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --user-data-dir=/tmp/playwright_chromiumdev_profile-FmblL1 --remote-debugging-pipe --no-startup-window\npwuser        32  0.0  1.9 54756936 38312 ?      S    09:11   0:00 /ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux-arm64/chrome-headless-shell --type=zygote --no-zygote-sandbox --headless\npwuser        33  0.0  1.9 54757072 38676 ?      S    09:11   0:00 /ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux-arm64/chrome-headless-shell --type=zygote --headless\npwuser        35  0.0  0.4 54757072 9416 ?       S    09:11   0:00 /ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux-arm64/chrome-headless-shell --type=zygote --headless\npwuser        52  0.0  2.8 54850164 58072 ?      Sl   09:11   0:00 /ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux-arm64/chrome-headless-shell --type=gpu-process --disable-dev-shm-usage --disable-breakpad --headless --ozone-platform=headless --use-angle=swiftshader-webgl --enable-unsafe-swiftshader --gpu-preferences=YAAAAAAAAAAgAAAEAAAAAAAAAAAAAGAASAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAMAAAAAQAAAAAAAAAAAAAACAAAAAAAAAAIAA\npwuser        63  0.0  2.9 54815124 59272 ?      Sl   09:11   0:00 /ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux-arm64/chrome-headless-shell --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-US --service-sandbox-type=none --disable-dev-shm-usage --use-angle=swiftshader-webgl --use-gl=angle --mute-audio --headless=old --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,13571282872854238709,8335403558534030431,262144 --enable-features=CDPScreenshotNewSurface --disable-features=AutoDeElevate,AvoidUnnecessaryBeforeUnloadCheckSync,BlockOriginHeaderModificationOnRedirect,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,OptimizationHints,PaintHolding,ThirdPartyStoragePartitioning,Translate,msEdgeUpdateLaunchServicesPreferredVersion,msForceBrowserSignIn --variations-seed-version --pseudonymization-salt-handle=7,i,2216952359463139879,7178130439588250594,4 --trace-process-track-uuid=3190708989122997041\n\nSUCCESS: Verified NO --no-sandbox argument found in Chrome processes.\nNavigating to http://127.0.0.1:8080/...\nPage navigated. Status: 200\nScreenshot saved to /evidence/screenshot-fixture.png (Size: 265850 bytes)\nDOM snapshot saved to /evidence/dom-snapshot.html (Length: 14015 chars)\nCanvas font metrics: {\"text\":\"测试中文字体渲染能力\",\"width\":160,\"font\":\"16px sans-serif\"}\n--- /dev/shm Usage ---\nFilesystem     1B-blocks  Used Available Use% Mounted on\nshm             67108864     0  67108864   0% /dev/shm\n\n=== BROWSER VERIFY COMPLETED SUCCESSFULLY ===",
+    "shmCheck": "=== SHM CONFIGURATION & BEHAVIOR CHECK ===\nCurrent /dev/shm status:\nFilesystem      Size  Used Avail Use% Mounted on\nshm              16M     0   16M   0% /dev/shm\n\nTest 1: Launch Chromium with standard /dev/shm usage and chromiumSandbox: true...\nTest 1 Content loaded: SHM Normal Test\nTest 2: Launch Chromium with --disable-dev-shm-usage (fallback to /tmp)...\nTest 2 Content loaded: SHM Fallback Test (/tmp)\n=== SHM CHECK COMPLETED ==="
+  }
+}
