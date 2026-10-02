@@ -1,0 +1,554 @@
+{
+  "task": "T09-A",
+  "recordedAt": "2026-10-02T14:21:38.927Z",
+  "result": "verified deployment skeleton, sandbox, backup, and restore drill",
+  "P0Passed": false,
+  "failure": null,
+  "facts": {
+    "task": "T09-A",
+    "timestamp": "2026-10-02T14:21:30.546Z",
+    "composeConfigValid": true,
+    "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+    "migrationsApplied": 4,
+    "bootstrapAdmin": "admin@localqa.internal (global_role: admin)",
+    "bootstrapReplayBlocked": true,
+    "sandboxVerification": {
+      "verified": true,
+      "processes": [
+        {
+          "pid": 18,
+          "uid": 501,
+          "seccomp": 2,
+          "noSandbox": false
+        },
+        {
+          "pid": 21,
+          "uid": 501,
+          "seccomp": 2,
+          "noSandbox": false
+        },
+        {
+          "pid": 22,
+          "uid": 501,
+          "seccomp": 2,
+          "noSandbox": false
+        },
+        {
+          "pid": 24,
+          "uid": 501,
+          "seccomp": 2,
+          "noSandbox": false
+        },
+        {
+          "pid": 41,
+          "uid": 501,
+          "seccomp": 2,
+          "noSandbox": false
+        },
+        {
+          "pid": 52,
+          "uid": 501,
+          "seccomp": 2,
+          "noSandbox": false
+        },
+        {
+          "pid": 67,
+          "uid": 501,
+          "seccomp": 2,
+          "noSandbox": false
+        }
+      ]
+    },
+    "backup": {
+      "backupDir": "/work/deploy/.evidence/backup/t09-backup",
+      "manifest": {
+        "schemaVersion": 1,
+        "backupId": "5cbf361a-54b8-48b3-801b-0314eaa65cbb",
+        "timestamp": "2026-10-02T14:21:34.635Z",
+        "database": {
+          "file": "database.sql",
+          "sha256": "f28dc4dc93ad7995ff675171acb9cd45d341c69edb97b0396312315970c2464b",
+          "bytes": 8773
+        },
+        "artifacts": {
+          "manifestFile": "artifacts-manifest.json",
+          "count": 2,
+          "totalBytes": 21904
+        },
+        "kek": {
+          "file": "secrets/kek.json",
+          "sha256": "ea8cd27d697eb9fe5e9a3af421812ecff5730edaad6b3491521f542e9fd5c4b2"
+        },
+        "notes": "KEK is backed up alongside DB for disaster recovery drills; in high-security production, store KEK in a distinct KMS vault."
+      }
+    },
+    "disasterRecoveryDrill": {
+      "passed": true,
+      "output": "================================================================\n[LocalQA Restore Drill] Starting Disaster Recovery Simulation\n[LocalQA Restore Drill] Backup Source: /work/deploy/.evidence/backup/t09-backup\n[LocalQA Restore Drill] Target Database: [REDACTED]\n[LocalQA Restore Drill] Target Data Dir: /work/deploy/.evidence/restored-data\n[LocalQA Restore Drill] Target KEK File: /work/deploy/.evidence/secrets/restored_kek.json\n================================================================\n[LocalQA Restore Drill] Backup manifest & SQL dump checksum verified.\n[LocalQA Restore Drill] Applying schema migrations to target database...\n[LocalQA Restore Drill] Schema migrations successfully applied.\n[LocalQA Restore Drill] Restoring database records from dump...\n[LocalQA Restore Drill] Database rows restored.\n[LocalQA Restore Drill] Invalidating zombie leases and reconciling in-flight tasks...\n[LocalQA Restore Drill] Invalidate expired leases count: 1\n[LocalQA Restore Drill] Reconciled zombie jobs count: 1\n[LocalQA Restore Drill] Reconciled in-flight attempts count: 0\n[LocalQA Restore Drill] Confirmed: 0 active leases exist in restored database.\n[LocalQA Restore Drill] Restoring artifact physical files...\n[LocalQA Restore Drill] Artifact files restored to new data volume.\n[LocalQA Restore Drill] Restoring Master KEK...\n[LocalQA Restore Drill] Restored Master KEK successfully initialized with version: 1\n[LocalQA Restore Drill] Validating report and artifact accessibility from restored state...\n[LocalQA Restore Drill] Successfully constructed report for run 2ce46d03-4af7-4002-b30a-eb620d78b122. Planned: 1, Passed: 0\n[LocalQA Restore Drill] Verified 1 artifact(s) on disk with matching checksums.\n================================================================\n[LocalQA Restore Drill] SUCCESS: Disaster Recovery Drill Verified!\n================================================================\n"
+    },
+    "diskStatus": "================================================================\n[LocalQA Disk Status] Inspecting Storage Capacity and Cleanup Status\n================================================================\n[Artifact Volume] Total Size: 0.02 MiB (21904 bytes)\n[Artifact Volume] Total Files: 2\n[Artifact Volume] All runs within 250MiB quota limit.\n[Scratch Space] Usage: 0.00 MiB (0 file(s))\n\n[Database Capacity & Retention Queue]\n  - jobs                    :      96 kB (~-1 rows)\n  - artifacts               :      80 kB (~-1 rows)\n  - run_cases               :      80 kB (~-1 rows)\n  - runs                    :      64 kB (~-1 rows)\n  - users                   :      64 kB (~-1 rows)\n  - task_leases             :      64 kB (~-1 rows)\n  - project_members         :      48 kB (~-1 rows)\n  - projects                :      48 kB (~-1 rows)\n\n[GC Cleanup Pending] 0 expired artifact(s) ready for deletion (0.00 MiB)\n================================================================\n",
+    "health": {
+      "live": true,
+      "ready": true,
+      "missingKekRejected": true
+    },
+    "liveDrainRejected": true
+  },
+  "cleanup": {
+    "containers": [
+      {
+        "name": "localqa-t09-pg-99909155",
+        "absent": true
+      },
+      {
+        "name": "localqa-t09-browser-99909155",
+        "absent": true
+      },
+      {
+        "name": "localqa-t09-pgres-99909155",
+        "absent": true
+      }
+    ],
+    "volumes": [
+      {
+        "name": "localqa-t09-pgdata-99909155",
+        "absent": true
+      },
+      {
+        "name": "localqa-t09-pgdata-res-99909155",
+        "absent": true
+      },
+      {
+        "name": "localqa-t09-evidence-res-99909155",
+        "absent": true
+      }
+    ],
+    "networks": [
+      {
+        "name": "localqa-t09-99909155",
+        "absent": true
+      },
+      {
+        "name": "localqa-t09-res-99909155",
+        "absent": true
+      }
+    ],
+    "credentialsAbsent": true
+  },
+  "commands": [
+    {
+      "command": "docker compose -f deploy/docker-compose.yml config",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "name: deploy\nservices:\n  api:\n    container_name: localqa-api\n    depends_on:\n      postgres:\n        condition: service_healthy\n        required: true\n    healthcheck:\n      test:\n        - CMD-SHELL\n        - wget -q --spider http://127.0.0.1:3000/readyz || exit 1\n      timeout: 5s\n      interval: 10s\n      retries: 5\n      start_period: 15s\n    image: localqa-api:latest\n    networks:\n      backend: null\n      frontend: null\n    restart: unless-stopped\n    volumes:\n      - type: volume\n        source: localqa_data\n        target: /var/localqa/data\n        volume: {}\n      - type: bind\n        source: /Users/dcp/Documents/公司/momentic/deploy/secrets\n        target: /run/secrets\n        read_only: true\n        bind: {}\n  gateway:\n    container_name: localqa-gateway\n    depends_on:\n      api:\n        condition: service_healthy\n        required: true\n      web:\n        condition: service_healthy\n        required: true\n    healthcheck:\n      test:\n        - CMD-SHELL\n        - wget -q --spider http://127.0.0.1:80/healthz || exit 1\n      timeout: 5s\n      interval: 10s\n      retries: 3\n      start_period: 5s\n    image: nginx:1.27-alpine\n    networks:\n      frontend: null\n    ports:\n      - mode: ingress\n        target: 80\n        published: \"80\"\n        protocol: tcp\n      - mode: ingress\n        target: 443\n        published: \"443\"\n        protocol: tcp\n    restart: unless-stopped\n    volumes:\n      - type: bind\n        source: /Users/dcp/Documents/公司/momentic/deploy/config/nginx.conf\n        target: /etc/nginx/nginx.conf\n        read_only: true\n        bind: {}\n      - type: bind\n        source: /Users/dcp/Documents/公司/momentic/deploy/certs\n        target: /etc/nginx/certs\n        read_only: true\n        bind: {}\n  orchestrator:\n    container_name: localqa-orchestrator\n    depends_on:\n      api:\n        condition: service_healthy\n        required: true\n      postgres:\n        condition: service_healthy\n        required: true\n    healthcheck:\n      test:\n        - CMD\n        - node\n        - /app/deploy/scripts/health-probe.mjs\n        - --ready\n      timeout: 5s\n      interval: 15s\n      retries: 3\n      start_period: 10s\n    image: localqa-orchestrator:latest\n    networks:\n      backend: null\n    restart: unless-stopped\n    volumes:\n      - type: volume\n        source: localqa_data\n        target: /var/localqa/data\n        volume: {}\n      - type: bind\n        source: /Users/dcp/Documents/公司/momentic/deploy/secrets\n        target: /run/secrets\n        read_only: true\n        bind: {}\n  postgres:\n    container_name: localqa-postgres\n    environment:\n      POSTGRES_DB: localqa\n      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password\n      POSTGRES_USER: localqa\n    healthcheck:\n      test:\n        - CMD-SHELL\n        - pg_isready -U localqa -d localqa\n      timeout: 3s\n      interval: 5s\n      retries: 10\n      start_period: 5s\n    image: postgres:18-alpine\n    networks:\n      backend: null\n    restart: unless-stopped\n    volumes:\n      - type: volume\n        source: localqa_pgdata\n        target: /var/lib/postgresql\n        volume: {}\n      - type: bind\n        source: /Users/dcp/Documents/公司/momentic/deploy/secrets\n        target: /run/secrets\n        read_only: true\n        bind: {}\n  web:\n    container_name: localqa-web\n    healthcheck:\n      test:\n        - CMD-SHELL\n        - wget -q --spider http://127.0.0.1:80/ || exit 1\n      timeout: 5s\n      interval: 10s\n      retries: 3\n      start_period: 5s\n    image: localqa-web:latest\n    networks:\n      frontend: null\n    restart: unless-stopped\n  worker:\n    cap_add:\n      - SYS_ADMIN\n    container_name: localqa-worker\n    depends_on:\n      api:\n        condition: service_healthy\n        required: true\n    environment:\n      HOME: /var/localqa/scratch\n      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright\n      TMPDIR: /tmp\n    healthcheck:\n      test:\n        - CMD\n        - node\n        - /app/deploy/scripts/health-probe.mjs\n        - --ready\n      timeout: 5s\n      interval: 15s\n      retries: 3\n      start_period: 10s\n    image: localqa-worker:unbuilt\n    networks:\n      backend: null\n    restart: unless-stopped\n    shm_size: \"268435456\"\n    tmpfs:\n      - /tmp:rw,noexec,nosuid,size=512m\n      - /var/localqa/scratch:rw,nosuid,size=512m,mode=1777\n    user: 1001:1001\n    volumes:\n      - type: volume\n        source: localqa_data\n        target: /var/localqa/data\n        volume: {}\n      - type: bind\n        source: /Users/dcp/Documents/公司/momentic/deploy/secrets\n        target: /run/secrets\n        read_only: true\n        bind: {}\nnetworks:\n  backend:\n    name: localqa-backend\n    internal: true\n  frontend:\n    name: localqa-frontend\nvolumes:\n  localqa_data:\n    name: localqa-data\n  localqa_pgdata:\n    name: localqa-pgdata\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker network create localqa-t09-99909155",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "e6a6fcc77ac6cf9b01bc9bf25abbe7efc0de3704b6fbaab71f21b25c59ad67da\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker volume create localqa-t09-pgdata-99909155",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "localqa-t09-pgdata-99909155\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --detach --name localqa-t09-pg-99909155 --network localqa-t09-99909155 --env-file /Users/dcp/Documents/公司/momentic/deploy/.evidence/postgres.env --volume localqa-t09-pgdata-99909155:/var/lib/postgresql postgres:18-alpine",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "3316bd3585c87b54191ea5ea2ec7a0b3cf2d52f8c9ce97faa721d70f76a7d97b\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09-pg-99909155 pg_isready -U localqa -d localqa",
+      "exitCode": 2,
+      "signal": null,
+      "stdout": "localqa-t09-pg-99909155:5432 - no response\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09-pg-99909155 pg_isready -U localqa -d localqa",
+      "exitCode": 2,
+      "signal": null,
+      "stdout": "localqa-t09-pg-99909155:5432 - no response\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09-pg-99909155 pg_isready -U localqa -d localqa",
+      "exitCode": 2,
+      "signal": null,
+      "stdout": "localqa-t09-pg-99909155:5432 - no response\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09-pg-99909155 pg_isready -U localqa -d localqa",
+      "exitCode": 2,
+      "signal": null,
+      "stdout": "localqa-t09-pg-99909155:5432 - no response\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09-pg-99909155 pg_isready -U localqa -d localqa",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "localqa-t09-pg-99909155:5432 - accepting connections\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec -e PGPASSWORD=[REDACTED_PG_PASSWORD] localqa-t09-pg-99909155 psql -U localqa -d localqa -t -c SELECT version()",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": " PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit\n\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --network localqa-t09-99909155 --volume /Users/dcp/Documents/公司/momentic/:/work:ro --volume /Users/dcp/Documents/公司/momentic/deploy/.evidence:/work/deploy/.evidence:rw --workdir /work --env DATABASE_URL=postgresql://localqa:[REDACTED_PG_PASSWORD]@localqa-t09-pg-99909155:5432/localqa mcr.microsoft.com/playwright:v1.63.0-noble node deploy/scripts/migrate.mjs",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "[LocalQA Migrate] Starting database migrations from: /work/packages/storage/migrations/\n[LocalQA Migrate] Successfully applied 4 migration(s): 001_core.sql, 002_invariants.sql, 003_access.sql, 004_hardening.sql\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --network localqa-t09-99909155 --volume /Users/dcp/Documents/公司/momentic/:/work:ro --volume /Users/dcp/Documents/公司/momentic/deploy/.evidence:/work/deploy/.evidence:rw --workdir /work --env DATABASE_URL=postgresql://localqa:[REDACTED_PG_PASSWORD]@localqa-t09-pg-99909155:5432/localqa --env DATA_DIR=/work/deploy/.evidence/data --env MASTER_KEY_FILE=/work/deploy/.evidence/secrets/kek.json mcr.microsoft.com/playwright:v1.63.0-noble node deploy/scripts/health-probe.mjs --ready",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "[HealthProbe] Ready: {\"database\":true,\"migrations\":true,\"masterKey\":true,\"dataDir\":true}\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --network localqa-t09-99909155 --volume /Users/dcp/Documents/公司/momentic/:/work:ro --volume /Users/dcp/Documents/公司/momentic/deploy/.evidence:/work/deploy/.evidence:rw --workdir /work mcr.microsoft.com/playwright:v1.63.0-noble node deploy/scripts/health-probe.mjs --live",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "OK: alive\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --network localqa-t09-99909155 --volume /Users/dcp/Documents/公司/momentic/:/work:ro --volume /Users/dcp/Documents/公司/momentic/deploy/.evidence:/work/deploy/.evidence:rw --workdir /work --env DATABASE_URL=postgresql://localqa:[REDACTED_PG_PASSWORD]@localqa-t09-pg-99909155:5432/localqa --env DATA_DIR=/work/deploy/.evidence/data --env MASTER_KEY_FILE=/work/deploy/.evidence/secrets/absent.json mcr.microsoft.com/playwright:v1.63.0-noble node deploy/scripts/health-probe.mjs --ready",
+      "exitCode": 1,
+      "signal": null,
+      "stdout": "",
+      "stderr": "[HealthProbe] NOT Ready: {\"database\":true,\"migrations\":true,\"masterKey\":false,\"dataDir\":true}\n"
+    },
+    {
+      "command": "docker run --rm --network localqa-t09-99909155 --volume /Users/dcp/Documents/公司/momentic/:/work:ro --volume /Users/dcp/Documents/公司/momentic/deploy/.evidence:/work/deploy/.evidence:rw --workdir /work --env DATABASE_URL=postgresql://localqa:[REDACTED_PG_PASSWORD]@localqa-t09-pg-99909155:5432/localqa --env ADMIN_INITIAL_PASSWORD=[REDACTED_ADMIN_PASSWORD] mcr.microsoft.com/playwright:v1.63.0-noble node deploy/scripts/bootstrap-admin.mjs",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "[LocalQA Bootstrap] Initializing initial administrator account for: admin@localqa.internal\n[LocalQA Bootstrap] Successfully bootstrapped admin account. ID: 13307a8e-709b-4ad6-8caa-48076fc14f1f, Global Role: admin\n[LocalQA Bootstrap] Bootstrap closed. Future bootstrap calls are permanently blocked by database state.\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --network localqa-t09-99909155 --volume /Users/dcp/Documents/公司/momentic/:/work:ro --volume /Users/dcp/Documents/公司/momentic/deploy/.evidence:/work/deploy/.evidence:rw --workdir /work --env DATABASE_URL=postgresql://localqa:[REDACTED_PG_PASSWORD]@localqa-t09-pg-99909155:5432/localqa --env ADMIN_INITIAL_PASSWORD=[REDACTED_ADMIN_PASSWORD] mcr.microsoft.com/playwright:v1.63.0-noble node deploy/scripts/bootstrap-admin.mjs",
+      "exitCode": 2,
+      "signal": null,
+      "stdout": "[LocalQA Bootstrap] Initializing initial administrator account for: admin@localqa.internal\n",
+      "stderr": "[LocalQA Bootstrap] ALREADY_BOOTSTRAPPED: Admin account or users already exist. Bootstrap is closed.\n"
+    },
+    {
+      "command": "docker run --name localqa-t09-browser-99909155 --network localqa-t09-99909155 --user 501:20 --cap-add=SYS_ADMIN --shm-size=256m --memory=2g --volume /Users/dcp/Documents/公司/momentic/:/work:ro --volume /Users/dcp/Documents/公司/momentic/deploy/.evidence:/work/deploy/.evidence:rw --env HOME=/work/deploy/.evidence/home --env TMPDIR=/work/deploy/.evidence/tmp --env PLAYWRIGHT_BROWSERS_PATH=/ms-playwright --workdir /work mcr.microsoft.com/playwright:v1.63.0-noble node /work/deploy/.evidence/sandbox-test.js",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "{\"verified\":true,\"processes\":[{\"pid\":18,\"uid\":501,\"seccomp\":2,\"noSandbox\":false},{\"pid\":21,\"uid\":501,\"seccomp\":2,\"noSandbox\":false},{\"pid\":22,\"uid\":501,\"seccomp\":2,\"noSandbox\":false},{\"pid\":24,\"uid\":501,\"seccomp\":2,\"noSandbox\":false},{\"pid\":41,\"uid\":501,\"seccomp\":2,\"noSandbox\":false},{\"pid\":52,\"uid\":501,\"seccomp\":2,\"noSandbox\":false},{\"pid\":67,\"uid\":501,\"seccomp\":2,\"noSandbox\":false}]}\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --network localqa-t09-99909155 --volume /Users/dcp/Documents/公司/momentic/:/work:ro --volume /Users/dcp/Documents/公司/momentic/deploy/.evidence:/work/deploy/.evidence:rw --workdir /work --env DATABASE_URL=postgresql://localqa:[REDACTED_PG_PASSWORD]@localqa-t09-pg-99909155:5432/localqa mcr.microsoft.com/playwright:v1.63.0-noble node /work/deploy/.evidence/populate-test.js",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "{\"populated\":true,\"runId\":\"2ce46d03-4af7-4002-b30a-eb620d78b122\",\"projId\":\"29168365-5718-4284-a483-b98dc40c9d02\",\"artId\":\"c664bc1e-4c55-4f9f-8c04-e7ab7b94e9c7\",\"artSha\":\"4368d1f4a75203234e1b8fe6a2f6831da8e2a39069738236b69587ddea7d6d58\",\"zTaskId\":\"480dc099-8eab-4dff-9629-93c3c4eb8fba\"}\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --network localqa-t09-99909155 --volume /Users/dcp/Documents/公司/momentic/:/work:ro --volume /Users/dcp/Documents/公司/momentic/deploy/.evidence:/work/deploy/.evidence:rw --workdir /work --env DATABASE_URL=postgresql://localqa:[REDACTED_PG_PASSWORD]@localqa-t09-pg-99909155:5432/localqa --env DATA_DIR=/work/deploy/.evidence/data --env MASTER_KEY_FILE=/work/deploy/.evidence/secrets/kek.json mcr.microsoft.com/playwright:v1.63.0-noble node deploy/scripts/backup.mjs /work/deploy/.evidence/backup/t09-backup",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "[LocalQA Backup] Creating backup in: /work/deploy/.evidence/backup/t09-backup\n[LocalQA Backup] pg_dump not found in local PATH, performing direct logical SQL extraction...\n[LocalQA Backup] Logical SQL extraction complete.\n[LocalQA Backup] Backed up 2 artifact(s) (21904 bytes)\n[LocalQA Backup] Master KEK copied with secure file permissions.\n[LocalQA Backup] Backup successfully completed!\n[LocalQA Backup] Manifest: /work/deploy/.evidence/backup/t09-backup/backup-manifest.json\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker network create localqa-t09-res-99909155",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "e3b612025767b1e4232f3fe5f4cab79c9a50b0e2ef8307b430b81ff33b0821da\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker volume create localqa-t09-pgdata-res-99909155",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "localqa-t09-pgdata-res-99909155\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker volume create localqa-t09-evidence-res-99909155",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "localqa-t09-evidence-res-99909155\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --detach --name localqa-t09-pgres-99909155 --network localqa-t09-res-99909155 --env-file /Users/dcp/Documents/公司/momentic/deploy/.evidence/postgres.env --volume localqa-t09-pgdata-res-99909155:/var/lib/postgresql postgres:18-alpine",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "eeb1c2e3fc03d328c601070a81f33194e55006744eb74ba44112df83bda48c00\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09-pgres-99909155 pg_isready -h 127.0.0.1 -U localqa -d localqa",
+      "exitCode": 2,
+      "signal": null,
+      "stdout": "127.0.0.1:5432 - no response\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09-pgres-99909155 pg_isready -h 127.0.0.1 -U localqa -d localqa",
+      "exitCode": 2,
+      "signal": null,
+      "stdout": "127.0.0.1:5432 - no response\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09-pgres-99909155 pg_isready -h 127.0.0.1 -U localqa -d localqa",
+      "exitCode": 2,
+      "signal": null,
+      "stdout": "127.0.0.1:5432 - no response\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09-pgres-99909155 pg_isready -h 127.0.0.1 -U localqa -d localqa",
+      "exitCode": 2,
+      "signal": null,
+      "stdout": "127.0.0.1:5432 - no response\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09-pgres-99909155 pg_isready -h 127.0.0.1 -U localqa -d localqa",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "127.0.0.1:5432 - accepting connections\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --network localqa-t09-res-99909155 --volume /Users/dcp/Documents/公司/momentic/:/work:ro --volume /Users/dcp/Documents/公司/momentic/deploy/.evidence:/work/deploy/.evidence:rw --volume localqa-t09-evidence-res-99909155:/work/deploy/.evidence/restored-data --workdir /work mcr.microsoft.com/playwright:v1.63.0-noble node deploy/scripts/restore-drill.mjs /work/deploy/.evidence/backup/t09-backup postgresql://localqa:[REDACTED_PG_PASSWORD]@localqa-t09-pgres-99909155:5432/localqa /work/deploy/.evidence/restored-data /work/deploy/.evidence/secrets/restored_kek.json",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "================================================================\n[LocalQA Restore Drill] Starting Disaster Recovery Simulation\n[LocalQA Restore Drill] Backup Source: /work/deploy/.evidence/backup/t09-backup\n[LocalQA Restore Drill] Target Database: [REDACTED]\n[LocalQA Restore Drill] Target Data Dir: /work/deploy/.evidence/restored-data\n[LocalQA Restore Drill] Target KEK File: /work/deploy/.evidence/secrets/restored_kek.json\n================================================================\n[LocalQA Restore Drill] Backup manifest & SQL dump checksum verified.\n[LocalQA Restore Drill] Applying schema migrations to target database...\n[LocalQA Restore Drill] Schema migrations successfully applied.\n[LocalQA Restore Drill] Restoring database records from dump...\n[LocalQA Restore Drill] Database rows restored.\n[LocalQA Restore Drill] Invalidating zombie leases and reconciling in-flight tasks...\n[LocalQA Restore Drill] Invalidate expired leases count: 1\n[LocalQA Restore Drill] Reconciled zombie jobs count: 1\n[LocalQA Restore Drill] Reconciled in-flight attempts count: 0\n[LocalQA Restore Drill] Confirmed: 0 active leases exist in restored database.\n[LocalQA Restore Drill] Restoring artifact physical files...\n[LocalQA Restore Drill] Artifact files restored to new data volume.\n[LocalQA Restore Drill] Restoring Master KEK...\n[LocalQA Restore Drill] Restored Master KEK successfully initialized with version: 1\n[LocalQA Restore Drill] Validating report and artifact accessibility from restored state...\n[LocalQA Restore Drill] Successfully constructed report for run 2ce46d03-4af7-4002-b30a-eb620d78b122. Planned: 1, Passed: 0\n[LocalQA Restore Drill] Verified 1 artifact(s) on disk with matching checksums.\n================================================================\n[LocalQA Restore Drill] SUCCESS: Disaster Recovery Drill Verified!\n================================================================\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --network localqa-t09-99909155 --volume /Users/dcp/Documents/公司/momentic/:/work:ro --volume /Users/dcp/Documents/公司/momentic/deploy/.evidence:/work/deploy/.evidence:rw --env DATABASE_URL=postgresql://localqa:[REDACTED_PG_PASSWORD]@localqa-t09-pg-99909155:5432/localqa --env DATA_DIR=/work/deploy/.evidence/data --workdir /work mcr.microsoft.com/playwright:v1.63.0-noble node deploy/scripts/disk-status.mjs",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "================================================================\n[LocalQA Disk Status] Inspecting Storage Capacity and Cleanup Status\n================================================================\n[Artifact Volume] Total Size: 0.02 MiB (21904 bytes)\n[Artifact Volume] Total Files: 2\n[Artifact Volume] All runs within 250MiB quota limit.\n[Scratch Space] Usage: 0.00 MiB (0 file(s))\n\n[Database Capacity & Retention Queue]\n  - jobs                    :      96 kB (~-1 rows)\n  - artifacts               :      80 kB (~-1 rows)\n  - run_cases               :      80 kB (~-1 rows)\n  - runs                    :      64 kB (~-1 rows)\n  - users                   :      64 kB (~-1 rows)\n  - task_leases             :      64 kB (~-1 rows)\n  - project_members         :      48 kB (~-1 rows)\n  - projects                :      48 kB (~-1 rows)\n\n[GC Cleanup Pending] 0 expired artifact(s) ready for deletion (0.00 MiB)\n================================================================\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --network localqa-t09-99909155 --volume /Users/dcp/Documents/公司/momentic/:/work:ro --env DATABASE_URL=postgresql://localqa:[REDACTED_PG_PASSWORD]@localqa-t09-pg-99909155:5432/localqa --env SHUTDOWN_TIMEOUT_SECONDS=0 --workdir /work mcr.microsoft.com/playwright:v1.63.0-noble node deploy/scripts/graceful-shutdown.mjs",
+      "exitCode": 2,
+      "signal": null,
+      "stdout": "[Graceful Shutdown] Initiating steady-state shutdown sequence...\n[Graceful Shutdown] Grace period: 0s\n[Graceful Shutdown] Observation only: stop new task claims in the worker before invoking.\n[Graceful Shutdown] Waiting for 1 active task(s) to finish (elapsed: 0s)...\n[Graceful Shutdown] Closing database connections...\n[Graceful Shutdown] Shutdown complete. Process exiting.\n",
+      "stderr": "[Graceful Shutdown] 1 task(s) still running; refusing to declare a safe drain or invalidate a live lease.\n"
+    },
+    {
+      "command": "docker rm --force --volumes localqa-t09-pg-99909155",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "localqa-t09-pg-99909155\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect localqa-t09-pg-99909155",
+      "exitCode": 1,
+      "signal": null,
+      "stdout": "[]\n",
+      "stderr": "error: no such object: localqa-t09-pg-99909155\n"
+    },
+    {
+      "command": "docker rm --force --volumes localqa-t09-browser-99909155",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "localqa-t09-browser-99909155\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect localqa-t09-browser-99909155",
+      "exitCode": 1,
+      "signal": null,
+      "stdout": "[]\n",
+      "stderr": "error: no such object: localqa-t09-browser-99909155\n"
+    },
+    {
+      "command": "docker rm --force --volumes localqa-t09-pgres-99909155",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "localqa-t09-pgres-99909155\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect localqa-t09-pgres-99909155",
+      "exitCode": 1,
+      "signal": null,
+      "stdout": "[]\n",
+      "stderr": "error: no such object: localqa-t09-pgres-99909155\n"
+    },
+    {
+      "command": "docker volume inspect localqa-t09-pgdata-99909155",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "[\n    {\n        \"CreatedAt\": \"2026-10-02T22:21:30+08:00\",\n        \"Driver\": \"local\",\n        \"Labels\": null,\n        \"Mountpoint\": \"/var/lib/docker/volumes/localqa-t09-pgdata-99909155/_data\",\n        \"Name\": \"localqa-t09-pgdata-99909155\",\n        \"Options\": null,\n        \"Scope\": \"local\"\n    }\n]\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker volume rm localqa-t09-pgdata-99909155",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "localqa-t09-pgdata-99909155\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker volume inspect localqa-t09-pgdata-99909155",
+      "exitCode": 1,
+      "signal": null,
+      "stdout": "[]\n",
+      "stderr": "Error response from daemon: get localqa-t09-pgdata-99909155: no such volume\n"
+    },
+    {
+      "command": "docker volume inspect localqa-t09-pgdata-res-99909155",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "[\n    {\n        \"CreatedAt\": \"2026-10-02T22:21:34+08:00\",\n        \"Driver\": \"local\",\n        \"Labels\": null,\n        \"Mountpoint\": \"/var/lib/docker/volumes/localqa-t09-pgdata-res-99909155/_data\",\n        \"Name\": \"localqa-t09-pgdata-res-99909155\",\n        \"Options\": null,\n        \"Scope\": \"local\"\n    }\n]\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker volume rm localqa-t09-pgdata-res-99909155",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "localqa-t09-pgdata-res-99909155\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker volume inspect localqa-t09-pgdata-res-99909155",
+      "exitCode": 1,
+      "signal": null,
+      "stdout": "[]\n",
+      "stderr": "Error response from daemon: get localqa-t09-pgdata-res-99909155: no such volume\n"
+    },
+    {
+      "command": "docker volume inspect localqa-t09-evidence-res-99909155",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "[\n    {\n        \"CreatedAt\": \"2026-10-02T22:21:34+08:00\",\n        \"Driver\": \"local\",\n        \"Labels\": null,\n        \"Mountpoint\": \"/var/lib/docker/volumes/localqa-t09-evidence-res-99909155/_data\",\n        \"Name\": \"localqa-t09-evidence-res-99909155\",\n        \"Options\": null,\n        \"Scope\": \"local\"\n    }\n]\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker volume rm localqa-t09-evidence-res-99909155",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "localqa-t09-evidence-res-99909155\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker volume inspect localqa-t09-evidence-res-99909155",
+      "exitCode": 1,
+      "signal": null,
+      "stdout": "[]\n",
+      "stderr": "Error response from daemon: get localqa-t09-evidence-res-99909155: no such volume\n"
+    },
+    {
+      "command": "docker network rm localqa-t09-99909155",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "localqa-t09-99909155\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker network inspect localqa-t09-99909155",
+      "exitCode": 1,
+      "signal": null,
+      "stdout": "[]\n",
+      "stderr": "Error response from daemon: network localqa-t09-99909155 not found\n"
+    },
+    {
+      "command": "docker network rm localqa-t09-res-99909155",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "localqa-t09-res-99909155\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker network inspect localqa-t09-res-99909155",
+      "exitCode": 1,
+      "signal": null,
+      "stdout": "[]\n",
+      "stderr": "Error response from daemon: network localqa-t09-res-99909155 not found\n"
+    }
+  ],
+  "sourceFiles": [
+    {
+      "path": "deploy/.env.example",
+      "sha256": "6ad5af42601050dfd22b736c6f3024ca77bc87b9e108a834a192d3b2d276ddc6"
+    },
+    {
+      "path": "deploy/README.md",
+      "sha256": "bff24e2a1fa1d59efe7a79ddfbce924401e3a0f74178f98de2a141d01a72ef06"
+    },
+    {
+      "path": "deploy/config/nginx.conf",
+      "sha256": "73ff971bccca0ea6501d5208c6e2f2aae117697875f0fa9dc4eb2070ef13a807"
+    },
+    {
+      "path": "deploy/docker-compose.yml",
+      "sha256": "edf606515ee3203a50dbf50d2758098dcc3db6922794776d7554050a19fe32b6"
+    },
+    {
+      "path": "deploy/scripts/backup.mjs",
+      "sha256": "3903209b44d84ee5c6a6718d7c0febf33cab40e9f79a0d2f050959b7c9812f0c"
+    },
+    {
+      "path": "deploy/scripts/bootstrap-admin.mjs",
+      "sha256": "1c8cd5ba32b3bd0f85ab7c0c455d81e8908c918010e80366036ffc61a2273578"
+    },
+    {
+      "path": "deploy/scripts/disk-status.mjs",
+      "sha256": "a598084c334f30e8d01f48af9073aca1acd0539c514ed76ea8ddadc978111a95"
+    },
+    {
+      "path": "deploy/scripts/graceful-shutdown.mjs",
+      "sha256": "e4fd9734fbbe4f019901c26739d1a42b30c418e23cd8b4084ef7e19f8040e595"
+    },
+    {
+      "path": "deploy/scripts/health-probe.mjs",
+      "sha256": "e7e9d224236c7966f70e1591032bde54cb0b117a91e368fc4d8e86bf5d61c2be"
+    },
+    {
+      "path": "deploy/scripts/migrate.mjs",
+      "sha256": "1e4f12ac0d601ecf25f3df9bc620775d80b0a4e1d857832cc04dfb7618cf76d0"
+    },
+    {
+      "path": "deploy/scripts/restore-drill.mjs",
+      "sha256": "b37c8bc8fe16847cc528dd8de59b4636ee30288fdc5c2b6255b2aa4dcff1a3b1"
+    },
+    {
+      "path": "deploy/scripts/verify.mjs",
+      "sha256": "28b4a53894543bdce1f89fe0e79734fd1be10c86ea42125f59b19770b263b37d"
+    }
+  ],
+  "prerequisites": [
+    "Linux 6.8+ aarch64 (Colima Docker engine)",
+    "Images postgres:18-alpine and mcr.microsoft.com/playwright:v1.63.0-noble available locally",
+    "Worker requires non-root user + SYS_ADMIN capability on Ubuntu 24.04 to permit Chromium user namespace creation"
+  ],
+  "unverified": [
+    "apps/api (T06) was in parallel flight and omitted from live routing test",
+    "Full P0 end-to-end integration gate (T09-B) remains until API and Web containers are assembled",
+    "Compose worker/orchestrator application images, entrypoints, and readiness have not run as a stack",
+    "Worker production image UID 1001 filesystem permissions and sandbox were not verified; the Chromium test used host UID in Playwright image",
+    "Node SQL fallback backup is not production-consistent; pg_dump/PITR, bytea-heavy data, large dataset, disk-full and network faults remain unverified",
+    "Worker stop-claim control and live graceful shutdown are not wired; only refusal to declare drained was tested",
+    "Production TLS, service identities, authorized downloads, and encrypted/offsite KEK custody remain unverified"
+  ]
+}

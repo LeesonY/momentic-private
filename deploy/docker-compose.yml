@@ -1,0 +1,193 @@
+services:
+  # ============================================================================
+  # 1. Gateway (Entry / Reverse Proxy / TLS Termination)
+  # ============================================================================
+  gateway:
+    image: nginx:1.27-alpine
+    container_name: localqa-gateway
+    restart: unless-stopped
+    ports:
+      - '${GATEWAY_HTTP_PORT:-80}:80'
+      - '${GATEWAY_HTTPS_PORT:-443}:443'
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'wget -q --spider http://127.0.0.1:80/healthz || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - frontend
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+
+  # ============================================================================
+  # 2. Web (Frontend React SPA)
+  # ============================================================================
+  web:
+    image: ${LOCALQA_WEB_IMAGE:-localqa-web:latest}
+    container_name: localqa-web
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q --spider http://127.0.0.1:80/ || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - frontend
+
+  # ============================================================================
+  # 3. API (REST / SSE Backend)
+  # ============================================================================
+  api:
+    image: ${LOCALQA_API_IMAGE:-localqa-api:latest}
+    container_name: localqa-api
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - localqa_data:/var/localqa/data:rw
+      - ./secrets:/run/secrets:ro
+    healthcheck:
+      # Distinguishes liveness (/healthz) vs readiness (/readyz checks DB and Vault)
+      test:
+        ['CMD-SHELL', 'wget -q --spider http://127.0.0.1:3000/readyz || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ============================================================================
+  # 4. Orchestrator (Phase Advancement / Lease Recovery / Finalizer)
+  # ============================================================================
+  orchestrator:
+    image: ${LOCALQA_ORCHESTRATOR_IMAGE:-localqa-orchestrator:latest}
+    container_name: localqa-orchestrator
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - localqa_data:/var/localqa/data:rw
+      - ./secrets:/run/secrets:ro
+    healthcheck:
+      test: ['CMD', 'node', '/app/deploy/scripts/health-probe.mjs', '--ready']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+
+  # ============================================================================
+  # 5. Worker (Browser Execution / Leased Task Runner)
+  #
+  # Sandbox Architecture Note (T00 Finding):
+  # In Ubuntu 24.04 (Noble) / Linux 6.8+ kernels, AppArmor restricts unprivileged
+  # user namespaces (kernel.apparmor_restrict_unprivileged_userns = 1).
+  # To run Chromium with full sandboxing (strictly forbidding --no-sandbox)
+  # under a non-root user, CAP_SYS_ADMIN is required to allow clone(CLONE_NEWUSER).
+  #
+  # Alternative (production host-level hardening):
+  # Set `sysctl -w kernel.apparmor_restrict_unprivileged_userns=0` on the host,
+  # or load a dedicated AppArmor profile, which permits dropping SYS_ADMIN capability.
+  # ============================================================================
+  worker:
+    image: ${LOCALQA_WORKER_IMAGE:-localqa-worker:unbuilt}
+    container_name: localqa-worker
+    restart: unless-stopped
+    user: '${LOCALQA_UID:-1001}:${LOCALQA_GID:-1001}'
+    cap_add:
+      - SYS_ADMIN # Required for unprivileged user namespace sandbox on Ubuntu 24.04
+    shm_size: '256m' # Shared memory for Chromium rendering
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=512m
+      - /var/localqa/scratch:rw,nosuid,size=512m,mode=1777
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - HOME=/var/localqa/scratch
+      - TMPDIR=/tmp
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+    volumes:
+      - localqa_data:/var/localqa/data:rw
+      - ./secrets:/run/secrets:ro
+
+    healthcheck:
+      test: ['CMD', 'node', '/app/deploy/scripts/health-probe.mjs', '--ready']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - backend
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ============================================================================
+  # 6. Postgres (Database with Forced RLS and Explicit Migrations)
+  # ============================================================================
+  postgres:
+    image: postgres:18-alpine
+    container_name: localqa-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-localqa}
+      POSTGRES_DB: ${POSTGRES_DB:-localqa}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    volumes:
+      - localqa_pgdata:/var/lib/postgresql:rw
+      - ./secrets:/run/secrets:ro
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-localqa} -d ${POSTGRES_DB:-localqa}',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - backend
+
+# ==============================================================================
+# Persistent and Ephemeral Volumes
+# ==============================================================================
+volumes:
+  localqa_pgdata:
+    name: localqa-pgdata
+  localqa_data:
+    name: localqa-data
+
+# ==============================================================================
+# Isolated Networks (Defense in Depth)
+# ==============================================================================
+networks:
+  frontend:
+    name: localqa-frontend
+    internal: false
+  backend:
+    name: localqa-backend
+    internal: true # No direct outside exposure for DB, Worker, Orchestrator

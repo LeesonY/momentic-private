@@ -1,0 +1,196 @@
+# LocalQA 部署骨架与演练指南 (T09-A)
+
+> **不是可直接上线的镜像发行版。** `localqa-web/api/orchestrator/worker` 镜像需上游构建并注入实际入口命令、健康端点和 `/app/deploy/scripts/health-probe.mjs`；本任务仅验证 Compose 解析、PG18、Chromium 沙箱和备份恢复样本，未验证六服务端到端运行，P0 未通过。
+
+本指南针对 LocalQA 内网多用户生产环境（Linux 6.8+ / aarch64 & x86_64, Docker 27+, Docker Compose 2.30+）。
+
+---
+
+## 1. 服务拓扑与架构
+
+LocalQA 采用基于 Docker Compose 的多容器隔离架构，划分为前端网关网络（`frontend`）与内网核心网络（`backend`，`internal: true`，禁止外部直接访问）：
+
+```
+[浏览器客户端]
+      │ (HTTPS 443)
+      ▼
+┌────────────────────────────────────────────────────────┐
+│  gateway (nginx 1.27)                                  │
+│  - TLS 终止 / 静态资产代理 / 反向代理                      │
+│  - SSE 禁用缓冲 (proxy_buffering off)                   │
+└────────┬───────────────────────────────────┬───────────┘
+         │                                   │
+         ▼                                   ▼
+┌──────────────────┐               ┌──────────────────┐
+│  web (SPA)       │               │  api (Fastify 5) │
+│  - React 19 UI   │               │  - REST / SSE    │
+└──────────────────┘               └─────────┬────────┘
+                                             │
+      ┌──────────────────────────────────────┼──────────────────────────────────────┐
+      │ (内部隔离网络 backend: internal=true) │                                      │
+      ▼                                      ▼                                      ▼
+┌──────────────────┐               ┌──────────────────┐               ┌──────────────────┐
+│  orchestrator    │               │  worker          │               │  postgres (18)   │
+│  - 状态推进       │               │  - 真实 Chromium  │               │  - Forced RLS    │
+│  - 租约与并发管理  │               │  - 非 root 沙箱   │               │  - 显式 Migrations│
+│  - 恢复收敛       │               │  - 可丢弃 scratch │               │  - 持久数据卷     │
+└──────────────────┘               └──────────────────┘               └──────────────────┘
+```
+
+---
+
+## 2. 上线输入清单（Upstream Inputs Checklist）
+
+所有敏感项与物理凭证严禁硬编码进仓库或构建进 Docker 镜像，通过 `./deploy/secrets/` 目录挂载进容器只读路径 `/run/secrets/`。**已知限制**：当前应用 `DATABASE_URL` 仍需含密码，`.env` 必须 chmod 600 且禁止提交；应用读取 `DATABASE_URL_FILE` 的接线尚未完成，不能把数据库凭据称为完全受保护挂载。PostgreSQL 初始口令采用受保护文件挂载。
+
+| 输入项                  | 挂载 / 配置路径                                           | 格式与权限约束                                  | 职责说明                                                                                |
+| :---------------------- | :-------------------------------------------------------- | :---------------------------------------------- | :-------------------------------------------------------------------------------------- |
+| **公司 CA 与 TLS 证书** | `deploy/certs/tls.crt`<br>`deploy/certs/tls.key`          | PEM 编码，私钥权限 `0600`                       | Gateway 入口 HTTPS 证书（生产必须提供有效域名证书，禁止纯 HTTP）                        |
+| **内网 DNS / 代理**     | `deploy/.env` (`PUBLIC_ORIGIN`, `HTTP_PROXY`, `NO_PROXY`) | URI 字符串                                      | 获准内网被测系统域名与可选出网 HTTP 代理                                                |
+| **数据库初始密码**      | `deploy/secrets/postgres_password`                        | 单行纯文本，权限 `0600`                         | PostgreSQL 超级用户与业务用户的初始强随机密码                                           |
+| **主加密密钥 (KEK)**    | `deploy/secrets/kek.json`                                 | JSON，权限 `0400` 或 `0600`，所有者匹配运行 UID | SecretVault AES-256-GCM 主密钥环：`{"activeVersion":1,"keys":{"1":"<base64-32bytes>"}}` |
+| **Worker 内部身份**     | `deploy/secrets/worker_identity.json`                     | JSON，权限 `0400` 或 `0600`                     | Worker 进程向内部协调器/租约端口认证的私有令牌                                          |
+| **初始管理员密码**      | `deploy/secrets/admin_initial_password`                   | 单行纯文本（≥12字符）                           | 仅在系统初次初始化执行 `bootstrap-admin.mjs` 时消费一次，完成后入口关闭                 |
+
+---
+
+## 3. Chromium 沙箱架构与操作系统级权衡 (T00 发现)
+
+在 Ubuntu 24.04 (Noble) 与现代 Linux 6.8+ 内核中，系统 AppArmor 默认启用了对非特权用户命名空间的限制：
+
+```sh
+kernel.apparmor_restrict_unprivileged_userns = 1
+```
+
+在严格遵守安全红线（**严格禁止 `--no-sandbox`**）的前提下，必须在以下两套方案中作出取舍并在部署时明确声明：
+
+### 方案 A：容器自包含方案（Docker Compose 默认配置）
+
+- **配置方式**：在 `docker-compose.yml` 的 `worker` 服务中显式配置：
+  ```yaml
+  user: '1001:1001' # 非 root (pwuser)
+  cap_add:
+    - SYS_ADMIN # 允许 clone(CLONE_NEWUSER)
+  shm_size: '256m' # 满足 Chromium 渲染共享内存
+  ```
+- **优点**：容器自包含，不需要对宿主机做全局内核参数变更，宿主机 AppArmor 维持默认安全状态。
+- **风险缓解**：尽管使用非 root（UID 1001，须在目标镜像中确保该 UID 可写并可执行浏览器）及 Seccomp filter 2，`SYS_ADMIN` 仍是高风险权限；`localqa_data` 是读写挂载，不应描述为只读。正式部署需单独做宿主隔离审查。
+
+### 方案 B：宿主机最小权限方案（生产推荐高密隔离）
+
+- **配置方式**：在宿主机运维层面放开非特权 user namespace：
+  ```sh
+  sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+  ```
+  或者为 Worker 容器加载专用的允许 `userns` 的 AppArmor Profile。
+- **优点**：Worker 容器**完全无需授予 `SYS_ADMIN`**，容器维持绝对的最小特权（Least Privilege）。
+- **实施说明**：如果采用方案 B，可在 `deploy/docker-compose.yml` 中将 `cap_add: [SYS_ADMIN]` 注释掉。
+
+> **架构红线**：禁止将 Chromium 降级为 `--no-sandbox`。若被测网站存在未授权脚本注入或漏洞，缺少第一层（Zygote/userns）和第二层（Seccomp/chroot）沙箱保护的 Chromium 将直接威胁容器与底层主机。
+
+---
+
+## 4. 初始化与启动流程
+
+生产上线标准流水线按顺序执行：
+
+```sh
+# 1. 复制环境配置模板并填写非敏感项
+cp deploy/.env.example deploy/.env
+
+# 2. 准备受保护的秘密凭证目录
+mkdir -p deploy/secrets deploy/certs
+chmod 700 deploy/secrets deploy/certs
+
+# 生成随机数据库密码与主 KEK
+openssl rand -hex 24 > deploy/secrets/postgres_password
+chmod 600 deploy/secrets/postgres_password
+
+# 3. 为 .env 设置 0600，提供 TLS 证书、KEK 和 worker 身份文件，
+#    并确认镜像已构建/提供入口与探针；不要把含口令的 .env 提交。
+chmod 600 deploy/.env
+# 验证 Docker Compose 语法与配置解析
+docker compose -f deploy/docker-compose.yml config
+
+# 4. 启动数据库容器
+docker compose -f deploy/docker-compose.yml up -d postgres
+
+# 5. 在能够访问 backend 网络、包含仓库构建输出与 Node 依赖的应用镜像中运行
+# 显式 Migrations (001_core -> 002_invariants -> 003_access -> 004_hardening)
+# DATABASE_URL 必须指向 postgres:5432；宿主机默认不能访问内部 DB。
+docker compose -f deploy/docker-compose.yml run --rm --no-deps api node /app/deploy/scripts/migrate.mjs
+
+# 6. 一次性初始化平台管理员账号 (受保护入口，完成后永久关闭)
+export ADMIN_INITIAL_EMAIL="admin@yourcompany.internal"
+export ADMIN_INITIAL_PASSWORD="YourStrongInitialAdminPassword123!"
+docker compose -f deploy/docker-compose.yml run --rm --no-deps api node /app/deploy/scripts/bootstrap-admin.mjs
+# 成功后撤销/销毁初始管理员口令文件；数据库状态拒绝重复初始化。
+
+# 7. 仅在应用镜像和健康端点接线完成、探针通过后启动其余业务服务
+docker compose -f deploy/docker-compose.yml up -d
+```
+
+---
+
+## 5. 运维监控与日常巡检
+
+### 5.1 健康与就绪检查
+
+- **存活探针 (Liveness)**：
+  ```sh
+  node deploy/scripts/health-probe.mjs --live
+  # 或 HTTP 请求
+  curl -f http://127.0.0.1:80/healthz
+  ```
+- **就绪探针 (Readiness)**：
+  ```sh
+  node deploy/scripts/health-probe.mjs --ready
+  # 验证数据库连接、全部 4 个 migration 版本、Vault KEK 挂载与数据目录可写性
+  ```
+
+### 5.2 磁盘容量与清理状态
+
+定期运行检查持久卷用量、250MiB 单运行配额与待清理过期材料：
+
+```sh
+node deploy/scripts/disk-status.mjs
+```
+
+### 5.3 稳态下线 (Graceful Drain Shutdown)
+
+系统维护或升级前，**先由 Worker 运行时停止领取新任务**，再等待在途任务收敛。脚本只观察数据库，不发送停止领取信号；超时且仍有任务时返回码 2，禁止继续关闭或直接篡改活跃租约。当前运行时接线未验证：
+
+```sh
+node deploy/scripts/graceful-shutdown.mjs && docker compose -f deploy/docker-compose.yml stop
+```
+
+---
+
+## 6. 备份与灾难恢复演练 (Disaster Recovery)
+
+### 6.1 备份流程
+
+演练备份包含：PostgreSQL 逻辑数据、持久材料 (Artifacts) 与 Manifest、以及 KEK 副本（**KEK 副本未独立加密**，应隔离存储）。无 `pg_dump` 时使用 Node 逻辑 SQL 提取，仅在小型样本验证；没有跨数据库/文件原子快照、WAL、二进制字段和全量恢复保证，生产必须使用受控的 PG18 `pg_dump`/PITR 并单独演练，不能将此脚本视为生产备份方案：
+
+```sh
+node deploy/scripts/backup.mjs ./backups/backup-$(date +%Y%m%d-%H%M%S)
+```
+
+### 6.2 恢复演练与租约失效保护
+
+灾难恢复时，为了防止备份中未完成的任务在恢复后被当作活跃任务继续执行造成副作用泄漏，恢复脚本会在新卷上执行**租约与在途任务强制失效收敛**：
+
+```sh
+node deploy/scripts/restore-drill.mjs \
+  ./backups/backup-20261002-120000 \
+  "postgresql://localqa:password@new-postgres:5432/localqa" \
+  "/var/localqa/new_data" \
+  "/run/secrets/new_kek.json"
+```
+
+恢复脚本核心保证：
+
+1. 自动校对备份 SQL、KEK 与材料的 SHA-256 完整性；
+2. 恢复数据后执行 `UPDATE task_leases SET lease_until = clock_timestamp() - interval '1 second'`，清除全部过期/未决租约；
+3. 将在途未完成的任务和用例尝试置为 `interrupted`，并记录 `recoveredAfterDisaster: true`；
+4. 演练样本恢复后生成报告并校验材料内容；不代表所有历史材料 100% 可读。恢复目标必须是隔离新库与新目录，不能覆盖现网数据。命令行 URL 会暴露密码于进程列表，请只在隔离演练环境使用。
