@@ -1,0 +1,250 @@
+{
+  "snapshotId": "e247ec2b-0151-48d9-b9dd-679c7db2acd4",
+  "pageId": "76c00aca-16bc-436b-bbbd-1d7b5b9cada8",
+  "frameIds": [
+    "f2981164-e9f0-4b1e-a5ba-9ebbf6c279b5",
+    "7dd07e8e-e639-4595-8db7-5f56be86df7b"
+  ],
+  "displayUrl": "http://127.0.0.1:49806/?auth=[redacted]",
+  "title": "LocalQA T00 Fixture",
+  "responseStatus": 200,
+  "capturedAt": "2026-10-02T09:27:02.520Z",
+  "stateVersion": 2,
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "nodes": [
+    {
+      "nodeId": "main/title",
+      "frameId": "f2981164-e9f0-4b1e-a5ba-9ebbf6c279b5",
+      "role": "heading",
+      "name": "LocalQA T00 受控页",
+      "text": "LocalQA T00 受控页",
+      "visible": true,
+      "enabled": true,
+      "bounds": {
+        "left": 24,
+        "top": 24,
+        "width": 1232,
+        "height": 48
+      }
+    },
+    {
+      "nodeId": "main/late",
+      "frameId": "f2981164-e9f0-4b1e-a5ba-9ebbf6c279b5",
+      "role": "status",
+      "name": "延迟内容已出现",
+      "text": "延迟内容已出现",
+      "visible": true,
+      "enabled": true,
+      "bounds": {
+        "left": 24,
+        "top": 93.4375,
+        "width": 1232,
+        "height": 40
+      }
+    },
+    {
+      "nodeId": "main/dup-text-1",
+      "frameId": "f2981164-e9f0-4b1e-a5ba-9ebbf6c279b5",
+      "role": "paragraph",
+      "name": "请确认内容",
+      "text": "请确认内容",
+      "visible": true,
+      "enabled": true,
+      "bounds": {
+        "left": 24,
+        "top": 149.4375,
+        "width": 1232,
+        "height": 24
+      }
+    },
+    {
+      "nodeId": "main/dup-text-2",
+      "frameId": "f2981164-e9f0-4b1e-a5ba-9ebbf6c279b5",
+      "role": "paragraph",
+      "name": "请确认内容",
+      "text": "请确认内容",
+      "visible": true,
+      "enabled": true,
+      "bounds": {
+        "left": 24,
+        "top": 189.4375,
+        "width": 1232,
+        "height": 24
+      }
+    },
+    {
+      "nodeId": "main/actions",
+      "frameId": "f2981164-e9f0-4b1e-a5ba-9ebbf6c279b5",
+      "role": "paragraph",
+      "name": "保存 保存",
+      "text": "保存 保存",
+      "visible": true,
+      "enabled": true,
+      "bounds": {
+        "left": 24,
+        "top": 229.4375,
+        "width": 1232,
+        "height": 34
+      }
+    },
+    {
+      "nodeId": "main/save-draft",
+      "frameId": "f2981164-e9f0-4b1e-a5ba-9ebbf6c279b5",
+      "role": "button",
+      "name": "保存",
+      "text": "保存",
+      "visible": true,
+      "enabled": true,
+      "bounds": {
+        "left": 24,
+        "top": 230.4375,
+        "width": 42.671875,
+        "height": 25
+      }
+    },
+    {
+      "nodeId": "main/save-copy",
+      "frameId": "f2981164-e9f0-4b1e-a5ba-9ebbf6c279b5",
+      "role": "button",
+      "name": "保存",
+      "text": "保存",
+      "visible": true,
+      "enabled": true,
+      "bounds": {
+        "left": 80,
+        "top": 230.4375,
+        "width": 42.671875,
+        "height": 25
+      }
+    },
+    {
+      "nodeId": "main/note",
+      "frameId": "f2981164-e9f0-4b1e-a5ba-9ebbf6c279b5",
+      "role": "textbox",
+      "name": "备注",
+      "text": "",
+      "visible": true,
+      "enabled": true,
+      "bounds": {
+        "left": 61.328125,
+        "top": 282.4375,
+        "width": 153,
+        "height": 21
+      }
+    },
+    {
+      "nodeId": "main/pw",
+      "frameId": "f2981164-e9f0-4b1e-a5ba-9ebbf6c279b5",
+      "role": "textbox",
+      "name": "密码",
+      "text": "",
+      "visible": true,
+      "enabled": true,
+      "bounds": {
+        "left": 256.984375,
+        "top": 282.4375,
+        "width": 153,
+        "height": 21
+      }
+    },
+    {
+      "nodeId": "main/apply",
+      "frameId": "f2981164-e9f0-4b1e-a5ba-9ebbf6c279b5",
+      "role": "button",
+      "name": "写入备注",
+      "text": "写入备注",
+      "visible": true,
+      "enabled": true,
+      "bounds": {
+        "left": 415.3125,
+        "top": 280.4375,
+        "width": 69.328125,
+        "height": 25
+      }
+    },
+    {
+      "nodeId": "main/echo",
+      "frameId": "f2981164-e9f0-4b1e-a5ba-9ebbf6c279b5",
+      "role": "paragraph",
+      "name": "已写入:T00备注",
+      "text": "已写入:T00备注",
+      "visible": true,
+      "enabled": true,
+      "bounds": {
+        "left": 24,
+        "top": 329.4375,
+        "width": 1232,
+        "height": 40
+      }
+    },
+    {
+      "nodeId": "main/side",
+      "frameId": "f2981164-e9f0-4b1e-a5ba-9ebbf6c279b5",
+      "role": "iframe",
+      "name": "侧栏",
+      "text": "",
+      "visible": true,
+      "enabled": true,
+      "bounds": {
+        "left": 24,
+        "top": 385.4375,
+        "width": 322,
+        "height": 82
+      }
+    },
+    {
+      "nodeId": "/frame.html/frame-text",
+      "frameId": "7dd07e8e-e639-4595-8db7-5f56be86df7b",
+      "role": "paragraph",
+      "name": "iframe 可见文本",
+      "text": "iframe 可见文本",
+      "visible": true,
+      "enabled": true,
+      "bounds": {
+        "left": 33,
+        "top": 402.4375,
+        "width": 304,
+        "height": 22
+      }
+    }
+  ],
+  "screenshotRef": "ff63979b-090a-4dd3-8007-84a986e27e35",
+  "networkSummary": [
+    {
+      "url": "http://127.0.0.1:49806/?auth=[redacted]",
+      "method": "GET",
+      "status": 200,
+      "resourceType": "document",
+      "summary": ""
+    },
+    {
+      "url": "http://127.0.0.1:49806/frame.html",
+      "method": "GET",
+      "status": 200,
+      "resourceType": "document",
+      "summary": ""
+    },
+    {
+      "url": "http://127.0.0.1:49806/api/ping",
+      "method": "GET",
+      "status": 200,
+      "resourceType": "fetch",
+      "summary": ""
+    },
+    {
+      "url": "http://127.0.0.1:49806/api/hang",
+      "method": "GET",
+      "status": null,
+      "resourceType": "fetch",
+      "summary": ""
+    }
+  ],
+  "consoleSummary": [
+    "log: fixture console [redacted]"
+  ],
+  "truncated": false,
+  "redacted": true
+}

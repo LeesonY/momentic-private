@@ -1,0 +1,297 @@
+{
+  "task": "T00",
+  "hostScope": "macos-arm64",
+  "startedAt": "2026-10-02T09:26:57.913Z",
+  "finishedAt": "2026-10-02T09:27:02.592Z",
+  "exitCode": 0,
+  "passed": [
+    "runtime.node-observed",
+    "macos.playwright.package",
+    "macos.chromium.launch",
+    "macos.chromium.build-recorded",
+    "macos.chromium.sandbox-flag",
+    "macos.action.navigate",
+    "macos.action.fill",
+    "macos.action.click",
+    "macos.evidence.screenshot",
+    "macos.evidence.console",
+    "macos.evidence.network",
+    "macos.snapshot.public-nodes",
+    "macos.snapshot.aria",
+    "macos.snapshot.cdp",
+    "macos.snapshot.schema",
+    "macos.wait.delayed-render",
+    "macos.wait.not-networkidle",
+    "macos.locator.duplicate-refused",
+    "macos.locator.testid-distinguishes",
+    "macos.locator.hidden-refused",
+    "macos.snapshot.stale-refused",
+    "macos.redaction.applied",
+    "macos.font.han",
+    "macos.snapshot.iframe"
+  ],
+  "notPassed": [
+    "macos.chromium.default-no-sandbox",
+    "network.intranet-dns",
+    "network.proxy",
+    "network.corporate-tls",
+    "network.controlled-site"
+  ],
+  "unverified": [
+    "runtime.node24-lts",
+    "evidence.playwright-trace",
+    "evidence.rrweb",
+    "browser.multi-context-isolation",
+    "repro.independent-context"
+  ],
+  "blocked": [],
+  "checks": [
+    {
+      "id": "runtime.node-observed",
+      "status": "passed",
+      "detail": "本次 macOS 浏览器验证运行在 Node v26.3.0。",
+      "required": false,
+      "scope": "runtime"
+    },
+    {
+      "id": "runtime.node24-lts",
+      "status": "unverified",
+      "detail": "设计基线是 Node 24 LTS。本次是 Node v26.3.0，未用 Node 24 复跑。",
+      "required": false,
+      "scope": "runtime"
+    },
+    {
+      "id": "macos.playwright.package",
+      "status": "passed",
+      "detail": "安装版本 1.63.0，基线 1.63.0。",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.chromium.launch",
+      "status": "passed",
+      "detail": "Chromium 已启动，browser.version=153.0.8010.12",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.chromium.build-recorded",
+      "status": "passed",
+      "detail": "browser.version=153.0.8010.12；可执行文件与 browsers.json 见 versions.json。",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.chromium.sandbox-flag",
+      "status": "passed",
+      "detail": "显式 chromiumSandbox:true 后，macOS 进程没有 --no-sandbox 或 --disable-setuid-sandbox。出现的是 macOS Seatbelt。",
+      "required": false,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.chromium.default-no-sandbox",
+      "status": "not_passed",
+      "detail": "未传 chromiumSandbox 时，Playwright 1.63 会追加 --no-sandbox。功能验证改为显式 chromiumSandbox:true。",
+      "required": false,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.action.navigate",
+      "status": "passed",
+      "detail": "domcontentloaded 打开 loopback fixture，HTTP 200。",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.action.fill",
+      "status": "passed",
+      "detail": "已向「备注」写入固定文本。",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.action.click",
+      "status": "passed",
+      "detail": "已点击唯一的「写入备注」。",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.evidence.screenshot",
+      "status": "passed",
+      "detail": "截图 30145 字节。",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.evidence.console",
+      "status": "passed",
+      "detail": "已记录 console，哨兵已替换。",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.evidence.network",
+      "status": "passed",
+      "detail": "ping=200 hang=null post=0 foreign=none",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.snapshot.public-nodes",
+      "status": "passed",
+      "detail": "最终契约节点 13 个。",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.snapshot.aria",
+      "status": "passed",
+      "detail": "使用 locator.ariaSnapshot。",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.snapshot.cdp",
+      "status": "passed",
+      "detail": "使用 CDP DOMSnapshot 与 Accessibility.getFullAXTree，原始字符串表未落盘。",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.snapshot.schema",
+      "status": "passed",
+      "detail": "前后两份快照符合 tools.schema.json BrowserSnapshot。",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.wait.delayed-render",
+      "status": "passed",
+      "detail": "导航后延迟内容不可见，状态等待 1805 ms，页面时钟 1607 ms。",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.wait.not-networkidle",
+      "status": "passed",
+      "detail": "长连接仍打开时 networkidle=timed_out，用时 1502 ms。成功路径没有依赖 networkidle。",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.locator.duplicate-refused",
+      "status": "passed",
+      "detail": "重复文案与两个可见「保存」未点击。",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.locator.testid-distinguishes",
+      "status": "passed",
+      "detail": "data-testid=save-draft 可见且唯一，本次没有用它去点「保存」。",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.locator.hidden-refused",
+      "status": "passed",
+      "detail": "隐藏的「危险操作」不可见，未点击。",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.snapshot.stale-refused",
+      "status": "passed",
+      "detail": "点击后回显改变指纹，旧 snapshot 被拒绝且没有再次点击。",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.redaction.applied",
+      "status": "passed",
+      "detail": "页面内哨兵存在，落盘证据不含哨兵。",
+      "required": true,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.font.han",
+      "status": "passed",
+      "detail": "macOS 上中文样本宽度大于 0。",
+      "required": false,
+      "scope": "macos"
+    },
+    {
+      "id": "macos.snapshot.iframe",
+      "status": "passed",
+      "detail": "同源 iframe 单独进入 frameIds。",
+      "required": false,
+      "scope": "macos"
+    },
+    {
+      "id": "network.intranet-dns",
+      "status": "not_passed",
+      "detail": "未提供内部主机名，未做内网解析。loopback 不是内网 DNS。",
+      "required": false,
+      "scope": "network"
+    },
+    {
+      "id": "network.proxy",
+      "status": "not_passed",
+      "detail": "没有按产品 Worker 策略做内网请求。本机代理环境变量只记录是否设置，不记录值。",
+      "required": false,
+      "scope": "network"
+    },
+    {
+      "id": "network.corporate-tls",
+      "status": "not_passed",
+      "detail": "未提供公司 CA，未做内网 HTTPS 握手。fixture 只有 loopback HTTP。",
+      "required": false,
+      "scope": "network"
+    },
+    {
+      "id": "network.controlled-site",
+      "status": "not_passed",
+      "detail": "未访问受控真实站点。127.0.0.1 fixture 不能代替。",
+      "required": false,
+      "scope": "network"
+    },
+    {
+      "id": "evidence.playwright-trace",
+      "status": "unverified",
+      "detail": "未启用 trace。原始 zip 会带上 cookie、storage 和 DOM value；trace 脱敏未做。",
+      "required": false,
+      "scope": "macos"
+    },
+    {
+      "id": "evidence.rrweb",
+      "status": "unverified",
+      "detail": "本次未接入 rrweb。",
+      "required": false,
+      "scope": "macos"
+    },
+    {
+      "id": "browser.multi-context-isolation",
+      "status": "unverified",
+      "detail": "只打开一个 browser context，不能证明任务间隔离。",
+      "required": false,
+      "scope": "macos"
+    },
+    {
+      "id": "repro.independent-context",
+      "status": "unverified",
+      "detail": "FR-026 独立复现未做。",
+      "required": false,
+      "scope": "macos"
+    }
+  ],
+  "error": null,
+  "proposal": {
+    "playwright": "1.63.0",
+    "image": "mcr.microsoft.com/playwright:v1.63.0-noble",
+    "node": "24 LTS",
+    "digest": null,
+    "locked": false,
+    "note": "本文件只记录 macOS。Linux 容器结论见 docs/validation-results/T00-linux-container.json。"
+  }
+}

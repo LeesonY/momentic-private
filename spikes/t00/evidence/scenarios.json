@@ -1,0 +1,120 @@
+{
+  "timeouts": {
+    "navigationMs": 30000,
+    "actionMs": 15000,
+    "networkIdleProbeMs": 1500,
+    "lateRenderMs": 1600
+  },
+  "early": {
+    "spinnerVisible": true,
+    "lateVisible": false
+  },
+  "clocks": {
+    "delay": 1607,
+    "lateVisible": true,
+    "spinnerVisible": false
+  },
+  "waitedMs": 1805,
+  "networkIdle": "timed_out",
+  "networkIdleMs": 1502,
+  "saveRole": {
+    "matchCount": 2,
+    "visibleCount": 2,
+    "enabledCount": 2,
+    "reason": "not_unique",
+    "actionable": false
+  },
+  "duplicateText": {
+    "matchCount": 2,
+    "visibleCount": 2,
+    "enabledCount": 2,
+    "reason": "not_unique",
+    "actionable": false
+  },
+  "draft": {
+    "matchCount": 1,
+    "visibleCount": 1,
+    "enabledCount": 1,
+    "reason": "unique",
+    "actionable": true
+  },
+  "dangerRole": {
+    "matchCount": 0,
+    "visibleCount": 0,
+    "enabledCount": 0,
+    "reason": "not_visible",
+    "actionable": false
+  },
+  "dangerIncludeHidden": {
+    "matchCount": 1,
+    "visibleCount": 0,
+    "enabledCount": 0,
+    "reason": "not_visible",
+    "actionable": false
+  },
+  "fingerprints": {
+    "before": "0fdbe0b21b6b38e336a5bb59815083c6c5a4c02f17398b633c556cc0cb0923c5",
+    "afterFill": "0fdbe0b21b6b38e336a5bb59815083c6c5a4c02f17398b633c556cc0cb0923c5",
+    "afterClick": "60706901a3dff1c545f0eeb0a91396c166bc7560ee5420c2122ff3b91c0acd10",
+    "fillChanged": false,
+    "clickChanged": true
+  },
+  "flags": {
+    "before": {
+      "hidden": false,
+      "save": 0,
+      "apply": 0
+    },
+    "afterClick": {
+      "hidden": false,
+      "save": 0,
+      "apply": 1
+    },
+    "afterStaleRefusal": {
+      "hidden": false,
+      "save": 0,
+      "apply": 1
+    }
+  },
+  "frameIdsBefore": 2,
+  "frameIdsAfter": 2,
+  "excluded": [
+    {
+      "domId": "spinner",
+      "stableFrame": "main",
+      "role": "status",
+      "reason": "not-visible"
+    },
+    {
+      "domId": "hidden-save",
+      "stableFrame": "main",
+      "role": "button",
+      "reason": "not-visible"
+    },
+    {
+      "domId": "hidden-danger",
+      "stableFrame": "main",
+      "role": "button",
+      "reason": "not-visible"
+    },
+    {
+      "domId": "token",
+      "stableFrame": "main",
+      "role": "hidden-input",
+      "reason": "sensitive-or-hidden"
+    }
+  ],
+  "omissions": [
+    {
+      "domId": "token",
+      "type": "hidden",
+      "visible": false
+    },
+    {
+      "domId": "pw",
+      "type": "password",
+      "visible": true
+    }
+  ],
+  "iframeTextPresent": true
+}

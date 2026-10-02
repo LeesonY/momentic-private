@@ -1,0 +1,17 @@
+{
+  "name": "localqa-spike-t00",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "LocalQA T00 macOS compatibility spike. Not the product runtime.",
+  "scripts": {
+    "spike": "node src/run-spike.mjs",
+    "model-probe": "node src/model-probe.mjs",
+    "scan": "node src/scan-evidence.mjs"
+  },
+  "dependencies": {
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1",
+    "playwright": "1.63.0"
+  }
+}

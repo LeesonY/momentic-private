@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>LocalQA T00 Fixture</title>
+  <style>
+    body { font: 16px/1.5 sans-serif; margin: 24px; color: #172033; }
+    button { margin: 0 8px 8px 0; }
+    [hidden] { display: none !important; }
+    #late { background: #e5f6e8; padding: 8px 12px; }
+    #echo { background: #e8eefc; padding: 8px 12px; min-height: 1.5em; }
+    iframe { width: 320px; height: 80px; border: 1px solid #c5cedd; }
+  </style>
+</head>
+<body>
+  <h1 id="title">LocalQA T00 受控页</h1>
+  <div id="spinner" role="status">正在加载</div>
+  <div id="late" data-testid="late-content" role="status" hidden>延迟内容已出现</div>
+  <p id="dup-text-1">请确认内容</p>
+  <p id="dup-text-2">请确认内容</p>
+  <p id="actions">
+    <button type="button" id="save-draft" data-testid="save-draft">保存</button>
+    <button type="button" id="save-copy" data-testid="save-copy">保存</button>
+    <button type="button" id="hidden-save" hidden>保存</button>
+    <button type="button" id="hidden-danger" hidden>危险操作</button>
+  </p>
+  <form id="note-form" action="/api/submit" method="post" onsubmit="return false;">
+    <label for="note">备注</label>
+    <input id="note" name="note" type="text" autocomplete="off">
+    <input id="token" name="token" type="hidden" value="LQA_HIDDEN_INPUT_SECRET">
+    <label for="pw">密码</label>
+    <input id="pw" name="pw" type="password" value="LQA_PASSWORD_SECRET" autocomplete="off">
+    <button type="button" id="apply" data-testid="apply-note">写入备注</button>
+  </form>
+  <p id="echo"></p>
+  <iframe id="side" name="side" title="侧栏" src="/frame.html"></iframe>
+  <script>
+    window.__bootedAt = Date.now();
+    window.__lateAt = 0;
+    window.__hiddenClicked = false;
+    window.__saveClicks = 0;
+    window.__applyClicks = 0;
+    document.getElementById("hidden-danger").addEventListener("click", () => { window.__hiddenClicked = true; });
+    document.getElementById("hidden-save").addEventListener("click", () => { window.__saveClicks += 1; });
+    document.getElementById("save-draft").addEventListener("click", () => { window.__saveClicks += 1; });
+    document.getElementById("save-copy").addEventListener("click", () => { window.__saveClicks += 1; });
+    document.getElementById("apply").addEventListener("click", () => {
+      window.__applyClicks += 1;
+      document.getElementById("echo").textContent = "已写入:" + document.getElementById("note").value;
+    });
+    localStorage.setItem("lqa_token", "LQA_STORAGE_SECRET");
+    sessionStorage.setItem("lqa_session", "LQA_SESSION_SECRET");
+    console.log("fixture console LQA_CONSOLE_SENTINEL");
+    fetch("/api/ping").catch(() => {});
+    fetch("/api/hang").catch(() => {});
+    setTimeout(() => {
+      window.__lateAt = Date.now();
+      document.getElementById("spinner").hidden = true;
+      document.getElementById("late").hidden = false;
+    }, 1600);
+  </script>
+</body>
+</html>

@@ -1,0 +1,310 @@
+{
+  "task": "T00",
+  "title": "兼容性 Spike（macOS 可做部分）",
+  "date": "2026-10-02",
+  "timestamps": "UTC",
+  "scope": "只记录 spikes/t00 的 macOS 部分与本文件。没有改 docs 其他文件、仓库根或 packages。Linux 容器结论不在本文件。",
+  "hostScope": "macos-arm64",
+  "linuxRecord": "docs/validation-results/T00-linux-container.json",
+  "doesNotProve": "Linux 容器、内网 DNS、产品代理策略、公司 CA、受控真实站点、模型能力。这些结论不从 macOS 结果推导。",
+  "counts": {
+    "passed": 24,
+    "notPassed": 5,
+    "unverified": 5,
+    "blocked": 5
+  },
+  "host": {
+    "os": "macOS 27.0",
+    "build": "26A428",
+    "arch": "arm64",
+    "uname": "Darwin arm64",
+    "node": "v26.3.0",
+    "npm": "11.16.0",
+    "uid": 501,
+    "docker": {
+      "cli": true,
+      "clientVersion": "29.8.2",
+      "serverVersion": "29.5.2",
+      "note": "只记录本机 CLI 是否存在。容器验收不在本文件。"
+    },
+    "podman": false,
+    "proxyEnv": {
+      "HTTP_PROXY": "set",
+      "HTTPS_PROXY": "set",
+      "ALL_PROXY": "set",
+      "NO_PROXY": "set",
+      "http_proxy": "unset",
+      "https_proxy": "unset",
+      "NODE_EXTRA_CA_CERTS": "unset",
+      "SSL_CERT_FILE": "unset"
+    },
+    "proxyNote": "只记录是否设置，不记录值。没有用这些变量做内网 HTTPS 请求。"
+  },
+  "versions": {
+    "baseline": {
+      "playwright": "1.63.0",
+      "image": "mcr.microsoft.com/playwright:v1.63.0-noble",
+      "node": "24 LTS"
+    },
+    "observed": {
+      "playwright": "1.63.0",
+      "playwrightCore": "1.63.0",
+      "ajv": "8.17.1",
+      "ajvFormats": "3.0.1",
+      "browserVersion": "153.0.8010.12",
+      "chromiumRevision": "1243",
+      "headlessShellRevision": "1243",
+      "ffmpegRevision": "1011",
+      "executablePath": "/Users/dcp/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+      "node": "v26.3.0"
+    },
+    "launchUsed": {
+      "headless": true,
+      "chromiumSandbox": true,
+      "extraArgs": []
+    },
+    "defaultLaunchProbe": {
+      "chromiumSandbox": "omitted",
+      "noSandbox": true,
+      "disableSetuidSandbox": false,
+      "disableDevShmUsage": true,
+      "browserProcessCount": 3
+    },
+    "sandboxedLaunch": {
+      "noSandbox": false,
+      "disableSetuidSandbox": false,
+      "seatbeltClient": true,
+      "disableDevShmUsage": true,
+      "note": "Playwright 1.63 在 chromiumSandbox 不是 true 时追加 --no-sandbox。显式 true 后该参数消失，并出现 macOS 的 --seatbelt-client。--disable-dev-shm-usage 仍在默认开关里。"
+    }
+  },
+  "commands": [
+    {
+      "cwd": "spikes/t00",
+      "command": "npm install --no-audit --no-fund",
+      "exitCode": 0,
+      "outputSummary": "added 8 packages in 4s。playwright 与 playwright-core 均为 1.63.0。"
+    },
+    {
+      "cwd": "spikes/t00",
+      "command": "npx playwright install chromium",
+      "exitCode": 0,
+      "outputSummary": "Chrome for Testing 153.0.8010.12（chromium v1243，mac-arm64，182.1 MiB）安装到 ms-playwright/chromium-1243。Headless Shell 同版本 v1243。FFmpeg v1011。"
+    },
+    {
+      "cwd": "spikes/t00",
+      "command": "node src/run-spike.mjs",
+      "exitCode": 0,
+      "outputSummary": "2026-10-02T09:26:57.913Z 至 2026-10-02T09:27:02.592Z 复跑，exitCode 0。passed 24。notPassed: macos.chromium.default-no-sandbox、network.intranet-dns、network.proxy、network.corporate-tls、network.controlled-site。unverified 5 项。scrubbed 空。只访问 127.0.0.1。"
+    },
+    {
+      "cwd": "spikes/t00",
+      "command": "node src/model-probe.mjs",
+      "exitCode": 0,
+      "outputSummary": "复跑后仍是 status blocked。networkCallMade false。enableFlag false。LOCALQA_MODEL_BASE_URL、LOCALQA_MODEL_API_KEY、LOCALQA_MODEL_ID 均未设置。脚本没有 HTTP 客户端。"
+    },
+    {
+      "cwd": "spikes/t00",
+      "command": "node src/scan-evidence.mjs",
+      "exitCode": 0,
+      "outputSummary": "复跑后扫描 clean true，hits 0。"
+    }
+  ],
+  "passed": [
+    {"id": "runtime.node-observed", "detail": "本次 macOS 浏览器验证运行在 Node v26.3.0。"},
+    {"id": "macos.playwright.package", "detail": "安装版本 1.63.0，与基线一致。"},
+    {"id": "macos.chromium.launch", "detail": "Chromium 已启动，browser.version=153.0.8010.12。"},
+    {"id": "macos.chromium.build-recorded", "detail": "browsers.json revision 1243，可执行文件为上述 Chrome for Testing。"},
+    {"id": "macos.chromium.sandbox-flag", "detail": "显式 chromiumSandbox:true 后，进程没有 --no-sandbox 或 --disable-setuid-sandbox。出现的是 macOS Seatbelt。"},
+    {"id": "macos.action.navigate", "detail": "waitUntil=domcontentloaded 打开 loopback fixture，HTTP 200。"},
+    {"id": "macos.action.fill", "detail": "向唯一的「备注」写入固定文本。"},
+    {"id": "macos.action.click", "detail": "点击唯一的「写入备注」，回显为已写入:T00备注。"},
+    {"id": "macos.evidence.screenshot", "detail": "screenshot.png 30145 字节。画面含中文、延迟内容、两处「请确认内容」、两个「保存」、空的密码框、回显和 iframe 文本。隐藏按钮未出现。"},
+    {"id": "macos.evidence.console", "detail": "记录到 console，哨兵已替换为 [redacted]。"},
+    {"id": "macos.evidence.network", "detail": "文档与 /api/ping 为 200，/api/hang 在快照时 status=null，POST=0，主机只有 127.0.0.1。"},
+    {"id": "macos.snapshot.public-nodes", "detail": "最终契约节点 13 个，见 browser-snapshot.json。"},
+    {"id": "macos.snapshot.aria", "detail": "locator.ariaSnapshot() 可用。密码值在落盘前替换为 [redacted]。"},
+    {"id": "macos.snapshot.cdp", "detail": "CDPSession.send 调用了 DOMSnapshot.captureSnapshot 与 Accessibility.getFullAXTree。原始字符串表未落盘。"},
+    {"id": "macos.snapshot.schema", "detail": "动作前后两份快照通过 Ajv 2020 对 tools.schema.json BrowserSnapshot 的校验。"},
+    {"id": "macos.wait.delayed-render", "detail": "导航后延迟内容不可见。状态等待 1805 ms，页面时钟 1607 ms。未用 networkidle 作为成功条件。"},
+    {"id": "macos.wait.not-networkidle", "detail": "/api/hang 保持打开时，networkidle 在 1502 ms 超时。"},
+    {"id": "macos.locator.duplicate-refused", "detail": "「请确认内容」与可见按钮「保存」各 2 个，拒绝点击。"},
+    {"id": "macos.locator.testid-distinguishes", "detail": "data-testid=save-draft 可见且唯一，本次没有用它去点「保存」。"},
+    {"id": "macos.locator.hidden-refused", "detail": "隐藏的「危险操作」默认 role 匹配 0，includeHidden 匹配 1 但不可见，未点击。"},
+    {"id": "macos.snapshot.stale-refused", "detail": "点击后回显改变指纹，旧 snapshot 被拒绝，按钮点击次数仍为 1。"},
+    {"id": "macos.redaction.applied", "detail": "隐藏输入、密码、cookie、storage、session、query、console 哨兵在页面内存在；证据目录扫描为 0。"},
+    {"id": "macos.font.han", "detail": "macOS canvas 测量「延迟内容」宽度 64。截图中文可辨。"},
+    {"id": "macos.snapshot.iframe", "detail": "同源 iframe 进入单独 frameId，节点含「iframe 可见文本」。"}
+  ],
+  "notPassed": [
+    {"id": "macos.chromium.default-no-sandbox", "detail": "未传 chromiumSandbox 时，Playwright 1.63 会追加 --no-sandbox。功能验证改为显式 chromiumSandbox:true。"},
+    {"id": "network.intranet-dns", "detail": "未提供内部主机名，未做内网解析。loopback 不是内网 DNS。"},
+    {"id": "network.proxy", "detail": "没有按产品 Worker 策略做内网请求。本机代理环境变量只记录是否设置，不记录值。"},
+    {"id": "network.corporate-tls", "detail": "未提供公司 CA，未做内网 HTTPS 握手。fixture 只有 loopback HTTP。"},
+    {"id": "network.controlled-site", "detail": "未访问受控真实站点。127.0.0.1 fixture 不能代替。"}
+  ],
+  "unverified": [
+    {"id": "runtime.node24-lts", "detail": "设计基线是 Node 24 LTS。本次 macOS 复跑是 Node v26.3.0，没有用 Node 24 重跑。"},
+    {"id": "evidence.playwright-trace", "detail": "未启用 trace。原始 zip 会带上 cookie、storage 和 DOM value；trace 脱敏未做。"},
+    {"id": "evidence.rrweb", "detail": "本次未接入 rrweb。"},
+    {"id": "browser.multi-context-isolation", "detail": "只打开一个 browser context，不能证明任务间隔离。"},
+    {"id": "repro.independent-context", "detail": "FR-026 独立复现未做。"}
+  ],
+  "blocked": [
+    {"id": "model.tool-calling", "fr": "FR-006", "detail": "未调用模型。探测脚本和模板已写好，结果为 null。"},
+    {"id": "model.json-output", "fr": "FR-006", "detail": "未调用模型。"},
+    {"id": "model.image-input", "fr": "FR-006", "detail": "未调用模型。不支持图片时不能把视觉验收改成文本验收，这项还没测。"},
+    {"id": "model.chinese-page", "fr": "FR-006", "detail": "未调用模型。中文页面只做了浏览器渲染，没有做模型理解。"},
+    {"id": "model.error-timeout-429", "fr": "FR-006", "detail": "未调用模型。"}
+  ],
+  "gates": {
+    "G2": "部分。macOS 上对自建 fixture 完成了真实 Playwright 动作、快照和证据。没有 DB、队列或 SSE。",
+    "G3": "blocked。没有真实模型请求。",
+    "G4": "不在本文件。见 docs/validation-results/T00-linux-container.json。",
+    "FR-006": "blocked",
+    "FR-017": "部分。单 context 真浏览器与同源 iframe 已做。多任务隔离未做。",
+    "FR-018": "spike 级。过期 snapshot 会拒绝。还不是产品 Dispatcher。",
+    "FR-019": "spike 级。状态等待有效，且没有依赖 networkidle。",
+    "FR-026": "未验证"
+  },
+  "fixture": {
+    "server": "127.0.0.1 临时端口，只提供 spikes/t00/fixture 与 /api/ping、/api/hang。",
+    "scenarios": ["延迟渲染 1600 ms", "重复文案「请确认内容」与两个可见「保存」", "hidden 的「危险操作」和隐藏的「保存」"],
+    "businessSites": "未访问"
+  },
+  "snapshot": {
+    "publicApi": "locator.ariaSnapshot、getByRole、getByTestId、boundingBox",
+    "cdp": "DOMSnapshot.captureSnapshot + Accessibility.getFullAXTree，经 page.context().newCDPSession",
+    "schema": "docs/contracts/tools.schema.json#/$defs/BrowserSnapshot",
+    "validator": "ajv 8.17.1 draft 2020 + ajv-formats，schemaErrors 为空",
+    "nodeSample": {
+      "nodeId": "main/apply",
+      "role": "button",
+      "name": "写入备注",
+      "text": "写入备注",
+      "visible": true,
+      "enabled": true
+    },
+    "duplicateVisibleButtons": ["main/save-draft", "main/save-copy"],
+    "passwordNode": {"nodeId": "main/pw", "name": "密码", "text": ""},
+    "cdpCounts": {
+      "mainFrameAxNodes": 44,
+      "axValuesOmitted": 2,
+      "scriptNodesSkipped": 2,
+      "inputValuesSeen": 3,
+      "hiddenOrPasswordValuesOmitted": 2,
+      "inaccessibleFrames": 0
+    },
+    "note": "CDP AX 样例里部分 paragraph 的 name 为空，文本在子节点。公开 aria 快照和契约节点有文案。业务层不应依赖 CDP 原始形状。"
+  },
+  "redaction": {
+    "removed": [
+      "隐藏 input 与 password 的 value 不进入契约节点，节点脚本不读 input.value。",
+      "CDP inputValue、属性 value、AXNode.value 只在内存中确认出现，样例省略。",
+      "cookie 只留名称 lqa_session、httpOnly=true、SameSite=Lax。",
+      "localStorage key lqa_token 与 sessionStorage key lqa_session 只留 key。比对用页面内 SHA-256，证据不写 value。",
+      "displayUrl 与请求 URL 的 auth 参数值替换为 [redacted]。",
+      "console 哨兵替换为 [redacted]。",
+      "不保存 page.content()、原始 CDP 字符串表、Playwright trace。script/style 不进 CDP 样例。",
+      "截图前清空 password 和隐藏 input。"
+    ],
+    "presenceBeforeRedaction": {
+      "hiddenInput": true,
+      "password": true,
+      "cookie": true,
+      "storage": true,
+      "session": true,
+      "query": true,
+      "console": true,
+      "cookieVisibleToDocumentCookie": false
+    },
+    "rawContainedSentinelKinds": {
+      "html": ["hiddenInput", "password", "storage", "session", "console"],
+      "aria": ["password"],
+      "cdpDom": ["hiddenInput", "password", "storage", "session", "query", "console"],
+      "cdpAx": ["query"]
+    },
+    "persisted": {
+      "rawHtml": false,
+      "rawCdp": false,
+      "rawTrace": false
+    },
+    "headerGap": "Playwright response.headers()/headerValues('set-cookie') 没有带回 Set-Cookie。cookie 来自 context.cookies()，value 未写入证据。",
+    "fingerprintNote": "节点清单不含 input value，所以填写备注没有改变指纹。点击后的回显文本改变了指纹，旧 snapshot 因此被拒绝。"
+  },
+  "summaryJsonNote": "spikes/t00/evidence/summary.json 是 2026-10-02T09:27:02.592Z 这次 macOS 复跑的输出。Linux 结论不在该文件。",
+  "evidenceFiles": [
+    {"file": "spikes/t00/evidence/actions.json", "bytes": 2019, "sha256": "b65d2210a2f2143373e1071008701f084b1a16c2af9de765727315878a94efe1"},
+    {"file": "spikes/t00/evidence/aria-snapshot.txt", "bytes": 343, "sha256": "7a308c9d389e6477d352128fc1a6a67b24d6097fec02116dc089110855058f8c"},
+    {"file": "spikes/t00/evidence/browser-snapshot.json", "bytes": 5864, "sha256": "6d0c85041cea2e8644e1770edd3dcde725d2c39fcfbfddccdd31aeb688421799"},
+    {"file": "spikes/t00/evidence/cdp-supplement.json", "bytes": 14852, "sha256": "ae8de5b2fbf12ce30a5ae390eabe781f7172fdee5faee4db8905c96efc694e61"},
+    {"file": "spikes/t00/evidence/console.json", "bytes": 40, "sha256": "cd490fb0089fc992d6fc133a49acad833d4a8b77c0ecf3fa1f179ef14f45d137"},
+    {"file": "spikes/t00/evidence/host-limits.json", "bytes": 1332, "sha256": "8a5053ce6520d88e8a9d16c0da347e1f79997600c4820af85dccde0a6c7ba2f1"},
+    {"file": "spikes/t00/evidence/manifest.json", "bytes": 2441, "sha256": "880d52e94c0a6521b0f5306b9773f229c171678dc8c5761a5b3146137a8e163a"},
+    {"file": "spikes/t00/evidence/model-probe-result.json", "bytes": 4796, "sha256": "57db79ea6f0409ebfd6e2919473a70190ac41d99cd1494a3732674d46b332bec"},
+    {"file": "spikes/t00/evidence/network.json", "bytes": 588, "sha256": "e8c4e146d553fa8b485588babbde2f4df3ae70ed50962cf41fc3aef772d761ce"},
+    {"file": "spikes/t00/evidence/redaction.json", "bytes": 1927, "sha256": "2f06c84537e7739f57cd8b07a9057aea17a77e0d20ce3a4ee4251c6c000881de"},
+    {"file": "spikes/t00/evidence/scenarios.json", "bytes": 2472, "sha256": "075097d2ab83d91375fbfaf56be69ed01fd84cf210af20909293e0f5e281fd32"},
+    {"file": "spikes/t00/evidence/schema-validation.json", "bytes": 216, "sha256": "c8981b961166d380db926b6497cad62317fec1f1438f9eff5ed711f7ed3969eb"},
+    {"file": "spikes/t00/evidence/screenshot.png", "bytes": 30145, "sha256": "9b5539506634f059f6028fa12ebbec6cd543665c4212784ef1a7a119ce135036"},
+    {"file": "spikes/t00/evidence/sentinel-scan.json", "bytes": 77, "sha256": "3146a1d7d4d37a71bc03ebd922282da2ce52719e4807959b80a8d045c34e8214"},
+    {"file": "spikes/t00/evidence/snapshot-before-action.json", "bytes": 5792, "sha256": "66ffe506d619220a7bc5d5d6a469ce62447d20f5101464aff164085685d768b4"},
+    {"file": "spikes/t00/evidence/summary.json", "bytes": 8699, "sha256": "d06bf36bf20b9c2c5f6d054f7c885c2c12efd8a917d1d20b6254e3c523fba6a5"},
+    {"file": "spikes/t00/evidence/versions.json", "bytes": 3968, "sha256": "2365d8a015e2fcdf5a7a1b979a711a1e8d2dcaf0424ac58b996061b820af791d"}
+  ],
+  "filePlacement": {
+    "projectRoot": "/Users/dcp/Documents/公司/momentic",
+    "rule": "代码、证据、临时文件和日志放在项目内。npm/npx 缓存和 Playwright 浏览器缓存留在工具默认位置，不移入仓库，不安装全局 npm 包。",
+    "insideProject": [
+      "spikes/t00（含 package.json、package-lock.json、node_modules、src、fixture、templates、evidence）",
+      "docs/validation-results/T00-compat-macos.json"
+    ],
+    "globalNpmInstall": false,
+    "npmPrefix": "/opt/homebrew",
+    "globalPlaywrightPackagePresent": false,
+    "movedIntoProject": [],
+    "outsideSearch": {
+      "matches": 0,
+      "detail": "find /tmp 与 $HOME，最大深度 3，名称匹配 *t00*、*localqa-spike*、*T00-compat*，排除项目目录，结果为空。另一次 find /tmp、$HOME、/var/folders，最大深度 5，名称匹配 run-spike.mjs、model-probe.mjs、scan-evidence.mjs、T00-compat-macos.json、localqa-spike-t00，排除项目目录，结果为空。"
+    },
+    "allowedCaches": {
+      "npmCache": "/Users/dcp/.npm",
+      "npmCacheHow": "npm config get cache",
+      "npxCache": "/Users/dcp/.npm/_npx",
+      "npxCacheHow": "未设置 npm_config_cache。npx 没有单独缓存目录，位于 npm cache 的 _npx。",
+      "playwrightBrowsersPath": "unset",
+      "playwrightCacheRoot": "/Users/dcp/Library/Caches/ms-playwright",
+      "playwrightExecutable": "/Users/dcp/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+      "thisTaskBrowserEntries": [
+        {"path": "/Users/dcp/Library/Caches/ms-playwright/chromium-1243", "mtime": "2026-10-02 16:26"},
+        {"path": "/Users/dcp/Library/Caches/ms-playwright/chromium_headless_shell-1243", "mtime": "2026-10-02 16:26"},
+        {"path": "/Users/dcp/Library/Caches/ms-playwright/ffmpeg-1011", "mtime": "2026-10-02 16:26"}
+      ],
+      "preExistingBrowserEntriesNotMoved": [
+        {"path": "/Users/dcp/Library/Caches/ms-playwright/chromium-1148", "mtime": "2026-09-17 15:57"},
+        {"path": "/Users/dcp/Library/Caches/ms-playwright/chromium_headless_shell-1148", "mtime": "2026-09-17 15:57"},
+        {"path": "/Users/dcp/Library/Caches/ms-playwright/ffmpeg-1010", "mtime": "2026-09-17 15:57"}
+      ],
+      "notes": [
+        "npm 缓存父目录 mtime 仍是 2026-07-27。今天写入了 _logs，以及 _cacache/tmp 和 _cacache/index-v5 下若干桶。这些桶不能全部算成本 spike 独占：同日仓库根目录还有其他 npx pnpm 命令。缓存未移动。",
+        "今日 _npx 里更新的子目录是 /Users/dcp/.npm/_npx/b0d06d8bb12cd156，其 package.json 依赖为 pnpm@10.34.0，不是本 spike 的 playwright。未移动、未删除。",
+        "本 spike 的 Playwright 包在 spikes/t00/node_modules/playwright（mtime 2026-10-02 16:24）。浏览器二进制在 ms-playwright，不在 npx 缓存里。",
+        "核对路径时执行了 npm config get cache 与 npm config get prefix。npm 自己的日志留在 /Users/dcp/.npm/_logs/2026-10-02T08_37_22_759Z-debug-0.log 和 /Users/dcp/.npm/_logs/2026-10-02T08_37_22_905Z-debug-0.log，未搬进项目。",
+        "/Users/dcp/Library/Caches/pnpm 的目录 mtime 是 2026-10-02 16:05。本 spike 使用 npm，没有读写该目录，也没有移动它。"
+      ]
+    }
+  },
+  "kept": [
+    "spikes/t00 源码、package-lock.json、node_modules、evidence",
+    "docs/validation-results/T00-compat-macos.json",
+    "工具缓存留在原处，路径见 filePlacement.allowedCaches"
+  ],
+  "cleanup": "macOS 浏览器和 127.0.0.1 服务已退出。已从 spikes/t00 撤出此前写入的 Linux 证据、脚本、seccomp 和拉取日志。没有改 docs/validation-results/T00-linux-container.json，也没有删除本机镜像。没有访问业务站点。项目外没有需要移入的任务文件。npm、npx 和 Playwright 缓存留在默认路径。",
+  "next": [
+    "macOS 复跑仍是 Node v26.3.0。若 macOS 侧也要锁定 Node 24，再复跑一次。",
+    "提供 HTTPS 模型 endpoint、model id，并用环境变量注入密钥，同时明确允许调用。然后才能测工具调用、JSON、图片、中文和 429/超时。当前脚本故意没有请求实现。",
+    "提供内部主机名、代理策略和公司 CA，才能做内网 DNS、代理和 TLS。不要用 127.0.0.1 代替。",
+    "T03 再做 Playwright trace 脱敏和 rrweb。原始 trace 现在不能入库。"
+  ]
+}

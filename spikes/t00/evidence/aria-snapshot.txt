@@ -1,0 +1,14 @@
+- heading "LocalQA T00 受控页" [level=1]
+- status: 延迟内容已出现
+- paragraph: 请确认内容
+- paragraph: 请确认内容
+- paragraph:
+  - button "保存"
+  - button "保存"
+- text: 备注
+- textbox "备注": T00备注
+- text: 密码
+- textbox "密码": [redacted]
+- button "写入备注"
+- paragraph: 已写入:T00备注
+- iframe

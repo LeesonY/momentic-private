@@ -1,0 +1,138 @@
+{
+  "playwright": "1.63.0",
+  "playwrightCore": "1.63.0",
+  "browserVersion": "153.0.8010.12",
+  "executablePath": "/Users/dcp/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+  "catalog": {
+    "source": "node_modules/playwright-core/browsers.json",
+    "browsers": [
+      {
+        "name": "chromium",
+        "revision": "1243",
+        "browserVersion": "153.0.8010.12",
+        "installByDefault": true
+      },
+      {
+        "name": "chromium-headless-shell",
+        "revision": "1243",
+        "browserVersion": "153.0.8010.12",
+        "installByDefault": true
+      },
+      {
+        "name": "firefox",
+        "revision": "1543",
+        "browserVersion": "155.0",
+        "installByDefault": true
+      },
+      {
+        "name": "webkit",
+        "revision": "2359",
+        "browserVersion": "26.6",
+        "installByDefault": true
+      },
+      {
+        "name": "ffmpeg",
+        "revision": "1011",
+        "browserVersion": null,
+        "installByDefault": true
+      },
+      {
+        "name": "winldd",
+        "revision": "1007",
+        "browserVersion": null,
+        "installByDefault": false
+      },
+      {
+        "name": "android",
+        "revision": "1001",
+        "browserVersion": null,
+        "installByDefault": false
+      }
+    ]
+  },
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+  "launch": {
+    "headless": true,
+    "chromiumSandbox": true,
+    "extraArgs": []
+  },
+  "defaultLaunchProbe": {
+    "chromiumSandbox": "omitted",
+    "version": "153.0.8010.12",
+    "browserProcessCount": 3,
+    "noSandbox": true,
+    "disableSetuidSandbox": false,
+    "disableDevShmUsage": true
+  },
+  "sandboxObservation": {
+    "browserProcessCount": 3,
+    "noSandbox": false,
+    "disableSetuidSandbox": false,
+    "flags": [
+      "--allow-pre-commit-input",
+      "--blink-settings",
+      "--disable-back-forward-cache",
+      "--disable-background-networking",
+      "--disable-background-timer-throttling",
+      "--disable-backgrounding-occluded-windows",
+      "--disable-breakpad",
+      "--disable-client-side-phishing-detection",
+      "--disable-component-extensions-with-background-pages",
+      "--disable-component-update",
+      "--disable-default-apps",
+      "--disable-dev-shm-usage",
+      "--disable-edgeupdater",
+      "--disable-extensions",
+      "--disable-features",
+      "--disable-field-trial-config",
+      "--disable-hang-monitor",
+      "--disable-infobars",
+      "--disable-ipc-flooding-protection",
+      "--disable-popup-blocking",
+      "--disable-prompt-on-repost",
+      "--disable-renderer-backgrounding",
+      "--disable-search-engine-choice-screen",
+      "--disable-sync",
+      "--disable-updater-scheduler",
+      "--edge-skip-compat-layer-relaunch",
+      "--enable-features",
+      "--enable-unsafe-swiftshader",
+      "--export-tagged-pdf",
+      "--field-trial-handle",
+      "--force-color-profile",
+      "--gpu-preferences",
+      "--headless",
+      "--hide-scrollbars",
+      "--lang",
+      "--metrics-recording-only",
+      "--mute-audio",
+      "--no-default-browser-check",
+      "--no-first-run",
+      "--no-service-autorun",
+      "--no-startup-window",
+      "--password-store",
+      "--pseudonymization-salt-handle",
+      "--remote-debugging-pipe",
+      "--seatbelt-client",
+      "--service-sandbox-type",
+      "--shared-files",
+      "--trace-process-track-uuid",
+      "--type",
+      "--unsafely-disable-devtools-self-xss-warnings",
+      "--use-angle",
+      "--use-gl",
+      "--use-mock-keychain",
+      "--user-data-dir",
+      "--utility-sub-type",
+      "--variations-seed-version"
+    ],
+    "scope": "macos-process-list"
+  },
+  "fontProbe": {
+    "sample": "延迟内容",
+    "sans": 64,
+    "pingfang": 64
+  },
+  "node": "v26.3.0",
+  "v8": "14.6.202.34-node.20"
+}

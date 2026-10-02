@@ -1,0 +1,96 @@
+[
+  {
+    "type": "navigate",
+    "status": "passed",
+    "waitUntil": "domcontentloaded",
+    "url": "http://127.0.0.1:49806/?auth=[redacted]",
+    "responseStatus": 200,
+    "elapsedMs": 28
+  },
+  {
+    "type": "wait-state",
+    "status": "passed",
+    "target": "late-content",
+    "state": "visible",
+    "elapsedMs": 1805,
+    "pageDelayMs": 1607
+  },
+  {
+    "type": "click",
+    "status": "refused",
+    "reason": "not_unique",
+    "name": "保存",
+    "matchCount": 2,
+    "visibleCount": 2,
+    "enabledCount": 2,
+    "actionable": false,
+    "clicked": false
+  },
+  {
+    "type": "resolve-text",
+    "status": "refused",
+    "reason": "not_unique",
+    "name": "请确认内容",
+    "matchCount": 2,
+    "visibleCount": 2,
+    "enabledCount": 2,
+    "actionable": false,
+    "clicked": false
+  },
+  {
+    "type": "click",
+    "status": "refused",
+    "reason": "not_visible",
+    "name": "危险操作",
+    "domVisible": false,
+    "role": {
+      "matchCount": 0,
+      "visibleCount": 0,
+      "enabledCount": 0,
+      "reason": "not_visible",
+      "actionable": false
+    },
+    "includeHidden": {
+      "matchCount": 1,
+      "visibleCount": 0,
+      "enabledCount": 0,
+      "reason": "not_visible",
+      "actionable": false
+    },
+    "clicked": false
+  },
+  {
+    "type": "fill",
+    "status": "passed",
+    "target": "备注",
+    "uniqueness": {
+      "matchCount": 1,
+      "visibleCount": 1,
+      "enabledCount": 1,
+      "reason": "unique",
+      "actionable": true
+    }
+  },
+  {
+    "type": "click",
+    "status": "passed",
+    "target": "写入备注",
+    "snapshotId": "37d2ec19-d7d4-471d-8420-6c50eb64b78c",
+    "uniqueness": {
+      "matchCount": 1,
+      "visibleCount": 1,
+      "enabledCount": 1,
+      "reason": "unique",
+      "actionable": true
+    },
+    "rechecked": true
+  },
+  {
+    "type": "click",
+    "status": "refused",
+    "reason": "stale_snapshot",
+    "snapshotId": "37d2ec19-d7d4-471d-8420-6c50eb64b78c",
+    "fingerprintChanged": true,
+    "applyClicks": 1
+  }
+]

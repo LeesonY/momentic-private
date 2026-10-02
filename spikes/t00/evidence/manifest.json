@@ -1,0 +1,84 @@
+{
+  "files": [
+    {
+      "file": "actions.json",
+      "bytes": 2019,
+      "sha256": "b65d2210a2f2143373e1071008701f084b1a16c2af9de765727315878a94efe1"
+    },
+    {
+      "file": "aria-snapshot.txt",
+      "bytes": 343,
+      "sha256": "7a308c9d389e6477d352128fc1a6a67b24d6097fec02116dc089110855058f8c"
+    },
+    {
+      "file": "browser-snapshot.json",
+      "bytes": 5864,
+      "sha256": "6d0c85041cea2e8644e1770edd3dcde725d2c39fcfbfddccdd31aeb688421799"
+    },
+    {
+      "file": "cdp-supplement.json",
+      "bytes": 14852,
+      "sha256": "ae8de5b2fbf12ce30a5ae390eabe781f7172fdee5faee4db8905c96efc694e61"
+    },
+    {
+      "file": "console.json",
+      "bytes": 40,
+      "sha256": "cd490fb0089fc992d6fc133a49acad833d4a8b77c0ecf3fa1f179ef14f45d137"
+    },
+    {
+      "file": "host-limits.json",
+      "bytes": 1332,
+      "sha256": "8a5053ce6520d88e8a9d16c0da347e1f79997600c4820af85dccde0a6c7ba2f1"
+    },
+    {
+      "file": "model-probe-result.json",
+      "bytes": 4796,
+      "sha256": "57db79ea6f0409ebfd6e2919473a70190ac41d99cd1494a3732674d46b332bec"
+    },
+    {
+      "file": "network.json",
+      "bytes": 588,
+      "sha256": "e8c4e146d553fa8b485588babbde2f4df3ae70ed50962cf41fc3aef772d761ce"
+    },
+    {
+      "file": "redaction.json",
+      "bytes": 1927,
+      "sha256": "2f06c84537e7739f57cd8b07a9057aea17a77e0d20ce3a4ee4251c6c000881de"
+    },
+    {
+      "file": "scenarios.json",
+      "bytes": 2472,
+      "sha256": "075097d2ab83d91375fbfaf56be69ed01fd84cf210af20909293e0f5e281fd32"
+    },
+    {
+      "file": "schema-validation.json",
+      "bytes": 216,
+      "sha256": "c8981b961166d380db926b6497cad62317fec1f1438f9eff5ed711f7ed3969eb"
+    },
+    {
+      "file": "screenshot.png",
+      "bytes": 30145,
+      "sha256": "9b5539506634f059f6028fa12ebbec6cd543665c4212784ef1a7a119ce135036"
+    },
+    {
+      "file": "sentinel-scan.json",
+      "bytes": 77,
+      "sha256": "3146a1d7d4d37a71bc03ebd922282da2ce52719e4807959b80a8d045c34e8214"
+    },
+    {
+      "file": "snapshot-before-action.json",
+      "bytes": 5792,
+      "sha256": "66ffe506d619220a7bc5d5d6a469ce62447d20f5101464aff164085685d768b4"
+    },
+    {
+      "file": "summary.json",
+      "bytes": 8699,
+      "sha256": "d06bf36bf20b9c2c5f6d054f7c885c2c12efd8a917d1d20b6254e3c523fba6a5"
+    },
+    {
+      "file": "versions.json",
+      "bytes": 3968,
+      "sha256": "2365d8a015e2fcdf5a7a1b979a711a1e8d2dcaf0424ac58b996061b820af791d"
+    }
+  ]
+}

@@ -1,0 +1,606 @@
+{
+  "ok": true,
+  "api": "CDPSession.send DOMSnapshot.captureSnapshot + Accessibility.getFullAXTree",
+  "frameIds": [
+    "F45F4B6962CB4F9383473443B64E6EF6",
+    "946E3950B58ACE481934746ED805A195"
+  ],
+  "axContainedSentinelKinds": [
+    "query"
+  ],
+  "ax": [
+    {
+      "frameId": "F45F4B6962CB4F9383473443B64E6EF6",
+      "inaccessible": false,
+      "nodeCount": 44,
+      "valueOmitted": 2,
+      "sample": [
+        {
+          "role": "RootWebArea",
+          "name": "LocalQA T00 Fixture",
+          "ignored": false,
+          "backendDOMNodeId": 2,
+          "hasValue": false
+        },
+        {
+          "role": "none",
+          "name": "",
+          "ignored": true,
+          "backendDOMNodeId": 5,
+          "hasValue": false
+        },
+        {
+          "role": "none",
+          "name": "",
+          "ignored": true,
+          "backendDOMNodeId": 4,
+          "hasValue": false
+        },
+        {
+          "role": "heading",
+          "name": "LocalQA T00 受控页",
+          "ignored": false,
+          "backendDOMNodeId": 12,
+          "hasValue": false
+        },
+        {
+          "role": "status",
+          "name": "",
+          "ignored": false,
+          "backendDOMNodeId": 13,
+          "hasValue": false
+        },
+        {
+          "role": "paragraph",
+          "name": "",
+          "ignored": false,
+          "backendDOMNodeId": 6,
+          "hasValue": false
+        },
+        {
+          "role": "paragraph",
+          "name": "",
+          "ignored": false,
+          "backendDOMNodeId": 7,
+          "hasValue": false
+        },
+        {
+          "role": "paragraph",
+          "name": "",
+          "ignored": false,
+          "backendDOMNodeId": 8,
+          "hasValue": false
+        },
+        {
+          "role": "form",
+          "name": "",
+          "ignored": false,
+          "backendDOMNodeId": 9,
+          "hasValue": false
+        },
+        {
+          "role": "paragraph",
+          "name": "",
+          "ignored": false,
+          "backendDOMNodeId": 10,
+          "hasValue": false
+        },
+        {
+          "role": "Iframe",
+          "name": "侧栏",
+          "ignored": false,
+          "backendDOMNodeId": 11,
+          "hasValue": false
+        },
+        {
+          "role": "StaticText",
+          "name": "LocalQA T00 受控页",
+          "ignored": false,
+          "backendDOMNodeId": 35,
+          "hasValue": false
+        },
+        {
+          "role": "StaticText",
+          "name": "延迟内容已出现",
+          "ignored": false,
+          "backendDOMNodeId": 37,
+          "hasValue": false
+        },
+        {
+          "role": "StaticText",
+          "name": "请确认内容",
+          "ignored": false,
+          "backendDOMNodeId": 38,
+          "hasValue": false
+        },
+        {
+          "role": "StaticText",
+          "name": "请确认内容",
+          "ignored": false,
+          "backendDOMNodeId": 39,
+          "hasValue": false
+        },
+        {
+          "role": "button",
+          "name": "保存",
+          "ignored": false,
+          "backendDOMNodeId": 14,
+          "hasValue": false
+        },
+        {
+          "role": "button",
+          "name": "保存",
+          "ignored": false,
+          "backendDOMNodeId": 15,
+          "hasValue": false
+        },
+        {
+          "role": "LabelText",
+          "name": "",
+          "ignored": false,
+          "backendDOMNodeId": 29,
+          "hasValue": false
+        },
+        {
+          "role": "textbox",
+          "name": "备注",
+          "ignored": false,
+          "backendDOMNodeId": 16,
+          "hasValue": true
+        },
+        {
+          "role": "LabelText",
+          "name": "",
+          "ignored": false,
+          "backendDOMNodeId": 32,
+          "hasValue": false
+        },
+        {
+          "role": "textbox",
+          "name": "密码",
+          "ignored": false,
+          "backendDOMNodeId": 18,
+          "hasValue": true
+        },
+        {
+          "role": "button",
+          "name": "写入备注",
+          "ignored": false,
+          "backendDOMNodeId": 20,
+          "hasValue": false
+        },
+        {
+          "role": "StaticText",
+          "name": "已写入:T00备注",
+          "ignored": false,
+          "backendDOMNodeId": 49,
+          "hasValue": false
+        },
+        {
+          "role": "InlineTextBox",
+          "name": "LocalQA T00 受控页",
+          "ignored": false,
+          "backendDOMNodeId": null,
+          "hasValue": false
+        },
+        {
+          "role": "InlineTextBox",
+          "name": "延迟内容已出现",
+          "ignored": false,
+          "backendDOMNodeId": null,
+          "hasValue": false
+        },
+        {
+          "role": "InlineTextBox",
+          "name": "请确认内容",
+          "ignored": false,
+          "backendDOMNodeId": null,
+          "hasValue": false
+        },
+        {
+          "role": "InlineTextBox",
+          "name": "请确认内容",
+          "ignored": false,
+          "backendDOMNodeId": null,
+          "hasValue": false
+        },
+        {
+          "role": "StaticText",
+          "name": "保存",
+          "ignored": false,
+          "backendDOMNodeId": 40,
+          "hasValue": false
+        },
+        {
+          "role": "StaticText",
+          "name": "保存",
+          "ignored": false,
+          "backendDOMNodeId": 41,
+          "hasValue": false
+        },
+        {
+          "role": "StaticText",
+          "name": "备注",
+          "ignored": false,
+          "backendDOMNodeId": 44,
+          "hasValue": false
+        },
+        {
+          "role": "generic",
+          "name": "",
+          "ignored": false,
+          "backendDOMNodeId": 30,
+          "hasValue": false
+        },
+        {
+          "role": "StaticText",
+          "name": "密码",
+          "ignored": false,
+          "backendDOMNodeId": 46,
+          "hasValue": false
+        },
+        {
+          "role": "generic",
+          "name": "",
+          "ignored": false,
+          "backendDOMNodeId": 33,
+          "hasValue": false
+        },
+        {
+          "role": "StaticText",
+          "name": "写入备注",
+          "ignored": false,
+          "backendDOMNodeId": 48,
+          "hasValue": false
+        },
+        {
+          "role": "InlineTextBox",
+          "name": "已写入:T00备注",
+          "ignored": false,
+          "backendDOMNodeId": null,
+          "hasValue": false
+        },
+        {
+          "role": "InlineTextBox",
+          "name": "保存",
+          "ignored": false,
+          "backendDOMNodeId": null,
+          "hasValue": false
+        },
+        {
+          "role": "InlineTextBox",
+          "name": "保存",
+          "ignored": false,
+          "backendDOMNodeId": null,
+          "hasValue": false
+        },
+        {
+          "role": "InlineTextBox",
+          "name": "备注",
+          "ignored": false,
+          "backendDOMNodeId": null,
+          "hasValue": false
+        },
+        {
+          "role": "StaticText",
+          "name": "T00备注",
+          "ignored": false,
+          "backendDOMNodeId": 45,
+          "hasValue": false
+        },
+        {
+          "role": "InlineTextBox",
+          "name": "密码",
+          "ignored": false,
+          "backendDOMNodeId": null,
+          "hasValue": false
+        }
+      ]
+    },
+    {
+      "frameId": "946E3950B58ACE481934746ED805A195",
+      "inaccessible": false,
+      "nodeCount": 6,
+      "valueOmitted": 0,
+      "sample": [
+        {
+          "role": "RootWebArea",
+          "name": "侧栏",
+          "ignored": false,
+          "backendDOMNodeId": 3,
+          "hasValue": false
+        },
+        {
+          "role": "none",
+          "name": "",
+          "ignored": true,
+          "backendDOMNodeId": 50,
+          "hasValue": false
+        },
+        {
+          "role": "none",
+          "name": "",
+          "ignored": true,
+          "backendDOMNodeId": 54,
+          "hasValue": false
+        },
+        {
+          "role": "paragraph",
+          "name": "",
+          "ignored": false,
+          "backendDOMNodeId": 21,
+          "hasValue": false
+        },
+        {
+          "role": "StaticText",
+          "name": "iframe 可见文本",
+          "ignored": false,
+          "backendDOMNodeId": 55,
+          "hasValue": false
+        },
+        {
+          "role": "InlineTextBox",
+          "name": "iframe 可见文本",
+          "ignored": false,
+          "backendDOMNodeId": null,
+          "hasValue": false
+        }
+      ]
+    }
+  ],
+  "dom": {
+    "containedSentinelKinds": [
+      "hiddenInput",
+      "password",
+      "storage",
+      "session",
+      "query",
+      "console"
+    ],
+    "documentCount": 2,
+    "documents": [
+      {
+        "frameId": 3,
+        "url": "http://127.0.0.1:49806/?auth=[redacted]",
+        "title": "LocalQA T00 Fixture",
+        "nodeCount": 72,
+        "scriptNodesSkipped": 2,
+        "inputValuesSeen": 3,
+        "hiddenOrPasswordValuesOmitted": 2,
+        "sample": [
+          {
+            "tag": "h1",
+            "attributes": {
+              "id": "title"
+            },
+            "inputValueOmitted": false,
+            "bounds": {
+              "left": 24,
+              "top": 24,
+              "width": 1232,
+              "height": 48
+            }
+          },
+          {
+            "tag": "div",
+            "attributes": {
+              "id": "spinner",
+              "role": "status"
+            },
+            "inputValueOmitted": false,
+            "bounds": null
+          },
+          {
+            "tag": "div",
+            "attributes": {
+              "id": "late",
+              "data-testid": "late-content",
+              "role": "status"
+            },
+            "inputValueOmitted": false,
+            "bounds": {
+              "left": 24,
+              "top": 93.4375,
+              "width": 1232,
+              "height": 40
+            }
+          },
+          {
+            "tag": "p",
+            "attributes": {
+              "id": "dup-text-1"
+            },
+            "inputValueOmitted": false,
+            "bounds": {
+              "left": 24,
+              "top": 149.4375,
+              "width": 1232,
+              "height": 24
+            }
+          },
+          {
+            "tag": "p",
+            "attributes": {
+              "id": "dup-text-2"
+            },
+            "inputValueOmitted": false,
+            "bounds": {
+              "left": 24,
+              "top": 189.4375,
+              "width": 1232,
+              "height": 24
+            }
+          },
+          {
+            "tag": "p",
+            "attributes": {
+              "id": "actions"
+            },
+            "inputValueOmitted": false,
+            "bounds": {
+              "left": 24,
+              "top": 229.4375,
+              "width": 1232,
+              "height": 34
+            }
+          },
+          {
+            "tag": "button",
+            "attributes": {
+              "type": "button",
+              "id": "save-draft",
+              "data-testid": "save-draft"
+            },
+            "inputValueOmitted": false,
+            "bounds": {
+              "left": 24,
+              "top": 230.4375,
+              "width": 42.671875,
+              "height": 25
+            }
+          },
+          {
+            "tag": "button",
+            "attributes": {
+              "type": "button",
+              "id": "save-copy",
+              "data-testid": "save-copy"
+            },
+            "inputValueOmitted": false,
+            "bounds": {
+              "left": 80,
+              "top": 230.4375,
+              "width": 42.671875,
+              "height": 25
+            }
+          },
+          {
+            "tag": "button",
+            "attributes": {
+              "type": "button",
+              "id": "hidden-save"
+            },
+            "inputValueOmitted": false,
+            "bounds": null
+          },
+          {
+            "tag": "button",
+            "attributes": {
+              "type": "button",
+              "id": "hidden-danger"
+            },
+            "inputValueOmitted": false,
+            "bounds": null
+          },
+          {
+            "tag": "input",
+            "attributes": {
+              "id": "note",
+              "name": "note",
+              "type": "text"
+            },
+            "inputValueOmitted": true,
+            "bounds": {
+              "left": 61.328125,
+              "top": 282.4375,
+              "width": 153,
+              "height": 21
+            }
+          },
+          {
+            "tag": "input",
+            "attributes": {
+              "id": "token",
+              "name": "token",
+              "type": "hidden"
+            },
+            "inputValueOmitted": true,
+            "bounds": null
+          },
+          {
+            "tag": "input",
+            "attributes": {
+              "id": "pw",
+              "name": "pw",
+              "type": "password"
+            },
+            "inputValueOmitted": true,
+            "bounds": {
+              "left": 256.984375,
+              "top": 282.4375,
+              "width": 153,
+              "height": 21
+            }
+          },
+          {
+            "tag": "button",
+            "attributes": {
+              "type": "button",
+              "id": "apply",
+              "data-testid": "apply-note"
+            },
+            "inputValueOmitted": false,
+            "bounds": {
+              "left": 415.3125,
+              "top": 280.4375,
+              "width": 69.328125,
+              "height": 25
+            }
+          },
+          {
+            "tag": "p",
+            "attributes": {
+              "id": "echo"
+            },
+            "inputValueOmitted": false,
+            "bounds": {
+              "left": 24,
+              "top": 329.4375,
+              "width": 1232,
+              "height": 40
+            }
+          },
+          {
+            "tag": "iframe",
+            "attributes": {
+              "id": "side",
+              "name": "side",
+              "title": "侧栏"
+            },
+            "inputValueOmitted": false,
+            "bounds": {
+              "left": 24,
+              "top": 385.4375,
+              "width": 322,
+              "height": 82
+            }
+          }
+        ]
+      },
+      {
+        "frameId": 92,
+        "url": "http://127.0.0.1:49806/frame.html",
+        "title": "侧栏",
+        "nodeCount": 16,
+        "scriptNodesSkipped": 0,
+        "inputValuesSeen": 0,
+        "hiddenOrPasswordValuesOmitted": 0,
+        "sample": [
+          {
+            "tag": "p",
+            "attributes": {
+              "id": "frame-text"
+            },
+            "inputValueOmitted": false,
+            "bounds": {
+              "left": 8,
+              "top": 16,
+              "width": 304,
+              "height": 22
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

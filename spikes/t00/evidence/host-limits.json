@@ -1,0 +1,42 @@
+{
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "osVersion": "27.0",
+    "osBuild": "26A428",
+    "uname": "Darwin arm64",
+    "node": "v26.3.0",
+    "npm": "11.16.0",
+    "uid": 501,
+    "gid": 20,
+    "docker": {
+      "cli": true,
+      "clientVersion": "29.8.2",
+      "serverVersion": "29.5.2"
+    },
+    "podman": false,
+    "proxyEnv": {
+      "HTTP_PROXY": "set",
+      "HTTPS_PROXY": "set",
+      "ALL_PROXY": "set",
+      "NO_PROXY": "set",
+      "http_proxy": "unset",
+      "https_proxy": "unset",
+      "all_proxy": "unset",
+      "no_proxy": "unset",
+      "NODE_EXTRA_CA_CERTS": "unset",
+      "SSL_CERT_FILE": "unset",
+      "REQUESTS_CA_BUNDLE": "unset"
+    },
+    "note": "uid 是 macOS 用户。代理只记录是否设置。Linux 容器结论不在本 spike。"
+  },
+  "outOfScope": [
+    "Linux 容器验收见 docs/validation-results/T00-linux-container.json。本文件不记录容器结论。"
+  ],
+  "notPassedHere": [
+    "内网 DNS：未提供内部主机名，未解析，不记录本机 DNS 服务器地址。",
+    "代理：未按产品 Worker 策略做内网请求。本机代理变量见 host.proxyEnv，值为 set/unset。",
+    "公司 CA / 内网 TLS：未提供 CA，未做内网 HTTPS 握手。",
+    "受控真实站点：未访问。127.0.0.1 fixture 不能代替。"
+  ]
+}

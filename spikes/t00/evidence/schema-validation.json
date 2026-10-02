@@ -1,0 +1,14 @@
+{
+  "before": {
+    "ok": true,
+    "schemaOk": true,
+    "schemaErrors": [],
+    "invariantErrors": []
+  },
+  "after": {
+    "ok": true,
+    "schemaOk": true,
+    "schemaErrors": [],
+    "invariantErrors": []
+  }
+}

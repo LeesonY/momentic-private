@@ -1,0 +1,64 @@
+{
+  "policy": [
+    "隐藏 input 与 password 的 value 不进入契约节点。节点 name/text 不读取 input.value。",
+    "CDP DOMSnapshot 的 inputValue、属性 value，以及 AXNode.value 只在内存中判断是否出现，样例里省略。",
+    "cookie 只留名称、httpOnly、SameSite。value 不写盘。HttpOnly cookie 不进入 document.cookie。",
+    "localStorage / sessionStorage 只在页面内做 SHA-256 比对。证据留 key 和 valueOmitted，不留 value。",
+    "displayUrl 与 network url 将 auth/token/key/secret/password/session 的参数值替换为 [redacted]。",
+    "console 文本落盘前替换哨兵。不保存 page.content()、原始 CDP 字符串表或 Playwright trace。",
+    "script/style 不进入 CDP 样例。截图前清空 password 与隐藏 input 的值。",
+    "证据写盘后按哨兵字节扫描，命中则删除该文件并判失败。"
+  ],
+  "presence": {
+    "hiddenInput": true,
+    "password": true,
+    "storage": true,
+    "session": true,
+    "cookie": true,
+    "query": true,
+    "console": true,
+    "queryInNavigation": true
+  },
+  "htmlContainedKinds": [
+    "hiddenInput",
+    "password",
+    "storage",
+    "session",
+    "console"
+  ],
+  "cookie": {
+    "name": "lqa_session",
+    "httpOnly": true,
+    "sameSite": "Lax",
+    "valueOmitted": true
+  },
+  "cookieVisibleToDocumentCookie": false,
+  "storageKeys": {
+    "local": [
+      "lqa_token"
+    ],
+    "session": [
+      "lqa_session"
+    ]
+  },
+  "storageValueOmitted": true,
+  "ariaContainedSentinelKinds": [
+    "password"
+  ],
+  "cdpDomContainedSentinelKinds": [
+    "hiddenInput",
+    "password",
+    "storage",
+    "session",
+    "query",
+    "console"
+  ],
+  "cdpAxContainedSentinelKinds": [
+    "query"
+  ],
+  "rawHtmlPersisted": false,
+  "rawCdpPersisted": false,
+  "rawTracePersisted": false,
+  "screenshotMasked": true,
+  "displayUrl": "http://127.0.0.1:49806/?auth=[redacted]"
+}

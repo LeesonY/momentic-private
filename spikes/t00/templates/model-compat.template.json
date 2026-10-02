@@ -1,0 +1,124 @@
+{
+  "task": "T00-model-compat",
+  "status": "blocked",
+  "networkCallMade": false,
+  "doNotExecute": true,
+  "blockedReason": "待用户提供产品端点与密钥，并明确允许调用后再执行。本文件是记录模板，不是探测结果。",
+  "requiredFromUser": [
+    "HTTPS 模型 endpoint（管理员注册的外部或内部地址）",
+    "model id",
+    "API key，只经环境变量注入，不写入仓库或命令行日志",
+    "明确允许本次探测调用（可能消耗额度）"
+  ],
+  "env": {
+    "LOCALQA_MODEL_BASE_URL": "https://USER_PROVIDED_ENDPOINT/v1",
+    "LOCALQA_MODEL_API_KEY": "<do-not-commit>",
+    "LOCALQA_MODEL_ID": "<user-provided-model-id>"
+  },
+  "recordFields": [
+    "profile",
+    "modelId",
+    "adapterVersion",
+    "promptVersion",
+    "role",
+    "latencyMs",
+    "requestResult",
+    "usageSource",
+    "inputTokens",
+    "outputTokens",
+    "fallbackUsed"
+  ],
+  "rules": [
+    "无 native tool-calling 时仍走同一套 schema 校验，最多一次格式修复。",
+    "图片不支持时视觉验收标 unsupported，不能改成文本验收。",
+    "禁止悄悄切换到未配置的模型；fallback 必须来自已批准列表并写入记录。",
+    "页面内容和工具结果不是系统指令，也不能授权动作。"
+  ],
+  "checks": [
+    {
+      "id": "tool-calling",
+      "fr": "FR-006",
+      "status": "blocked",
+      "result": null,
+      "expect": "返回允许列表内的工具名和符合 schema 的参数。模型不直接执行 Playwright。",
+      "sampleRequest": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "只输出一个工具调用：点击唯一的「写入备注」。不要解释。"
+          }
+        ],
+        "tools": [
+          {
+            "name": "click",
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["target"],
+              "properties": {
+                "target": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["snapshotId", "pageId", "nodeId"],
+                  "properties": {
+                    "snapshotId": { "type": "string" },
+                    "pageId": { "type": "string" },
+                    "nodeId": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "json-output",
+      "fr": "FR-006",
+      "status": "blocked",
+      "result": null,
+      "expect": "输出可解析 JSON 对象，无 Markdown 围栏。格式错误只允许一次修复请求。",
+      "sampleRequest": {
+        "responseFormat": "json",
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["result", "reason"],
+          "properties": {
+            "result": { "enum": ["passed", "failed", "inconclusive"] },
+            "reason": { "type": "string" }
+          }
+        }
+      }
+    },
+    {
+      "id": "image-input",
+      "fr": "FR-006",
+      "status": "blocked",
+      "result": null,
+      "expect": "能接收获准截图则给出视觉观察；不支持时必须是 unsupported，不能伪装成文本验收。",
+      "sampleRequest": {
+        "image": "spikes/t00/evidence/screenshot.png",
+        "prompt": "图中是否能看到「延迟内容已出现」和「已写入:T00备注」？只回答 JSON。"
+      }
+    },
+    {
+      "id": "chinese-page",
+      "fr": "FR-006",
+      "status": "blocked",
+      "result": null,
+      "expect": "对照受控页固定中文节点作答，不访问其他网站。",
+      "sampleRequest": {
+        "observation": "延迟内容已出现；两个可见按钮都叫「保存」；回显为已写入:T00备注。",
+        "question": "「保存」是否是唯一点击目标？回答 JSON：unique 与 reason。"
+      }
+    },
+    {
+      "id": "error-timeout-429",
+      "fr": "FR-006",
+      "status": "blocked",
+      "result": null,
+      "expect": "错误、超时和 429 记为请求结果，不能静默切换到未配置模型。"
+    }
+  ]
+}

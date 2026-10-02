@@ -1,0 +1,30 @@
+[
+  {
+    "url": "http://127.0.0.1:49806/?auth=[redacted]",
+    "method": "GET",
+    "status": 200,
+    "resourceType": "document",
+    "summary": ""
+  },
+  {
+    "url": "http://127.0.0.1:49806/frame.html",
+    "method": "GET",
+    "status": 200,
+    "resourceType": "document",
+    "summary": ""
+  },
+  {
+    "url": "http://127.0.0.1:49806/api/ping",
+    "method": "GET",
+    "status": 200,
+    "resourceType": "fetch",
+    "summary": ""
+  },
+  {
+    "url": "http://127.0.0.1:49806/api/hang",
+    "method": "GET",
+    "status": null,
+    "resourceType": "fetch",
+    "summary": ""
+  }
+]
