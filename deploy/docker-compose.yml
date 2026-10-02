@@ -32,10 +32,17 @@ services:
   # ============================================================================
   web:
     image: ${LOCALQA_WEB_IMAGE:-localqa-web:latest}
+    build:
+      context: ..
+      dockerfile: deploy/images/web.Dockerfile
     container_name: localqa-web
     restart: unless-stopped
+    read_only: true
+    user: '${LOCALQA_UID:-1001}:${LOCALQA_GID:-1001}'
+    tmpfs:
+      - /tmp:rw,nosuid,size=64m
     healthcheck:
-      test: ['CMD-SHELL', 'wget -q --spider http://127.0.0.1:80/ || exit 1']
+      test: ['CMD', 'node', '/app/web-entry.mjs', '--check']
       interval: 10s
       timeout: 5s
       retries: 3
@@ -48,18 +55,25 @@ services:
   # ============================================================================
   api:
     image: ${LOCALQA_API_IMAGE:-localqa-api:latest}
+    build:
+      context: ..
+      dockerfile: deploy/images/api.Dockerfile
     container_name: localqa-api
     restart: unless-stopped
+    read_only: true
+    user: '${LOCALQA_UID:-1001}:${LOCALQA_GID:-1001}'
+    tmpfs:
+      - /tmp:rw,nosuid,size=64m
     env_file:
       - path: .env
         required: false
     volumes:
       - localqa_data:/var/localqa/data:rw
       - ./secrets:/run/secrets:ro
+      - ./ca:/etc/localqa/ca:ro
     healthcheck:
       # Distinguishes liveness (/healthz) vs readiness (/readyz checks DB and Vault)
-      test:
-        ['CMD-SHELL', 'wget -q --spider http://127.0.0.1:3000/readyz || exit 1']
+      test: ['CMD', 'node', '/app/deploy/images/check.mjs', 'api', 'ready']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -76,16 +90,24 @@ services:
   # ============================================================================
   orchestrator:
     image: ${LOCALQA_ORCHESTRATOR_IMAGE:-localqa-orchestrator:latest}
+    build:
+      context: ..
+      dockerfile: deploy/images/orchestrator.Dockerfile
     container_name: localqa-orchestrator
     restart: unless-stopped
+    read_only: true
+    user: '${LOCALQA_UID:-1001}:${LOCALQA_GID:-1001}'
+    tmpfs:
+      - /tmp:rw,nosuid,size=64m
     env_file:
       - path: .env
         required: false
     volumes:
       - localqa_data:/var/localqa/data:rw
       - ./secrets:/run/secrets:ro
+      - ./ca:/etc/localqa/ca:ro
     healthcheck:
-      test: ['CMD', 'node', '/app/deploy/scripts/health-probe.mjs', '--ready']
+      test: ['CMD', 'node', '/app/deploy/images/check.mjs', 'orchestrator', 'ready']
       interval: 15s
       timeout: 5s
       retries: 3
@@ -112,9 +134,13 @@ services:
   # or load a dedicated AppArmor profile, which permits dropping SYS_ADMIN capability.
   # ============================================================================
   worker:
-    image: ${LOCALQA_WORKER_IMAGE:-localqa-worker:unbuilt}
+    image: ${LOCALQA_WORKER_IMAGE:-localqa-worker:latest}
+    build:
+      context: ..
+      dockerfile: deploy/images/worker.Dockerfile
     container_name: localqa-worker
     restart: unless-stopped
+    read_only: true
     user: '${LOCALQA_UID:-1001}:${LOCALQA_GID:-1001}'
     cap_add:
       - SYS_ADMIN # Required for unprivileged user namespace sandbox on Ubuntu 24.04
@@ -132,9 +158,10 @@ services:
     volumes:
       - localqa_data:/var/localqa/data:rw
       - ./secrets:/run/secrets:ro
+      - ./ca:/etc/localqa/ca:ro
 
     healthcheck:
-      test: ['CMD', 'node', '/app/deploy/scripts/health-probe.mjs', '--ready']
+      test: ['CMD', 'node', '/app/deploy/images/check.mjs', 'worker', 'ready']
       interval: 15s
       timeout: 5s
       retries: 3

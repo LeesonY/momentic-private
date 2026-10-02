@@ -1,0 +1,696 @@
+{
+  "task": "T09-B1",
+  "timestamp": "2026-10-02T15:44:36.941Z",
+  "passed": true,
+  "P0Passed": false,
+  "error": null,
+  "facts": {
+    "gatewayConfig": {
+      "web": "web:8080",
+      "api": "api:3000",
+      "sseBuffering": false,
+      "tlsCertMount": "/etc/nginx/certs",
+      "validated": "static only"
+    },
+    "migrations": "[LocalQA Migrate] Starting database migrations from: /app/packages/storage/migrations/\n[LocalQA Migrate] Successfully applied 4 migration(s): 001_core.sql, 002_invariants.sql, 003_access.sql, 004_hardening.sql",
+    "bootstrap": true,
+    "api": {
+      "ready": true,
+      "uid": "1001"
+    },
+    "orchestrator": {
+      "ready": true,
+      "uid": "1001"
+    },
+    "web": {
+      "ready": true,
+      "uid": "1001",
+      "indexStatus": 200
+    },
+    "worker": {
+      "ready": true,
+      "marker": {
+        "node": "v24.20.0",
+        "uid": 1001,
+        "url": "http://localqa-t09b1-80bfe58b-fixture:8080/",
+        "action": "details-tab.click",
+        "processes": [
+          {
+            "uid": 1001,
+            "seccomp": 2,
+            "noSandbox": false
+          },
+          {
+            "uid": 1001,
+            "seccomp": 2,
+            "noSandbox": false
+          },
+          {
+            "uid": 1001,
+            "seccomp": 2,
+            "noSandbox": false
+          },
+          {
+            "uid": 1001,
+            "seccomp": 2,
+            "noSandbox": false
+          },
+          {
+            "uid": 1001,
+            "seccomp": 2,
+            "noSandbox": false
+          },
+          {
+            "uid": 1001,
+            "seccomp": 2,
+            "noSandbox": false
+          },
+          {
+            "uid": 1001,
+            "seccomp": 2,
+            "noSandbox": false
+          }
+        ],
+        "browserVersion": "153.0.8010.12",
+        "playwright": "1.63.0"
+      },
+      "uid": "1001"
+    },
+    "localqa-api:t09b1-current": {
+      "id": "sha256:577889dfbba7fdbc8175aa6abc300135c0242be2294b60d0c6cfc7891f6786f9",
+      "sizeBytes": 114659041,
+      "arch": "arm64",
+      "created": "2026-10-02T23:35:21.676332206+08:00",
+      "digests": [
+        "localqa-api@sha256:577889dfbba7fdbc8175aa6abc300135c0242be2294b60d0c6cfc7891f6786f9"
+      ],
+      "node": "v24.21.0"
+    },
+    "localqa-worker:t09b1-current": {
+      "id": "sha256:5a0adf477f4db5124bffc4f591bce66d486b30718725bdf600de61ef14c3e1fe",
+      "sizeBytes": 970657576,
+      "arch": "arm64",
+      "created": "2026-10-02T23:42:57.08091926+08:00",
+      "digests": [
+        "localqa-worker@sha256:5a0adf477f4db5124bffc4f591bce66d486b30718725bdf600de61ef14c3e1fe"
+      ],
+      "node": "v24.20.0"
+    },
+    "localqa-orchestrator:t09b1-current": {
+      "id": "sha256:9136324d264140b9f6840eb3cd4a15bcfffc4441433c6d04e4821fc16375c061",
+      "sizeBytes": 114627824,
+      "arch": "arm64",
+      "created": "2026-10-02T23:36:10.379937921+08:00",
+      "digests": [
+        "localqa-orchestrator@sha256:9136324d264140b9f6840eb3cd4a15bcfffc4441433c6d04e4821fc16375c061"
+      ],
+      "node": "v24.21.0"
+    },
+    "localqa-web:t09b1-current": {
+      "id": "sha256:886775914c59454961b18b501c77f0e9ec7271e65ba39730c1c07c335efd18a5",
+      "sizeBytes": 80787262,
+      "arch": "arm64",
+      "created": "2026-10-02T23:31:23.6320254+08:00",
+      "digests": [
+        "localqa-web@sha256:886775914c59454961b18b501c77f0e9ec7271e65ba39730c1c07c335efd18a5"
+      ],
+      "node": "v24.21.0"
+    },
+    "playwright": "1.63.0",
+    "postgres": "postgres (PostgreSQL) 18.6",
+    "designBaseline": {
+      "node": "24 LTS",
+      "playwright": "1.63.0",
+      "browser": "153.0.8010.12 (T00)",
+      "browserImage": "mcr.microsoft.com/playwright:v1.63.0-noble",
+      "matches": true
+    },
+    "baseImages": {
+      "node:24-bookworm-slim": {
+        "id": "sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6",
+        "digests": [
+          "node@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6"
+        ],
+        "arch": "arm64"
+      },
+      "mcr.microsoft.com/playwright:v1.63.0-noble": {
+        "id": "sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27",
+        "digests": [
+          "mcr.microsoft.com/playwright@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27"
+        ],
+        "arch": "arm64"
+      }
+    },
+    "imageCredentialScan": {
+      "localqa-api:t09b1-current": true,
+      "localqa-worker:t09b1-current": true,
+      "localqa-orchestrator:t09b1-current": true,
+      "localqa-web:t09b1-current": true
+    },
+    "buildTiming": {
+      "kind": "cached build, actual elapsed wall time; first uncached builds not timed",
+      "items": [
+        {
+          "service": "api",
+          "startEpoch": 1790955298,
+          "endEpoch": 1790955321,
+          "seconds": 23
+        },
+        {
+          "service": "worker",
+          "startEpoch": 1790955734,
+          "endEpoch": 1790955777,
+          "seconds": 43
+        },
+        {
+          "service": "orchestrator",
+          "startEpoch": 1790955351,
+          "endEpoch": 1790955370,
+          "seconds": 19
+        },
+        {
+          "service": "web",
+          "startEpoch": 1790955370,
+          "endEpoch": 1790955375,
+          "seconds": 5
+        }
+      ]
+    },
+    "buildOutput": {
+      "api": {
+        "command": "docker build --network host --build-arg NPM_REGISTRY=https://registry.npmmirror.com -f deploy/images/api.Dockerfile -t localqa-api:t09b1-current .",
+        "tail": " ---> 44dbb354fff9\nStep 13/17 : COPY --from=build --chown=1001:1001 /app /app\n ---> 377e8dfe3e4b\nStep 14/17 : RUN mkdir -p /var/localqa/data && chown 1001:1001 /var/localqa/data\n ---> Running in 71e756e5df43\n ---> Removed intermediate container 71e756e5df43\n ---> 0a4d67f177b8\nStep 15/17 : USER 1001:1001\n ---> Running in 5a6a2031df50\n ---> Removed intermediate container 5a6a2031df50\n ---> 8cfa5d1ba70c\nStep 16/17 : EXPOSE 3000\n ---> Running in cb59e4e42f50\n ---> Removed intermediate container cb59e4e42f50\n ---> 9602e9346260\nStep 17/17 : ENTRYPOINT [\"node\", \"/app/deploy/images/api-entry.mjs\"]\n ---> Running in a83d6f86ef18\n ---> Removed intermediate container a83d6f86ef18\n ---> 577889dfbba7\nSuccessfully built 577889dfbba7\nSuccessfully tagged localqa-api:t09b1-current\n"
+      },
+      "worker": {
+        "command": "docker build --network host --build-arg NPM_REGISTRY=https://registry.npmmirror.com -f deploy/images/worker.Dockerfile -t localqa-worker:t09b1-current .",
+        "tail": " ---> Using cache\n ---> d9dfc7b53e29\nStep 12/16 : WORKDIR /app\n ---> Using cache\n ---> d0693c050cb6\nStep 13/16 : COPY --from=build --chown=1001:1001 /app /app\n ---> 28a15b704977\nStep 14/16 : RUN mkdir -p /var/localqa/data /var/localqa/scratch && chown -R 1001:1001 /var/localqa\n ---> Running in 2e897d41737e\n ---> Removed intermediate container 2e897d41737e\n ---> ee5796b7a6d2\nStep 15/16 : USER 1001:1001\n ---> Running in c68229d91b7b\n ---> Removed intermediate container c68229d91b7b\n ---> f67f11916880\nStep 16/16 : ENTRYPOINT [\"node\", \"/app/deploy/images/worker-entry.mjs\"]\n ---> Running in 64f3e7260483\n ---> Removed intermediate container 64f3e7260483\n ---> 5a0adf477f4d\nSuccessfully built 5a0adf477f4d\nSuccessfully tagged localqa-worker:t09b1-current\n"
+      },
+      "orchestrator": {
+        "command": "docker build --network host --build-arg NPM_REGISTRY=https://registry.npmmirror.com -f deploy/images/orchestrator.Dockerfile -t localqa-orchestrator:t09b1-current .",
+        "tail": " ---> Using cache\n ---> 79e112169d52\nStep 12/16 : WORKDIR /app\n ---> Using cache\n ---> 44dbb354fff9\nStep 13/16 : COPY --from=build --chown=1001:1001 /app /app\n ---> d5c3fa771cb2\nStep 14/16 : RUN mkdir -p /var/localqa/data && chown 1001:1001 /var/localqa/data\n ---> Running in fe9fa0e26049\n ---> Removed intermediate container fe9fa0e26049\n ---> c8bd73b870c5\nStep 15/16 : USER 1001:1001\n ---> Running in 5002ef8690b0\n ---> Removed intermediate container 5002ef8690b0\n ---> c62d83e59340\nStep 16/16 : ENTRYPOINT [\"node\", \"/app/deploy/images/orchestrator-entry.mjs\"]\n ---> Running in 23102aa4f0f2\n ---> Removed intermediate container 23102aa4f0f2\n ---> 9136324d2641\nSuccessfully built 9136324d2641\nSuccessfully tagged localqa-orchestrator:t09b1-current\n"
+      },
+      "web": {
+        "command": "docker build --network host --build-arg NPM_REGISTRY=https://registry.npmmirror.com -f deploy/images/web.Dockerfile -t localqa-web:t09b1-current .",
+        "tail": " ---> 5b08458352a3\nStep 12/17 : WORKDIR /app\n ---> Using cache\n ---> 964d210eb54a\nStep 13/17 : COPY --from=build --chown=1001:1001 /app/apps/web/dist /app/dist\n ---> Using cache\n ---> 73c68ab4e3d1\nStep 14/17 : COPY --from=build --chown=1001:1001 /app/deploy/images/web-entry.mjs /app/web-entry.mjs\n ---> Using cache\n ---> fae3407fbea1\nStep 15/17 : USER 1001:1001\n ---> Using cache\n ---> 8b1793252cb2\nStep 16/17 : EXPOSE 8080\n ---> Using cache\n ---> 3181480758cc\nStep 17/17 : ENTRYPOINT [\"node\", \"/app/web-entry.mjs\"]\n ---> Using cache\n ---> 886775914c59\nSuccessfully built 886775914c59\nSuccessfully tagged localqa-web:t09b1-current\n"
+      }
+    },
+    "digestScope": "Image ID / locally calculated repo digest for arm64; registry-push digest and x86_64 digest not tested"
+  },
+  "cleanup": {
+    "containers": [
+      {
+        "name": "localqa-t09b1-80bfe58b-pg",
+        "absent": true
+      },
+      {
+        "name": "localqa-t09b1-80bfe58b-api",
+        "absent": true
+      },
+      {
+        "name": "localqa-t09b1-80bfe58b-worker",
+        "absent": true
+      },
+      {
+        "name": "localqa-t09b1-80bfe58b-fixture",
+        "absent": true
+      },
+      {
+        "name": "localqa-t09b1-80bfe58b-web",
+        "absent": true
+      },
+      {
+        "name": "localqa-t09b1-80bfe58b-orchestrator",
+        "absent": true
+      }
+    ],
+    "volumes": [
+      {
+        "name": "localqa-t09b1-80bfe58b-db",
+        "absent": true
+      },
+      {
+        "name": "localqa-t09b1-80bfe58b-data",
+        "absent": true
+      },
+      {
+        "name": "localqa-t09b1-80bfe58b-secrets",
+        "absent": true
+      }
+    ],
+    "network": true
+  },
+  "commands": [
+    {
+      "command": "docker network create localqa-t09b1-80bfe58b",
+      "code": 0,
+      "stdout": "aaa953417271824917b13df3142f74efba901a160d2e72161a995a41e84aea9d\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker volume create localqa-t09b1-80bfe58b-db",
+      "code": 0,
+      "stdout": "localqa-t09b1-80bfe58b-db\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker volume create localqa-t09b1-80bfe58b-data",
+      "code": 0,
+      "stdout": "localqa-t09b1-80bfe58b-data\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker volume create localqa-t09b1-80bfe58b-secrets",
+      "code": 0,
+      "stdout": "localqa-t09b1-80bfe58b-secrets\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run -d --name localqa-t09b1-80bfe58b-pg --network localqa-t09b1-80bfe58b -e POSTGRES_USER=localqa -e POSTGRES_DB=localqa -e POSTGRES_PASSWORD=[DB_SECRET] -v localqa-t09b1-80bfe58b-db:/var/lib/postgresql --health-cmd=pg_isready -h 127.0.0.1 -U localqa -d localqa --health-interval=2s postgres:18-alpine",
+      "code": 0,
+      "stdout": "8c7e33a823b887a1976c0d017840b318d3b90737b92abbf5a6d1a0fd16ac5d67\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect --format {{json .State}} localqa-t09b1-80bfe58b-pg",
+      "code": 0,
+      "stdout": "{\"Status\":\"running\",\"Running\":true,\"Paused\":false,\"Restarting\":false,\"OOMKilled\":false,\"Dead\":false,\"Pid\":82746,\"ExitCode\":0,\"Error\":\"\",\"StartedAt\":\"2026-10-02T15:44:21.743674293Z\",\"FinishedAt\":\"0001-01-01T00:00:00Z\",\"Health\":{\"Status\":\"starting\",\"FailingStreak\":0,\"Log\":[]}}\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect --format {{json .State}} localqa-t09b1-80bfe58b-pg",
+      "code": 0,
+      "stdout": "{\"Status\":\"running\",\"Running\":true,\"Paused\":false,\"Restarting\":false,\"OOMKilled\":false,\"Dead\":false,\"Pid\":82746,\"ExitCode\":0,\"Error\":\"\",\"StartedAt\":\"2026-10-02T15:44:21.743674293Z\",\"FinishedAt\":\"0001-01-01T00:00:00Z\",\"Health\":{\"Status\":\"starting\",\"FailingStreak\":0,\"Log\":[]}}\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect --format {{json .State}} localqa-t09b1-80bfe58b-pg",
+      "code": 0,
+      "stdout": "{\"Status\":\"running\",\"Running\":true,\"Paused\":false,\"Restarting\":false,\"OOMKilled\":false,\"Dead\":false,\"Pid\":82746,\"ExitCode\":0,\"Error\":\"\",\"StartedAt\":\"2026-10-02T15:44:21.743674293Z\",\"FinishedAt\":\"0001-01-01T00:00:00Z\",\"Health\":{\"Status\":\"healthy\",\"FailingStreak\":0,\"Log\":[{\"Start\":\"2026-10-02T23:44:23.832922625+08:00\",\"End\":\"2026-10-02T23:44:23.866904676+08:00\",\"ExitCode\":0,\"Output\":\"127.0.0.1:5432 - accepting connections\\n\"}]}}\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --network localqa-t09b1-80bfe58b -e DATABASE_URL=postgresql://localqa:[DB_SECRET]@localqa-t09b1-80bfe58b-pg:5432/localqa --entrypoint node localqa-api:t09b1-current /app/deploy/scripts/migrate.mjs",
+      "code": 0,
+      "stdout": "[LocalQA Migrate] Starting database migrations from: /app/packages/storage/migrations/\n[LocalQA Migrate] Successfully applied 4 migration(s): 001_core.sql, 002_invariants.sql, 003_access.sql, 004_hardening.sql\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --network localqa-t09b1-80bfe58b -e DATABASE_URL=postgresql://localqa:[DB_SECRET]@localqa-t09b1-80bfe58b-pg:5432/localqa -e ADMIN_INITIAL_PASSWORD=[ADMIN_SECRET] --entrypoint node localqa-api:t09b1-current /app/deploy/scripts/bootstrap-admin.mjs",
+      "code": 0,
+      "stdout": "[LocalQA Bootstrap] Initializing initial administrator account for: admin@localqa.internal\n[LocalQA Bootstrap] Successfully bootstrapped admin account. ID: c88c4424-e53e-46eb-ab2b-a48f9b1dd1c8, Global Role: admin\n[LocalQA Bootstrap] Bootstrap closed. Future bootstrap calls are permanently blocked by database state.\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm -v localqa-t09b1-80bfe58b-secrets:/secrets -e LOCALQA_KEK=[KEK] -e LOCALQA_IDENTITY=[IDENTITY] --entrypoint node node:24-bookworm-slim -e const f=require('fs');for(const [name,data] of [['kek.json',JSON.stringify({activeVersion:1,keys:{1:process.env.LOCALQA_KEK}})],['worker_identity.json',process.env.LOCALQA_IDENTITY]]) {const p='/secrets/'+name;f.writeFileSync(p,data,{mode:0o400});f.chownSync(p,1001,1001);f.chmodSync(p,0o400)}",
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": "docker run -d --name localqa-t09b1-80bfe58b-fixture --network localqa-t09b1-80bfe58b --entrypoint node localqa-worker:t09b1-current /app/packages/test-fixture/server.js",
+      "code": 0,
+      "stdout": "888579902b43eb4d58fed76875a88b82afe8ce18456c8746641c74d83e8aedbc\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run -d --name localqa-t09b1-80bfe58b-api --network localqa-t09b1-80bfe58b --user 1001:1001 --read-only --tmpfs /tmp:rw,nosuid,size=128m -v localqa-t09b1-80bfe58b-data:/var/localqa/data -v localqa-t09b1-80bfe58b-secrets:/run/secrets:ro -e DATABASE_URL=postgresql://localqa:[DB_SECRET]@localqa-t09b1-80bfe58b-pg:5432/localqa -e DATA_DIR=/var/localqa/data -e MASTER_KEY_FILE=/run/secrets/kek.json -e WORKER_IDENTITY_FILE=/run/secrets/worker_identity.json -e PUBLIC_ORIGIN=https://localqa.invalid --health-cmd=node /app/deploy/images/check.mjs api ready --health-interval=2s --health-retries=5 localqa-api:t09b1-current",
+      "code": 0,
+      "stdout": "72d27e6ac8262b5431d16c5122ef1bf9ea08996fb3f11f16db960c7c42beae4f\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect --format {{json .State}} localqa-t09b1-80bfe58b-api",
+      "code": 0,
+      "stdout": "{\"Status\":\"running\",\"Running\":true,\"Paused\":false,\"Restarting\":false,\"OOMKilled\":false,\"Dead\":false,\"Pid\":83212,\"ExitCode\":0,\"Error\":\"\",\"StartedAt\":\"2026-10-02T15:44:25.341214506Z\",\"FinishedAt\":\"0001-01-01T00:00:00Z\",\"Health\":{\"Status\":\"starting\",\"FailingStreak\":0,\"Log\":[]}}\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect --format {{json .State}} localqa-t09b1-80bfe58b-api",
+      "code": 0,
+      "stdout": "{\"Status\":\"running\",\"Running\":true,\"Paused\":false,\"Restarting\":false,\"OOMKilled\":false,\"Dead\":false,\"Pid\":83212,\"ExitCode\":0,\"Error\":\"\",\"StartedAt\":\"2026-10-02T15:44:25.341214506Z\",\"FinishedAt\":\"0001-01-01T00:00:00Z\",\"Health\":{\"Status\":\"starting\",\"FailingStreak\":0,\"Log\":[]}}\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect --format {{json .State}} localqa-t09b1-80bfe58b-api",
+      "code": 0,
+      "stdout": "{\"Status\":\"running\",\"Running\":true,\"Paused\":false,\"Restarting\":false,\"OOMKilled\":false,\"Dead\":false,\"Pid\":83212,\"ExitCode\":0,\"Error\":\"\",\"StartedAt\":\"2026-10-02T15:44:25.341214506Z\",\"FinishedAt\":\"0001-01-01T00:00:00Z\",\"Health\":{\"Status\":\"healthy\",\"FailingStreak\":0,\"Log\":[{\"Start\":\"2026-10-02T23:44:27.416424233+08:00\",\"End\":\"2026-10-02T23:44:27.502896101+08:00\",\"ExitCode\":0,\"Output\":\"\"}]}}\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09b1-80bfe58b-api node /app/deploy/images/check.mjs api ready",
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09b1-80bfe58b-api id -u",
+      "code": 0,
+      "stdout": "1001\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run -d --name localqa-t09b1-80bfe58b-orchestrator --network localqa-t09b1-80bfe58b --user 1001:1001 --read-only --tmpfs /tmp:rw,nosuid,size=128m -v localqa-t09b1-80bfe58b-data:/var/localqa/data -v localqa-t09b1-80bfe58b-secrets:/run/secrets:ro -e DATABASE_URL=postgresql://localqa:[DB_SECRET]@localqa-t09b1-80bfe58b-pg:5432/localqa -e DATA_DIR=/var/localqa/data -e MASTER_KEY_FILE=/run/secrets/kek.json --health-cmd=node /app/deploy/images/check.mjs orchestrator ready --health-interval=2s localqa-orchestrator:t09b1-current",
+      "code": 0,
+      "stdout": "d5fb147891e4d87c6035459d7d922a88e883b2e8744a7dce345a90be7dd3460f\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect --format {{json .State}} localqa-t09b1-80bfe58b-orchestrator",
+      "code": 0,
+      "stdout": "{\"Status\":\"running\",\"Running\":true,\"Paused\":false,\"Restarting\":false,\"OOMKilled\":false,\"Dead\":false,\"Pid\":83365,\"ExitCode\":0,\"Error\":\"\",\"StartedAt\":\"2026-10-02T15:44:27.719025312Z\",\"FinishedAt\":\"0001-01-01T00:00:00Z\",\"Health\":{\"Status\":\"starting\",\"FailingStreak\":0,\"Log\":[]}}\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect --format {{json .State}} localqa-t09b1-80bfe58b-orchestrator",
+      "code": 0,
+      "stdout": "{\"Status\":\"running\",\"Running\":true,\"Paused\":false,\"Restarting\":false,\"OOMKilled\":false,\"Dead\":false,\"Pid\":83365,\"ExitCode\":0,\"Error\":\"\",\"StartedAt\":\"2026-10-02T15:44:27.719025312Z\",\"FinishedAt\":\"0001-01-01T00:00:00Z\",\"Health\":{\"Status\":\"starting\",\"FailingStreak\":0,\"Log\":[]}}\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect --format {{json .State}} localqa-t09b1-80bfe58b-orchestrator",
+      "code": 0,
+      "stdout": "{\"Status\":\"running\",\"Running\":true,\"Paused\":false,\"Restarting\":false,\"OOMKilled\":false,\"Dead\":false,\"Pid\":83365,\"ExitCode\":0,\"Error\":\"\",\"StartedAt\":\"2026-10-02T15:44:27.719025312Z\",\"FinishedAt\":\"0001-01-01T00:00:00Z\",\"Health\":{\"Status\":\"healthy\",\"FailingStreak\":0,\"Log\":[{\"Start\":\"2026-10-02T23:44:29.783626684+08:00\",\"End\":\"2026-10-02T23:44:29.84946782+08:00\",\"ExitCode\":0,\"Output\":\"\"}]}}\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09b1-80bfe58b-orchestrator id -u",
+      "code": 0,
+      "stdout": "1001\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run -d --name localqa-t09b1-80bfe58b-web --network localqa-t09b1-80bfe58b --user 1001:1001 --read-only --tmpfs /tmp:rw,nosuid,size=64m --health-cmd=node /app/web-entry.mjs --check --health-interval=2s localqa-web:t09b1-current",
+      "code": 0,
+      "stdout": "8763e1159b6d5eb00ea0f1222d8067d5c6d026db77730472a09430c9504b49f0\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect --format {{json .State}} localqa-t09b1-80bfe58b-web",
+      "code": 0,
+      "stdout": "{\"Status\":\"running\",\"Running\":true,\"Paused\":false,\"Restarting\":false,\"OOMKilled\":false,\"Dead\":false,\"Pid\":83552,\"ExitCode\":0,\"Error\":\"\",\"StartedAt\":\"2026-10-02T15:44:30.040313069Z\",\"FinishedAt\":\"0001-01-01T00:00:00Z\",\"Health\":{\"Status\":\"starting\",\"FailingStreak\":0,\"Log\":[]}}\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect --format {{json .State}} localqa-t09b1-80bfe58b-web",
+      "code": 0,
+      "stdout": "{\"Status\":\"running\",\"Running\":true,\"Paused\":false,\"Restarting\":false,\"OOMKilled\":false,\"Dead\":false,\"Pid\":83552,\"ExitCode\":0,\"Error\":\"\",\"StartedAt\":\"2026-10-02T15:44:30.040313069Z\",\"FinishedAt\":\"0001-01-01T00:00:00Z\",\"Health\":{\"Status\":\"starting\",\"FailingStreak\":0,\"Log\":[]}}\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect --format {{json .State}} localqa-t09b1-80bfe58b-web",
+      "code": 0,
+      "stdout": "{\"Status\":\"running\",\"Running\":true,\"Paused\":false,\"Restarting\":false,\"OOMKilled\":false,\"Dead\":false,\"Pid\":83552,\"ExitCode\":0,\"Error\":\"\",\"StartedAt\":\"2026-10-02T15:44:30.040313069Z\",\"FinishedAt\":\"0001-01-01T00:00:00Z\",\"Health\":{\"Status\":\"healthy\",\"FailingStreak\":0,\"Log\":[{\"Start\":\"2026-10-02T23:44:32.109902792+08:00\",\"End\":\"2026-10-02T23:44:32.179220281+08:00\",\"ExitCode\":0,\"Output\":\"\"}]}}\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09b1-80bfe58b-web node -e fetch('http://127.0.0.1:8080/').then(async r=>{if(!r.ok||!(await r.text()).includes('<div id=\"root\">'))process.exit(1);console.log(r.status)})",
+      "code": 0,
+      "stdout": "200\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09b1-80bfe58b-web id -u",
+      "code": 0,
+      "stdout": "1001\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run -d --name localqa-t09b1-80bfe58b-worker --network localqa-t09b1-80bfe58b --user 1001:1001 --read-only --tmpfs /tmp:rw,nosuid,size=128m -v localqa-t09b1-80bfe58b-data:/var/localqa/data -v localqa-t09b1-80bfe58b-secrets:/run/secrets:ro -e DATABASE_URL=postgresql://localqa:[DB_SECRET]@localqa-t09b1-80bfe58b-pg:5432/localqa -e DATA_DIR=/var/localqa/data --cap-add SYS_ADMIN --shm-size 256m --tmpfs /var/localqa/scratch:rw,nosuid,size=256m,mode=1777 -e WORKER_FIXTURE_URL=http://localqa-t09b1-80bfe58b-fixture:8080/ --health-cmd=node /app/deploy/images/check.mjs worker ready --health-interval=2s --health-retries=8 localqa-worker:t09b1-current",
+      "code": 0,
+      "stdout": "2f391e347df81447464d5e93a9d2b81adf03e611ad6c42f2783aaf9e38628101\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect --format {{json .State}} localqa-t09b1-80bfe58b-worker",
+      "code": 0,
+      "stdout": "{\"Status\":\"running\",\"Running\":true,\"Paused\":false,\"Restarting\":false,\"OOMKilled\":false,\"Dead\":false,\"Pid\":83761,\"ExitCode\":0,\"Error\":\"\",\"StartedAt\":\"2026-10-02T15:44:32.428894967Z\",\"FinishedAt\":\"0001-01-01T00:00:00Z\",\"Health\":{\"Status\":\"starting\",\"FailingStreak\":0,\"Log\":[]}}\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect --format {{json .State}} localqa-t09b1-80bfe58b-worker",
+      "code": 0,
+      "stdout": "{\"Status\":\"running\",\"Running\":true,\"Paused\":false,\"Restarting\":false,\"OOMKilled\":false,\"Dead\":false,\"Pid\":83761,\"ExitCode\":0,\"Error\":\"\",\"StartedAt\":\"2026-10-02T15:44:32.428894967Z\",\"FinishedAt\":\"0001-01-01T00:00:00Z\",\"Health\":{\"Status\":\"starting\",\"FailingStreak\":0,\"Log\":[]}}\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect --format {{json .State}} localqa-t09b1-80bfe58b-worker",
+      "code": 0,
+      "stdout": "{\"Status\":\"running\",\"Running\":true,\"Paused\":false,\"Restarting\":false,\"OOMKilled\":false,\"Dead\":false,\"Pid\":83761,\"ExitCode\":0,\"Error\":\"\",\"StartedAt\":\"2026-10-02T15:44:32.428894967Z\",\"FinishedAt\":\"0001-01-01T00:00:00Z\",\"Health\":{\"Status\":\"healthy\",\"FailingStreak\":0,\"Log\":[{\"Start\":\"2026-10-02T23:44:34.482404557+08:00\",\"End\":\"2026-10-02T23:44:34.592165968+08:00\",\"ExitCode\":0,\"Output\":\"\"}]}}\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09b1-80bfe58b-worker node -e process.stdout.write(require('fs').readFileSync('/var/localqa/scratch/sandbox-result.json','utf8'))",
+      "code": 0,
+      "stdout": "{\"node\":\"v24.20.0\",\"uid\":1001,\"url\":\"http://localqa-t09b1-80bfe58b-fixture:8080/\",\"action\":\"details-tab.click\",\"processes\":[{\"uid\":1001,\"seccomp\":2,\"noSandbox\":false},{\"uid\":1001,\"seccomp\":2,\"noSandbox\":false},{\"uid\":1001,\"seccomp\":2,\"noSandbox\":false},{\"uid\":1001,\"seccomp\":2,\"noSandbox\":false},{\"uid\":1001,\"seccomp\":2,\"noSandbox\":false},{\"uid\":1001,\"seccomp\":2,\"noSandbox\":false},{\"uid\":1001,\"seccomp\":2,\"noSandbox\":false}],\"browserVersion\":\"153.0.8010.12\",\"playwright\":\"1.63.0\"}",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09b1-80bfe58b-worker id -u",
+      "code": 0,
+      "stdout": "1001\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker image inspect localqa-api:t09b1-current",
+      "code": 0,
+      "stdout": "[\n    {\n        \"Architecture\": \"arm64\",\n        \"Config\": {\n            \"Entrypoint\": [\n                \"node\",\n                \"/app/deploy/images/api-entry.mjs\"\n            ],\n            \"Env\": [\n                \"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\",\n                \"NODE_VERSION=24.21.0\",\n                \"YARN_VERSION=1.22.22\",\n                \"NODE_ENV=production\",\n                \"HOME=/tmp\",\n                \"DATA_DIR=/var/localqa/data\",\n                \"MASTER_KEY_FILE=/run/secrets/kek.json\"\n            ],\n            \"ExposedPorts\": {\n                \"3000/tcp\": {}\n            },\n            \"User\": \"1001:1001\",\n            \"WorkingDir\": \"/app\"\n        },\n        \"Created\": \"2026-10-02T23:35:21.676332206+08:00\",\n        \"Descriptor\": {\n            \"digest\": \"sha256:577889dfbba7fdbc8175aa6abc300135c0242be2294b60d0c6cfc7891f6786f9\",\n            \"mediaType\": \"application/vnd.oci.image.manifest.v1+json\",\n            \"size\": 2050\n        },\n        \"Id\": \"sha256:577889dfbba7fdbc8175aa6abc300135c0242be2294b60d0c6cfc7891f6786f9\",\n        \"Metadata\": {\n            \"LastTagTime\": \"2026-10-02T15:35:21.703683633Z\"\n        },\n        \"Os\": \"linux\",\n        \"Parent\": \"sha256:9602e93462606a892f5bab64f5e2ffd50d561591557a5d5ed02c7da67841b653\",\n        \"RepoDigests\": [\n            \"localqa-api@sha256:577889dfbba7fdbc8175aa6abc300135c0242be2294b60d0c6cfc7891f6786f9\"\n        ],\n        \"RepoTags\": [\n            \"localqa-api:t09b1-current\"\n        ],\n        \"RootFS\": {\n            \"Layers\": [\n                \"sha256:055ab12bd547e17a0630037f06a186cf405e3f61bb03a614562ca8f5ab52a8be\",\n                \"sha256:d72a355d0ef2414e65765fce96999c34bf31ec0bbf3b3d79307ba26457c52bbf\",\n                \"sha256:00aa6f17ffebf42a4a535794511e8025b8816bbcf4dd308e74dabf4c959ea0c6\",\n                \"sha256:3d44ad3b789d4f301c825e85f9f0a8d3f2b8a9830436da13afdf7c3f192301b3\",\n                \"sha256:6c9b0b51efdb379ab8b915e12c218d51e2bb55e764e94900b138bb83790417bd\",\n                \"sha256:be0b2b67738b34a2fd4cd0db83fc081d45d6e3369bc67819765ac9c5373ebd7e\",\n                \"sha256:b2f5b0bdff1930958c657ae880d66bf3715ca7c19aa5c27e4e0057b49b3fa778\",\n                \"sha256:6644414521d81bbce2aec5df7b74743ea8081c48e772f264220a4494af9cefd9\"\n            ],\n            \"Type\": \"layers\"\n        },\n        \"Size\": 114659041\n    }\n]\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --entrypoint node localqa-api:t09b1-current -v",
+      "code": 0,
+      "stdout": "v24.21.0\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker image inspect localqa-worker:t09b1-current",
+      "code": 0,
+      "stdout": "[\n    {\n        \"Architecture\": \"arm64\",\n        \"Config\": {\n            \"Entrypoint\": [\n                \"node\",\n                \"/app/deploy/images/worker-entry.mjs\"\n            ],\n            \"Env\": [\n                \"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\",\n                \"LANG=C.UTF-8\",\n                \"LC_ALL=C.UTF-8\",\n                \"PLAYWRIGHT_BROWSERS_PATH=/ms-playwright\",\n                \"NODE_ENV=production\",\n                \"HOME=/var/localqa/scratch\",\n                \"TMPDIR=/tmp\",\n                \"DATA_DIR=/var/localqa/data\"\n            ],\n            \"Labels\": {\n                \"org.opencontainers.image.version\": \"24.04\"\n            },\n            \"User\": \"1001:1001\",\n            \"WorkingDir\": \"/app\"\n        },\n        \"Created\": \"2026-10-02T23:42:57.08091926+08:00\",\n        \"Descriptor\": {\n            \"digest\": \"sha256:5a0adf477f4db5124bffc4f591bce66d486b30718725bdf600de61ef14c3e1fe\",\n            \"mediaType\": \"application/vnd.oci.image.manifest.v1+json\",\n            \"size\": 2502\n        },\n        \"Id\": \"sha256:5a0adf477f4db5124bffc4f591bce66d486b30718725bdf600de61ef14c3e1fe\",\n        \"Metadata\": {\n            \"LastTagTime\": \"2026-10-02T15:42:57.166180356Z\"\n        },\n        \"Os\": \"linux\",\n        \"Parent\": \"sha256:f67f1191688080a6650fbc3f8ef6942a46545f9e4faae13855354fd371b242b3\",\n        \"RepoDigests\": [\n            \"localqa-worker@sha256:5a0adf477f4db5124bffc4f591bce66d486b30718725bdf600de61ef14c3e1fe\"\n        ],\n        \"RepoTags\": [\n            \"localqa-worker:t09b1-current\"\n        ],\n        \"RootFS\": {\n            \"Layers\": [\n                \"sha256:646eea22414270d74b0c9e9d6d3b9550701ae62e658a099825d4d15045a3630b\",\n                \"sha256:c2905f27f2d0d3868d984930c7d5869af2c2188be0b3e1fddcc9c77424907218\",\n                \"sha256:eeef58894695608d3d23af061b62364800b05f461035048d598007185795c906\",\n                \"sha256:ae8d7e0f2c2f485da41b85823b979ae1dced22d68ef53fb5d17e6587e49399d7\",\n                \"sha256:78149cda672752cb82f5306099be656211eccfa3e1b65f2e7bd5274c551617f4\",\n                \"sha256:9067c1befeafcfd500e4eac382ae6075e42f4450a007048f4fccf95798ec697e\",\n                \"sha256:d023fc73a0c9387f6a0ac936351a8e1fb6f00182647ec635d0a58949a4a857e8\",\n                \"sha256:56bbfb50584d049c8e05410dfc5b87ee748fd879c02874fb28b12b8c2381f087\",\n                \"sha256:225719ea9c40f0be5ea7f243670db86219031bb166a71ac0ca6c433e2390abfd\",\n                \"sha256:95baaa0c9e90590e363adcb82f099a027c55e53cf6f1391cbd19a977752cb52d\"\n            ],\n            \"Type\": \"layers\"\n        },\n        \"Size\": 970657576\n    }\n]\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --entrypoint node localqa-worker:t09b1-current -v",
+      "code": 0,
+      "stdout": "v24.20.0\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker image inspect localqa-orchestrator:t09b1-current",
+      "code": 0,
+      "stdout": "[\n    {\n        \"Architecture\": \"arm64\",\n        \"Config\": {\n            \"Entrypoint\": [\n                \"node\",\n                \"/app/deploy/images/orchestrator-entry.mjs\"\n            ],\n            \"Env\": [\n                \"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\",\n                \"NODE_VERSION=24.21.0\",\n                \"YARN_VERSION=1.22.22\",\n                \"NODE_ENV=production\",\n                \"HOME=/tmp\",\n                \"DATA_DIR=/var/localqa/data\",\n                \"MASTER_KEY_FILE=/run/secrets/kek.json\"\n            ],\n            \"User\": \"1001:1001\",\n            \"WorkingDir\": \"/app\"\n        },\n        \"Created\": \"2026-10-02T23:36:10.379937921+08:00\",\n        \"Descriptor\": {\n            \"digest\": \"sha256:9136324d264140b9f6840eb3cd4a15bcfffc4441433c6d04e4821fc16375c061\",\n            \"mediaType\": \"application/vnd.oci.image.manifest.v1+json\",\n            \"size\": 2050\n        },\n        \"Id\": \"sha256:9136324d264140b9f6840eb3cd4a15bcfffc4441433c6d04e4821fc16375c061\",\n        \"Metadata\": {\n            \"LastTagTime\": \"2026-10-02T15:36:10.403238824Z\"\n        },\n        \"Os\": \"linux\",\n        \"Parent\": \"sha256:c62d83e5934004aa6d7e6ae9700d353171d138512d36f3ce4b07368b2c9da5fd\",\n        \"RepoDigests\": [\n            \"localqa-orchestrator@sha256:9136324d264140b9f6840eb3cd4a15bcfffc4441433c6d04e4821fc16375c061\"\n        ],\n        \"RepoTags\": [\n            \"localqa-orchestrator:t09b1-current\"\n        ],\n        \"RootFS\": {\n            \"Layers\": [\n                \"sha256:055ab12bd547e17a0630037f06a186cf405e3f61bb03a614562ca8f5ab52a8be\",\n                \"sha256:d72a355d0ef2414e65765fce96999c34bf31ec0bbf3b3d79307ba26457c52bbf\",\n                \"sha256:00aa6f17ffebf42a4a535794511e8025b8816bbcf4dd308e74dabf4c959ea0c6\",\n                \"sha256:3d44ad3b789d4f301c825e85f9f0a8d3f2b8a9830436da13afdf7c3f192301b3\",\n                \"sha256:6c9b0b51efdb379ab8b915e12c218d51e2bb55e764e94900b138bb83790417bd\",\n                \"sha256:be0b2b67738b34a2fd4cd0db83fc081d45d6e3369bc67819765ac9c5373ebd7e\",\n                \"sha256:36e682cfd98d848dc448a31bd2eeef9ae2c37bc459d79c618ebb642448d94358\",\n                \"sha256:56aae03142a35f8a8623b573f3d2f1152400aa685f82f7531821f142fccdd21a\"\n            ],\n            \"Type\": \"layers\"\n        },\n        \"Size\": 114627824\n    }\n]\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --entrypoint node localqa-orchestrator:t09b1-current -v",
+      "code": 0,
+      "stdout": "v24.21.0\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker image inspect localqa-web:t09b1-current",
+      "code": 0,
+      "stdout": "[\n    {\n        \"Architecture\": \"arm64\",\n        \"Config\": {\n            \"Entrypoint\": [\n                \"node\",\n                \"/app/web-entry.mjs\"\n            ],\n            \"Env\": [\n                \"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\",\n                \"NODE_VERSION=24.21.0\",\n                \"YARN_VERSION=1.22.22\",\n                \"NODE_ENV=production\",\n                \"HOME=/tmp\"\n            ],\n            \"ExposedPorts\": {\n                \"8080/tcp\": {}\n            },\n            \"User\": \"1001:1001\",\n            \"WorkingDir\": \"/app\"\n        },\n        \"Created\": \"2026-10-02T23:31:23.6320254+08:00\",\n        \"Descriptor\": {\n            \"digest\": \"sha256:886775914c59454961b18b501c77f0e9ec7271e65ba39730c1c07c335efd18a5\",\n            \"mediaType\": \"application/vnd.oci.image.manifest.v1+json\",\n            \"size\": 2053\n        },\n        \"Id\": \"sha256:886775914c59454961b18b501c77f0e9ec7271e65ba39730c1c07c335efd18a5\",\n        \"Metadata\": {\n            \"LastTagTime\": \"2026-10-02T15:31:23.660074562Z\"\n        },\n        \"Os\": \"linux\",\n        \"Parent\": \"sha256:3181480758ccbde9fa6e2127948e9a9ff3d17601a8967b3d68cb8644400fb520\",\n        \"RepoDigests\": [\n            \"localqa-web@sha256:886775914c59454961b18b501c77f0e9ec7271e65ba39730c1c07c335efd18a5\"\n        ],\n        \"RepoTags\": [\n            \"localqa-web:t09b1-current\"\n        ],\n        \"RootFS\": {\n            \"Layers\": [\n                \"sha256:055ab12bd547e17a0630037f06a186cf405e3f61bb03a614562ca8f5ab52a8be\",\n                \"sha256:d72a355d0ef2414e65765fce96999c34bf31ec0bbf3b3d79307ba26457c52bbf\",\n                \"sha256:00aa6f17ffebf42a4a535794511e8025b8816bbcf4dd308e74dabf4c959ea0c6\",\n                \"sha256:3d44ad3b789d4f301c825e85f9f0a8d3f2b8a9830436da13afdf7c3f192301b3\",\n                \"sha256:6c9b0b51efdb379ab8b915e12c218d51e2bb55e764e94900b138bb83790417bd\",\n                \"sha256:d0bc98f1f01b36174b8c08cd0ea87b72c30483a9c9a151b913dc58c33c8063be\",\n                \"sha256:8edc50074b16567344751feac3c12fd423809a2cd1573bf70f0405be29d46583\",\n                \"sha256:b2d33f9cf6a35de69304f1223818ff6faa681a717e3ae729b601f6eb9cfdc755\"\n            ],\n            \"Type\": \"layers\"\n        },\n        \"Size\": 80787262\n    }\n]\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --entrypoint node localqa-web:t09b1-current -v",
+      "code": 0,
+      "stdout": "v24.21.0\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09b1-80bfe58b-worker node -e console.log(require('/app/packages/browser/node_modules/playwright/package.json').version)",
+      "code": 0,
+      "stdout": "1.63.0\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t09b1-80bfe58b-pg postgres --version",
+      "code": 0,
+      "stdout": "postgres (PostgreSQL) 18.6\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker image inspect node:24-bookworm-slim",
+      "code": 0,
+      "stdout": "[\n    {\n        \"Id\": \"sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6\",\n        \"RepoTags\": [\n            \"node:24-bookworm-slim\"\n        ],\n        \"RepoDigests\": [\n            \"node@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6\"\n        ],\n        \"Comment\": \"buildkit.dockerfile.v0\",\n        \"Created\": \"2026-09-19T00:51:43.82234943Z\",\n        \"Config\": {\n            \"Env\": [\n                \"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\",\n                \"NODE_VERSION=24.21.0\",\n                \"YARN_VERSION=1.22.22\"\n            ],\n            \"Entrypoint\": [\n                \"docker-entrypoint.sh\"\n            ],\n            \"Cmd\": [\n                \"node\"\n            ]\n        },\n        \"Architecture\": \"arm64\",\n        \"Variant\": \"v8\",\n        \"Os\": \"linux\",\n        \"Size\": 80697668,\n        \"RootFS\": {\n            \"Type\": \"layers\",\n            \"Layers\": [\n                \"sha256:055ab12bd547e17a0630037f06a186cf405e3f61bb03a614562ca8f5ab52a8be\",\n                \"sha256:d72a355d0ef2414e65765fce96999c34bf31ec0bbf3b3d79307ba26457c52bbf\",\n                \"sha256:00aa6f17ffebf42a4a535794511e8025b8816bbcf4dd308e74dabf4c959ea0c6\",\n                \"sha256:3d44ad3b789d4f301c825e85f9f0a8d3f2b8a9830436da13afdf7c3f192301b3\",\n                \"sha256:6c9b0b51efdb379ab8b915e12c218d51e2bb55e764e94900b138bb83790417bd\"\n            ]\n        },\n        \"Metadata\": {\n            \"LastTagTime\": \"2026-10-02T14:39:08.334016356Z\"\n        },\n        \"Descriptor\": {\n            \"mediaType\": \"application/vnd.oci.image.index.v1+json\",\n            \"digest\": \"sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6\",\n            \"size\": 3929\n        },\n        \"Identity\": {\n            \"Pull\": [\n                {\n                    \"Repository\": \"docker.io/library/node\"\n                }\n            ]\n        }\n    }\n]\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker image inspect mcr.microsoft.com/playwright:v1.63.0-noble",
+      "code": 0,
+      "stdout": "[\n    {\n        \"Id\": \"sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27\",\n        \"RepoTags\": [\n            \"mcr.microsoft.com/playwright:v1.63.0-noble\"\n        ],\n        \"RepoDigests\": [\n            \"mcr.microsoft.com/playwright@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27\"\n        ],\n        \"Comment\": \"buildkit.dockerfile.v0\",\n        \"Created\": \"2026-09-04T23:14:11.644094312Z\",\n        \"Config\": {\n            \"Env\": [\n                \"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\",\n                \"LANG=C.UTF-8\",\n                \"LC_ALL=C.UTF-8\",\n                \"PLAYWRIGHT_BROWSERS_PATH=/ms-playwright\"\n            ],\n            \"Cmd\": [\n                \"/bin/bash\"\n            ],\n            \"Labels\": {\n                \"org.opencontainers.image.version\": \"24.04\"\n            }\n        },\n        \"Architecture\": \"arm64\",\n        \"Os\": \"linux\",\n        \"Size\": 936680684,\n        \"RootFS\": {\n            \"Type\": \"layers\",\n            \"Layers\": [\n                \"sha256:646eea22414270d74b0c9e9d6d3b9550701ae62e658a099825d4d15045a3630b\",\n                \"sha256:c2905f27f2d0d3868d984930c7d5869af2c2188be0b3e1fddcc9c77424907218\",\n                \"sha256:eeef58894695608d3d23af061b62364800b05f461035048d598007185795c906\",\n                \"sha256:ae8d7e0f2c2f485da41b85823b979ae1dced22d68ef53fb5d17e6587e49399d7\",\n                \"sha256:78149cda672752cb82f5306099be656211eccfa3e1b65f2e7bd5274c551617f4\",\n                \"sha256:9067c1befeafcfd500e4eac382ae6075e42f4450a007048f4fccf95798ec697e\",\n                \"sha256:d023fc73a0c9387f6a0ac936351a8e1fb6f00182647ec635d0a58949a4a857e8\"\n            ]\n        },\n        \"Metadata\": {\n            \"LastTagTime\": \"2026-10-02T09:07:59.651295236Z\"\n        },\n        \"Descriptor\": {\n            \"mediaType\": \"application/vnd.oci.image.index.v1+json\",\n            \"digest\": \"sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27\",\n            \"size\": 705\n        },\n        \"Identity\": {\n            \"Pull\": [\n                {\n                    \"Repository\": \"mcr.microsoft.com/playwright\"\n                }\n            ]\n        }\n    }\n]\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --entrypoint node localqa-api:t09b1-current -e const f=require('fs');console.log(['/app/.env','/app/deploy/.env','/app/deploy/secrets','/app/deploy/certs','/app/deploy/.evidence'].filter(p=>f.existsSync(p)).join(','))",
+      "code": 0,
+      "stdout": "\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --entrypoint node localqa-worker:t09b1-current -e const f=require('fs');console.log(['/app/.env','/app/deploy/.env','/app/deploy/secrets','/app/deploy/certs','/app/deploy/.evidence'].filter(p=>f.existsSync(p)).join(','))",
+      "code": 0,
+      "stdout": "\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --entrypoint node localqa-orchestrator:t09b1-current -e const f=require('fs');console.log(['/app/.env','/app/deploy/.env','/app/deploy/secrets','/app/deploy/certs','/app/deploy/.evidence'].filter(p=>f.existsSync(p)).join(','))",
+      "code": 0,
+      "stdout": "\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --rm --entrypoint node localqa-web:t09b1-current -e const f=require('fs');console.log(['/app/.env','/app/deploy/.env','/app/deploy/secrets','/app/deploy/certs','/app/deploy/.evidence'].filter(p=>f.existsSync(p)).join(','))",
+      "code": 0,
+      "stdout": "\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker rm -f -v localqa-t09b1-80bfe58b-pg",
+      "code": 0,
+      "stdout": "localqa-t09b1-80bfe58b-pg\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect localqa-t09b1-80bfe58b-pg",
+      "code": 1,
+      "stdout": "[]\n",
+      "stderr": "error: no such object: localqa-t09b1-80bfe58b-pg\n"
+    },
+    {
+      "command": "docker rm -f -v localqa-t09b1-80bfe58b-api",
+      "code": 0,
+      "stdout": "localqa-t09b1-80bfe58b-api\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect localqa-t09b1-80bfe58b-api",
+      "code": 1,
+      "stdout": "[]\n",
+      "stderr": "error: no such object: localqa-t09b1-80bfe58b-api\n"
+    },
+    {
+      "command": "docker rm -f -v localqa-t09b1-80bfe58b-worker",
+      "code": 0,
+      "stdout": "localqa-t09b1-80bfe58b-worker\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect localqa-t09b1-80bfe58b-worker",
+      "code": 1,
+      "stdout": "[]\n",
+      "stderr": "error: no such object: localqa-t09b1-80bfe58b-worker\n"
+    },
+    {
+      "command": "docker rm -f -v localqa-t09b1-80bfe58b-fixture",
+      "code": 0,
+      "stdout": "localqa-t09b1-80bfe58b-fixture\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect localqa-t09b1-80bfe58b-fixture",
+      "code": 1,
+      "stdout": "[]\n",
+      "stderr": "error: no such object: localqa-t09b1-80bfe58b-fixture\n"
+    },
+    {
+      "command": "docker rm -f -v localqa-t09b1-80bfe58b-web",
+      "code": 0,
+      "stdout": "localqa-t09b1-80bfe58b-web\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect localqa-t09b1-80bfe58b-web",
+      "code": 1,
+      "stdout": "[]\n",
+      "stderr": "error: no such object: localqa-t09b1-80bfe58b-web\n"
+    },
+    {
+      "command": "docker rm -f -v localqa-t09b1-80bfe58b-orchestrator",
+      "code": 0,
+      "stdout": "localqa-t09b1-80bfe58b-orchestrator\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect localqa-t09b1-80bfe58b-orchestrator",
+      "code": 1,
+      "stdout": "[]\n",
+      "stderr": "error: no such object: localqa-t09b1-80bfe58b-orchestrator\n"
+    },
+    {
+      "command": "docker volume rm localqa-t09b1-80bfe58b-db",
+      "code": 0,
+      "stdout": "localqa-t09b1-80bfe58b-db\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker volume inspect localqa-t09b1-80bfe58b-db",
+      "code": 1,
+      "stdout": "[]\n",
+      "stderr": "Error response from daemon: get localqa-t09b1-80bfe58b-db: no such volume\n"
+    },
+    {
+      "command": "docker volume rm localqa-t09b1-80bfe58b-data",
+      "code": 0,
+      "stdout": "localqa-t09b1-80bfe58b-data\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker volume inspect localqa-t09b1-80bfe58b-data",
+      "code": 1,
+      "stdout": "[]\n",
+      "stderr": "Error response from daemon: get localqa-t09b1-80bfe58b-data: no such volume\n"
+    },
+    {
+      "command": "docker volume rm localqa-t09b1-80bfe58b-secrets",
+      "code": 0,
+      "stdout": "localqa-t09b1-80bfe58b-secrets\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker volume inspect localqa-t09b1-80bfe58b-secrets",
+      "code": 1,
+      "stdout": "[]\n",
+      "stderr": "Error response from daemon: get localqa-t09b1-80bfe58b-secrets: no such volume\n"
+    },
+    {
+      "command": "docker network rm localqa-t09b1-80bfe58b",
+      "code": 0,
+      "stdout": "localqa-t09b1-80bfe58b\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker network inspect localqa-t09b1-80bfe58b",
+      "code": 1,
+      "stdout": "[]\n",
+      "stderr": "Error response from daemon: network localqa-t09b1-80bfe58b not found\n"
+    }
+  ],
+  "unverified": [
+    "Worker task-claim transport and real provider are not wired by this capacity entrypoint",
+    "Full six-service stack/TLS gateway and production CA not exercised",
+    "Cross-architecture x86_64, host userns alternative and readonly-root under production traffic unverified",
+    "Uncached first-build wall times were not measured; evidence records actual cached rebuild times (23/30/19/5 s)"
+  ],
+  "cleanupStatus": {
+    "removed": [
+      "T09-B1 test containers/volumes/network",
+      "temporary overlay Dockerfile and image tags",
+      "T09-B1 /tmp build and pull logs and timing scratch"
+    ],
+    "rechecked": {
+      "containersAbsent": true,
+      "volumesAbsent": true,
+      "networksAbsent": true,
+      "temporaryLogsAbsent": true,
+      "protectedBaseImagesRetained": true
+    },
+    "retainedDeliverables": [
+      "localqa-api:latest",
+      "localqa-worker:latest",
+      "localqa-orchestrator:latest",
+      "localqa-web:latest"
+    ]
+  }
+}

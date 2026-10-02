@@ -1,6 +1,6 @@
 # LocalQA 部署骨架与演练指南 (T09-A)
 
-> **不是可直接上线的镜像发行版。** `localqa-web/api/orchestrator/worker` 镜像需上游构建并注入实际入口命令、健康端点和 `/app/deploy/scripts/health-probe.mjs`；本任务仅验证 Compose 解析、PG18、Chromium 沙箱和备份恢复样本，未验证六服务端到端运行，P0 未通过。
+> T09-B1 已提供四个多阶段应用镜像和 entrypoint；真实启动验证覆盖 API、Web、Orchestrator 的基础就绪与 Worker 浏览器容量检查。**Worker 当前 entrypoint 不领取业务任务**：内部任务身份/传输和模型 provider 与 Worker 运行时的部署接线尚未交付，不应把浏览器容量绿色误作可执行运行。TLS 网关和完整 P0 端到端仍未验证。
 
 本指南针对 LocalQA 内网多用户生产环境（Linux 6.8+ / aarch64 & x86_64, Docker 27+, Docker Compose 2.30+）。
 
@@ -52,6 +52,20 @@ LocalQA 采用基于 Docker Compose 的多容器隔离架构，划分为前端�
 | **Worker 内部身份**     | `deploy/secrets/worker_identity.json`                     | JSON，权限 `0400` 或 `0600`                     | Worker 进程向内部协调器/租约端口认证的私有令牌                                          |
 | **初始管理员密码**      | `deploy/secrets/admin_initial_password`                   | 单行纯文本（≥12字符）                           | 仅在系统初次初始化执行 `bootstrap-admin.mjs` 时消费一次，完成后入口关闭                 |
 
+应用侧 Node 出站 HTTPS 私有 CA 可放 `deploy/ca/company-ca.pem`（只读挂载 `/etc/localqa/ca`），在 `.env` 显式设置 `NODE_EXTRA_CA_CERTS=/etc/localqa/ca/company-ca.pem`。Chromium 独立证书信任链还需目标宿主/镜像验证，不可假设 Node CA 自动生效；入口 TLS 证书和私钥仅挂给 gateway 的 `/etc/nginx/certs`。
+
+### T09-B1 镜像构建与就绪边界
+
+```sh
+# 必须以仓库根目录为 build context；镜像只来自 deploy/images/*.Dockerfile。
+# BuildKit 不可用时 Docker legacy builder 亦可使用；可显式设置构建 registry mirror。
+docker compose -f deploy/docker-compose.yml build api worker orchestrator web
+# 就绪/存活：API GET /readyz、/healthz；Web GET /readyz、/healthz；
+# Orchestrator DB/schema/Vault 与成功 tick 时间戳；Worker DB/schema 与沙箱探针时间戳。
+```
+
+镜像运行 UID/GID 默认为 1001:1001，容器根只读；数据库/材料位于命名卷，Worker HOME/scratch 与 `/tmp` 为 tmpfs。首次挂载命名卷需确认 UID 1001 对材料卷可写。构建缓存先按 lockfile `pnpm fetch`，再安装 workspace 并构建依赖闭包；`deploy/images/*.Dockerfile.dockerignore` 供 BuildKit 使用，根目录 `.dockerignore` 供 legacy builder 使用，两者排除本地凭据/证据。`T09-images.json` 里的本地镜像 ID/digest 不等同于推送后注册表多架构 digest。默认 Playwright worker 镜像 `v1.63.0-noble`，运行时 Node 24；没有 `--no-sandbox`。Worker 健康是**浏览器容量**而非可领取任务。API 就绪不依赖模型配置，使管理员能够进入设置；启动仍需 DB 迁移、KEK 和 Worker 身份文件。
+
 ---
 
 ## 3. Chromium 沙箱架构与操作系统级权衡 (T00 发现)
@@ -98,9 +112,10 @@ kernel.apparmor_restrict_unprivileged_userns = 1
 # 1. 复制环境配置模板并填写非敏感项
 cp deploy/.env.example deploy/.env
 
-# 2. 准备受保护的秘密凭证目录
-mkdir -p deploy/secrets deploy/certs
-chmod 700 deploy/secrets deploy/certs
+# 2. 准备受保护的秘密凭证目录；Linux 上应将 secrets 目录及应用所需文件
+# 的属主设置为运行 UID/GID（默认 1001:1001），模式 0700/0400 或 0600。
+mkdir -p deploy/secrets deploy/certs deploy/ca
+chmod 700 deploy/secrets deploy/certs deploy/ca
 
 # 生成随机数据库密码与主 KEK
 openssl rand -hex 24 > deploy/secrets/postgres_password
@@ -111,6 +126,8 @@ chmod 600 deploy/secrets/postgres_password
 chmod 600 deploy/.env
 # 验证 Docker Compose 语法与配置解析
 docker compose -f deploy/docker-compose.yml config
+# 构建四个应用镜像（不会把 .env、certs、secrets、证据目录放进 build context）
+docker compose -f deploy/docker-compose.yml build api worker orchestrator web
 
 # 4. 启动数据库容器
 docker compose -f deploy/docker-compose.yml up -d postgres
@@ -121,12 +138,14 @@ docker compose -f deploy/docker-compose.yml up -d postgres
 docker compose -f deploy/docker-compose.yml run --rm --no-deps api node /app/deploy/scripts/migrate.mjs
 
 # 6. 一次性初始化平台管理员账号 (受保护入口，完成后永久关闭)
+# 以 UID/GID 1001 可读且其他用户不可读的受保护文件提供初始口令：
+# deploy/secrets/admin_initial_password (0400，所有者 1001)
 export ADMIN_INITIAL_EMAIL="admin@yourcompany.internal"
-export ADMIN_INITIAL_PASSWORD="YourStrongInitialAdminPassword123!"
-docker compose -f deploy/docker-compose.yml run --rm --no-deps api node /app/deploy/scripts/bootstrap-admin.mjs
+docker compose -f deploy/docker-compose.yml run --rm --no-deps -e ADMIN_INITIAL_EMAIL api node /app/deploy/scripts/bootstrap-admin.mjs
 # 成功后撤销/销毁初始管理员口令文件；数据库状态拒绝重复初始化。
 
-# 7. 仅在应用镜像和健康端点接线完成、探针通过后启动其余业务服务
+# 7. 仅在 Worker 领取任务接线和 TLS 检查完成后开放业务运行；
+# 当前 B1 可启动做容量检查，但不应接收真实运行请求。
 docker compose -f deploy/docker-compose.yml up -d
 ```
 
