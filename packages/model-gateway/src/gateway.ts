@@ -15,7 +15,7 @@ import {
   type ProviderAdapter,
   type ProviderResponse,
 } from './adapter.js';
-import { assertHttpsEndpoint, toOpenAIChatRequest } from './openai.js';
+import { assertHttpsEndpoint } from './openai.js';
 import { hideSecret, messageText, redactMessages, redactText } from './redact.js';
 import { combineUsage, estimateTokens, type UsageAttempt } from './usage.js';
 

@@ -83,7 +83,10 @@ export async function resolveTarget(
     try {
       candidateLocators.push({
         strategy: 'role_and_name',
-        locator: frame.getByRole(node.role as any, { name: node.name, exact: true })
+        locator: frame.getByRole(node.role as Parameters<typeof frame.getByRole>[0], {
+          name: node.name,
+          exact: true
+        })
       });
     } catch {
       // Role name might not be valid ARIA role
@@ -130,7 +133,7 @@ export async function resolveTarget(
   let bestLocator: Locator | null = null;
   let ambiguousCount = 0;
 
-  for (const { strategy, locator } of candidateLocators) {
+  for (const { locator } of candidateLocators) {
     try {
       const count = await locator.count();
       if (count === 1) {

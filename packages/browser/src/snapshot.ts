@@ -193,7 +193,7 @@ async function extractNodesFromFrame(frame: Frame, frameId: string): Promise<Sna
       const titleAttr = el.getAttribute('title') || '';
 
       // Text and Name calculation
-      let text = '';
+      let text: string;
       if (!isPassword && !isHiddenInput && !isSensitiveAttr) {
         text = (el.textContent || '').trim().replace(/\s+/g, ' ');
       } else {

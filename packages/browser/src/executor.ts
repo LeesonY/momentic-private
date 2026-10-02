@@ -4,9 +4,7 @@ import type {
   ToolCall,
   ToolResult,
   BrowserSnapshot,
-  NodeTarget,
   CriterionResult,
-  Artifact,
   JsonValue
 } from '@localqa/contracts';
 import { getRootValidator } from '@localqa/contracts';
@@ -57,7 +55,7 @@ export class ToolExecutor {
     }
 
     // 2. Prohibited Tools Gate
-    const toolName = (toolCall as any).name;
+    const toolName = (toolCall as { name: string }).name;
     const prohibited = new Set(['evaluate', 'eval', 'exec', 'shell', 'read_file', 'write_file']);
     if (prohibited.has(toolName as string)) {
       const snapshot = ctx.currentSnapshot || (await captureBrowserSnapshot(ctx.page, { recorder: ctx.recorder }));
@@ -77,9 +75,6 @@ export class ToolExecutor {
     // 3. Schema Validation via @localqa/contracts
     const isValid = this.toolValidator(toolCall);
     if (!isValid) {
-      const errorMsg = (this.toolValidator.errors || [])
-        .map((e) => `${e.instancePath} ${e.message}`)
-        .join(', ');
       const snapshot = ctx.currentSnapshot || (await captureBrowserSnapshot(ctx.page, { recorder: ctx.recorder }));
       return {
         result: {
@@ -419,9 +414,13 @@ export class ToolExecutor {
                 };
               }
             } else {
-              await ctx.waiter.waitForState(ctx.page, condition as any, { timeoutMs, signal: ctx.signal });
+              await ctx.waiter.waitForState(
+                ctx.page,
+                condition as 'dom_ready' | 'navigation' | 'element_visible' | 'spinner_detach',
+                { timeoutMs, signal: ctx.signal }
+              );
             }
-          } catch (err) {
+          } catch {
             return {
               result: {
                 requestId,

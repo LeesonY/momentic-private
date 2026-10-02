@@ -16,3 +16,10 @@ tmp/
 # Playwright 运行产物
 test-results/
 playwright-report/
+
+# 各包的原始证据日志（不提交，验收记录走 docs/validation-results）
+.evidence/
+
+# 崩溃转储（容器内 Chromium 崩溃会写进挂载的项目目录）
+core
+core.*

@@ -48,7 +48,7 @@ export class WaitAndRecoveryManager {
       return response;
     } catch (err) {
       if (options.signal?.aborted) {
-        throw new Error(STABLE_REASON_CODES.ACTION_CANCELLED);
+        throw new Error(STABLE_REASON_CODES.ACTION_CANCELLED, { cause: err });
       }
       throw err;
     }

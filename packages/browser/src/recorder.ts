@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Artifact, NetworkEntry } from '@localqa/contracts';
-import { sanitizeUrl, sanitizeText, sanitizeHeaders } from './redaction.js';
+import { sanitizeUrl, sanitizeText } from './redaction.js';
 import type { RecorderOptions } from './types.js';
 
 export class SessionRecorder {

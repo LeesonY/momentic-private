@@ -1,13 +1,3 @@
-import type {
-  BrowserSnapshot,
-  NodeTarget,
-  ToolCall,
-  ToolResult,
-  Artifact,
-  CriterionResult,
-  NetworkEntry
-} from '@localqa/contracts';
-
 /**
  * Stable reason codes for tool execution, target resolution, and policy denials.
  */
