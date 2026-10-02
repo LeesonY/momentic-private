@@ -36,11 +36,18 @@ const statusMap: Record<string, { className: string; text: string }> = {
   admin: { className: 'badge-primary', text: '平台管理员' },
   owner: { className: 'badge-primary', text: '项目 Owner' },
   operator: { className: 'badge-info', text: 'Operator' },
-  viewer: { className: 'badge-neutral', text: 'Viewer 只读' }
+  viewer: { className: 'badge-neutral', text: 'Viewer 只读' },
 };
 
-export const StatusBadge: React.FC<BadgeProps> = ({ status, label, size = 'md' }) => {
-  const meta = statusMap[status.toLowerCase()] || { className: 'badge-neutral', text: label || status };
+export const StatusBadge: React.FC<BadgeProps> = ({
+  status,
+  label,
+  size = 'md',
+}) => {
+  const meta = statusMap[status.toLowerCase()] || {
+    className: 'badge-neutral',
+    text: label || status,
+  };
   return (
     <span
       className={`badge ${meta.className} ${size === 'sm' ? 'badge-sm' : ''}`}

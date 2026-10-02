@@ -13,7 +13,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   description,
   actionText,
   onAction,
-  icon = '📭'
+  icon = '📭',
 }) => {
   return (
     <div
@@ -26,16 +26,30 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         textAlign: 'center',
         backgroundColor: 'var(--color-bg-surface)',
         borderRadius: 'var(--radius-lg)',
-        border: '1px dashed var(--color-border)'
+        border: '1px dashed var(--color-border)',
       }}
       data-testid="empty-state"
     >
       <div style={{ fontSize: '3rem', marginBottom: '12px' }}>{icon}</div>
-      <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
+      <h3
+        style={{
+          fontSize: '1rem',
+          fontWeight: 600,
+          color: 'var(--color-text-main)',
+          marginBottom: '6px',
+        }}
+      >
         {title}
       </h3>
       {description && (
-        <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', maxWidth: '400px', marginBottom: '16px' }}>
+        <p
+          style={{
+            fontSize: '0.875rem',
+            color: 'var(--color-text-muted)',
+            maxWidth: '400px',
+            marginBottom: '16px',
+          }}
+        >
           {description}
         </p>
       )}

@@ -1,5 +1,10 @@
 import type { ToolCall } from '@localqa/contracts';
-import { STABLE_REASON_CODES, type ActionTargetMetadata, type ExecutionMode, type PolicyCheckResult } from './types.js';
+import {
+  STABLE_REASON_CODES,
+  type ActionTargetMetadata,
+  type ExecutionMode,
+  type PolicyCheckResult,
+} from './types.js';
 
 export interface PolicyOptions {
   mode?: ExecutionMode | undefined;
@@ -21,15 +26,22 @@ export class PolicyInterceptor {
   constructor(options: PolicyOptions = {}) {
     this.mode = options.mode || 'non_submitting';
     this.allowedOrigins = new Set(
-      (options.allowedOrigins || []).map((o) => this.normalizeOrigin(o))
+      (options.allowedOrigins || []).map((o) => this.normalizeOrigin(o)),
     );
     this.restrictedPaths = options.restrictedPaths || [
       '/api/records/delete',
       '/api/messages/send',
       '/api/danger-get',
-      '/api/autosave'
+      '/api/autosave',
     ];
-    this.forbiddenSchemes = new Set(options.forbiddenSchemes || ['javascript:', 'file:', 'data:', 'vbscript:']);
+    this.forbiddenSchemes = new Set(
+      options.forbiddenSchemes || [
+        'javascript:',
+        'file:',
+        'data:',
+        'vbscript:',
+      ],
+    );
   }
 
   private normalizeOrigin(originOrUrl: string): string {
@@ -53,7 +65,7 @@ export class PolicyInterceptor {
         return {
           allowed: false,
           reasonCode: STABLE_REASON_CODES.TARGET_NOT_ALLOWED,
-          reason: `Navigation to scheme '${scheme}' is strictly prohibited.`
+          reason: `Navigation to scheme '${scheme}' is strictly prohibited.`,
         };
       }
 
@@ -61,7 +73,7 @@ export class PolicyInterceptor {
         return {
           allowed: false,
           reasonCode: STABLE_REASON_CODES.TARGET_NOT_ALLOWED,
-          reason: `Navigation protocol must be http: or https:, got '${scheme}'.`
+          reason: `Navigation protocol must be http: or https:, got '${scheme}'.`,
         };
       }
 
@@ -70,7 +82,7 @@ export class PolicyInterceptor {
         return {
           allowed: false,
           reasonCode: STABLE_REASON_CODES.TARGET_NOT_ALLOWED,
-          reason: 'URLs containing userinfo (username/password) are rejected.'
+          reason: 'URLs containing userinfo (username/password) are rejected.',
         };
       }
 
@@ -101,7 +113,7 @@ export class PolicyInterceptor {
           return {
             allowed: false,
             reasonCode: STABLE_REASON_CODES.TARGET_NOT_ALLOWED,
-            reason: `Target origin '${parsed.origin}' is outside permitted origins.`
+            reason: `Target origin '${parsed.origin}' is outside permitted origins.`,
           };
         }
       }
@@ -113,7 +125,7 @@ export class PolicyInterceptor {
           return {
             allowed: false,
             reasonCode: STABLE_REASON_CODES.POLICY_DENIED,
-            reason: `Path '${path}' is restricted in non_submitting mode.`
+            reason: `Path '${path}' is restricted in non_submitting mode.`,
           };
         }
       }
@@ -123,7 +135,7 @@ export class PolicyInterceptor {
       return {
         allowed: false,
         reasonCode: STABLE_REASON_CODES.TARGET_NOT_ALLOWED,
-        reason: `Malformed URL: '${urlStr}'`
+        reason: `Malformed URL: '${urlStr}'`,
       };
     }
   }
@@ -131,15 +143,25 @@ export class PolicyInterceptor {
   /**
    * Validates tool call against execution mode and target metadata.
    */
-  public checkAction(toolCall: ToolCall, targetMeta?: ActionTargetMetadata): PolicyCheckResult {
+  public checkAction(
+    toolCall: ToolCall,
+    targetMeta?: ActionTargetMetadata,
+  ): PolicyCheckResult {
     // Prohibited tools: evaluate, shell, file io, etc.
     const toolName = toolCall.name as string;
-    const prohibitedTools = new Set(['evaluate', 'eval', 'exec', 'shell', 'read_file', 'write_file']);
+    const prohibitedTools = new Set([
+      'evaluate',
+      'eval',
+      'exec',
+      'shell',
+      'read_file',
+      'write_file',
+    ]);
     if (prohibitedTools.has(toolName)) {
       return {
         allowed: false,
         reasonCode: STABLE_REASON_CODES.POLICY_DENIED,
-        reason: `Tool '${toolName}' is prohibited in LocalQA browser executor.`
+        reason: `Tool '${toolName}' is prohibited in LocalQA browser executor.`,
       };
     }
 
@@ -149,7 +171,7 @@ export class PolicyInterceptor {
         return {
           allowed: false,
           reasonCode: STABLE_REASON_CODES.POLICY_DENIED,
-          reason: `Action on target '${targetMeta.name || targetMeta.nodeId}' is a hazardous mutation, prohibited in non_submitting mode.`
+          reason: `Action on target '${targetMeta.name || targetMeta.nodeId}' is a hazardous mutation, prohibited in non_submitting mode.`,
         };
       }
 
@@ -162,15 +184,29 @@ export class PolicyInterceptor {
       }
 
       // Check for destructive action keywords on buttons
-      const textSample = `${targetMeta.name || ''} ${targetMeta.text || ''}`.toLowerCase();
-      const destructiveKeywords = ['删除', 'delete', 'remove', '发送', 'send message', 'submit order', '立即购买'];
-      const hasDestructiveText = destructiveKeywords.some((kw) => textSample.includes(kw));
+      const textSample =
+        `${targetMeta.name || ''} ${targetMeta.text || ''}`.toLowerCase();
+      const destructiveKeywords = [
+        '删除',
+        'delete',
+        'remove',
+        '发送',
+        'send message',
+        'submit order',
+        '立即购买',
+      ];
+      const hasDestructiveText = destructiveKeywords.some((kw) =>
+        textSample.includes(kw),
+      );
 
-      if (hasDestructiveText && (targetMeta.role === 'button' || targetMeta.tag === 'button')) {
+      if (
+        hasDestructiveText &&
+        (targetMeta.role === 'button' || targetMeta.tag === 'button')
+      ) {
         return {
           allowed: false,
           reasonCode: STABLE_REASON_CODES.POLICY_DENIED,
-          reason: `Target element contains destructive intent ('${textSample.trim()}'), forbidden in non_submitting mode.`
+          reason: `Target element contains destructive intent ('${textSample.trim()}'), forbidden in non_submitting mode.`,
         };
       }
     }

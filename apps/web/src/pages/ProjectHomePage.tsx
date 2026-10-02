@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
-import type { Environment, AuthProfile, ModelProfile } from '@localqa/contracts';
+import type {
+  Environment,
+  AuthProfile,
+  ModelProfile,
+} from '@localqa/contracts';
 
 export const ProjectHomePage: React.FC = () => {
   const { currentProject, setRoute } = useApp();
@@ -24,7 +28,9 @@ export const ProjectHomePage: React.FC = () => {
   const [maxActions, setMaxActions] = useState(120);
   const [maxModelCalls] = useState(100);
   const [maxReproductions] = useState(3);
-  const [actionPolicy, setActionPolicy] = useState<'non_submitting' | 'approved_workflows'>('non_submitting');
+  const [actionPolicy, setActionPolicy] = useState<
+    'non_submitting' | 'approved_workflows'
+  >('non_submitting');
 
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +43,7 @@ export const ProjectHomePage: React.FC = () => {
         const [envRes, authRes, modelRes] = await Promise.all([
           defaultApiClient.listEnvironments(projId),
           defaultApiClient.listAuthProfiles(projId),
-          defaultApiClient.listModels()
+          defaultApiClient.listModels(),
         ]);
         setEnvironments(envRes.items);
         if (envRes.items.length > 0) setSelectedEnvId(envRes.items[0].id);
@@ -80,11 +86,11 @@ export const ProjectHomePage: React.FC = () => {
           maxActiveSeconds,
           maxActions,
           maxModelCalls,
-          maxReproductions
+          maxReproductions,
         },
         config: {
-          actionPolicy
-        }
+          actionPolicy,
+        },
       });
 
       // Jump to workbench with runId
@@ -97,12 +103,27 @@ export const ProjectHomePage: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '880px', margin: '0 auto' }} data-testid="project-home-page">
+    <div
+      style={{ maxWidth: '880px', margin: '0 auto' }}
+      data-testid="project-home-page"
+    >
       <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--color-text-main)' }}>
+        <h1
+          style={{
+            fontSize: '1.6rem',
+            fontWeight: 700,
+            color: 'var(--color-text-main)',
+          }}
+        >
           {currentProject?.name || '项目首页'}
         </h1>
-        <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+        <p
+          style={{
+            fontSize: '0.9rem',
+            color: 'var(--color-text-muted)',
+            marginTop: '4px',
+          }}
+        >
           输入目标 URL，全自动探索生成用例、执行检查与复现缺陷。
         </p>
       </div>
@@ -116,7 +137,7 @@ export const ProjectHomePage: React.FC = () => {
             border: '1px solid var(--color-danger-border)',
             borderRadius: 'var(--radius-md)',
             fontSize: '0.875rem',
-            marginBottom: '20px'
+            marginBottom: '20px',
           }}
           data-testid="home-error-banner"
         >
@@ -127,8 +148,12 @@ export const ProjectHomePage: React.FC = () => {
       <form onSubmit={handleStart} className="card" style={{ padding: '28px' }}>
         {/* URL Input */}
         <div className="form-group" style={{ marginBottom: '20px' }}>
-          <label className="form-label" style={{ fontSize: '1rem', fontWeight: 600 }}>
-            被测站点目标地址 (Target URL) <span style={{ color: 'var(--color-danger)' }}>*</span>
+          <label
+            className="form-label"
+            style={{ fontSize: '1rem', fontWeight: 600 }}
+          >
+            被测站点目标地址 (Target URL){' '}
+            <span style={{ color: 'var(--color-danger)' }}>*</span>
           </label>
           <div style={{ display: 'flex', gap: '10px' }}>
             <input
@@ -143,7 +168,8 @@ export const ProjectHomePage: React.FC = () => {
             />
           </div>
           <span className="form-help">
-            输入获准访问的 HTTP(S) 地址。默认将自动以其 Origin 作为临时探测范围。
+            输入获准访问的 HTTP(S) 地址。默认将自动以其 Origin
+            作为临时探测范围。
           </span>
         </div>
 
@@ -161,7 +187,14 @@ export const ProjectHomePage: React.FC = () => {
         </div>
 
         {/* Selectors Grid: Environment, Auth, Model */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', margin: '20px 0' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: '16px',
+            margin: '20px 0',
+          }}
+        >
           <div className="form-group">
             <label className="form-label">运行环境 (Environment)</label>
             <select
@@ -205,7 +238,8 @@ export const ProjectHomePage: React.FC = () => {
             >
               {models.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.name} {m.dataBoundary === 'internal' ? '[内网]' : '[外部商业]'}
+                  {m.name}{' '}
+                  {m.dataBoundary === 'internal' ? '[内网]' : '[外部商业]'}
                 </option>
               ))}
             </select>
@@ -222,24 +256,34 @@ export const ProjectHomePage: React.FC = () => {
               padding: '12px 16px',
               margin: '16px 0',
               fontSize: '0.85rem',
-              color: 'var(--color-warning-text)'
+              color: 'var(--color-warning-text)',
             }}
             data-testid="external-model-notice"
           >
             <strong>【外部模型数据去向提示】</strong>
-            当前选择的模型由外部云端商业提供商（如 OpenAI）承载。自动化探索期间，脱敏后的 DOM 结构、accessible name 与必要截图将出网传输至外部模型服务器。请确认被测系统不包含未经授权的非公开核心涉密数据。
+            当前选择的模型由外部云端商业提供商（如
+            OpenAI）承载。自动化探索期间，脱敏后的 DOM 结构、accessible name
+            与必要截图将出网传输至外部模型服务器。请确认被测系统不包含未经授权的非公开核心涉密数据。
           </div>
         )}
 
         {/* Collapsible Advanced Budget Overrides */}
-        <div style={{ marginTop: '16px', borderTop: '1px solid var(--color-border-subtle)', paddingTop: '16px' }}>
+        <div
+          style={{
+            marginTop: '16px',
+            borderTop: '1px solid var(--color-border-subtle)',
+            paddingTop: '16px',
+          }}
+        >
           <button
             type="button"
             className="btn btn-secondary btn-sm"
             onClick={() => setShowAdvanced(!showAdvanced)}
             data-testid="btn-toggle-advanced-budget"
           >
-            {showAdvanced ? '收起高级额度与策略配置 ▲' : '展开高级额度与策略配置 (Smoke 预设) ▼'}
+            {showAdvanced
+              ? '收起高级额度与策略配置 ▲'
+              : '展开高级额度与策略配置 (Smoke 预设) ▼'}
           </button>
 
           {showAdvanced && (
@@ -248,17 +292,31 @@ export const ProjectHomePage: React.FC = () => {
                 marginTop: '16px',
                 padding: '16px',
                 backgroundColor: 'var(--color-bg-subtle)',
-                borderRadius: 'var(--radius-md)'
+                borderRadius: 'var(--radius-md)',
               }}
               data-testid="advanced-budget-panel"
             >
-              <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '12px' }}>
+              <h4
+                style={{
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  marginBottom: '12px',
+                }}
+              >
                 Smoke 额度与安全性策略 (统一预设约束)
               </h4>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '14px',
+                }}
+              >
                 <div>
-                  <label className="form-label" style={{ fontSize: '0.8rem' }}>最多规划用例数 (maxCases: 1-30)</label>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>
+                    最多规划用例数 (maxCases: 1-30)
+                  </label>
                   <input
                     type="number"
                     className="form-input"
@@ -269,7 +327,9 @@ export const ProjectHomePage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="form-label" style={{ fontSize: '0.8rem' }}>最多探索页面数 (maxPages: 1-30)</label>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>
+                    最多探索页面数 (maxPages: 1-30)
+                  </label>
                   <input
                     type="number"
                     className="form-input"
@@ -280,7 +340,9 @@ export const ProjectHomePage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="form-label" style={{ fontSize: '0.8rem' }}>探索深度限制 (maxDepth: 0-5)</label>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>
+                    探索深度限制 (maxDepth: 0-5)
+                  </label>
                   <input
                     type="number"
                     className="form-input"
@@ -291,18 +353,24 @@ export const ProjectHomePage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="form-label" style={{ fontSize: '0.8rem' }}>最长执行秒数 (maxActiveSeconds: 60-3600)</label>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>
+                    最长执行秒数 (maxActiveSeconds: 60-3600)
+                  </label>
                   <input
                     type="number"
                     className="form-input"
                     value={maxActiveSeconds}
                     min={60}
                     max={3600}
-                    onChange={(e) => setMaxActiveSeconds(Number(e.target.value))}
+                    onChange={(e) =>
+                      setMaxActiveSeconds(Number(e.target.value))
+                    }
                   />
                 </div>
                 <div>
-                  <label className="form-label" style={{ fontSize: '0.8rem' }}>最多操作步数 (maxActions)</label>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>
+                    最多操作步数 (maxActions)
+                  </label>
                   <input
                     type="number"
                     className="form-input"
@@ -313,14 +381,25 @@ export const ProjectHomePage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="form-label" style={{ fontSize: '0.8rem' }}>动作变动策略 (Action Policy)</label>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>
+                    动作变动策略 (Action Policy)
+                  </label>
                   <select
                     className="form-select"
                     value={actionPolicy}
-                    onChange={(e) => setActionPolicy(e.target.value as 'non_submitting' | 'approved_workflows')}
+                    onChange={(e) =>
+                      setActionPolicy(
+                        e.target.value as
+                          'non_submitting' | 'approved_workflows',
+                      )
+                    }
                   >
-                    <option value="non_submitting">non_submitting (严格避免表单提交与副作用)</option>
-                    <option value="approved_workflows">approved_workflows (允许执行预核准业务流程)</option>
+                    <option value="non_submitting">
+                      non_submitting (严格避免表单提交与副作用)
+                    </option>
+                    <option value="approved_workflows">
+                      approved_workflows (允许执行预核准业务流程)
+                    </option>
                   </select>
                 </div>
               </div>
@@ -329,7 +408,13 @@ export const ProjectHomePage: React.FC = () => {
         </div>
 
         {/* Start Button */}
-        <div style={{ marginTop: '28px', display: 'flex', justifyContent: 'flex-end' }}>
+        <div
+          style={{
+            marginTop: '28px',
+            display: 'flex',
+            justifyContent: 'flex-end',
+          }}
+        >
           <button
             type="submit"
             className="btn btn-primary"

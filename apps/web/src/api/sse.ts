@@ -1,6 +1,7 @@
 import type { RunEvent } from '@localqa/contracts';
 
-export type SseConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
+export type SseConnectionStatus =
+  'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
 export interface SseClientOptions {
   runId: string;
@@ -20,7 +21,10 @@ export class SseClient {
   private readonly runId: string;
   private readonly baseUrl: string;
   private readonly onEvent?: (event: RunEvent) => void;
-  private readonly onStatusChange?: (status: SseConnectionStatus, attempt: number) => void;
+  private readonly onStatusChange?: (
+    status: SseConnectionStatus,
+    attempt: number,
+  ) => void;
   private readonly onError?: (err: Error) => void;
 
   private eventSource: EventSource | null = null;
@@ -42,13 +46,18 @@ export class SseClient {
     if (this.isManuallyClosed) return;
     this.setStatus(this.reconnectAttempt > 0 ? 'reconnecting' : 'connecting');
 
-    const url = new URL(`${this.baseUrl}/runs/${this.runId}/events`, window.location.origin);
+    const url = new URL(
+      `${this.baseUrl}/runs/${this.runId}/events`,
+      window.location.origin,
+    );
     if (this.lastSeq > 0) {
       url.searchParams.set('lastEventId', String(this.lastSeq));
     }
 
     try {
-      this.eventSource = new EventSource(url.toString(), { withCredentials: true });
+      this.eventSource = new EventSource(url.toString(), {
+        withCredentials: true,
+      });
 
       this.eventSource.onopen = () => {
         this.reconnectAttempt = 0;
@@ -78,10 +87,17 @@ export class SseClient {
 
         this.reconnectAttempt++;
         this.setStatus('reconnecting');
-        this.onError?.(new Error(`SSE connection interrupted. Reconnecting (attempt ${this.reconnectAttempt})...`));
+        this.onError?.(
+          new Error(
+            `SSE connection interrupted. Reconnecting (attempt ${this.reconnectAttempt})...`,
+          ),
+        );
 
         // Exponential backoff up to 10s
-        const delay = Math.min(1000 * Math.pow(1.5, this.reconnectAttempt), 10000);
+        const delay = Math.min(
+          1000 * Math.pow(1.5, this.reconnectAttempt),
+          10000,
+        );
         this.reconnectTimer = setTimeout(() => {
           this.connect();
         }, delay);

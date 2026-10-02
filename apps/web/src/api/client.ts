@@ -20,7 +20,7 @@ import type {
   TriagePreview,
   TriageCommit,
   InputResponse,
-  Export
+  Export,
 } from '@localqa/contracts';
 
 export class HttpApiClient implements ApiClient {
@@ -30,23 +30,37 @@ export class HttpApiClient implements ApiClient {
     this.baseUrl = baseUrl;
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {},
+  ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const headers = new Headers(options.headers);
-    if (!headers.has('Content-Type') && options.body && typeof options.body === 'string') {
+    if (
+      !headers.has('Content-Type') &&
+      options.body &&
+      typeof options.body === 'string'
+    ) {
       headers.set('Content-Type', 'application/json');
     }
 
     const res = await fetch(url, {
       ...options,
       headers,
-      credentials: 'include'
+      credentials: 'include',
     });
 
     if (!res.ok) {
-      const errorJson = (await res.json().catch(() => ({}))) as { message?: string; code?: string };
-      const message = errorJson.message || `HTTP ${res.status} ${res.statusText}`;
-      const err = new Error(message) as Error & { status: number; code?: string };
+      const errorJson = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        code?: string;
+      };
+      const message =
+        errorJson.message || `HTTP ${res.status} ${res.statusText}`;
+      const err = new Error(message) as Error & {
+        status: number;
+        code?: string;
+      };
       err.status = res.status;
       err.code = errorJson.code;
       throw err;
@@ -55,8 +69,15 @@ export class HttpApiClient implements ApiClient {
     return res.json() as Promise<T>;
   }
 
-  public async login(input: { email?: string; username?: string; password?: string }): Promise<{ token: string; user: User }> {
-    return this.request('/auth/login', { method: 'POST', body: JSON.stringify(input) });
+  public async login(input: {
+    email?: string;
+    username?: string;
+    password?: string;
+  }): Promise<{ token: string; user: User }> {
+    return this.request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
   }
 
   public async logout(): Promise<void> {
@@ -80,49 +101,85 @@ export class HttpApiClient implements ApiClient {
   }
 
   public async createProject(input: { name: string }): Promise<Project> {
-    return this.request('/projects', { method: 'POST', body: JSON.stringify(input) });
+    return this.request('/projects', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
   }
 
-  public async updateProject(projectId: string, input: Partial<Project>): Promise<Project> {
-    return this.request(`/projects/${projectId}`, { method: 'PATCH', body: JSON.stringify(input) });
+  public async updateProject(
+    projectId: string,
+    input: Partial<Project>,
+  ): Promise<Project> {
+    return this.request(`/projects/${projectId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
   }
 
   public async listMembers(projectId: string): Promise<{ items: Member[] }> {
     return this.request(`/projects/${projectId}/members`);
   }
 
-  public async listEnvironments(projectId: string): Promise<{ items: Environment[] }> {
+  public async listEnvironments(
+    projectId: string,
+  ): Promise<{ items: Environment[] }> {
     return this.request(`/projects/${projectId}/environments`);
   }
 
-  public async createEnvironment(projectId: string, input: Partial<Environment>): Promise<Environment> {
-    return this.request(`/projects/${projectId}/environments`, { method: 'POST', body: JSON.stringify(input) });
+  public async createEnvironment(
+    projectId: string,
+    input: Partial<Environment>,
+  ): Promise<Environment> {
+    return this.request(`/projects/${projectId}/environments`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
   }
 
-  public async listAuthProfiles(projectId: string): Promise<{ items: AuthProfile[] }> {
+  public async listAuthProfiles(
+    projectId: string,
+  ): Promise<{ items: AuthProfile[] }> {
     return this.request(`/projects/${projectId}/auth-profiles`);
   }
 
-  public async createAuthProfile(projectId: string, input: Partial<AuthProfile>): Promise<AuthProfile> {
-    return this.request(`/projects/${projectId}/auth-profiles`, { method: 'POST', body: JSON.stringify(input) });
+  public async createAuthProfile(
+    projectId: string,
+    input: Partial<AuthProfile>,
+  ): Promise<AuthProfile> {
+    return this.request(`/projects/${projectId}/auth-profiles`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
   }
 
-  public async listKnowledge(projectId: string): Promise<{ items: Knowledge[] }> {
+  public async listKnowledge(
+    projectId: string,
+  ): Promise<{ items: Knowledge[] }> {
     return this.request(`/projects/${projectId}/knowledge`);
   }
 
   public async createKnowledge(
     projectId: string,
-    input: { title: string; text: string; kind: 'terminology' | 'rule' | 'flow' | 'restriction' }
+    input: {
+      title: string;
+      text: string;
+      kind: 'terminology' | 'rule' | 'flow' | 'restriction';
+    },
   ): Promise<Knowledge> {
-    return this.request(`/projects/${projectId}/knowledge`, { method: 'POST', body: JSON.stringify(input) });
+    return this.request(`/projects/${projectId}/knowledge`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
   }
 
   public async listModels(): Promise<{ items: ModelProfile[] }> {
     return this.request('/model-profiles');
   }
 
-  public async probeModel(modelId: string): Promise<{ healthy: boolean; latencyMs: number }> {
+  public async probeModel(
+    modelId: string,
+  ): Promise<{ healthy: boolean; latencyMs: number }> {
     return this.request(`/model-profiles/${modelId}/probe`, { method: 'POST' });
   }
 
@@ -144,7 +201,10 @@ export class HttpApiClient implements ApiClient {
     budgetOverrides?: BudgetOverrides;
     config?: Partial<RunConfig>;
   }): Promise<Run> {
-    return this.request('/runs', { method: 'POST', body: JSON.stringify(input) });
+    return this.request('/runs', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
   }
 
   public async cancelRun(runId: string): Promise<{ success: boolean }> {
@@ -152,11 +212,21 @@ export class HttpApiClient implements ApiClient {
   }
 
   public async sendRunMessage(runId: string, message: string): Promise<void> {
-    await this.request(`/runs/${runId}/messages`, { method: 'POST', body: JSON.stringify({ message }) });
+    await this.request(`/runs/${runId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    });
   }
 
-  public async respondToInput(runId: string, inputId: string, response: InputResponse): Promise<void> {
-    await this.request(`/runs/${runId}/inputs/${inputId}/respond`, { method: 'POST', body: JSON.stringify(response) });
+  public async respondToInput(
+    runId: string,
+    inputId: string,
+    response: InputResponse,
+  ): Promise<void> {
+    await this.request(`/runs/${runId}/inputs/${inputId}/respond`, {
+      method: 'POST',
+      body: JSON.stringify(response),
+    });
   }
 
   public async listRunCases(runId: string): Promise<{ items: CaseRecord[] }> {
@@ -167,7 +237,9 @@ export class HttpApiClient implements ApiClient {
     return this.request(`/cases/${caseId}`);
   }
 
-  public async listCaseAttempts(caseId: string): Promise<{ items: CaseAttempt[] }> {
+  public async listCaseAttempts(
+    caseId: string,
+  ): Promise<{ items: CaseAttempt[] }> {
     return this.request(`/cases/${caseId}/attempts`);
   }
 
@@ -193,19 +265,27 @@ export class HttpApiClient implements ApiClient {
 
   public async previewTriage(
     findingId: string,
-    disposition: 'accepted' | 'duplicate' | 'works_as_intended' | 'cannot_reproduce' | 'closed',
-    reason: string
+    disposition:
+      | 'accepted'
+      | 'duplicate'
+      | 'works_as_intended'
+      | 'cannot_reproduce'
+      | 'closed',
+    reason: string,
   ): Promise<TriagePreview> {
     return this.request(`/findings/${findingId}/triage-preview`, {
       method: 'POST',
-      body: JSON.stringify({ disposition, reason })
+      body: JSON.stringify({ disposition, reason }),
     });
   }
 
-  public async commitTriage(findingId: string, input: TriageCommit): Promise<Finding> {
+  public async commitTriage(
+    findingId: string,
+    input: TriageCommit,
+  ): Promise<Finding> {
     return this.request(`/findings/${findingId}/triage`, {
       method: 'POST',
-      body: JSON.stringify(input)
+      body: JSON.stringify(input),
     });
   }
 
@@ -213,15 +293,24 @@ export class HttpApiClient implements ApiClient {
     return this.request(`/runs/${runId}/report`);
   }
 
-  public async createExport(runId: string, format: 'json' | 'markdown' | 'zip'): Promise<Export> {
-    return this.request(`/runs/${runId}/exports`, { method: 'POST', body: JSON.stringify({ format }) });
+  public async createExport(
+    runId: string,
+    format: 'json' | 'markdown' | 'zip',
+  ): Promise<Export> {
+    return this.request(`/runs/${runId}/exports`, {
+      method: 'POST',
+      body: JSON.stringify({ format }),
+    });
   }
 
   public async getArtifact(artifactId: string): Promise<Artifact> {
     return this.request(`/artifacts/${artifactId}`);
   }
 
-  public async healthReady(): Promise<{ status: string; checks: Record<string, boolean> }> {
+  public async healthReady(): Promise<{
+    status: string;
+    checks: Record<string, boolean>;
+  }> {
     return this.request('/health/ready');
   }
 }

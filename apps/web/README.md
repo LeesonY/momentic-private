@@ -67,6 +67,7 @@ node apps/web/scripts/captureScreenshots.mjs
 ## 留存截图证据
 
 截图统一存放于 `apps/web/screenshots/`：
+
 1. `01-launch-page.png`：启动页（目标 URL 输入、模型选择与外部数据提示、高级预算覆盖）
 2. `02-workbench-partial-reconnecting.png`：运行工作台（含 Partial 报告横幅、断线重连状态提示、7 阶段进度与三栏工作区）
 3. `03-case-detail.png`：用例详情（裁决总结、判定准则清单及真实动作轨迹）

@@ -12,7 +12,7 @@ export const AppHeader: React.FC = () => {
     setCurrentProject,
     isMock,
     toggleMock,
-    logout
+    logout,
   } = useApp();
 
   const navItems: { key: AppRoute; label: string }[] = [
@@ -21,7 +21,7 @@ export const AppHeader: React.FC = () => {
     { key: 'environments', label: '环境/认证' },
     { key: 'knowledge', label: '项目知识' },
     { key: 'models', label: '模型管理' },
-    { key: 'members-ops', label: '成员/运维' }
+    { key: 'members-ops', label: '成员/运维' },
   ];
 
   return (
@@ -36,14 +36,19 @@ export const AppHeader: React.FC = () => {
         justifyContent: 'space-between',
         position: 'sticky',
         top: 0,
-        zIndex: 40
+        zIndex: 40,
       }}
       data-testid="app-header"
     >
       {/* Brand & Project Selector */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
         <div
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+          }}
           onClick={() => setRoute('home')}
         >
           <div
@@ -57,21 +62,36 @@ export const AppHeader: React.FC = () => {
               justifyContent: 'center',
               color: 'white',
               fontWeight: 'bold',
-              fontSize: '1.1rem'
+              fontSize: '1.1rem',
             }}
           >
             L
           </div>
-          <span style={{ fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.5px' }}>LocalQA</span>
+          <span
+            style={{
+              fontSize: '1.15rem',
+              fontWeight: 700,
+              letterSpacing: '-0.5px',
+            }}
+          >
+            LocalQA
+          </span>
         </div>
 
         {/* Project Selector */}
         {projects.length > 0 && currentProject && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ color: 'var(--color-border)', fontSize: '1.2rem' }}>/</span>
+            <span style={{ color: 'var(--color-border)', fontSize: '1.2rem' }}>
+              /
+            </span>
             <select
               className="form-select"
-              style={{ padding: '4px 8px', fontSize: '0.85rem', width: 'auto', fontWeight: 500 }}
+              style={{
+                padding: '4px 8px',
+                fontSize: '0.85rem',
+                width: 'auto',
+                fontWeight: 500,
+              }}
               value={currentProject.id}
               onChange={(e) => {
                 const p = projects.find((proj) => proj.id === e.target.value);
@@ -90,7 +110,10 @@ export const AppHeader: React.FC = () => {
       </div>
 
       {/* Navigation Links */}
-      <nav style={{ display: 'flex', alignItems: 'center', gap: '6px' }} data-testid="main-navigation">
+      <nav
+        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        data-testid="main-navigation"
+      >
         {navItems.map((item) => {
           const isActive = currentRoute === item.key;
           return (
@@ -98,15 +121,19 @@ export const AppHeader: React.FC = () => {
               key={item.key}
               onClick={() => setRoute(item.key)}
               style={{
-                background: isActive ? 'var(--color-primary-subtle)' : 'transparent',
-                color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                background: isActive
+                  ? 'var(--color-primary-subtle)'
+                  : 'transparent',
+                color: isActive
+                  ? 'var(--color-primary)'
+                  : 'var(--color-text-muted)',
                 fontWeight: isActive ? 600 : 500,
                 border: 'none',
                 padding: '6px 12px',
                 borderRadius: 'var(--radius-md)',
                 cursor: 'pointer',
                 fontSize: '0.875rem',
-                transition: 'all 0.15s'
+                transition: 'all 0.15s',
               }}
               data-testid={`nav-${item.key}`}
             >
@@ -124,13 +151,17 @@ export const AppHeader: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            backgroundColor: isMock ? 'var(--color-warning-bg)' : 'var(--color-success-bg)',
+            backgroundColor: isMock
+              ? 'var(--color-warning-bg)'
+              : 'var(--color-success-bg)',
             border: `1px solid ${isMock ? 'var(--color-warning-border)' : 'var(--color-success-border)'}`,
             padding: '3px 8px',
             borderRadius: 'var(--radius-full)',
             fontSize: '0.75rem',
-            color: isMock ? 'var(--color-warning-text)' : 'var(--color-success-text)',
-            cursor: 'pointer'
+            color: isMock
+              ? 'var(--color-warning-text)'
+              : 'var(--color-success-text)',
+            cursor: 'pointer',
           }}
           title="点击切换 Mock 模式与真实 API 客户端"
           onClick={() => toggleMock(!isMock)}
@@ -141,7 +172,13 @@ export const AppHeader: React.FC = () => {
 
         {currentUser ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--color-text-main)', fontWeight: 500 }}>
+            <span
+              style={{
+                fontSize: '0.85rem',
+                color: 'var(--color-text-main)',
+                fontWeight: 500,
+              }}
+            >
               {currentUser.email}
             </span>
             <StatusBadge status={currentUser.globalRole} size="sm" />

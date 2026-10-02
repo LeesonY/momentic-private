@@ -33,9 +33,15 @@ import { mockCurrentUser, mockProject } from '../mocks/data.ts';
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isMock] = useState(isUsingMock());
-  const [currentUser, setCurrentUser] = useState<User | null>(isUsingMock() ? mockCurrentUser : null);
-  const [projects, setProjects] = useState<Project[]>(isUsingMock() ? [mockProject] : []);
-  const [currentProject, setCurrentProject] = useState<Project | null>(isUsingMock() ? mockProject : null);
+  const [currentUser, setCurrentUser] = useState<User | null>(
+    isUsingMock() ? mockCurrentUser : null,
+  );
+  const [projects, setProjects] = useState<Project[]>(
+    isUsingMock() ? [mockProject] : [],
+  );
+  const [currentProject, setCurrentProject] = useState<Project | null>(
+    isUsingMock() ? mockProject : null,
+  );
   const [currentRoute, setCurrentRouteState] = useState<AppRoute>('home');
   const [routeParams, setRouteParams] = useState<Record<string, string>>({});
 
@@ -120,7 +126,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setCurrentProject,
         toggleMock: setUseMock,
         logout,
-        login
+        login,
       }}
     >
       {children}
@@ -135,4 +141,3 @@ export function useApp(): AppContextValue {
 }
 
 export const useAppContext = useApp;
-

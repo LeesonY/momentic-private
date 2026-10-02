@@ -9,7 +9,9 @@ export const KnowledgePage: React.FC = () => {
   const [knowledgeList, setKnowledgeList] = useState<Knowledge[]>([]);
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
-  const [kind, setKind] = useState<'rule' | 'restriction' | 'terminology' | 'flow'>('rule');
+  const [kind, setKind] = useState<
+    'rule' | 'restriction' | 'terminology' | 'flow'
+  >('rule');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -31,11 +33,14 @@ export const KnowledgePage: React.FC = () => {
     if (!title.trim() || !text.trim() || !currentProject) return;
     setLoading(true);
     try {
-      const created = await defaultApiClient.createKnowledge(currentProject.id, {
-        title,
-        text,
-        kind
-      });
+      const created = await defaultApiClient.createKnowledge(
+        currentProject.id,
+        {
+          title,
+          text,
+          kind,
+        },
+      );
       setKnowledgeList([...knowledgeList, created]);
       setTitle('');
       setText('');
@@ -50,7 +55,9 @@ export const KnowledgePage: React.FC = () => {
       <AppHeader />
       <main className="main-content">
         <div style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>项目知识与业务规则 (Project Knowledge)</h1>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
+            项目知识与业务规则 (Project Knowledge)
+          </h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
             维护被测系统专属的业务预期、优惠扣减计算标准及禁止操作边界。
           </p>
@@ -65,7 +72,7 @@ export const KnowledgePage: React.FC = () => {
             padding: '12px 16px',
             marginBottom: '20px',
             fontSize: '0.85rem',
-            color: 'var(--color-info-text)'
+            color: 'var(--color-info-text)',
           }}
         >
           <strong>【快照不变性约定】</strong>
@@ -93,16 +100,32 @@ export const KnowledgePage: React.FC = () => {
               <tbody>
                 {knowledgeList.map((k) => (
                   <tr key={k.id} data-testid={`knowledge-row-${k.id}`}>
-                    <td><code>{k.id}</code></td>
                     <td>
-                      <span className={`badge ${k.kind === 'rule' ? 'badge-primary' : 'badge-danger'}`}>
-                        {k.kind === 'rule' ? '业务判定规则' : k.kind === 'restriction' ? '禁止危险操作' : k.kind}
+                      <code>{k.id}</code>
+                    </td>
+                    <td>
+                      <span
+                        className={`badge ${k.kind === 'rule' ? 'badge-primary' : 'badge-danger'}`}
+                      >
+                        {k.kind === 'rule'
+                          ? '业务判定规则'
+                          : k.kind === 'restriction'
+                            ? '禁止危险操作'
+                            : k.kind}
                       </span>
                     </td>
-                    <td><strong>{k.title}</strong></td>
-                    <td style={{ fontSize: '0.85rem', lineHeight: 1.5 }}>{k.text}</td>
+                    <td>
+                      <strong>{k.title}</strong>
+                    </td>
+                    <td style={{ fontSize: '0.85rem', lineHeight: 1.5 }}>
+                      {k.text}
+                    </td>
                     <td>v{k.version}</td>
-                    <td><span className="badge badge-success">{k.approved ? '已批准' : '待审批'}</span></td>
+                    <td>
+                      <span className="badge badge-success">
+                        {k.approved ? '已批准' : '待审批'}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -117,7 +140,13 @@ export const KnowledgePage: React.FC = () => {
           </div>
 
           <form onSubmit={handleCreate}>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '2fr 1fr',
+                gap: '16px',
+              }}
+            >
               <div className="form-group">
                 <label className="form-label">规则标题 (Title)</label>
                 <input
@@ -135,7 +164,12 @@ export const KnowledgePage: React.FC = () => {
                 <select
                   className="form-select"
                   value={kind}
-                  onChange={(e) => setKind(e.target.value as 'rule' | 'restriction' | 'terminology' | 'flow')}
+                  onChange={(e) =>
+                    setKind(
+                      e.target.value as
+                        'rule' | 'restriction' | 'terminology' | 'flow',
+                    )
+                  }
                 >
                   <option value="rule">业务规则 (Rule)</option>
                   <option value="restriction">禁止操作 (Restriction)</option>
@@ -157,8 +191,18 @@ export const KnowledgePage: React.FC = () => {
               />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '14px' }}>
-              <button type="submit" className="btn btn-primary btn-sm" disabled={loading}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                marginTop: '14px',
+              }}
+            >
+              <button
+                type="submit"
+                className="btn btn-primary btn-sm"
+                disabled={loading}
+              >
                 {loading ? '正在登记...' : '登记业务规则'}
               </button>
             </div>

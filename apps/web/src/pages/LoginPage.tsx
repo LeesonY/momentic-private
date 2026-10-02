@@ -33,11 +33,14 @@ export const LoginPage: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: 'calc(100vh - 160px)',
-        padding: '24px'
+        padding: '24px',
       }}
       data-testid="login-page"
     >
-      <div className="card" style={{ maxWidth: '420px', width: '100%', padding: '32px' }}>
+      <div
+        className="card"
+        style={{ maxWidth: '420px', width: '100%', padding: '32px' }}
+      >
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <div
             style={{
@@ -51,13 +54,21 @@ export const LoginPage: React.FC = () => {
               color: 'white',
               fontWeight: 'bold',
               fontSize: '1.5rem',
-              marginBottom: '12px'
+              marginBottom: '12px',
             }}
           >
             L
           </div>
-          <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>LocalQA 平台登录</h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+          <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>
+            LocalQA 平台登录
+          </h2>
+          <p
+            style={{
+              fontSize: '0.85rem',
+              color: 'var(--color-text-muted)',
+              marginTop: '4px',
+            }}
+          >
             内网多用户自动化网页质量中台
           </p>
         </div>
@@ -71,7 +82,7 @@ export const LoginPage: React.FC = () => {
               border: '1px solid var(--color-danger-border)',
               borderRadius: 'var(--radius-md)',
               fontSize: '0.85rem',
-              marginBottom: '16px'
+              marginBottom: '16px',
             }}
             data-testid="login-error-message"
           >
@@ -104,14 +115,18 @@ export const LoginPage: React.FC = () => {
             />
           </div>
 
-          <div style={{ margin: '14px 0', fontSize: '0.75rem', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+          <div
+            style={{
+              margin: '14px 0',
+              fontSize: '0.75rem',
+              color: 'var(--color-text-muted)',
+              lineHeight: 1.5,
+            }}
+          >
             * 系统支持固定角色账号快速演示：
-            <br />
-            - 管理员: <code>admin@localqa.fixture</code>
-            <br />
-            - 操作员: <code>operator@localqa.fixture</code>
-            <br />
-            - 观察员: <code>viewer@localqa.fixture</code>
+            <br />- 管理员: <code>admin@localqa.fixture</code>
+            <br />- 操作员: <code>operator@localqa.fixture</code>
+            <br />- 观察员: <code>viewer@localqa.fixture</code>
           </div>
 
           <button

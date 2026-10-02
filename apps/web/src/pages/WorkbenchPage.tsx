@@ -15,7 +15,9 @@ import { ErrorCard } from '../components/ui/ErrorCard.tsx';
 export const WorkbenchPage: React.FC = () => {
   const { currentProject, routeParams, setRoute } = useApp();
   const [runs, setRuns] = useState<Run[]>([]);
-  const [selectedRunId, setSelectedRunId] = useState<string>(routeParams.runId || '');
+  const [selectedRunId, setSelectedRunId] = useState<string>(
+    routeParams.runId || '',
+  );
 
   // Load runs list
   useEffect(() => {
@@ -49,7 +51,15 @@ export const WorkbenchPage: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }} data-testid="workbench-page">
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        overflow: 'hidden',
+      }}
+      data-testid="workbench-page"
+    >
       <AppHeader />
       <div style={{ flex: 1, padding: '16px 20px', overflow: 'hidden' }}>
         {selectedRunId ? (
@@ -87,7 +97,7 @@ const WorkbenchContent: React.FC<{
     cancelRun,
     sendMessage,
     respondInput,
-    retrySse
+    retrySse,
   } = useRunStore();
 
   const [inputMsg, setInputMsg] = useState('');
@@ -110,12 +120,17 @@ const WorkbenchContent: React.FC<{
   }
 
   const isCompleted = ['completed', 'cancelled', 'failed'].includes(run.status);
-  const isPartial = run.completion === 'partial' || run.terminationReason === 'budget_limit';
+  const isPartial =
+    run.completion === 'partial' || run.terminationReason === 'budget_limit';
 
   return (
     <div className="workbench-layout" data-testid="workbench-container">
       {/* 1. LEFT PANEL: RUN HISTORY & FILTERS */}
-      <RunHistoryList runs={runs} activeRunId={activeRunId} onSelectRun={onSelectRun} />
+      <RunHistoryList
+        runs={runs}
+        activeRunId={activeRunId}
+        onSelectRun={onSelectRun}
+      />
 
       {/* 2. MIDDLE PANEL: REAL-TIME STAGE PROGRESS & WORKBENCH */}
       <div
@@ -124,12 +139,16 @@ const WorkbenchContent: React.FC<{
           flexDirection: 'column',
           height: '100%',
           overflowY: 'auto',
-          paddingRight: '4px'
+          paddingRight: '4px',
         }}
         data-testid="workbench-center-panel"
       >
         {/* SSE Reconnecting Banner if network disrupted */}
-        <ReconnectBanner status={sseStatus} attempt={reconnectAttempt} onRetry={retrySse} />
+        <ReconnectBanner
+          status={sseStatus}
+          attempt={reconnectAttempt}
+          onRetry={retrySse}
+        />
 
         {/* Partial Report Notice Banner */}
         {isPartial && (
@@ -141,13 +160,22 @@ const WorkbenchContent: React.FC<{
 
         {/* Run Top Header */}
         <div className="card" style={{ marginBottom: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '8px',
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
                 运行: <code>{run.id}</code>
               </h2>
               <StatusBadge status={isPartial ? 'partial' : run.status} />
-              <span className="badge badge-neutral">上下文版本: v{run.contextVersion}</span>
+              <span className="badge badge-neutral">
+                上下文版本: v{run.contextVersion}
+              </span>
             </div>
 
             {!isCompleted && (
@@ -161,8 +189,17 @@ const WorkbenchContent: React.FC<{
             )}
           </div>
 
-          <div style={{ fontSize: '0.875rem', color: 'var(--color-text-main)', marginBottom: '8px' }}>
-            目标站点: <a href={run.targetUrl} target="_blank" rel="noreferrer"><strong>{run.targetUrl}</strong></a>
+          <div
+            style={{
+              fontSize: '0.875rem',
+              color: 'var(--color-text-main)',
+              marginBottom: '8px',
+            }}
+          >
+            目标站点:{' '}
+            <a href={run.targetUrl} target="_blank" rel="noreferrer">
+              <strong>{run.targetUrl}</strong>
+            </a>
           </div>
 
           {/* Budget Consumption Bar */}
@@ -175,24 +212,32 @@ const WorkbenchContent: React.FC<{
               padding: '10px 14px',
               borderRadius: 'var(--radius-md)',
               fontSize: '0.8rem',
-              marginTop: '8px'
+              marginTop: '8px',
             }}
             data-testid="budget-metrics-bar"
           >
             <div>
-              时间消耗: <strong>{run.budgetUsed.activeSeconds}s</strong> / {run.effectiveConfig?.budget.maxActiveSeconds || 600}s
+              时间消耗: <strong>{run.budgetUsed.activeSeconds}s</strong> /{' '}
+              {run.effectiveConfig?.budget.maxActiveSeconds || 600}s
             </div>
             <div>
-              动作步数: <strong>{run.budgetUsed.actions}</strong> / {run.effectiveConfig?.budget.maxActions || 120}
+              动作步数: <strong>{run.budgetUsed.actions}</strong> /{' '}
+              {run.effectiveConfig?.budget.maxActions || 120}
             </div>
             <div>
-              模型调用: <strong>{run.budgetUsed.modelCalls}</strong> / {run.effectiveConfig?.budget.maxModelCalls || 100}
+              模型调用: <strong>{run.budgetUsed.modelCalls}</strong> /{' '}
+              {run.effectiveConfig?.budget.maxModelCalls || 100}
             </div>
             <div>
-              Token 消耗: <strong>{run.budgetUsed.totalTokens.toLocaleString()}</strong> / {(run.effectiveConfig?.budget.maxTotalTokens || 300000).toLocaleString()}
+              Token 消耗:{' '}
+              <strong>{run.budgetUsed.totalTokens.toLocaleString()}</strong> /{' '}
+              {(
+                run.effectiveConfig?.budget.maxTotalTokens || 300000
+              ).toLocaleString()}
             </div>
             <div>
-              复现次数: <strong>{run.budgetUsed.reproductions}</strong> / {run.effectiveConfig?.budget.maxReproductions || 3}
+              复现次数: <strong>{run.budgetUsed.reproductions}</strong> /{' '}
+              {run.effectiveConfig?.budget.maxReproductions || 3}
             </div>
           </div>
         </div>
@@ -202,7 +247,10 @@ const WorkbenchContent: React.FC<{
 
         {/* Input Request Bar (when awaiting_input) */}
         {activeInputRequest && (
-          <InputRequestBar request={activeInputRequest} onRespond={respondInput} />
+          <InputRequestBar
+            request={activeInputRequest}
+            onRespond={respondInput}
+          />
         )}
 
         {/* User Scope Supplement Message Box */}
@@ -210,7 +258,12 @@ const WorkbenchContent: React.FC<{
           <form
             onSubmit={handleSendMessage}
             className="card"
-            style={{ marginBottom: '16px', display: 'flex', gap: '10px', alignItems: 'center' }}
+            style={{
+              marginBottom: '16px',
+              display: 'flex',
+              gap: '10px',
+              alignItems: 'center',
+            }}
             data-testid="send-message-box"
           >
             <input
@@ -234,10 +287,16 @@ const WorkbenchContent: React.FC<{
         )}
 
         {/* Live Timeline & Execution Stream */}
-        <div className="card" style={{ flex: 1, overflowY: 'auto' }} data-testid="timeline-card">
+        <div
+          className="card"
+          style={{ flex: 1, overflowY: 'auto' }}
+          data-testid="timeline-card"
+        >
           <div className="card-header">
             <h3 className="card-title">实时执行动态 (Timeline Events)</h3>
-            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+            <span
+              style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}
+            >
               已过滤模型隐藏推理，保证事实记录真实可见
             </span>
           </div>
@@ -252,18 +311,38 @@ const WorkbenchContent: React.FC<{
                   gap: '12px',
                   padding: '10px',
                   borderLeft: '3px solid var(--color-primary)',
-                  backgroundColor: 'var(--color-bg-surface)'
+                  backgroundColor: 'var(--color-bg-surface)',
                 }}
               >
-                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', minWidth: '70px' }}>
+                <div
+                  style={{
+                    fontSize: '0.75rem',
+                    color: 'var(--color-text-muted)',
+                    minWidth: '70px',
+                  }}
+                >
                   耗时: {task.elapsedSeconds}s
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>[{task.role.toUpperCase()}]</span>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                      [{task.role.toUpperCase()}]
+                    </span>
                     <StatusBadge status={task.status} size="sm" />
                   </div>
-                  <div style={{ fontSize: '0.825rem', color: 'var(--color-text-main)', marginTop: '2px' }}>
+                  <div
+                    style={{
+                      fontSize: '0.825rem',
+                      color: 'var(--color-text-main)',
+                      marginTop: '2px',
+                    }}
+                  >
                     {task.summary || '任务执行中...'}
                   </div>
                 </div>

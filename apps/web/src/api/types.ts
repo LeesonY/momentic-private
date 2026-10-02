@@ -19,7 +19,7 @@ import type {
   TriagePreview,
   TriageCommit,
   InputResponse,
-  Export
+  Export,
 } from '@localqa/contracts';
 
 export type PublicOperationName =
@@ -75,7 +75,11 @@ export type PublicOperationName =
 
 export interface ApiClient {
   // Auth & User
-  login(input: { email?: string; username?: string; password?: string }): Promise<{ token: string; user: User }>;
+  login(input: {
+    email?: string;
+    username?: string;
+    password?: string;
+  }): Promise<{ token: string; user: User }>;
   logout(): Promise<void>;
   currentUser(): Promise<User>;
   listUsers(): Promise<{ items: User[] }>;
@@ -89,13 +93,26 @@ export interface ApiClient {
 
   // Environments & Auth Profiles
   listEnvironments(projectId: string): Promise<{ items: Environment[] }>;
-  createEnvironment(projectId: string, input: Partial<Environment>): Promise<Environment>;
+  createEnvironment(
+    projectId: string,
+    input: Partial<Environment>,
+  ): Promise<Environment>;
   listAuthProfiles(projectId: string): Promise<{ items: AuthProfile[] }>;
-  createAuthProfile(projectId: string, input: Partial<AuthProfile>): Promise<AuthProfile>;
+  createAuthProfile(
+    projectId: string,
+    input: Partial<AuthProfile>,
+  ): Promise<AuthProfile>;
 
   // Knowledge & Models
   listKnowledge(projectId: string): Promise<{ items: Knowledge[] }>;
-  createKnowledge(projectId: string, input: { title: string; text: string; kind: 'terminology' | 'rule' | 'flow' | 'restriction' }): Promise<Knowledge>;
+  createKnowledge(
+    projectId: string,
+    input: {
+      title: string;
+      text: string;
+      kind: 'terminology' | 'rule' | 'flow' | 'restriction';
+    },
+  ): Promise<Knowledge>;
   listModels(): Promise<{ items: ModelProfile[] }>;
   probeModel(modelId: string): Promise<{ healthy: boolean; latencyMs: number }>;
 
@@ -114,7 +131,11 @@ export interface ApiClient {
   }): Promise<Run>;
   cancelRun(runId: string): Promise<{ success: boolean }>;
   sendRunMessage(runId: string, message: string): Promise<void>;
-  respondToInput(runId: string, inputId: string, response: InputResponse): Promise<void>;
+  respondToInput(
+    runId: string,
+    inputId: string,
+    response: InputResponse,
+  ): Promise<void>;
 
   // Work Breakdown & Artifacts
   listRunCases(runId: string): Promise<{ items: CaseRecord[] }>;
@@ -127,14 +148,22 @@ export interface ApiClient {
   getFinding(findingId: string): Promise<Finding>;
   previewTriage(
     findingId: string,
-    disposition: 'accepted' | 'duplicate' | 'works_as_intended' | 'cannot_reproduce' | 'closed',
-    reason: string
+    disposition:
+      | 'accepted'
+      | 'duplicate'
+      | 'works_as_intended'
+      | 'cannot_reproduce'
+      | 'closed',
+    reason: string,
   ): Promise<TriagePreview>;
   commitTriage(findingId: string, input: TriageCommit): Promise<Finding>;
 
   // Reports & Exports
   getReport(runId: string): Promise<Report>;
-  createExport(runId: string, format: 'json' | 'markdown' | 'zip'): Promise<Export>;
+  createExport(
+    runId: string,
+    format: 'json' | 'markdown' | 'zip',
+  ): Promise<Export>;
   getArtifact(artifactId: string): Promise<Artifact>;
   healthReady(): Promise<{ status: string; checks: Record<string, boolean> }>;
 }

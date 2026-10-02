@@ -1,5 +1,9 @@
 import type { Page, Frame, Locator } from 'playwright';
-import type { NodeTarget, BrowserSnapshot, SnapshotNode } from '@localqa/contracts';
+import type {
+  NodeTarget,
+  BrowserSnapshot,
+  SnapshotNode,
+} from '@localqa/contracts';
 import { STABLE_REASON_CODES, type StableReasonCode } from './types.js';
 
 export interface ResolveTargetSuccess {
@@ -26,14 +30,18 @@ export type ResolveTargetResult = ResolveTargetSuccess | ResolveTargetFailure;
 export async function resolveTarget(
   page: Page,
   target: NodeTarget,
-  currentSnapshot: BrowserSnapshot
+  currentSnapshot: BrowserSnapshot,
 ): Promise<ResolveTargetResult> {
   // 1. Page ID Check: target.pageId must match currentSnapshot.pageId
-  if (target.pageId && currentSnapshot.pageId && target.pageId !== currentSnapshot.pageId) {
+  if (
+    target.pageId &&
+    currentSnapshot.pageId &&
+    target.pageId !== currentSnapshot.pageId
+  ) {
     return {
       status: 'rejected',
       reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
-      message: `Target pageId '${target.pageId}' does not match active snapshot pageId '${currentSnapshot.pageId}'.`
+      message: `Target pageId '${target.pageId}' does not match active snapshot pageId '${currentSnapshot.pageId}'.`,
     };
   }
 
@@ -42,34 +50,40 @@ export async function resolveTarget(
     return {
       status: 'rejected',
       reasonCode: STABLE_REASON_CODES.VERSION_CONFLICT,
-      message: `Snapshot '${target.snapshotId}' is stale. Active snapshot is '${currentSnapshot.snapshotId}' (stateVersion: ${currentSnapshot.stateVersion}).`
+      message: `Snapshot '${target.snapshotId}' is stale. Active snapshot is '${currentSnapshot.snapshotId}' (stateVersion: ${currentSnapshot.stateVersion}).`,
     };
   }
 
   // 2. Find Node in Current Snapshot Registry
   const node = currentSnapshot.nodes.find(
-    (n) => n.nodeId === target.nodeId && (!target.frameId || n.frameId === target.frameId)
+    (n) =>
+      n.nodeId === target.nodeId &&
+      (!target.frameId || n.frameId === target.frameId),
   );
 
   if (!node) {
     return {
       status: 'rejected',
       reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
-      message: `Target node '${target.nodeId}' not found in current snapshot '${currentSnapshot.snapshotId}'.`
+      message: `Target node '${target.nodeId}' not found in current snapshot '${currentSnapshot.snapshotId}'.`,
     };
   }
 
   // 3. Locate Target Frame
   let frame: Frame = page.mainFrame();
   if (target.frameId && target.frameId !== 'main') {
-    const foundFrame = page.frames().find(
-      (f, idx) => f.name() === target.frameId || `frame-${idx}-${f.name() || 'subframe'}` === target.frameId
-    );
+    const foundFrame = page
+      .frames()
+      .find(
+        (f, idx) =>
+          f.name() === target.frameId ||
+          `frame-${idx}-${f.name() || 'subframe'}` === target.frameId,
+      );
     if (!foundFrame) {
       return {
         status: 'rejected',
         reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
-        message: `Target frame '${target.frameId}' not accessible or detached.`
+        message: `Target frame '${target.frameId}' not accessible or detached.`,
       };
     }
     frame = foundFrame;
@@ -83,19 +97,29 @@ export async function resolveTarget(
     const rawTestId = node.nodeId.replace('testid_', '');
     candidateLocators.push({
       strategy: 'test_id',
-      locator: frame.locator(`[data-testid="${rawTestId}"], [data-test="${rawTestId}"]`)
+      locator: frame.locator(
+        `[data-testid="${rawTestId}"], [data-test="${rawTestId}"]`,
+      ),
     });
   }
 
   // Priority 2: role + accessible name
-  if (node.role && node.name && node.role !== 'generic' && node.role !== 'div') {
+  if (
+    node.role &&
+    node.name &&
+    node.role !== 'generic' &&
+    node.role !== 'div'
+  ) {
     try {
       candidateLocators.push({
         strategy: 'role_and_name',
-        locator: frame.getByRole(node.role as Parameters<typeof frame.getByRole>[0], {
-          name: node.name,
-          exact: true
-        })
+        locator: frame.getByRole(
+          node.role as Parameters<typeof frame.getByRole>[0],
+          {
+            name: node.name,
+            exact: true,
+          },
+        ),
       });
     } catch {
       // Role name might not be valid ARIA role
@@ -103,11 +127,16 @@ export async function resolveTarget(
   }
 
   // Priority 3: label
-  if (node.name && (node.role === 'textbox' || node.role === 'checkbox' || node.role === 'combobox')) {
+  if (
+    node.name &&
+    (node.role === 'textbox' ||
+      node.role === 'checkbox' ||
+      node.role === 'combobox')
+  ) {
     try {
       candidateLocators.push({
         strategy: 'label',
-        locator: frame.getByLabel(node.name, { exact: true })
+        locator: frame.getByLabel(node.name, { exact: true }),
       });
     } catch {
       // Ignore
@@ -118,7 +147,7 @@ export async function resolveTarget(
   if (node.text && node.text.length > 0 && node.text.length < 100) {
     candidateLocators.push({
       strategy: 'exact_text',
-      locator: frame.getByText(node.text, { exact: true })
+      locator: frame.getByText(node.text, { exact: true }),
     });
   }
 
@@ -127,13 +156,13 @@ export async function resolveTarget(
     if (node.name) {
       candidateLocators.push({
         strategy: 'name_fallback',
-        locator: frame.locator(`text="${node.name}"`)
+        locator: frame.locator(`text="${node.name}"`),
       });
     } else {
       return {
         status: 'rejected',
         reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
-        message: `Cannot form any stable locator for node '${node.nodeId}'.`
+        message: `Cannot form any stable locator for node '${node.nodeId}'.`,
       };
     }
   }
@@ -163,13 +192,13 @@ export async function resolveTarget(
         status: 'rejected',
         reasonCode: STABLE_REASON_CODES.TARGET_AMBIGUOUS,
         matchCount: ambiguousCount,
-        message: `Ambiguous target '${node.name || node.text}': found ${ambiguousCount} matching elements on page. Refusing action without unique discriminator.`
+        message: `Ambiguous target '${node.name || node.text}': found ${ambiguousCount} matching elements on page. Refusing action without unique discriminator.`,
       };
     }
     return {
       status: 'rejected',
       reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
-      message: `Element corresponding to '${node.name || node.nodeId}' is no longer attached or found.`
+      message: `Element corresponding to '${node.name || node.nodeId}' is no longer attached or found.`,
     };
   }
 
@@ -180,14 +209,14 @@ export async function resolveTarget(
       return {
         status: 'rejected',
         reasonCode: STABLE_REASON_CODES.TARGET_HIDDEN,
-        message: `Target element '${node.name || node.nodeId}' is hidden (display: none or visibility: hidden). Refusing interaction.`
+        message: `Target element '${node.name || node.nodeId}' is hidden (display: none or visibility: hidden). Refusing interaction.`,
       };
     }
   } catch (err) {
     return {
       status: 'rejected',
       reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
-      message: `Target element visibility check failed: ${(err as Error).message}`
+      message: `Target element visibility check failed: ${(err as Error).message}`,
     };
   }
 
@@ -198,7 +227,7 @@ export async function resolveTarget(
       return {
         status: 'rejected',
         reasonCode: STABLE_REASON_CODES.TARGET_DISABLED,
-        message: `Target element '${node.name || node.nodeId}' is disabled or has aria-disabled='true'. Refusing interaction.`
+        message: `Target element '${node.name || node.nodeId}' is disabled or has aria-disabled='true'. Refusing interaction.`,
       };
     }
   } catch {
@@ -209,6 +238,6 @@ export async function resolveTarget(
     status: 'resolved',
     locator: bestLocator,
     node,
-    frame
+    frame,
   };
 }

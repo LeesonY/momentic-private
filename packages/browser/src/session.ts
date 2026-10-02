@@ -1,10 +1,15 @@
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
+import {
+  chromium,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from 'playwright';
 import { randomUUID } from 'node:crypto';
 import type {
   ToolCall,
   ToolResult,
   BrowserSnapshot,
-  Artifact
+  Artifact,
 } from '@localqa/contracts';
 import type { BrowserPort, BrowserSession } from './port.js';
 import type { BrowserSessionOptions } from './types.js';
@@ -38,7 +43,7 @@ export class BrowserSessionImpl implements BrowserSession {
     options: BrowserSessionOptions,
     context: BrowserContext,
     page: Page,
-    pageId: string
+    pageId: string,
   ) {
     this.id = id;
     this.taskId = options.taskId;
@@ -52,20 +57,20 @@ export class BrowserSessionImpl implements BrowserSession {
     this.policy = new PolicyInterceptor({
       mode: options.mode,
       allowedOrigins: options.allowedOrigins,
-      restrictedPaths: options.restrictedPaths
+      restrictedPaths: options.restrictedPaths,
     });
 
     this.recorder = new SessionRecorder({
       projectId: options.projectId,
       runId: options.runId,
       taskId: options.taskId,
-      artifactsDir: options.artifactsDir
+      artifactsDir: options.artifactsDir,
     });
     this.recorder.attachToPage(page);
 
     this.waiter = new WaitAndRecoveryManager({
       defaultActionTimeoutMs: options.defaultActionTimeoutMs,
-      navigationTimeoutMs: options.navigationTimeoutMs
+      navigationTimeoutMs: options.navigationTimeoutMs,
     });
 
     this.executor = new ToolExecutor();
@@ -93,7 +98,7 @@ export class BrowserSessionImpl implements BrowserSession {
 
   public async executeTool(
     toolCall: ToolCall,
-    options?: { signal?: AbortSignal }
+    options?: { signal?: AbortSignal },
   ): Promise<ToolResult> {
     if (this.isClosed) {
       throw new Error(`BrowserSession '${this.id}' is closed.`);
@@ -105,7 +110,7 @@ export class BrowserSessionImpl implements BrowserSession {
       combinedController.abort(this.abortController.signal.reason);
     } else {
       this.abortController.signal.addEventListener('abort', () =>
-        combinedController.abort(this.abortController.signal.reason)
+        combinedController.abort(this.abortController.signal.reason),
       );
     }
 
@@ -114,7 +119,7 @@ export class BrowserSessionImpl implements BrowserSession {
         combinedController.abort(options.signal.reason);
       } else {
         options.signal.addEventListener('abort', () =>
-          combinedController.abort(options.signal?.reason)
+          combinedController.abort(options.signal?.reason),
         );
       }
     }
@@ -128,7 +133,7 @@ export class BrowserSessionImpl implements BrowserSession {
       policy: this.policy,
       recorder: this.recorder,
       waiter: this.waiter,
-      signal: combinedController.signal
+      signal: combinedController.signal,
     });
 
     this.currentSnapshot = snapshot;
@@ -137,7 +142,9 @@ export class BrowserSessionImpl implements BrowserSession {
     return result;
   }
 
-  public async getSnapshot(options?: { forceFresh?: boolean }): Promise<BrowserSnapshot> {
+  public async getSnapshot(options?: {
+    forceFresh?: boolean;
+  }): Promise<BrowserSnapshot> {
     if (this.isClosed) {
       throw new Error(`BrowserSession '${this.id}' is closed.`);
     }
@@ -145,13 +152,15 @@ export class BrowserSessionImpl implements BrowserSession {
       this.currentSnapshot = await captureBrowserSnapshot(this.page, {
         pageId: this.activePageId,
         stateVersion: ++this.stateVersion,
-        recorder: this.recorder
+        recorder: this.recorder,
       });
     }
     return this.currentSnapshot;
   }
 
-  public async captureScreenshot(options?: { fullPage?: boolean }): Promise<Artifact> {
+  public async captureScreenshot(options?: {
+    fullPage?: boolean;
+  }): Promise<Artifact> {
     if (this.isClosed) {
       throw new Error(`BrowserSession '${this.id}' is closed.`);
     }
@@ -200,21 +209,29 @@ export class BrowserManager implements BrowserPort {
       this.browser = await chromium.launch({
         headless: true,
         chromiumSandbox: true,
-        args: [] // DO NOT pass --no-sandbox
+        args: [], // DO NOT pass --no-sandbox
       });
     }
     return this.browser;
   }
 
-  public async createSession(options: BrowserSessionOptions): Promise<BrowserSession> {
+  public async createSession(
+    options: BrowserSessionOptions,
+  ): Promise<BrowserSession> {
     if (!options?.projectId || !isValidUuid(options.projectId)) {
-      throw new Error(`BrowserSessionOptions requires a valid UUID 'projectId', got: ${options?.projectId}`);
+      throw new Error(
+        `BrowserSessionOptions requires a valid UUID 'projectId', got: ${options?.projectId}`,
+      );
     }
     if (!options?.runId || !isValidUuid(options.runId)) {
-      throw new Error(`BrowserSessionOptions requires a valid UUID 'runId', got: ${options?.runId}`);
+      throw new Error(
+        `BrowserSessionOptions requires a valid UUID 'runId', got: ${options?.runId}`,
+      );
     }
     if (!options?.taskId || !isValidUuid(options.taskId)) {
-      throw new Error(`BrowserSessionOptions requires a valid UUID 'taskId', got: ${options?.taskId}`);
+      throw new Error(
+        `BrowserSessionOptions requires a valid UUID 'taskId', got: ${options?.taskId}`,
+      );
     }
 
     const browser = await this.ensureBrowser();
@@ -224,7 +241,7 @@ export class BrowserManager implements BrowserPort {
     const contextOptions: Parameters<Browser['newContext']>[0] = {
       viewport: options.viewport || { width: 1280, height: 720 },
       locale: options.locale || 'zh-CN',
-      timezoneId: options.timezoneId || 'Asia/Shanghai'
+      timezoneId: options.timezoneId || 'Asia/Shanghai',
     };
     if (options.userAgent) {
       contextOptions.userAgent = options.userAgent;
@@ -239,7 +256,9 @@ export class BrowserManager implements BrowserPort {
       if (options.approvedAuthState.origins?.length) {
         for (const originEntry of options.approvedAuthState.origins) {
           const page = await context.newPage();
-          await page.goto(originEntry.origin, { waitUntil: 'domcontentloaded' }).catch(() => {});
+          await page
+            .goto(originEntry.origin, { waitUntil: 'domcontentloaded' })
+            .catch(() => {});
           await page.evaluate((items) => {
             for (const item of items) {
               window.localStorage.setItem(item.name, item.value);
@@ -252,13 +271,21 @@ export class BrowserManager implements BrowserPort {
 
     // 3. Optional Trace start
     if (options.enableTrace) {
-      await context.tracing.start({ screenshots: true, snapshots: true }).catch(() => {});
+      await context.tracing
+        .start({ screenshots: true, snapshots: true })
+        .catch(() => {});
     }
 
     const page = await context.newPage();
     const pageId = randomUUID();
 
-    const session = new BrowserSessionImpl(sessionId, options, context, page, pageId);
+    const session = new BrowserSessionImpl(
+      sessionId,
+      options,
+      context,
+      page,
+      pageId,
+    );
     this.sessions.set(sessionId, session);
 
     return session;

@@ -20,7 +20,7 @@ import type {
   TriagePreview,
   TriageCommit,
   InputResponse,
-  Export
+  Export,
 } from '@localqa/contracts';
 import {
   mockCurrentUser,
@@ -37,7 +37,7 @@ import {
   mockTasks,
   mockArtifacts,
   mockReport,
-  mockTriagePreview
+  mockTriagePreview,
 } from './data.ts';
 
 export class MockApiClient implements ApiClient {
@@ -47,7 +47,11 @@ export class MockApiClient implements ApiClient {
   private environments: Environment[] = [...mockEnvironments];
   private authProfiles: AuthProfile[] = [...mockAuthProfiles];
 
-  public async login(_input: { email?: string; username?: string; password?: string }): Promise<{ token: string; user: User }> {
+  public async login(_input: {
+    email?: string;
+    username?: string;
+    password?: string;
+  }): Promise<{ token: string; user: User }> {
     return { token: 'mock_session_token_123', user: mockCurrentUser };
   }
 
@@ -83,12 +87,15 @@ export class MockApiClient implements ApiClient {
       status: 'active',
       defaultModelProfileId: 'model_mock_gpt4o',
       createdAt: new Date().toISOString(),
-      version: 1
+      version: 1,
     };
     return newProj;
   }
 
-  public async updateProject(projectId: string, input: Partial<Project>): Promise<Project> {
+  public async updateProject(
+    projectId: string,
+    input: Partial<Project>,
+  ): Promise<Project> {
     return { ...mockProject, ...input };
   }
 
@@ -96,55 +103,77 @@ export class MockApiClient implements ApiClient {
     return { items: mockMembers };
   }
 
-  public async listEnvironments(_projectId: string): Promise<{ items: Environment[] }> {
+  public async listEnvironments(
+    _projectId: string,
+  ): Promise<{ items: Environment[] }> {
     return { items: this.environments };
   }
 
-  public async createEnvironment(projectId: string, input: Partial<Environment>): Promise<Environment> {
+  public async createEnvironment(
+    projectId: string,
+    input: Partial<Environment>,
+  ): Promise<Environment> {
     const newEnv: Environment = {
       id: `env_mock_${Date.now()}`,
       projectId,
       name: input.name || '新建环境',
       baseUrl: input.baseUrl || 'http://localhost:8080',
-      allowedOrigins: (input.allowedOrigins || ['http://localhost:8080']) as [string, ...string[]],
+      allowedOrigins: (input.allowedOrigins || ['http://localhost:8080']) as [
+        string,
+        ...string[],
+      ],
       excludedPaths: input.excludedPaths || [],
       tlsPolicy: input.tlsPolicy || 'strict',
       defaultAuthProfileId: null,
-      version: 1
+      version: 1,
     };
     this.environments.push(newEnv);
     return newEnv;
   }
 
-  public async listAuthProfiles(_projectId: string): Promise<{ items: AuthProfile[] }> {
+  public async listAuthProfiles(
+    _projectId: string,
+  ): Promise<{ items: AuthProfile[] }> {
     return { items: this.authProfiles };
   }
 
-  public async createAuthProfile(projectId: string, input: Partial<AuthProfile>): Promise<AuthProfile> {
+  public async createAuthProfile(
+    projectId: string,
+    input: Partial<AuthProfile>,
+  ): Promise<AuthProfile> {
     const newProfile: AuthProfile = {
       id: `auth_mock_${Date.now()}`,
       projectId,
       environmentId: input.environmentId || null,
       name: input.name || '新建认证凭据',
       mode: input.mode || 'form',
-      allowedOrigins: (input.allowedOrigins || ['http://localhost:8080']) as [string, ...string[]],
+      allowedOrigins: (input.allowedOrigins || ['http://localhost:8080']) as [
+        string,
+        ...string[],
+      ],
       sharingPolicy: 'exclusive_run',
       hasSecret: true,
       status: 'active',
       formConfig: input.formConfig || null,
-      version: 1
+      version: 1,
     };
     this.authProfiles.push(newProfile);
     return newProfile;
   }
 
-  public async listKnowledge(_projectId: string): Promise<{ items: Knowledge[] }> {
+  public async listKnowledge(
+    _projectId: string,
+  ): Promise<{ items: Knowledge[] }> {
     return { items: this.knowledge };
   }
 
   public async createKnowledge(
     projectId: string,
-    input: { title: string; text: string; kind: 'terminology' | 'rule' | 'flow' | 'restriction' }
+    input: {
+      title: string;
+      text: string;
+      kind: 'terminology' | 'rule' | 'flow' | 'restriction';
+    },
   ): Promise<Knowledge> {
     const newK: Knowledge = {
       id: `kno_mock_${Date.now()}`,
@@ -153,7 +182,7 @@ export class MockApiClient implements ApiClient {
       title: input.title,
       text: input.text,
       approved: true,
-      version: 1
+      version: 1,
     };
     this.knowledge.push(newK);
     return newK;
@@ -163,7 +192,9 @@ export class MockApiClient implements ApiClient {
     return { items: mockModelProfiles };
   }
 
-  public async probeModel(_modelId: string): Promise<{ healthy: boolean; latencyMs: number }> {
+  public async probeModel(
+    _modelId: string,
+  ): Promise<{ healthy: boolean; latencyMs: number }> {
     return { healthy: true, latencyMs: 245 };
   }
 
@@ -174,7 +205,9 @@ export class MockApiClient implements ApiClient {
   public async getRun(runId: string): Promise<Run> {
     const found = this.runs.find((r) => r.id === runId);
     if (!found) {
-      const err = new Error(`运行记录 ${runId} 未找到`) as Error & { status: number };
+      const err = new Error(`运行记录 ${runId} 未找到`) as Error & {
+        status: number;
+      };
       err.status = 404;
       throw err;
     }
@@ -204,19 +237,34 @@ export class MockApiClient implements ApiClient {
         maxModelCalls: input.budgetOverrides?.maxModelCalls || 100,
         maxReproductions: input.budgetOverrides?.maxReproductions || 3,
         concurrency: input.budgetOverrides?.concurrency || 1,
-        maxTotalTokens: input.budgetOverrides?.maxTotalTokens || 300000
+        maxTotalTokens: input.budgetOverrides?.maxTotalTokens || 300000,
       },
       environmentVersion: 1,
       authProfileVersion: 1,
       knowledgeVersionIds: ['kno_mock_br_101'],
       models: {
-        coordinator: { profileId: input.modelProfileId || 'model_mock_gpt4o', version: 1 },
-        explorer: { profileId: input.modelProfileId || 'model_mock_gpt4o', version: 1 },
-        executor: { profileId: input.modelProfileId || 'model_mock_gpt4o', version: 1 },
-        assertion: { profileId: input.modelProfileId || 'model_mock_gpt4o', version: 1 },
-        reproducer: { profileId: input.modelProfileId || 'model_mock_gpt4o', version: 1 }
+        coordinator: {
+          profileId: input.modelProfileId || 'model_mock_gpt4o',
+          version: 1,
+        },
+        explorer: {
+          profileId: input.modelProfileId || 'model_mock_gpt4o',
+          version: 1,
+        },
+        executor: {
+          profileId: input.modelProfileId || 'model_mock_gpt4o',
+          version: 1,
+        },
+        assertion: {
+          profileId: input.modelProfileId || 'model_mock_gpt4o',
+          version: 1,
+        },
+        reproducer: {
+          profileId: input.modelProfileId || 'model_mock_gpt4o',
+          version: 1,
+        },
       },
-      ...input.config
+      ...input.config,
     };
 
     const newRun: Run = {
@@ -235,11 +283,11 @@ export class MockApiClient implements ApiClient {
         actions: 1,
         modelCalls: 1,
         totalTokens: 1200,
-        reproductions: 0
+        reproductions: 0,
       },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      version: 1
+      version: 1,
     };
     this.runs.unshift(newRun);
     return newRun;
@@ -262,7 +310,11 @@ export class MockApiClient implements ApiClient {
     }
   }
 
-  public async respondToInput(runId: string, _inputId: string, _response: InputResponse): Promise<void> {
+  public async respondToInput(
+    runId: string,
+    _inputId: string,
+    _response: InputResponse,
+  ): Promise<void> {
     const run = this.runs.find((r) => r.id === runId);
     if (run) {
       run.status = 'running';
@@ -273,8 +325,8 @@ export class MockApiClient implements ApiClient {
   public async listRunCases(runId: string): Promise<{ items: CaseRecord[] }> {
     return {
       items: mockCases.filter(
-        (c) => c.definition.runId === runId || runId.startsWith('run_mock')
-      )
+        (c) => c.definition.runId === runId || runId.startsWith('run_mock'),
+      ),
     };
   }
 
@@ -284,7 +336,9 @@ export class MockApiClient implements ApiClient {
     return found;
   }
 
-  public async listCaseAttempts(caseId: string): Promise<{ items: CaseAttempt[] }> {
+  public async listCaseAttempts(
+    caseId: string,
+  ): Promise<{ items: CaseAttempt[] }> {
     return {
       items: [
         {
@@ -293,11 +347,12 @@ export class MockApiClient implements ApiClient {
           taskId: 'task_mock_exec_01',
           attemptNumber: 1,
           status: 'completed',
-          verdict: mockCases.find((c) => c.definition.id === caseId)?.verdict || null,
+          verdict:
+            mockCases.find((c) => c.definition.id === caseId)?.verdict || null,
           startedAt: '2026-10-02T08:01:30.000Z',
-          finishedAt: '2026-10-02T08:01:36.000Z'
-        }
-      ]
+          finishedAt: '2026-10-02T08:01:36.000Z',
+        },
+      ],
     };
   }
 
@@ -316,7 +371,11 @@ export class MockApiClient implements ApiClient {
   }
 
   public async listRunFindings(runId: string): Promise<{ items: Finding[] }> {
-    return { items: this.findings.filter((f) => f.runId === runId || runId.startsWith('run_mock')) };
+    return {
+      items: this.findings.filter(
+        (f) => f.runId === runId || runId.startsWith('run_mock'),
+      ),
+    };
   }
 
   public async getFinding(findingId: string): Promise<Finding> {
@@ -327,18 +386,26 @@ export class MockApiClient implements ApiClient {
 
   public async previewTriage(
     findingId: string,
-    disposition: 'accepted' | 'duplicate' | 'works_as_intended' | 'cannot_reproduce' | 'closed',
-    reason: string
+    disposition:
+      | 'accepted'
+      | 'duplicate'
+      | 'works_as_intended'
+      | 'cannot_reproduce'
+      | 'closed',
+    reason: string,
   ): Promise<TriagePreview> {
     return {
       ...mockTriagePreview,
       findingId,
       disposition,
-      reason
+      reason,
     };
   }
 
-  public async commitTriage(findingId: string, input: TriageCommit): Promise<Finding> {
+  public async commitTriage(
+    findingId: string,
+    input: TriageCommit,
+  ): Promise<Finding> {
     const finding = this.findings.find((f) => f.id === findingId);
     if (!finding) throw new Error(`缺陷 ${findingId} 未找到`);
     finding.triageDisposition = input.disposition;
@@ -355,12 +422,15 @@ export class MockApiClient implements ApiClient {
         ...mockReport.summary,
         passed: isPartial ? 1 : 3,
         blocked: isPartial ? 2 : 0,
-        notRun: isPartial ? 1 : 0
-      }
+        notRun: isPartial ? 1 : 0,
+      },
     };
   }
 
-  public async createExport(runId: string, format: 'json' | 'markdown' | 'zip'): Promise<Export> {
+  public async createExport(
+    runId: string,
+    format: 'json' | 'markdown' | 'zip',
+  ): Promise<Export> {
     return {
       id: `exp_mock_${Date.now()}`,
       runId,
@@ -368,7 +438,7 @@ export class MockApiClient implements ApiClient {
       artifactId: 'art_mock_export_zip',
       snapshotAt: new Date().toISOString(),
       status: 'ready',
-      error: null
+      error: null,
     };
   }
 
@@ -390,21 +460,24 @@ export class MockApiClient implements ApiClient {
         taskId: null,
         stepId: null,
         caseId: null,
-        snapshotId: null
+        snapshotId: null,
       };
     }
     return found;
   }
 
-  public async healthReady(): Promise<{ status: string; checks: Record<string, boolean> }> {
+  public async healthReady(): Promise<{
+    status: string;
+    checks: Record<string, boolean>;
+  }> {
     return {
       status: 'ready',
       checks: {
         database: true,
         schema: true,
         browserWorker: true,
-        modelGateway: true
-      }
+        modelGateway: true,
+      },
     };
   }
 }

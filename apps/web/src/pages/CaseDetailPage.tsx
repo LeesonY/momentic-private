@@ -27,7 +27,7 @@ export const CaseDetailPage: React.FC = () => {
     Promise.all([
       defaultApiClient.getCase(caseId),
       defaultApiClient.listTaskSteps(caseId).catch(() => ({ items: [] })),
-      defaultApiClient.listCaseAttempts(caseId).catch(() => ({ items: [] }))
+      defaultApiClient.listCaseAttempts(caseId).catch(() => ({ items: [] })),
     ])
       .then(([c, st, att]) => {
         if (!mounted) return;
@@ -52,8 +52,17 @@ export const CaseDetailPage: React.FC = () => {
     return (
       <div className="app-container" data-testid="case-detail-loading">
         <AppHeader />
-        <main className="main-content" style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
-          <div style={{ color: 'var(--color-text-muted)' }}>正在加载用例详情...</div>
+        <main
+          className="main-content"
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            padding: '60px 0',
+          }}
+        >
+          <div style={{ color: 'var(--color-text-muted)' }}>
+            正在加载用例详情...
+          </div>
         </main>
       </div>
     );
@@ -64,8 +73,15 @@ export const CaseDetailPage: React.FC = () => {
       <div className="app-container" data-testid="case-detail-error">
         <AppHeader />
         <main className="main-content">
-          <ErrorCard type="missing_evidence" message={error || '用例记录不存在或未找到'} />
-          <button className="btn btn-secondary" onClick={() => setRoute('workbench', { runId })} style={{ marginTop: '16px' }}>
+          <ErrorCard
+            type="missing_evidence"
+            message={error || '用例记录不存在或未找到'}
+          />
+          <button
+            className="btn btn-secondary"
+            onClick={() => setRoute('workbench', { runId })}
+            style={{ marginTop: '16px' }}
+          >
             返回工作台
           </button>
         </main>
@@ -89,22 +105,50 @@ export const CaseDetailPage: React.FC = () => {
 
         {/* Case Header Card */}
         <div className="card" style={{ marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '12px',
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>用例编号: <code>{caseRecord.definition.id}</code></span>
+              <span
+                style={{
+                  fontSize: '0.85rem',
+                  color: 'var(--color-text-muted)',
+                }}
+              >
+                用例编号: <code>{caseRecord.definition.id}</code>
+              </span>
               <StatusBadge status={caseRecord.outcome} />
-              <span className="badge badge-neutral">来源: {caseRecord.definition.criteria[0]?.sourceKind || 'generic_smoke'}</span>
+              <span className="badge badge-neutral">
+                来源:{' '}
+                {caseRecord.definition.criteria[0]?.sourceKind ||
+                  'generic_smoke'}
+              </span>
             </div>
-            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+            <span
+              style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}
+            >
               执行尝试次数: <strong>{attempts.length || 1}</strong>
             </span>
           </div>
 
-          <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: '8px' }}>
+          <h2
+            style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: '8px' }}
+          >
             {caseRecord.definition.title}
           </h2>
 
-          <p style={{ fontSize: '0.9rem', color: 'var(--color-text-main)', lineHeight: 1.6 }}>
+          <p
+            style={{
+              fontSize: '0.9rem',
+              color: 'var(--color-text-main)',
+              lineHeight: 1.6,
+            }}
+          >
             {caseRecord.definition.summary}
           </p>
 
@@ -114,11 +158,25 @@ export const CaseDetailPage: React.FC = () => {
               padding: '12px 16px',
               backgroundColor: 'var(--color-bg-subtle)',
               borderRadius: 'var(--radius-md)',
-              borderLeft: '4px solid var(--color-primary)'
+              borderLeft: '4px solid var(--color-primary)',
             }}
           >
-            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>最终裁决总结 (Verdict Summary):</div>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-text-main)', marginTop: '4px' }}>
+            <div
+              style={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                color: 'var(--color-text-muted)',
+              }}
+            >
+              最终裁决总结 (Verdict Summary):
+            </div>
+            <div
+              style={{
+                fontSize: '0.875rem',
+                color: 'var(--color-text-main)',
+                marginTop: '4px',
+              }}
+            >
               {caseRecord.verdict?.summary || '尚未生成终态裁决总结'}
             </div>
           </div>
@@ -127,7 +185,9 @@ export const CaseDetailPage: React.FC = () => {
         {/* Acceptance Criteria Table */}
         <div className="card" style={{ marginBottom: '20px' }}>
           <div className="card-header">
-            <h3 className="card-title">验收判定准则清单 (Acceptance Criteria)</h3>
+            <h3 className="card-title">
+              验收判定准则清单 (Acceptance Criteria)
+            </h3>
           </div>
 
           <div className="table-container">
@@ -142,14 +202,25 @@ export const CaseDetailPage: React.FC = () => {
               </thead>
               <tbody>
                 {caseRecord.definition.criteria.map((cr) => {
-                  const result = caseRecord.verdict?.criterionResults.find((r) => r.criterionId === cr.id);
+                  const result = caseRecord.verdict?.criterionResults.find(
+                    (r) => r.criterionId === cr.id,
+                  );
                   return (
                     <tr key={cr.id}>
-                      <td><code>{cr.id}</code></td>
-                      <td>{cr.description}</td>
-                      <td><span className="badge badge-neutral">{cr.sourceKind}</span></td>
                       <td>
-                        <StatusBadge status={result?.result || caseRecord.outcome} size="sm" />
+                        <code>{cr.id}</code>
+                      </td>
+                      <td>{cr.description}</td>
+                      <td>
+                        <span className="badge badge-neutral">
+                          {cr.sourceKind}
+                        </span>
+                      </td>
+                      <td>
+                        <StatusBadge
+                          status={result?.result || caseRecord.outcome}
+                          size="sm"
+                        />
                       </td>
                     </tr>
                   );
@@ -162,13 +233,19 @@ export const CaseDetailPage: React.FC = () => {
         {/* Execution Steps & Evidence Timeline */}
         <div className="card">
           <div className="card-header">
-            <h3 className="card-title">执行动作轨迹与证据 (Step Actions & Evidence)</h3>
-            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+            <h3 className="card-title">
+              执行动作轨迹与证据 (Step Actions & Evidence)
+            </h3>
+            <span
+              style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}
+            >
               真实 Chromium 操作回放
             </span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+          >
             {steps.map((st) => (
               <div
                 key={st.id}
@@ -178,17 +255,31 @@ export const CaseDetailPage: React.FC = () => {
                   padding: '14px',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between'
+                  justifyContent: 'space-between',
                 }}
                 data-testid={`step-row-${st.seq}`}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>步骤 #{st.seq}</span>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginBottom: '4px',
+                    }}
+                  >
+                    <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                      步骤 #{st.seq}
+                    </span>
                     <span className="badge badge-info">{st.toolName}</span>
                     <StatusBadge status={st.status} size="sm" />
                   </div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--color-text-main)' }}>
+                  <div
+                    style={{
+                      fontSize: '0.85rem',
+                      color: 'var(--color-text-main)',
+                    }}
+                  >
                     目标: <code>{st.targetDescription}</code>
                   </div>
                 </div>
@@ -197,7 +288,9 @@ export const CaseDetailPage: React.FC = () => {
                   <div>
                     <button
                       className="btn btn-secondary btn-sm"
-                      onClick={() => alert(`查看证据材料: ${st.evidenceRefs.join(', ')}`)}
+                      onClick={() =>
+                        alert(`查看证据材料: ${st.evidenceRefs.join(', ')}`)
+                      }
                       data-testid={`btn-view-evidence-${st.seq}`}
                     >
                       查看截图 🖼️

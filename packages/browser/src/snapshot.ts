@@ -18,7 +18,7 @@ export interface SnapshotOptions {
  */
 export async function captureBrowserSnapshot(
   page: Page,
-  options: SnapshotOptions = {}
+  options: SnapshotOptions = {},
 ): Promise<BrowserSnapshot> {
   const snapshotId = randomUUID();
   const pageId = options.pageId || randomUUID();
@@ -37,7 +37,9 @@ export async function captureBrowserSnapshot(
   for (let i = 0; i < frames.length; i++) {
     const frame = frames[i]!;
     const isMain = frame === page.mainFrame();
-    const frameId = isMain ? 'main' : `frame-${i}-${frame.name() || 'subframe'}`.slice(0, 120);
+    const frameId = isMain
+      ? 'main'
+      : `frame-${i}-${frame.name() || 'subframe'}`.slice(0, 120);
 
     if (!isMain && !frameIds.includes(frameId)) {
       frameIds.push(frameId);
@@ -67,7 +69,7 @@ export async function captureBrowserSnapshot(
           text: 'Cross-origin frame content cannot be accessed directly',
           visible: true,
           enabled: false,
-          bounds: { left: 0, top: 0, width: 0, height: 0 }
+          bounds: { left: 0, top: 0, width: 0, height: 0 },
         });
       }
     }
@@ -85,7 +87,7 @@ export async function captureBrowserSnapshot(
         networkSummary: [],
         consoleSummary: [],
         truncated: false,
-        redacted: true
+        redacted: true,
       };
 
   const snapshot: BrowserSnapshot = {
@@ -99,21 +101,25 @@ export async function captureBrowserSnapshot(
     stateVersion,
     viewport: {
       width: Math.max(100, Math.min(10000, viewportSize.width)),
-      height: Math.max(100, Math.min(10000, viewportSize.height))
+      height: Math.max(100, Math.min(10000, viewportSize.height)),
     },
     nodes: allNodes.slice(0, 1000),
     screenshotRef: options.screenshotRef || null,
     networkSummary: summaries.networkSummary.slice(0, 100),
     consoleSummary: summaries.consoleSummary.slice(0, 50),
     truncated: isTruncated || summaries.truncated,
-    redacted: true
+    redacted: true,
   };
 
   // Validate output against contracts schema
   const validation = validateContract('BrowserSnapshot', snapshot);
   if (!validation.success) {
-    const errorDetails = validation.errors.map((e) => `${e.instancePath} ${e.message}`).join(', ');
-    throw new Error(`Generated BrowserSnapshot violated contract schema: ${errorDetails}`);
+    const errorDetails = validation.errors
+      .map((e) => `${e.instancePath} ${e.message}`)
+      .join(', ');
+    throw new Error(
+      `Generated BrowserSnapshot violated contract schema: ${errorDetails}`,
+    );
   }
 
   return snapshot;
@@ -123,7 +129,10 @@ export async function captureBrowserSnapshot(
  * Extracts interactive and content nodes from a Playwright Frame.
  * Strictly redacts passwords, hidden inputs, storage, and sensitive queries.
  */
-async function extractNodesFromFrame(frame: Frame, frameId: string): Promise<SnapshotNode[]> {
+async function extractNodesFromFrame(
+  frame: Frame,
+  frameId: string,
+): Promise<SnapshotNode[]> {
   const rawNodes = await frame.evaluate((fId) => {
     const selector = [
       'button',
@@ -131,7 +140,12 @@ async function extractNodesFromFrame(frame: Frame, frameId: string): Promise<Sna
       'input',
       'select',
       'textarea',
-      'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
       'main',
       'nav',
       'details',
@@ -141,7 +155,7 @@ async function extractNodesFromFrame(frame: Frame, frameId: string): Promise<Sna
       '[role]',
       '[data-testid]',
       '[data-test]',
-      '[tabindex]'
+      '[tabindex]',
     ].join(',');
 
     const elements = Array.from(document.querySelectorAll(selector));
@@ -163,7 +177,8 @@ async function extractNodesFromFrame(frame: Frame, frameId: string): Promise<Sna
       if (counter >= 1000) break;
 
       const tag = el.tagName.toLowerCase();
-      const inputType = el instanceof HTMLInputElement ? el.type.toLowerCase() : '';
+      const inputType =
+        el instanceof HTMLInputElement ? el.type.toLowerCase() : '';
       const isPassword = inputType === 'password';
       const isHiddenInput = inputType === 'hidden';
       const isSensitiveAttr =
@@ -181,13 +196,16 @@ async function extractNodesFromFrame(frame: Frame, frameId: string): Promise<Sna
         rect.width > 0 &&
         rect.height > 0;
 
-      const isEnabled = !(el as HTMLButtonElement).disabled && el.getAttribute('aria-disabled') !== 'true';
+      const isEnabled =
+        !(el as HTMLButtonElement).disabled &&
+        el.getAttribute('aria-disabled') !== 'true';
 
       const role =
         el.getAttribute('role') ||
         (tag === 'a' ? 'link' : tag === 'input' ? inputType || 'textbox' : tag);
 
-      const testId = el.getAttribute('data-testid') || el.getAttribute('data-test') || '';
+      const testId =
+        el.getAttribute('data-testid') || el.getAttribute('data-test') || '';
       const ariaLabel = el.getAttribute('aria-label') || '';
       const placeholder = (el as HTMLInputElement).placeholder || '';
       const titleAttr = el.getAttribute('title') || '';
@@ -223,9 +241,9 @@ async function extractNodesFromFrame(frame: Frame, frameId: string): Promise<Sna
           left: Math.round(rect.left),
           top: Math.round(rect.top),
           width: Math.max(0, Math.round(rect.width)),
-          height: Math.max(0, Math.round(rect.height))
+          height: Math.max(0, Math.round(rect.height)),
         },
-        isSensitive: isPassword || isHiddenInput || isSensitiveAttr
+        isSensitive: isPassword || isHiddenInput || isSensitiveAttr,
       });
 
       counter++;
@@ -243,6 +261,6 @@ async function extractNodesFromFrame(frame: Frame, frameId: string): Promise<Sna
     text: sanitizeText(rn.text),
     visible: rn.visible,
     enabled: rn.enabled,
-    bounds: rn.bounds
+    bounds: rn.bounds,
   }));
 }

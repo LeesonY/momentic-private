@@ -2,7 +2,7 @@ import type {
   ToolCall,
   ToolResult,
   BrowserSnapshot,
-  Artifact
+  Artifact,
 } from '@localqa/contracts';
 import type { BrowserSessionOptions } from './types.js';
 
@@ -20,7 +20,10 @@ export interface BrowserSession {
    * Executes a typed tool call with schema validation, policy checks,
    * target resolution, and before/after snapshot generation.
    */
-  executeTool(toolCall: ToolCall, options?: { signal?: AbortSignal }): Promise<ToolResult>;
+  executeTool(
+    toolCall: ToolCall,
+    options?: { signal?: AbortSignal },
+  ): Promise<ToolResult>;
 
   /**
    * Captures the current fresh BrowserSnapshot of the active page.

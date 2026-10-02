@@ -13,8 +13,16 @@ interface TaskCaseTabsProps {
   runId: string;
 }
 
-export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({ cases, findings, tasks, report, runId }) => {
-  const [activeTab, setActiveTab] = useState<'cases' | 'findings' | 'tasks' | 'report'>('cases');
+export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
+  cases,
+  findings,
+  tasks,
+  report,
+  runId,
+}) => {
+  const [activeTab, setActiveTab] = useState<
+    'cases' | 'findings' | 'tasks' | 'report'
+  >('cases');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { setRoute } = useApp();
 
@@ -28,12 +36,19 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({ cases, findings, tas
         padding: '16px',
         overflow: 'hidden',
         width: isCollapsed ? '48px' : '420px',
-        transition: 'width 0.2s ease-in-out'
+        transition: 'width 0.2s ease-in-out',
       }}
       data-testid="workbench-tabs-panel"
     >
       {/* Panel Header & Collapse Toggle */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '12px',
+        }}
+      >
         {!isCollapsed && (
           <div style={{ display: 'flex', gap: '4px', overflowX: 'auto' }}>
             <button
@@ -83,9 +98,18 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({ cases, findings, tas
           {activeTab === 'cases' && (
             <div data-testid="tab-content-cases">
               {cases.length === 0 ? (
-                <EmptyState title="暂无用例记录" description="冒烟规划中或此运行尚未生成用例。" />
+                <EmptyState
+                  title="暂无用例记录"
+                  description="冒烟规划中或此运行尚未生成用例。"
+                />
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                  }}
+                >
                   {cases.map((c) => (
                     <div
                       key={c.definition.id}
@@ -94,19 +118,51 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({ cases, findings, tas
                         border: '1px solid var(--color-border-subtle)',
                         borderRadius: 'var(--radius-md)',
                         cursor: 'pointer',
-                        transition: 'background-color 0.15s'
+                        transition: 'background-color 0.15s',
                       }}
-                      onClick={() => setRoute('case-detail', { caseId: c.definition.id, runId })}
+                      onClick={() =>
+                        setRoute('case-detail', {
+                          caseId: c.definition.id,
+                          runId,
+                        })
+                      }
                       data-testid={`case-item-${c.definition.id}`}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-subtle)' }}>{c.definition.id}</span>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginBottom: '6px',
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            color: 'var(--color-text-subtle)',
+                          }}
+                        >
+                          {c.definition.id}
+                        </span>
                         <StatusBadge status={c.outcome} size="sm" />
                       </div>
-                      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '4px' }}>
+                      <div
+                        style={{
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          color: 'var(--color-text-main)',
+                          marginBottom: '4px',
+                        }}
+                      >
                         {c.definition.title}
                       </div>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>
+                      <p
+                        style={{
+                          fontSize: '0.8rem',
+                          color: 'var(--color-text-muted)',
+                          lineHeight: 1.4,
+                        }}
+                      >
                         {c.definition.summary}
                       </p>
                     </div>
@@ -120,9 +176,19 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({ cases, findings, tas
           {activeTab === 'findings' && (
             <div data-testid="tab-content-findings">
               {findings.length === 0 ? (
-                <EmptyState title="未发现任何缺陷" description="当前所有自动化检查均未触发失败判定。" icon="🎉" />
+                <EmptyState
+                  title="未发现任何缺陷"
+                  description="当前所有自动化检查均未触发失败判定。"
+                  icon="🎉"
+                />
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                  }}
+                >
                   {findings.map((f) => (
                     <div
                       key={f.id}
@@ -131,19 +197,47 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({ cases, findings, tas
                         border: '1px solid var(--color-danger-border)',
                         backgroundColor: 'var(--color-danger-bg)',
                         borderRadius: 'var(--radius-md)',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
                       }}
-                      onClick={() => setRoute('finding-detail', { findingId: f.id, runId })}
+                      onClick={() =>
+                        setRoute('finding-detail', { findingId: f.id, runId })
+                      }
                       data-testid={`finding-item-${f.id}`}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--color-danger-text)' }}>{f.id}</span>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginBottom: '6px',
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            color: 'var(--color-danger-text)',
+                          }}
+                        >
+                          {f.id}
+                        </span>
                         <StatusBadge status={f.status} size="sm" />
                       </div>
-                      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-danger-text)', marginBottom: '4px' }}>
+                      <div
+                        style={{
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          color: 'var(--color-danger-text)',
+                          marginBottom: '4px',
+                        }}
+                      >
                         {f.title}
                       </div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--color-text-main)' }}>
+                      <div
+                        style={{
+                          fontSize: '0.8rem',
+                          color: 'var(--color-text-main)',
+                        }}
+                      >
                         实际结果: {f.actual}
                       </div>
                     </div>
@@ -159,22 +253,42 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({ cases, findings, tas
               {tasks.length === 0 ? (
                 <EmptyState title="暂无任务队列" />
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                  }}
+                >
                   {tasks.map((t) => (
                     <div
                       key={t.id}
                       style={{
                         padding: '12px',
                         border: '1px solid var(--color-border-subtle)',
-                        borderRadius: 'var(--radius-md)'
+                        borderRadius: 'var(--radius-md)',
                       }}
                       data-testid={`task-item-${t.id}`}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>角色: {t.role.toUpperCase()}</span>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                          角色: {t.role.toUpperCase()}
+                        </span>
                         <StatusBadge status={t.status} size="sm" />
                       </div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                      <div
+                        style={{
+                          fontSize: '0.8rem',
+                          color: 'var(--color-text-muted)',
+                        }}
+                      >
                         {t.summary || '任务执行中...'}
                       </div>
                     </div>
@@ -188,7 +302,10 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({ cases, findings, tas
           {activeTab === 'report' && (
             <div data-testid="tab-content-report">
               {!report ? (
-                <EmptyState title="报告尚未就绪" description="运行进入 finalize 阶段后将自动生成终态验收报告。" />
+                <EmptyState
+                  title="报告尚未就绪"
+                  description="运行进入 finalize 阶段后将自动生成终态验收报告。"
+                />
               ) : (
                 <div>
                   {report.run.completion === 'partial' && (
@@ -198,19 +315,72 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({ cases, findings, tas
                     />
                   )}
 
-                  <div className="card" style={{ marginBottom: '14px', backgroundColor: 'var(--color-bg-subtle)' }}>
-                    <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '8px' }}>统计指标 (Metrics)</h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.85rem' }}>
-                      <div>计划用例: <strong>{report.summary.planned}</strong></div>
-                      <div>已尝试: <strong>{report.summary.attempted}</strong></div>
-                      <div>已判定: <strong>{report.summary.evaluated}</strong></div>
-                      <div>已通过: <strong style={{ color: 'var(--color-success)' }}>{report.summary.passed}</strong></div>
-                      <div>发现缺陷: <strong style={{ color: 'var(--color-danger)' }}>{report.summary.issueFound}</strong></div>
-                      <div>受阻: <strong style={{ color: 'var(--color-warning)' }}>{report.summary.blocked}</strong></div>
-                    </div>
-                    <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--color-border-subtle)' }}>
+                  <div
+                    className="card"
+                    style={{
+                      marginBottom: '14px',
+                      backgroundColor: 'var(--color-bg-subtle)',
+                    }}
+                  >
+                    <h4
+                      style={{
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        marginBottom: '8px',
+                      }}
+                    >
+                      统计指标 (Metrics)
+                    </h4>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '8px',
+                        fontSize: '0.85rem',
+                      }}
+                    >
                       <div>
-                        通过率: <strong>{report.summary.passRate !== null ? `${Math.round(report.summary.passRate * 100)}%` : '无判定'}</strong>
+                        计划用例: <strong>{report.summary.planned}</strong>
+                      </div>
+                      <div>
+                        已尝试: <strong>{report.summary.attempted}</strong>
+                      </div>
+                      <div>
+                        已判定: <strong>{report.summary.evaluated}</strong>
+                      </div>
+                      <div>
+                        已通过:{' '}
+                        <strong style={{ color: 'var(--color-success)' }}>
+                          {report.summary.passed}
+                        </strong>
+                      </div>
+                      <div>
+                        发现缺陷:{' '}
+                        <strong style={{ color: 'var(--color-danger)' }}>
+                          {report.summary.issueFound}
+                        </strong>
+                      </div>
+                      <div>
+                        受阻:{' '}
+                        <strong style={{ color: 'var(--color-warning)' }}>
+                          {report.summary.blocked}
+                        </strong>
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        marginTop: '10px',
+                        paddingTop: '10px',
+                        borderTop: '1px solid var(--color-border-subtle)',
+                      }}
+                    >
+                      <div>
+                        通过率:{' '}
+                        <strong>
+                          {report.summary.passRate !== null
+                            ? `${Math.round(report.summary.passRate * 100)}%`
+                            : '无判定'}
+                        </strong>
                       </div>
                     </div>
                   </div>

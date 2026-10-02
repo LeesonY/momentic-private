@@ -16,7 +16,7 @@ const SENSITIVE_QUERY_PATTERNS = [
   /otp/i,
   /session/i,
   /credential/i,
-  /bearer/i
+  /bearer/i,
 ];
 
 const SENSITIVE_HEADER_NAMES = new Set([
@@ -27,7 +27,7 @@ const SENSITIVE_HEADER_NAMES = new Set([
   'x-api-key',
   'x-auth-token',
   'x-csrf-token',
-  'x-xsrf-token'
+  'x-xsrf-token',
 ]);
 
 /**
@@ -53,7 +53,7 @@ export function sanitizeUrl(urlStr: string): string {
  * Redacts sensitive headers.
  */
 export function sanitizeHeaders(
-  headers: Record<string, string | string[] | undefined>
+  headers: Record<string, string | string[] | undefined>,
 ): Record<string, string> {
   const sanitized: Record<string, string> = {};
   for (const [key, val] of Object.entries(headers)) {
@@ -76,12 +76,15 @@ export function sanitizeText(text: string): string {
   let result = text;
 
   // Mask Bearer tokens
-  result = result.replace(/Bearer\s+([A-Za-z0-9\-._~+/]+=*)/gi, 'Bearer [redacted]');
+  result = result.replace(
+    /Bearer\s+([A-Za-z0-9\-._~+/]+=*)/gi,
+    'Bearer [redacted]',
+  );
 
   // Mask passwords/secrets in query-like strings: password=xxx, token=xxx
   result = result.replace(
     /([?&]?(?:password|token|secret|apiKey|access_token|session_token)=)[^& \n\r"']+/gi,
-    '$1[redacted]'
+    '$1[redacted]',
   );
 
   return result;

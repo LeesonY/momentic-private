@@ -20,10 +20,11 @@ export const STABLE_REASON_CODES = Object.freeze({
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   USER_CANCELLED: 'USER_CANCELLED',
   BROWSER_UNAVAILABLE: 'BROWSER_UNAVAILABLE',
-  VERSION_CONFLICT: 'VERSION_CONFLICT'
+  VERSION_CONFLICT: 'VERSION_CONFLICT',
 } as const);
 
-export type StableReasonCode = (typeof STABLE_REASON_CODES)[keyof typeof STABLE_REASON_CODES];
+export type StableReasonCode =
+  (typeof STABLE_REASON_CODES)[keyof typeof STABLE_REASON_CODES];
 
 export type ExecutionMode = 'non_submitting' | 'exploration' | 'full';
 

@@ -17,12 +17,14 @@ export class WaitAndRecoveryManager {
   private recoveryCount = 0;
   private actionHistory: Array<{ actionKey: string; fingerprint: string }> = [];
 
-  constructor(options: {
-    defaultActionTimeoutMs?: number | undefined;
-    navigationTimeoutMs?: number | undefined;
-    maxRecoveries?: number | undefined;
-    maxRepeatedActions?: number | undefined;
-  } = {}) {
+  constructor(
+    options: {
+      defaultActionTimeoutMs?: number | undefined;
+      navigationTimeoutMs?: number | undefined;
+      maxRecoveries?: number | undefined;
+      maxRepeatedActions?: number | undefined;
+    } = {},
+  ) {
     this.defaultActionTimeoutMs = options.defaultActionTimeoutMs || 15000;
     this.navigationTimeoutMs = options.navigationTimeoutMs || 30000;
     this.maxRecoveries = options.maxRecoveries || 2;
@@ -32,7 +34,11 @@ export class WaitAndRecoveryManager {
   /**
    * Navigates to URL waiting for DOMContentLoaded (strictly NO networkidle).
    */
-  public async navigate(page: Page, url: string, options: WaitOptions = {}): Promise<Response | null> {
+  public async navigate(
+    page: Page,
+    url: string,
+    options: WaitOptions = {},
+  ): Promise<Response | null> {
     const timeout = options.timeoutMs ?? this.navigationTimeoutMs;
 
     if (options.signal?.aborted) {
@@ -42,7 +48,7 @@ export class WaitAndRecoveryManager {
     try {
       const response = await page.goto(url, {
         waitUntil: 'domcontentloaded',
-        timeout
+        timeout,
       });
 
       return response;
@@ -59,8 +65,9 @@ export class WaitAndRecoveryManager {
    */
   public async waitForState(
     page: Page,
-    condition: 'dom_ready' | 'navigation' | 'element_visible' | 'spinner_detach',
-    options: WaitOptions & { selector?: string; target?: NodeTarget } = {}
+    condition:
+      'dom_ready' | 'navigation' | 'element_visible' | 'spinner_detach',
+    options: WaitOptions & { selector?: string; target?: NodeTarget } = {},
   ): Promise<void> {
     const timeout = options.timeoutMs ?? this.defaultActionTimeoutMs;
 
@@ -79,17 +86,24 @@ export class WaitAndRecoveryManager {
     }
 
     if (condition === 'element_visible' && options.selector) {
-      await page.waitForSelector(options.selector, { state: 'visible', timeout });
+      await page.waitForSelector(options.selector, {
+        state: 'visible',
+        timeout,
+      });
       return;
     }
 
     if (condition === 'spinner_detach') {
       // FIX-02 pattern: Wait for spinner to detach and ready element to appear
-      const spinnerSelector = '[data-testid="loading-spinner"], .loading-spinner, .spinner';
+      const spinnerSelector =
+        '[data-testid="loading-spinner"], .loading-spinner, .spinner';
       const readySelector = '[data-testid="delayed-content-ready"]';
 
       try {
-        await page.waitForSelector(spinnerSelector, { state: 'detached', timeout: Math.min(timeout, 10000) });
+        await page.waitForSelector(spinnerSelector, {
+          state: 'detached',
+          timeout: Math.min(timeout, 10000),
+        });
       } catch {
         // Spinner may have already detached
       }
@@ -110,7 +124,11 @@ export class WaitAndRecoveryManager {
   /**
    * Records an action execution and checks for infinite loop repetitions.
    */
-  public recordAction(actionName: string, targetKey: string, fingerprint: string): void {
+  public recordAction(
+    actionName: string,
+    targetKey: string,
+    fingerprint: string,
+  ): void {
     const actionKey = `${actionName}:${targetKey}`;
 
     // Count identical consecutive actions with identical fingerprint
@@ -131,7 +149,7 @@ export class WaitAndRecoveryManager {
 
     if (consecutiveCount >= this.maxRepeatedActions) {
       throw new Error(
-        `${STABLE_REASON_CODES.REPEATED_ACTION_LIMIT}: Action '${actionName}' on target '${targetKey}' repeated ${consecutiveCount} times on identical page state.`
+        `${STABLE_REASON_CODES.REPEATED_ACTION_LIMIT}: Action '${actionName}' on target '${targetKey}' repeated ${consecutiveCount} times on identical page state.`,
       );
     }
   }
@@ -143,7 +161,7 @@ export class WaitAndRecoveryManager {
     this.recoveryCount++;
     if (this.recoveryCount > this.maxRecoveries) {
       throw new Error(
-        `${STABLE_REASON_CODES.REPEATED_ACTION_LIMIT}: Maximum non-destructive recoveries (${this.maxRecoveries}) exceeded.`
+        `${STABLE_REASON_CODES.REPEATED_ACTION_LIMIT}: Maximum non-destructive recoveries (${this.maxRecoveries}) exceeded.`,
       );
     }
   }

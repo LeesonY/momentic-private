@@ -9,9 +9,19 @@ interface TriageModalProps {
   onSuccess: (updatedFinding: Finding) => void;
 }
 
-type TriageDisposition = 'accepted' | 'duplicate' | 'works_as_intended' | 'cannot_reproduce' | 'closed';
+type TriageDisposition =
+  | 'accepted'
+  | 'duplicate'
+  | 'works_as_intended'
+  | 'cannot_reproduce'
+  | 'closed';
 
-export const TriageModal: React.FC<TriageModalProps> = ({ finding, isOpen, onClose, onSuccess }) => {
+export const TriageModal: React.FC<TriageModalProps> = ({
+  finding,
+  isOpen,
+  onClose,
+  onSuccess,
+}) => {
   const [disposition, setDisposition] = useState<TriageDisposition>('accepted');
   const [reason, setReason] = useState<string>('');
   const [preview, setPreview] = useState<TriagePreview | null>(null);
@@ -30,7 +40,11 @@ export const TriageModal: React.FC<TriageModalProps> = ({ finding, isOpen, onClo
     setLoading(true);
     setError(null);
     try {
-      const p = await defaultApiClient.previewTriage(finding.id, disposition, reason);
+      const p = await defaultApiClient.previewTriage(
+        finding.id,
+        disposition,
+        reason,
+      );
       setPreview(p);
     } catch (err) {
       setError(err instanceof Error ? err.message : '生成审查预览失败');
@@ -48,7 +62,7 @@ export const TriageModal: React.FC<TriageModalProps> = ({ finding, isOpen, onClo
         expectedVersion: finding.version,
         confirmationToken: preview.confirmationToken,
         disposition: preview.disposition,
-        reason: preview.reason
+        reason: preview.reason,
       });
       onSuccess(updated);
       onClose();
@@ -60,15 +74,37 @@ export const TriageModal: React.FC<TriageModalProps> = ({ finding, isOpen, onClo
   };
 
   return (
-    <div className="dialog-overlay" onClick={onClose} data-testid="triage-modal-overlay">
-      <div className="dialog-content" onClick={(e) => e.stopPropagation()} data-testid="triage-modal-content">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+    <div
+      className="dialog-overlay"
+      onClick={onClose}
+      data-testid="triage-modal-overlay"
+    >
+      <div
+        className="dialog-content"
+        onClick={(e) => e.stopPropagation()}
+        data-testid="triage-modal-content"
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '16px',
+          }}
+        >
           <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-            {preview ? '确认人工审查决议预览 (Triage Preview)' : '人工审查与缺陷决议 (Finding Triage)'}
+            {preview
+              ? '确认人工审查决议预览 (Triage Preview)'
+              : '人工审查与缺陷决议 (Finding Triage)'}
           </h3>
           <button
             onClick={onClose}
-            style={{ background: 'transparent', border: 'none', fontSize: '1.25rem', cursor: 'pointer' }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              fontSize: '1.25rem',
+              cursor: 'pointer',
+            }}
           >
             ×
           </button>
@@ -82,16 +118,32 @@ export const TriageModal: React.FC<TriageModalProps> = ({ finding, isOpen, onClo
               color: 'var(--color-danger-text)',
               borderRadius: 'var(--radius-md)',
               fontSize: '0.85rem',
-              marginBottom: '14px'
+              marginBottom: '14px',
             }}
           >
             {error}
           </div>
         )}
 
-        <div style={{ marginBottom: '16px', padding: '10px 14px', backgroundColor: 'var(--color-bg-subtle)', borderRadius: 'var(--radius-md)' }}>
-          <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>正在审查的问题缺陷:</div>
-          <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text-main)', marginTop: '2px' }}>
+        <div
+          style={{
+            marginBottom: '16px',
+            padding: '10px 14px',
+            backgroundColor: 'var(--color-bg-subtle)',
+            borderRadius: 'var(--radius-md)',
+          }}
+        >
+          <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+            正在审查的问题缺陷:
+          </div>
+          <div
+            style={{
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              color: 'var(--color-text-main)',
+              marginTop: '2px',
+            }}
+          >
             {finding.title}
           </div>
         </div>
@@ -103,13 +155,19 @@ export const TriageModal: React.FC<TriageModalProps> = ({ finding, isOpen, onClo
               <select
                 className="form-select"
                 value={disposition}
-                onChange={(e) => setDisposition(e.target.value as TriageDisposition)}
+                onChange={(e) =>
+                  setDisposition(e.target.value as TriageDisposition)
+                }
                 data-testid="triage-disposition-select"
               >
                 <option value="accepted">接受为有效 Bug (Accepted)</option>
                 <option value="duplicate">标记为重复缺陷 (Duplicate)</option>
-                <option value="works_as_intended">按预期设计无需修复 (Works as Intended)</option>
-                <option value="cannot_reproduce">无法重现 (Cannot Reproduce)</option>
+                <option value="works_as_intended">
+                  按预期设计无需修复 (Works as Intended)
+                </option>
+                <option value="cannot_reproduce">
+                  无法重现 (Cannot Reproduce)
+                </option>
                 <option value="closed">直接关闭 (Closed)</option>
               </select>
             </div>
@@ -126,8 +184,19 @@ export const TriageModal: React.FC<TriageModalProps> = ({ finding, isOpen, onClo
               />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                marginTop: '20px',
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={onClose}
+              >
                 取消
               </button>
               <button
@@ -148,26 +217,64 @@ export const TriageModal: React.FC<TriageModalProps> = ({ finding, isOpen, onClo
                 backgroundColor: 'var(--color-info-bg)',
                 borderRadius: 'var(--radius-md)',
                 padding: '14px',
-                marginBottom: '16px'
+                marginBottom: '16px',
               }}
             >
-              <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-info-text)', marginBottom: '8px' }}>
+              <h4
+                style={{
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  color: 'var(--color-info-text)',
+                  marginBottom: '8px',
+                }}
+              >
                 决议变更内容核对:
               </h4>
-              <ul style={{ fontSize: '0.85rem', color: 'var(--color-text-main)', paddingLeft: '20px', lineHeight: 1.6 }}>
-                <li>变更后审查状态: <strong>{preview.disposition}</strong></li>
+              <ul
+                style={{
+                  fontSize: '0.85rem',
+                  color: 'var(--color-text-main)',
+                  paddingLeft: '20px',
+                  lineHeight: 1.6,
+                }}
+              >
+                <li>
+                  变更后审查状态: <strong>{preview.disposition}</strong>
+                </li>
                 <li>判定依据: {preview.reason}</li>
-                <li>确认凭证 Token: <code>{preview.confirmationToken}</code></li>
-                <li>凭证有效期至: {new Date(preview.expiresAt).toLocaleTimeString()} (300 秒内有效)</li>
+                <li>
+                  确认凭证 Token: <code>{preview.confirmationToken}</code>
+                </li>
+                <li>
+                  凭证有效期至:{' '}
+                  {new Date(preview.expiresAt).toLocaleTimeString()} (300
+                  秒内有效)
+                </li>
               </ul>
             </div>
 
-            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
-              * 依据设计规范，人工审查提交具备严格不可撤回性，点击确认后将记录权威审计日志并推进问题状态。
+            <p
+              style={{
+                fontSize: '0.75rem',
+                color: 'var(--color-text-muted)',
+                marginBottom: '20px',
+              }}
+            >
+              *
+              依据设计规范，人工审查提交具备严格不可撤回性，点击确认后将记录权威审计日志并推进问题状态。
             </p>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button className="btn btn-secondary" onClick={() => setPreview(null)}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+              }}
+            >
+              <button
+                className="btn btn-secondary"
+                onClick={() => setPreview(null)}
+              >
                 返回修改
               </button>
               <button
