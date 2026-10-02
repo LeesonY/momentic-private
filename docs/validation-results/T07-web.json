@@ -55,6 +55,13 @@
   ],
   "commands": [
     {
+      "name": "eslint",
+      "command": "npx eslint apps/web/src apps/web/scripts",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
       "name": "typecheck",
       "command": "npx --yes pnpm@10.34.0 --filter @localqa/web run typecheck",
       "exitCode": 0,
