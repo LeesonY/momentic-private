@@ -1,0 +1,937 @@
+{
+  "at": "2026-10-02T10:39:18.466Z",
+  "node": "v26.3.0",
+  "platform": "darwin",
+  "probes": [
+    {
+      "id": "section7-vs-error-codes",
+      "section7Codes": [
+        "UNAUTHENTICATED",
+        "FORBIDDEN",
+        "NOT_FOUND",
+        "VALIDATION_ERROR",
+        "TARGET_NOT_ALLOWED",
+        "MODEL_NOT_CONFIGURED",
+        "PROJECT_ARCHIVED",
+        "IDEMPOTENCY_CONFLICT",
+        "VERSION_CONFLICT",
+        "EVENTS_EXPIRED",
+        "RATE_LIMITED",
+        "BROWSER_UNAVAILABLE",
+        "SERVICE_UNAVAILABLE",
+        "ARTIFACT_TOO_LARGE",
+        "LEASE_EXPIRED",
+        "ACTION_OUTCOME_UNKNOWN",
+        "AUTH_REQUIRED",
+        "AUTH_FAILED",
+        "CAPTCHA_REQUIRED",
+        "MODEL_CAPABILITY_MISSING",
+        "MODEL_TIMEOUT",
+        "POLICY_DENIED",
+        "SCOPE_CHANGED",
+        "BUDGET_EXCEEDED",
+        "INPUT_TIMEOUT",
+        "USER_CANCELLED"
+      ],
+      "errorCodes": [
+        "UNAUTHENTICATED",
+        "FORBIDDEN",
+        "NOT_FOUND",
+        "VALIDATION_ERROR",
+        "TARGET_NOT_ALLOWED",
+        "MODEL_NOT_CONFIGURED",
+        "PROJECT_ARCHIVED",
+        "IDEMPOTENCY_CONFLICT",
+        "VERSION_CONFLICT",
+        "EVENTS_EXPIRED",
+        "RATE_LIMITED",
+        "BROWSER_UNAVAILABLE",
+        "SERVICE_UNAVAILABLE",
+        "ARTIFACT_TOO_LARGE",
+        "LEASE_EXPIRED",
+        "ACTION_OUTCOME_UNKNOWN",
+        "AUTH_REQUIRED",
+        "AUTH_FAILED",
+        "CAPTCHA_REQUIRED",
+        "MODEL_CAPABILITY_MISSING",
+        "MODEL_TIMEOUT",
+        "POLICY_DENIED",
+        "SCOPE_CHANGED",
+        "BUDGET_EXCEEDED",
+        "INPUT_TIMEOUT",
+        "USER_CANCELLED"
+      ],
+      "onlyInSection7": [],
+      "onlyInPackage": []
+    },
+    {
+      "id": "storage-error-literals",
+      "codes": [
+        "VERSION_CONFLICT",
+        "LEASE_EXPIRED",
+        "PROJECT_ARCHIVED",
+        "IDEMPOTENCY_CONFLICT",
+        "VALIDATION_ERROR",
+        "NOT_FOUND",
+        "SERVICE_UNAVAILABLE",
+        "FORBIDDEN",
+        "UNAUTHENTICATED",
+        "TARGET_NOT_ALLOWED",
+        "AUTH_FAILED"
+      ],
+      "outsideSection7": []
+    },
+    {
+      "id": "browser-reason-literals",
+      "codes": [
+        "TARGET_NOT_FOUND",
+        "TARGET_AMBIGUOUS",
+        "TARGET_HIDDEN",
+        "TARGET_DISABLED",
+        "SNAPSHOT_STALE",
+        "TARGET_SEMANTICS_CHANGED",
+        "POLICY_DENIED",
+        "TARGET_NOT_ALLOWED",
+        "MUTATION_FORBIDDEN",
+        "ACTION_TIMEOUT",
+        "NAVIGATION_TIMEOUT",
+        "ACTION_CANCELLED",
+        "REPEATED_ACTION_LIMIT",
+        "MAX_RECOVERIES_EXCEEDED",
+        "INVALID_TOOL_ARGUMENTS",
+        "PROHIBITED_TOOL",
+        "FRAME_INACCESSIBLE",
+        "BROWSER_ERROR"
+      ],
+      "outsideSection7": [
+        "TARGET_NOT_FOUND",
+        "TARGET_AMBIGUOUS",
+        "TARGET_HIDDEN",
+        "TARGET_DISABLED",
+        "SNAPSHOT_STALE",
+        "TARGET_SEMANTICS_CHANGED",
+        "MUTATION_FORBIDDEN",
+        "ACTION_TIMEOUT",
+        "NAVIGATION_TIMEOUT",
+        "ACTION_CANCELLED",
+        "REPEATED_ACTION_LIMIT",
+        "MAX_RECOVERIES_EXCEEDED",
+        "INVALID_TOOL_ARGUMENTS",
+        "PROHIBITED_TOOL",
+        "FRAME_INACCESSIBLE",
+        "BROWSER_ERROR"
+      ],
+      "inSection7": [
+        "POLICY_DENIED",
+        "TARGET_NOT_ALLOWED"
+      ]
+    },
+    {
+      "id": "gateway-errorCode-literals",
+      "codes": [
+        "MODEL_NOT_CONFIGURED",
+        "BUDGET_EXCEEDED",
+        "VALIDATION_ERROR"
+      ],
+      "outsideSection7": []
+    },
+    {
+      "id": "storage.userDTO",
+      "contract": {
+        "name": "User",
+        "ok": true,
+        "issues": []
+      },
+      "keys": [
+        "id",
+        "email",
+        "displayName",
+        "globalRole",
+        "disabled",
+        "version"
+      ]
+    },
+    {
+      "id": "storage.project-shape",
+      "contract": {
+        "name": "Project",
+        "ok": true,
+        "issues": []
+      }
+    },
+    {
+      "id": "time.run-to-char-pattern",
+      "sample": "2026-10-02T09:26:57.913Z",
+      "dateTime": true
+    },
+    {
+      "id": "events.phase.changed",
+      "contract": {
+        "name": "RunEvent",
+        "ok": true,
+        "issues": []
+      },
+      "idEqualsSeq": true
+    },
+    {
+      "id": "events.payload-mismatch",
+      "contract": {
+        "name": "RunEvent",
+        "ok": false,
+        "issues": [
+          "/payload required must have required property 'contextVersion'",
+          "/ if must match \"then\" schema"
+        ]
+      }
+    },
+    {
+      "id": "events.id-seq-not-enforced-by-schema",
+      "contract": {
+        "name": "RunEvent",
+        "ok": true,
+        "issues": []
+      }
+    },
+    {
+      "id": "time.attempt-candidates",
+      "z": {
+        "name": "CaseAttempt",
+        "ok": true,
+        "issues": []
+      },
+      "offset": {
+        "name": "CaseAttempt",
+        "ok": true,
+        "issues": []
+      },
+      "utcOffset": {
+        "name": "CaseAttempt",
+        "ok": true,
+        "issues": []
+      },
+      "space": {
+        "name": "CaseAttempt",
+        "ok": true,
+        "issues": []
+      },
+      "nullStarted": {
+        "name": "CaseAttempt",
+        "ok": true,
+        "issues": []
+      }
+    },
+    {
+      "id": "browser.snapshot-null-status",
+      "nullStatus": {
+        "name": "BrowserSnapshot",
+        "ok": true,
+        "issues": []
+      },
+      "forced200": {
+        "name": "BrowserSnapshot",
+        "ok": true,
+        "issues": []
+      },
+      "expression": 200
+    },
+    {
+      "id": "browser.network-entry",
+      "contract": {
+        "name": "NetworkEntries",
+        "ok": true,
+        "issues": []
+      }
+    },
+    {
+      "id": "browser.artifact",
+      "defaultIds": {
+        "name": "Artifact",
+        "ok": false,
+        "issues": [
+          "/projectId format must match format \"uuid\"",
+          "/runId format must match format \"uuid\""
+        ]
+      },
+      "uuidIds": {
+        "name": "Artifact",
+        "ok": true,
+        "issues": []
+      },
+      "captureResultDefault": {
+        "ok": false,
+        "issues": [
+          "/projectId must match format \"uuid\"",
+          "/runId must match format \"uuid\""
+        ]
+      },
+      "captureResultUuid": {
+        "ok": true
+      }
+    },
+    {
+      "id": "browser.assert-criterion-data",
+      "contract": {
+        "name": "CriterionResult",
+        "ok": true,
+        "issues": []
+      },
+      "resultSchema": true
+    },
+    {
+      "id": "browser.tool-result-envelope",
+      "envelope": {
+        "name": "ToolResult",
+        "ok": true,
+        "issues": []
+      },
+      "submitCaseDataIsSnapshot": false
+    },
+    {
+      "id": "tools.sample-calls",
+      "observe": {
+        "ok": true,
+        "issues": []
+      },
+      "observeExtra": {
+        "ok": false,
+        "issues": [
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'url'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'target'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'target'",
+          "/args must have required property 'text'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'target'",
+          "/args must have required property 'value'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'target'",
+          "/args must have required property 'key'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'direction'",
+          "/args must have required property 'pixels'",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'condition'",
+          "/args must have required property 'timeoutMs'",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'criterionId'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'limit'",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'reason'",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'candidate'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'caseId'",
+          "/args must have required property 'criterionId'",
+          "/args must have required property 'actual'",
+          "/args must have required property 'evidenceRefs'",
+          "/args must have required property 'reproSteps'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'summary'",
+          "/args must have required property 'gaps'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'outcome'",
+          "/args must have required property 'summary'",
+          "/args must have required property 'evidenceRefs'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'kind'",
+          "/args must have required property 'prompt'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          " must match exactly one schema in oneOf"
+        ]
+      },
+      "scroll": {
+        "ok": true,
+        "issues": []
+      },
+      "scrollMissingPage": {
+        "ok": false,
+        "issues": [
+          "/name must be equal to constant",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'url'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'target'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'target'",
+          "/args must have required property 'text'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'target'",
+          "/args must have required property 'value'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'target'",
+          "/args must have required property 'key'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/args must have required property 'pageId'",
+          "/name must be equal to constant",
+          "/args must have required property 'pageId'",
+          "/args must have required property 'condition'",
+          "/args must have required property 'timeoutMs'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'criterionId'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'pageId'",
+          "/args must have required property 'limit'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'pageId'",
+          "/args must have required property 'reason'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'candidate'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'caseId'",
+          "/args must have required property 'criterionId'",
+          "/args must have required property 'actual'",
+          "/args must have required property 'evidenceRefs'",
+          "/args must have required property 'reproSteps'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'summary'",
+          "/args must have required property 'gaps'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'outcome'",
+          "/args must have required property 'summary'",
+          "/args must have required property 'evidenceRefs'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'kind'",
+          "/args must have required property 'prompt'",
+          "/args must NOT have additional properties",
+          "/args must NOT have additional properties",
+          " must match exactly one schema in oneOf"
+        ]
+      },
+      "click": {
+        "ok": true,
+        "issues": []
+      },
+      "clickMissingPage": {
+        "ok": false,
+        "issues": [
+          "/name must be equal to constant",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'url'",
+          "/args must NOT have additional properties",
+          "/args/target must have required property 'pageId'",
+          "/name must be equal to constant",
+          "/args must have required property 'text'",
+          "/args/target must have required property 'pageId'",
+          "/name must be equal to constant",
+          "/args must have required property 'value'",
+          "/args/target must have required property 'pageId'",
+          "/name must be equal to constant",
+          "/args must have required property 'key'",
+          "/args/target must have required property 'pageId'",
+          "/name must be equal to constant",
+          "/args must have required property 'pageId'",
+          "/args must have required property 'direction'",
+          "/args must have required property 'pixels'",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'pageId'",
+          "/args must have required property 'condition'",
+          "/args must have required property 'timeoutMs'",
+          "/args/target must have required property 'pageId'",
+          "/name must be equal to constant",
+          "/args must have required property 'criterionId'",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'pageId'",
+          "/args must have required property 'limit'",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'pageId'",
+          "/args must have required property 'reason'",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'candidate'",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'caseId'",
+          "/args must have required property 'criterionId'",
+          "/args must have required property 'actual'",
+          "/args must have required property 'evidenceRefs'",
+          "/args must have required property 'reproSteps'",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'summary'",
+          "/args must have required property 'gaps'",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'outcome'",
+          "/args must have required property 'summary'",
+          "/args must have required property 'evidenceRefs'",
+          "/args must NOT have additional properties",
+          "/name must be equal to constant",
+          "/args must have required property 'kind'",
+          "/args must have required property 'prompt'",
+          "/args must NOT have additional properties",
+          " must match exactly one schema in oneOf"
+        ]
+      },
+      "finishCase": {
+        "ok": true,
+        "issues": []
+      },
+      "requestInput": {
+        "ok": true,
+        "issues": []
+      },
+      "namesInSchemaNotInBrowserSwitch": [
+        "submit_case",
+        "report_suspect",
+        "finish_case",
+        "complete_reproduction",
+        "request_input"
+      ],
+      "browserSwitchNotInSchema": []
+    },
+    {
+      "id": "agents.dispatch-result",
+      "success": {
+        "status": "succeeded",
+        "reasonCode": null,
+        "executed": true,
+        "data": {
+          "observed": true
+        }
+      },
+      "denied": {
+        "status": "denied",
+        "reasonCode": "POLICY_DENIED",
+        "executed": false,
+        "data": null
+      },
+      "invalid": {
+        "status": "denied",
+        "reasonCode": "VALIDATION_ERROR",
+        "executed": false,
+        "data": null
+      },
+      "successIsToolResult": {
+        "name": "ToolResult",
+        "ok": false,
+        "issues": [
+          "/ required must have required property 'requestId'",
+          "/ required must have required property 'actionId'",
+          "/ required must have required property 'evidenceRefs'",
+          "/ additionalProperties must NOT have additional properties"
+        ]
+      },
+      "executedDataIsBrowserSnapshot": false
+    },
+    {
+      "id": "agents.review-plan",
+      "missingKind": {
+        "accepted": true,
+        "reason": "sourced",
+        "missing": []
+      },
+      "fullCriterion": {
+        "name": "Criterion",
+        "ok": false,
+        "issues": [
+          "/ required must have required property 'locator'",
+          "/ if must match \"then\" schema"
+        ]
+      },
+      "elementVisibleWithoutLocator": {
+        "name": "Criterion",
+        "ok": false,
+        "issues": [
+          "/ required must have required property 'locator'",
+          "/ if must match \"then\" schema"
+        ]
+      }
+    },
+    {
+      "id": "agents.decision-schema",
+      "looseAccepted": true,
+      "toolsRejected": {
+        "ok": false,
+        "issues": [
+          " must have required property 'name'",
+          " must have required property 'args'",
+          " must NOT have additional properties",
+          " must have required property 'name'",
+          " must have required property 'args'",
+          " must NOT have additional properties",
+          " must have required property 'name'",
+          " must have required property 'args'",
+          " must NOT have additional properties",
+          " must have required property 'name'",
+          " must have required property 'args'",
+          " must NOT have additional properties",
+          " must have required property 'name'",
+          " must have required property 'args'",
+          " must NOT have additional properties",
+          " must have required property 'name'",
+          " must have required property 'args'",
+          " must NOT have additional properties",
+          " must have required property 'name'",
+          " must have required property 'args'",
+          " must NOT have additional properties",
+          " must have required property 'name'",
+          " must have required property 'args'",
+          " must NOT have additional properties",
+          " must have required property 'name'",
+          " must have required property 'args'",
+          " must NOT have additional properties",
+          " must have required property 'name'",
+          " must have required property 'args'",
+          " must NOT have additional properties",
+          " must have required property 'name'",
+          " must have required property 'args'",
+          " must NOT have additional properties",
+          " must have required property 'name'",
+          " must have required property 'args'",
+          " must NOT have additional properties",
+          " must have required property 'name'",
+          " must have required property 'args'",
+          " must NOT have additional properties",
+          " must have required property 'name'",
+          " must have required property 'args'",
+          " must NOT have additional properties",
+          " must have required property 'name'",
+          " must have required property 'args'",
+          " must NOT have additional properties",
+          " must have required property 'name'",
+          " must have required property 'args'",
+          " must NOT have additional properties",
+          " must match exactly one schema in oneOf"
+        ]
+      }
+    },
+    {
+      "id": "agents.roles",
+      "agentRoles": [
+        "coordinator",
+        "explorer",
+        "planner",
+        "executor",
+        "reproducer",
+        "finalizer"
+      ],
+      "taskRoles": [
+        "coordinator",
+        "explorer",
+        "executor",
+        "reproducer",
+        "finalizer"
+      ],
+      "roleModels": [
+        "coordinator",
+        "explorer",
+        "executor",
+        "assertion",
+        "reproducer"
+      ],
+      "toolsByRole": {
+        "coordinator": [
+          "request_input",
+          "submit_case"
+        ],
+        "explorer": [
+          "capture",
+          "click",
+          "inspect_network",
+          "navigate",
+          "observe",
+          "press",
+          "report_suspect",
+          "request_input",
+          "scroll",
+          "select_option",
+          "submit_case",
+          "type_text",
+          "wait_for"
+        ],
+        "planner": [],
+        "executor": [
+          "assert_criterion",
+          "capture",
+          "click",
+          "finish_case",
+          "inspect_network",
+          "navigate",
+          "observe",
+          "press",
+          "report_suspect",
+          "request_input",
+          "scroll",
+          "select_option",
+          "type_text",
+          "wait_for"
+        ],
+        "reproducer": [
+          "assert_criterion",
+          "capture",
+          "click",
+          "complete_reproduction",
+          "inspect_network",
+          "navigate",
+          "observe",
+          "press",
+          "request_input",
+          "scroll",
+          "select_option",
+          "type_text",
+          "wait_for"
+        ],
+        "finalizer": []
+      },
+      "metadataRoles": {
+        "observe": [
+          "explorer",
+          "executor",
+          "reproducer"
+        ],
+        "navigate": [
+          "explorer",
+          "executor",
+          "reproducer"
+        ],
+        "click": [
+          "explorer",
+          "executor",
+          "reproducer"
+        ],
+        "type_text": [
+          "explorer",
+          "executor",
+          "reproducer"
+        ],
+        "select_option": [
+          "explorer",
+          "executor",
+          "reproducer"
+        ],
+        "press": [
+          "explorer",
+          "executor",
+          "reproducer"
+        ],
+        "scroll": [
+          "explorer",
+          "executor",
+          "reproducer"
+        ],
+        "wait_for": [
+          "explorer",
+          "executor",
+          "reproducer"
+        ],
+        "assert_criterion": [
+          "executor",
+          "reproducer"
+        ],
+        "inspect_network": [
+          "explorer",
+          "executor",
+          "reproducer"
+        ],
+        "capture": [
+          "explorer",
+          "executor",
+          "reproducer"
+        ],
+        "submit_case": [
+          "explorer",
+          "coordinator"
+        ],
+        "report_suspect": [
+          "executor",
+          "explorer"
+        ],
+        "finish_case": [
+          "executor"
+        ],
+        "complete_reproduction": [
+          "reproducer"
+        ],
+        "request_input": [
+          "coordinator",
+          "explorer",
+          "executor",
+          "reproducer"
+        ]
+      }
+    },
+    {
+      "id": "gateway.assessment",
+      "fake": {
+        "verdictStatus": "inconclusive",
+        "reasonCode": "FAKE_EVIDENCE",
+        "criterionId": "smoke.visible",
+        "acceptedEvidenceRefs": [],
+        "criterionResult": "not_evaluated"
+      },
+      "empty": {
+        "verdictStatus": "inconclusive",
+        "reasonCode": "NO_OBSERVATION_REF",
+        "criterionId": "smoke.visible",
+        "acceptedEvidenceRefs": [],
+        "criterionResult": "not_evaluated"
+      },
+      "visual": {
+        "verdictStatus": "blocked",
+        "reasonCode": "MODEL_CAPABILITY_MISSING",
+        "criterionId": "smoke.visible",
+        "acceptedEvidenceRefs": [],
+        "criterionResult": "not_evaluated"
+      },
+      "assessmentCodes": [
+        "MODEL_CAPABILITY_MISSING",
+        "NO_OBSERVATION_REF",
+        "CRITERION_MISMATCH",
+        "FAKE_EVIDENCE",
+        "MALFORMED_JUDGMENT",
+        "NO_DECISION",
+        "OBSERVED"
+      ],
+      "outsideSection7": [
+        "NO_OBSERVATION_REF",
+        "CRITERION_MISMATCH",
+        "FAKE_EVIDENCE",
+        "MALFORMED_JUDGMENT",
+        "NO_DECISION",
+        "OBSERVED"
+      ]
+    },
+    {
+      "id": "gateway.runtime",
+      "httpDoesNotDecrypt": {
+        "decrypts": 0,
+        "errorCode": "MODEL_NOT_CONFIGURED",
+        "requestResult": "not_configured",
+        "providerCalls": 0
+      },
+      "providerErrorMapped": {
+        "sends": 1,
+        "errorCode": "MODEL_TIMEOUT",
+        "requestResult": "timeout"
+      },
+      "completeDataIsModelResult": {
+        "name": "ModelResult",
+        "ok": true,
+        "issues": []
+      },
+      "completeMeta": {
+        "errorCode": null,
+        "requestResult": "ok",
+        "usageSource": "reported"
+      },
+      "probeDataIsModelProbeResult": {
+        "name": "ModelProbeResult",
+        "ok": true,
+        "issues": []
+      },
+      "gatewayProfileIsNotModelProfile": {
+        "name": "ModelProfile",
+        "ok": false,
+        "issues": [
+          "/ required must have required property 'adapter'",
+          "/ required must have required property 'status'",
+          "/ additionalProperties must NOT have additional properties",
+          "/ additionalProperties must NOT have additional properties",
+          "/ additionalProperties must NOT have additional properties"
+        ]
+      }
+    },
+    {
+      "id": "schema-surface",
+      "domainDefs": 99,
+      "toolCount": 16,
+      "eventTypes": [
+        "run.updated",
+        "phase.changed",
+        "task.updated",
+        "case.created",
+        "case.result",
+        "finding.updated",
+        "step.recorded",
+        "budget.updated",
+        "input.requested",
+        "input.resolved",
+        "artifact.updated",
+        "report.ready",
+        "run.finished"
+      ],
+      "reportDefsAlsoInDomain": [
+        "Report",
+        "Run",
+        "RunConfig",
+        "BudgetLimits",
+        "RoleModels",
+        "ModelBinding",
+        "BudgetUsed",
+        "Summary",
+        "CaseRecord",
+        "CaseDefinition",
+        "Criterion",
+        "Locator",
+        "JsonValue",
+        "Verdict",
+        "CriterionResult",
+        "Finding",
+        "Reproduction",
+        "Artifact",
+        "ModelUsage"
+      ],
+      "reportOnly": []
+    }
+  ]
+}
