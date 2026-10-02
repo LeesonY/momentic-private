@@ -31,7 +31,11 @@ export type WorkerScope = { workerId: string; projectId: string }; // Verified b
 export class Database {
   readonly #pool: pg.Pool;
   constructor(connectionString: string) {
-    this.#pool = new pg.Pool({ connectionString, max: 8 });
+    this.#pool = new pg.Pool({
+      connectionString,
+      max: 8,
+      options: '-c TimeZone=UTC',
+    });
   }
   async close(): Promise<void> {
     await this.#pool.end();
@@ -44,6 +48,7 @@ export class Database {
     const client = await this.#pool.connect();
     try {
       await client.query('BEGIN');
+      await client.query("SET LOCAL TIME ZONE 'UTC'");
       await client.query(`SET LOCAL ROLE ${role}`);
       for (const [key, value] of Object.entries(settings))
         await client.query('SELECT set_config($1,$2,true)', [key, value]);

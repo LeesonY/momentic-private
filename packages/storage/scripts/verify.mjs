@@ -365,10 +365,45 @@ try {
       'Use LeaseRepository primitives with a verified project-scoped worker; poll/dispatch policy and complete role-specific verdict/result protocol belong to T05.',
     ],
   };
-  writeFileSync(
-    `${root}docs/validation-results/T02-storage.json`,
-    JSON.stringify(record, null, 2) + '\n',
+  const evidencePath = `${root}docs/validation-results/T02-storage.json`;
+  const testCommand = commands.find((command) =>
+    command.command.startsWith('node --test'),
   );
+  const followUp = {
+    recordedAt: new Date().toISOString(),
+    result: success
+      ? 'lease reason split and attempt UTC timestamps passed'
+      : 'failed',
+    P0Passed: false,
+    M0Passed: false,
+    command: 'npx --yes pnpm@10.34.0 --filter @localqa/storage test',
+    node: process.version,
+    tests: Number(testCommand?.stdout.match(/ℹ tests (\d+)/)?.[1] ?? 0),
+    passed: Number(testCommand?.stdout.match(/ℹ pass (\d+)/)?.[1] ?? 0),
+    exitCode: success ? 0 : 1,
+    failure,
+    note: 'Appended to the accepted T02 record. Parent commands, sourceFiles, and claims stay that run. This is not a new P0.',
+    changes: [
+      'currentLease separates an expired lease_until (LEASE_EXPIRED, database clock) from a live lease whose context_version or run status does not match (SCOPE_CHANGED). Heartbeat still reports cancelRequested and does not throw SCOPE_CHANGED.',
+      'attemptDTO formats startedAt and finishedAt as UTC RFC3339 with a Z suffix, same as runDTO. Database transactions and pool connections set TimeZone to UTC.',
+    ],
+  };
+  let payload = record;
+  if (existsSync(evidencePath)) {
+    const existing = JSON.parse(readFileSync(evidencePath, 'utf8'));
+    if (
+      existing &&
+      existing.task === 'T02' &&
+      typeof existing.recordedAt === 'string' &&
+      existing.recordedAt !== record.recordedAt
+    ) {
+      existing.contractFollowUp = followUp;
+      payload = existing;
+    } else {
+      record.contractFollowUp = followUp;
+    }
+  }
+  writeFileSync(evidencePath, JSON.stringify(payload, null, 2) + '\n');
   console.log(
     JSON.stringify({
       success,

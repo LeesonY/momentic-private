@@ -340,5 +340,22 @@
     "Deployment migration principal must be a controlled superuser/BYPASSRLS role with DDL/role creation privilege (security-definer membership functions require a bypassing owner); runtime login needs membership in localqa_app/localqa_auth/localqa_worker and must not expose a superuser connection.",
     "KEK file is protected (owner UID, no group/other access, no symlink), JSON key ring of 32-byte base64 keys; activeVersion identifies writer.",
     "Use LeaseRepository primitives with a verified project-scoped worker; poll/dispatch policy and complete role-specific verdict/result protocol belong to T05."
-  ]
+  ],
+  "contractFollowUp": {
+    "recordedAt": "2026-10-02T12:33:01.026Z",
+    "result": "lease reason split and attempt UTC timestamps passed",
+    "P0Passed": false,
+    "M0Passed": false,
+    "command": "npx --yes pnpm@10.34.0 --filter @localqa/storage test",
+    "node": "v26.3.0",
+    "tests": 32,
+    "passed": 32,
+    "exitCode": 0,
+    "failure": null,
+    "note": "Appended to the accepted T02 record. Parent commands, sourceFiles, and claims stay that run. This is not a new P0.",
+    "changes": [
+      "currentLease separates an expired lease_until (LEASE_EXPIRED, database clock) from a live lease whose context_version or run status does not match (SCOPE_CHANGED). Heartbeat still reports cancelRequested and does not throw SCOPE_CHANGED.",
+      "attemptDTO formats startedAt and finishedAt as UTC RFC3339 with a Z suffix, same as runDTO. Database transactions and pool connections set TimeZone to UTC."
+    ]
+  }
 }

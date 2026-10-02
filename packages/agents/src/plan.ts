@@ -1,10 +1,4 @@
-const SOURCE_KINDS = new Set([
-  'generic_smoke',
-  'user_spec',
-  'project_knowledge',
-  'saved_case',
-  'inferred',
-]);
+import { validateContract } from '@localqa/contracts';
 
 export interface PlanReview {
   accepted: boolean;
@@ -12,7 +6,25 @@ export interface PlanReview {
   missing: string[];
 }
 
-/** Planner output is rejected unless every criterion carries an explicit source. */
+function criterionGaps(index: number, item: unknown): string[] {
+  const result = validateContract('Criterion', item);
+  if (result.success) return [];
+  const gaps = new Set<string>();
+  for (const error of result.errors) {
+    const missingProperty =
+      typeof error.params['missingProperty'] === 'string' ? error.params['missingProperty'] : null;
+    const path = error.instancePath.replace(/^\//, '').replaceAll('/', '.');
+    if (missingProperty) {
+      gaps.add(path ? `${index}.${path}.${missingProperty}` : `${index}.${missingProperty}`);
+      continue;
+    }
+    if (path) gaps.add(`${index}.${path}`);
+  }
+  if (gaps.size === 0) gaps.add(`${index}`);
+  return [...gaps];
+}
+
+/** Planner output is rejected unless every criterion matches the Criterion contract. */
 export function reviewPlan(input: unknown): PlanReview {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     return { accepted: false, reason: 'missing_source', missing: ['plan'] };
@@ -21,21 +33,7 @@ export function reviewPlan(input: unknown): PlanReview {
   if (!Array.isArray(criteria) || criteria.length === 0) {
     return { accepted: false, reason: 'missing_source', missing: ['criteria'] };
   }
-  const missing: string[] = [];
-  for (const [index, item] of criteria.entries()) {
-    if (!item || typeof item !== 'object' || Array.isArray(item)) {
-      missing.push(`${index}`);
-      continue;
-    }
-    const row = item as Record<string, unknown>;
-    if (typeof row['id'] !== 'string' || row['id'].length === 0) missing.push(`${index}.id`);
-    if (typeof row['sourceKind'] !== 'string' || !SOURCE_KINDS.has(row['sourceKind'])) {
-      missing.push(`${index}.sourceKind`);
-    }
-    if (typeof row['sourceRef'] !== 'string' || row['sourceRef'].length === 0) {
-      missing.push(`${index}.sourceRef`);
-    }
-  }
+  const missing = criteria.flatMap((item, index) => criterionGaps(index, item));
   if (missing.length > 0) return { accepted: false, reason: 'missing_source', missing };
   return { accepted: true, reason: 'sourced', missing: [] };
 }

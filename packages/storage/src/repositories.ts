@@ -1185,7 +1185,7 @@ export async function attemptDTO(
   await authorize(client, projectId, 'read');
   const row = (
     await client.query<{ dto: unknown }>(
-      `SELECT jsonb_build_object('id',a.id,'caseId',a.case_id,'taskId',a.task_id,'attemptNumber',a.attempt_number,'status',a.status,'verdict',v.document,'startedAt',a.started_at,'finishedAt',a.finished_at) dto FROM case_attempts a LEFT JOIN verdicts v ON v.attempt_id=a.id WHERE a.project_id=$1 AND a.id=$2`,
+      `SELECT jsonb_build_object('id',a.id,'caseId',a.case_id,'taskId',a.task_id,'attemptNumber',a.attempt_number,'status',a.status,'verdict',v.document,'startedAt',CASE WHEN a.started_at IS NULL THEN NULL ELSE to_char(a.started_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') END,'finishedAt',CASE WHEN a.finished_at IS NULL THEN NULL ELSE to_char(a.finished_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') END) dto FROM case_attempts a LEFT JOIN verdicts v ON v.attempt_id=a.id WHERE a.project_id=$1 AND a.id=$2`,
       [projectId, id],
     )
   ).rows[0];

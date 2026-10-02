@@ -31,6 +31,7 @@ type JobRow = {
   document: Task;
   context_version: number;
   run_status: string;
+  lease_active?: boolean;
 };
 const dto = (row: JobRow): Task =>
   parseContract('Task', { ...row.document, status: row.status });
@@ -95,7 +96,7 @@ async function currentLease(
 ): Promise<JobRow> {
   const row = (
     await client.query<JobRow>(
-      `SELECT j.*,r.context_version,r.status run_status FROM jobs j JOIN runs r ON r.id=j.run_id JOIN task_leases l ON l.task_id=j.id AND l.fencing_token=j.fencing_token WHERE j.project_id=$1 AND j.id=$2 AND j.worker_id=$3 AND j.fencing_token=$4 AND j.status='running' AND j.lease_until>clock_timestamp() AND l.lease_until>clock_timestamp() AND l.released_at IS NULL AND l.token_hash=$5 FOR UPDATE OF j,l`,
+      `SELECT j.*,r.context_version,r.status run_status,(j.lease_until IS NOT NULL AND l.lease_until IS NOT NULL AND j.lease_until>clock_timestamp() AND l.lease_until>clock_timestamp()) AS lease_active FROM jobs j JOIN runs r ON r.id=j.run_id JOIN task_leases l ON l.task_id=j.id AND l.fencing_token=j.fencing_token WHERE j.project_id=$1 AND j.id=$2 AND j.worker_id=$3 AND j.fencing_token=$4 AND j.status='running' AND l.released_at IS NULL AND l.token_hash=$5 FOR UPDATE OF j,l`,
       [
         scope.projectId,
         proof.taskId,
@@ -115,12 +116,16 @@ async function currentLease(
   if (!run) throw new StorageError('LEASE_EXPIRED');
   row.context_version = run.context_version;
   row.run_status = run.status;
+  // lease_until is compared with the database clock. A still-valid lease whose
+  // run context or status no longer matches is scope change, not expiry.
+  if (row.lease_until == null || row.lease_active !== true)
+    throw new StorageError('LEASE_EXPIRED');
   if (
     !heartbeat &&
     (row.context_version !== proof.contextVersion ||
       row.run_status !== 'running')
   )
-    throw new StorageError('LEASE_EXPIRED');
+    throw new StorageError('SCOPE_CHANGED');
   return row;
 }
 export class LeaseRepository {

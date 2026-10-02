@@ -1,4 +1,12 @@
-import { getRootValidator, type JsonValue, type ToolCall } from '@localqa/contracts';
+import { randomUUID } from 'node:crypto';
+import {
+  getRootValidator,
+  getToolResultValidator,
+  parseContract,
+  type JsonValue,
+  type ToolCall,
+  type ToolResult,
+} from '@localqa/contracts';
 import { toolsForRole, type AgentRole } from './prompts.js';
 
 export interface DispatchRequest {
@@ -7,15 +15,19 @@ export interface DispatchRequest {
   knownEvidenceIds: readonly string[];
 }
 
-export interface DispatchResult {
-  status: 'succeeded' | 'denied';
-  reasonCode: string | null;
-  executed: boolean;
-  data: JsonValue;
+export interface Dispatcher {
+  dispatch(input: DispatchRequest): Promise<ToolResult>;
 }
 
-export interface Dispatcher {
-  dispatch(input: DispatchRequest): Promise<DispatchResult>;
+function denied(reasonCode: string): ToolResult {
+  return parseContract('ToolResult', {
+    requestId: randomUUID(),
+    actionId: null,
+    status: 'denied',
+    data: null,
+    reasonCode,
+    evidenceRefs: [],
+  });
 }
 
 function unknownEvidence(call: unknown, known: ReadonlySet<string>): string[] {
@@ -47,6 +59,7 @@ function unknownEvidence(call: unknown, known: ReadonlySet<string>): string[] {
 /**
  * Policy dispatcher. Browser execution is injected.
  * This module does not import Playwright.
+ * A denied result is a ToolResult: the action is not treated as success.
  */
 export function createPolicyDispatcher(
   execute: (call: ToolCall) => Promise<JsonValue>,
@@ -55,25 +68,29 @@ export function createPolicyDispatcher(
   const validator = getRootValidator('tools');
   return {
     async dispatch(input) {
-      if (!validator(input.call)) {
-        return { status: 'denied', reasonCode: 'VALIDATION_ERROR', executed: false, data: null };
-      }
-      const call = input.call as ToolCall;
+      if (!validator(input.call)) return denied('VALIDATION_ERROR');
+      const call = input.call;
       const allowed = toolsForRole(input.role);
-      if (!allowed.includes(call.name)) {
-        return { status: 'denied', reasonCode: 'POLICY_DENIED', executed: false, data: null };
-      }
+      if (!allowed.includes(call.name)) return denied('POLICY_DENIED');
       const known = new Set(input.knownEvidenceIds);
-      if (unknownEvidence(call, known).length > 0) {
-        return { status: 'denied', reasonCode: 'FAKE_EVIDENCE', executed: false, data: null };
-      }
+      // Cited evidence that is not already known is not one of the §7.1 codes.
+      // The action is not executed; §7 classifies that as POLICY_DENIED.
+      if (unknownEvidence(call, known).length > 0) return denied('POLICY_DENIED');
       const fingerprint = JSON.stringify(call);
-      if (fingerprint === lastFingerprint) {
-        return { status: 'denied', reasonCode: 'REPEAT_ACTION', executed: false, data: null };
-      }
+      // Same call fingerprint again is the registered execution code, not a synonym.
+      if (fingerprint === lastFingerprint) return denied('REPEATED_ACTION_LIMIT');
       lastFingerprint = fingerprint;
       const data = await execute(call);
-      return { status: 'succeeded', reasonCode: null, executed: true, data };
+      const resultValidator = getToolResultValidator(call.name);
+      if (!resultValidator(data)) return denied('VALIDATION_ERROR');
+      return parseContract('ToolResult', {
+        requestId: randomUUID(),
+        actionId: null,
+        status: 'succeeded',
+        data,
+        reasonCode: null,
+        evidenceRefs: [],
+      });
     },
   };
 }

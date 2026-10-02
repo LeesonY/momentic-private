@@ -24,6 +24,7 @@ import {
   claimTask,
   authorize,
   criteriaHash,
+  attemptDTO,
 } from '../dist/index.js';
 
 const connection = process.env.LOCALQA_TEST_DATABASE_URL;
@@ -760,7 +761,7 @@ test('immutable case and config snapshots; context history retains old versions'
       result: {},
       resultHash: 'a'.repeat(64),
     }),
-    'LEASE_EXPIRED',
+    'SCOPE_CHANGED',
   );
   lease = { ...lease, contextVersion: 2 };
 });
@@ -858,6 +859,79 @@ test('completion idempotency and terminal task guard', async () => {
     "UPDATE jobs SET status='running' WHERE id=$1",
     [task.id],
     '23514',
+  );
+});
+test('a live lease whose run is no longer running is SCOPE_CHANGED', async () => {
+  const r = newRun();
+  const t = { ...task, id: randomUUID(), runId: r.id };
+  await runs.create(actor(operator), r, [t]);
+  await runs.transition(actor(operator), p1.id, r.id, 1, 'running');
+  const claimed = await leases.claim(worker);
+  assert.equal(claimed.task.id, t.id);
+  const base = {
+    taskId: t.id,
+    fencingToken: claimed.fencingToken,
+    leaseToken: claimed.leaseToken,
+    contextVersion: claimed.contextVersion,
+  };
+  await pool.query(
+    "UPDATE runs SET status='cancelled',version=version+1 WHERE id=$1",
+    [r.id],
+  );
+  await expectCode(
+    leases.complete(worker, base, {
+      fencingToken: claimed.fencingToken,
+      status: 'succeeded',
+      result: {},
+      resultHash: 'a'.repeat(64),
+    }),
+    'SCOPE_CHANGED',
+  );
+  const beat = await leases.heartbeat(worker, base);
+  assert.equal(beat.cancelRequested, true);
+  await pool.query(
+    "UPDATE jobs SET status='interrupted',worker_id=NULL,lease_until=NULL WHERE id=$1",
+    [t.id],
+  );
+});
+test('expired lease_until stays LEASE_EXPIRED when the run context also changed', async () => {
+  const r = newRun();
+  const t = { ...task, id: randomUUID(), runId: r.id };
+  await runs.create(actor(operator), r, [t]);
+  await runs.transition(actor(operator), p1.id, r.id, 1, 'running');
+  const claimed = await leases.claim(worker);
+  assert.equal(claimed.task.id, t.id);
+  const base = {
+    taskId: t.id,
+    fencingToken: claimed.fencingToken,
+    leaseToken: claimed.leaseToken,
+    contextVersion: claimed.contextVersion,
+  };
+  await pool.query(
+    'UPDATE runs SET context_version=context_version+1,version=version+1 WHERE id=$1',
+    [r.id],
+  );
+  await pool.query(
+    "UPDATE jobs SET lease_until=clock_timestamp()-interval '1 second' WHERE id=$1",
+    [t.id],
+  );
+  await pool.query(
+    "UPDATE task_leases SET lease_until=clock_timestamp()-interval '1 second' WHERE task_id=$1 AND fencing_token=$2",
+    [t.id, claimed.fencingToken],
+  );
+  await expectCode(leases.heartbeat(worker, base), 'LEASE_EXPIRED');
+  await expectCode(
+    leases.complete(worker, base, {
+      fencingToken: claimed.fencingToken,
+      status: 'succeeded',
+      result: {},
+      resultHash: 'a'.repeat(64),
+    }),
+    'LEASE_EXPIRED',
+  );
+  await pool.query(
+    "UPDATE jobs SET status='interrupted',worker_id=NULL,lease_until=NULL WHERE id=$1",
+    [t.id],
   );
 });
 test('expired actionless task requeues with fencing increment; old proof cannot heartbeat', async () => {
@@ -1350,6 +1424,28 @@ test('invalidated verdict is excluded without erasing history or claiming not-ru
     [id],
     '23514',
   );
+});
+test('attempt timestamps are UTC RFC3339 with a Z suffix', async () => {
+  const stamped = randomUUID();
+  const empty = randomUUID();
+  await pool.query(
+    "INSERT INTO case_attempts(id,project_id,run_id,case_id,task_id,attempt_number,status,context_id,started_at,finished_at) VALUES($1,$2,$3,$4,$5,2,'completed',$6,'2026-03-15 09:02:03.004+08','2026-03-15 09:02:04.005+08')",
+    [stamped, p1.id, run.id, definition.id, task.id, randomUUID()],
+  );
+  await pool.query(
+    "INSERT INTO case_attempts(id,project_id,run_id,case_id,task_id,attempt_number,status,context_id) VALUES($1,$2,$3,$4,$5,3,'running',$6)",
+    [empty, p1.id, run.id, definition.id, task.id, randomUUID()],
+  );
+  const dated = await db.actor(actor(viewer), (client) =>
+    attemptDTO(client, p1.id, stamped),
+  );
+  assert.equal(dated.startedAt, '2026-03-15T01:02:03.004Z');
+  assert.equal(dated.finishedAt, '2026-03-15T01:02:04.005Z');
+  const missing = await db.actor(actor(viewer), (client) =>
+    attemptDTO(client, p1.id, empty),
+  );
+  assert.equal(missing.startedAt, null);
+  assert.equal(missing.finishedAt, null);
 });
 test('last-owner invariant and archived project run prohibition', async () => {
   await sqlReject(

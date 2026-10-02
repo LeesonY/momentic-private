@@ -1,17 +1,26 @@
 import type { JsonValue, ModelMessage } from '@localqa/contracts';
 import type { CallRecord, Gateway } from '@localqa/model-gateway';
+import documents from '../../contracts/src/generated/schemas.json' with { type: 'json' };
 import { createPolicyDispatcher, type Dispatcher } from './dispatcher.js';
 import { renderPrompt, type AgentRole } from './prompts.js';
 
-export const DECISION_SCHEMA = {
+const toolDefs = documents['tools.schema.json'].$defs;
+
+/** Model output must be a decision whose toolCalls match the ToolCall contract. */
+export const DECISION_SCHEMA: Record<string, unknown> = {
   type: 'object',
   additionalProperties: false,
   required: ['toolCalls', 'done'],
   properties: {
     done: { type: 'boolean' },
-    toolCalls: { type: 'array', maxItems: 4, items: { type: 'object' } },
+    toolCalls: {
+      type: 'array',
+      maxItems: 4,
+      items: { $ref: '#/$defs/ToolCall' },
+    },
   },
-} as const;
+  $defs: toolDefs,
+};
 
 export interface LoopResult {
   records: CallRecord[];
@@ -57,7 +66,7 @@ export async function runToolLoop(input: {
         name,
         parameters: { type: 'object', additionalProperties: false },
       })),
-      outputSchema: DECISION_SCHEMA as unknown as Record<string, unknown>,
+      outputSchema: DECISION_SCHEMA,
       timeoutMs: input.timeoutMs,
       maxOutputTokens: 400,
       knownEvidenceIds: input.knownEvidenceIds,
@@ -80,7 +89,8 @@ export async function runToolLoop(input: {
         call,
         knownEvidenceIds: input.knownEvidenceIds,
       });
-      dispatches.push({ executed: result.executed, reasonCode: result.reasonCode, call });
+      const executed = result.status === 'succeeded';
+      dispatches.push({ executed, reasonCode: result.reasonCode, call });
       messages = [
         ...messages,
         {
@@ -88,12 +98,12 @@ export async function runToolLoop(input: {
           content: [
             {
               type: 'text',
-              text: `DISPATCHED ${JSON.stringify({ executed: result.executed, reasonCode: result.reasonCode })}`,
+              text: `DISPATCHED ${JSON.stringify({ executed, reasonCode: result.reasonCode })}`,
             },
           ],
         },
       ];
-      if (!result.executed) {
+      if (!executed) {
         denied = true;
         stoppedBecause = result.reasonCode ?? 'denied';
         break;
