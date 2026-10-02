@@ -1,0 +1,324 @@
+{
+  "title": "独立契约一致性审计",
+  "date": "2026-10-02",
+  "mode": "report-only",
+  "changedPackages": false,
+  "claims": {
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalled": false,
+    "postgresUsed": false,
+    "playwrightLaunched": false
+  },
+  "host": {
+    "node": "v26.3.0",
+    "platform": "darwin",
+    "probedAt": "2026-10-02T10:39:18.466Z"
+  },
+  "method": "读 packages/storage、packages/browser、packages/model-gateway、packages/agents 的源码，并用已安装的 @localqa/contracts 校验器检查可纯函数构造的对象。脚本 spikes/audit/check-conformance.mjs，原始探针 spikes/audit/raw-results.json。未改包代码，未跑 git，未安装依赖。",
+  "contracts": [
+    "docs/contracts/domain.schema.json",
+    "docs/contracts/tools.schema.json",
+    "docs/contracts/report.schema.json",
+    "docs/contracts/events.schema.json",
+    "docs/contracts/README.md",
+    "docs/03-data-and-api.md §7"
+  ],
+  "counts": {
+    "符合": 9,
+    "不符合": 13,
+    "无法判定": 3
+  },
+  "items": [
+    {
+      "id": "storage.error-codes",
+      "package": "@localqa/storage",
+      "checkpoint": "错误码",
+      "conclusion": "符合",
+      "summary": "StorageError 的字面量都在 §7 表内。@localqa/contracts 的 ERROR_CODES 与 §7 逐字相同，无增无减。",
+      "location": "packages/storage/src/database.ts:7",
+      "contract": "docs/03-data-and-api.md §7；packages/contracts/src/errors.ts:3-34",
+      "repro": "探针 section7-vs-error-codes：onlyInSection7=[]，onlyInPackage=[]。storage-error-literals.outsideSection7=[]。",
+      "validator": "ERROR_CODES 与从 §7 表抽出的 27 个码集合相等。"
+    },
+    {
+      "id": "storage.dto-camelCase",
+      "package": "@localqa/storage",
+      "checkpoint": "字段名与可空",
+      "conclusion": "符合",
+      "summary": "对外 DTO 使用 camelCase，并在返回前 parseContract。userDTO 把 display_name/global_role 映射为 displayName/globalRole。projectDTO、runDTO、RunEvent、Summary、Lease、HeartbeatResult 同样走契约校验。数据库列保持 snake_case。",
+      "location": "packages/storage/src/accounts.ts:22",
+      "contract": "docs/contracts/domain.schema.json User/Project/Run/RunEvent，additionalProperties:false",
+      "repro": "userDTO({id,email,display_name,global_role,disabled,version}) 经 validateContract('User') 通过，键为 id,email,displayName,globalRole,disabled,version。同形 Project（createdAt 为 toISOString）通过。",
+      "validator": "探针 storage.userDTO ok=true；storage.project-shape ok=true。"
+    },
+    {
+      "id": "storage.event-envelope",
+      "package": "@localqa/storage",
+      "checkpoint": "事件 type 与 payload",
+      "conclusion": "符合",
+      "summary": "写入和读出都 parseContract('RunEvent')。id 设为十进制 seq 字符串，at 用 toISOString()。type 与 payload 不匹配时校验失败，不会插入。本次源码里的写入点只有 run.updated（payload 为已校验的 Run）和 task.updated（payload 为已校验的 Task）。",
+      "location": "packages/storage/src/repositories.ts:1081",
+      "contract": "docs/contracts/README.md：Event.id 必须等于十进制 seq；payload 必须与 event.type 匹配。events.schema.json RunEvent。",
+      "repro": "phase.changed + {phase,contextVersion} 通过。同一事件去掉 contextVersion 失败：/payload required contextVersion。schema 本身不强制 id===seq（id='9',seq=1 仍通过）；实现侧显式写成相等。",
+      "validator": "探针 events.phase.changed ok=true；events.payload-mismatch ok=false；events.id-seq-not-enforced-by-schema ok=true。"
+    },
+    {
+      "id": "storage.context-version-code",
+      "package": "@localqa/storage",
+      "checkpoint": "错误码",
+      "conclusion": "不符合",
+      "summary": "租约证明仍在有效时间内，只要 contextVersion 不一致或 run 已不是 running，就抛 LEASE_EXPIRED。§7 把 LEASE_EXPIRED 定义为租约到期，把 SCOPE_CHANGED 定义为动作不执行并记录原因。两个条件都没有检查 lease_until。",
+      "location": "packages/storage/src/leases.ts:118",
+      "contract": "docs/03-data-and-api.md §7：LEASE_EXPIRED / ACTION_OUTCOME_UNKNOWN 为内部 409；POLICY_DENIED / SCOPE_CHANGED 为动作不执行。",
+      "repro": "currentLease 在 heartbeat=false 且 (context_version !== proof.contextVersion || run_status !== 'running') 时 throw new StorageError('LEASE_EXPIRED')。未连库；该分支是源码上的无条件抛出。",
+      "validator": "LEASE_EXPIRED 本身属于 §7。不一致的是归类，不是未知字符串。"
+    },
+    {
+      "id": "storage.attempt-timestamp",
+      "package": "@localqa/storage",
+      "checkpoint": "时间格式",
+      "conclusion": "无法判定",
+      "summary": "attemptDTO 把 started_at/finished_at 原样放进 jsonb，没有像 runDTO 那样 to_char(... AT TIME ZONE 'UTC', ...Z)，也没有 toISOString()。连接池没有 SET TIME ZONE。未执行 SQL，不知道实际字符串。",
+      "location": "packages/storage/src/repositories.ts:1188",
+      "contract": "domain.schema.json CaseAttempt.startedAt/finishedAt：date-time 或 null。任务要求 UTC RFC3339。",
+      "repro": "校验器接受以下四类字符串：2026-10-02T09:26:57.913Z、+08:00、+00:00，以及带空格的 2026-10-02 09:26:57.913+00。因此不能只靠 schema 把非 Z 形式判死。要判定必须连库取出一行。",
+      "validator": "探针 time.attempt-candidates 四者 ok=true。"
+    },
+    {
+      "id": "time.normalized-js-and-run",
+      "package": "@localqa/storage",
+      "checkpoint": "时间格式",
+      "conclusion": "符合",
+      "summary": "user/project/secret 描述符、Lease.leaseUntil、HeartbeatResult.leaseUntil、RunEvent.at 使用 Date.toISOString()，即 UTC 且带 Z 与毫秒。runDTO 用 to_char(timestamptz AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')。该模式的样例能通过 date-time。",
+      "location": "packages/storage/src/repositories.ts:1172",
+      "contract": "domain.schema.json 各 createdAt/updatedAt/at 的 format:date-time。",
+      "repro": "样例 2026-10-02T09:26:57.913Z 作为 Project.createdAt 通过。new Date().toISOString() 作为 RunEvent.at 通过。未对真实行执行这条 SQL。",
+      "validator": "探针 time.run-to-char-pattern 与 events.phase.changed。"
+    },
+    {
+      "id": "browser.reason-codes",
+      "package": "@localqa/browser",
+      "checkpoint": "错误码",
+      "conclusion": "不符合",
+      "summary": "STABLE_REASON_CODES 有 16 个码不在 §7。ToolResult 信封仍能通过校验，因为契约把 reasonCode 定义成任意字符串或 null，errors.ts 也写明不把 reasonCode 收成枚举。这是词表与 §7 不一致，不是 JSON Schema enum 失败。",
+      "location": "packages/browser/src/types.ts:4",
+      "contract": "docs/03-data-and-api.md §7。对照 domain.schema.json ToolResult.reasonCode（string|null）与 packages/contracts/src/errors.ts:38-40。",
+      "repro": "不在 §7 的码：TARGET_NOT_FOUND、TARGET_AMBIGUOUS、TARGET_HIDDEN、TARGET_DISABLED、SNAPSHOT_STALE、TARGET_SEMANTICS_CHANGED、MUTATION_FORBIDDEN、ACTION_TIMEOUT、NAVIGATION_TIMEOUT、ACTION_CANCELLED、REPEATED_ACTION_LIMIT、MAX_RECOVERIES_EXCEEDED、INVALID_TOOL_ARGUMENTS、PROHIBITED_TOOL、FRAME_INACCESSIBLE、BROWSER_ERROR。在 §7 内的只有 POLICY_DENIED、TARGET_NOT_ALLOWED。NAVIGATION_TIMEOUT 与 TARGET_SEMANTICS_CHANGED 只出现在常量表。带 reasonCode=INVALID_TOOL_ARGUMENTS 的 ToolResult 样例通过 validateContract('ToolResult')。",
+      "validator": "探针 browser-reason-literals；browser.tool-result-envelope.envelope ok=true。"
+    },
+    {
+      "id": "browser.artifact-default-ids",
+      "package": "@localqa/browser",
+      "checkpoint": "字段格式",
+      "conclusion": "不符合",
+      "summary": "未传入 projectId/runId 时，Artifact 使用 project-default 与 run-default。二者不是 uuid。同一对象在换成 uuid 后可以通过，字段名本身与 Artifact 一致。contentUrl 的 memory:// 与 file:// 不是本次失败原因。",
+      "location": "packages/browser/src/recorder.ts:30",
+      "contract": "domain.schema.json Artifact.projectId/runId format:uuid。tools.schema.json capture 的 x-result-schema 为 Artifact。",
+      "repro": "构造与 captureScreenshot/stopTrace 相同的对象，projectId='project-default'，runId='run-default'。validateContract('Artifact') 与 getToolResultValidator('capture') 都报 projectId、runId 不是 uuid。换成合法 uuid 后两者通过。",
+      "validator": "探针 browser.artifact：defaultIds ok=false；uuidIds ok=true；captureResultDefault ok=false；captureResultUuid ok=true。"
+    },
+    {
+      "id": "browser.snapshot-null-status",
+      "package": "@localqa/browser",
+      "checkpoint": "可空",
+      "conclusion": "不符合",
+      "summary": "responseStatus 在契约里可以是 null。captureBrowserSnapshot 写成 options.lastResponseStatus ?? 200，于是显式 null 也会变成 200。未知 HTTP 状态无法按契约表达。200 本身仍是合法整数。",
+      "location": "packages/browser/src/snapshot.ts:97",
+      "contract": "domain.schema.json BrowserSnapshot.responseStatus：integer 100–599 或 null。",
+      "repro": "null ?? 200 的结果是 200。validateContract 对 responseStatus=null 和 200 都通过。返回前的 validateContract('BrowserSnapshot')（snapshot.ts:113）挡不住这个替换。",
+      "validator": "探针 browser.snapshot-null-status：nullStatus ok=true；expression=200。"
+    },
+    {
+      "id": "browser.pageId-ignored",
+      "package": "@localqa/browser",
+      "checkpoint": "工具参数",
+      "conclusion": "不符合",
+      "summary": "NodeTarget.pageId 以及 scroll/wait_for/inspect_network/capture 的 pageId 都是契约字段。解析器和执行器不读取 pageId。schema 校验通过后，调用仍作用在当前 Playwright page 上。",
+      "location": "packages/browser/src/resolver.ts:31",
+      "contract": "domain.schema.json NodeTarget required snapshotId,pageId,nodeId。tools.schema.json scroll/wait_for/inspect_network/capture 的 args.pageId。",
+      "repro": "resolver.ts 全文没有 pageId。executor.ts:368 只解构 direction,pixels；391 只解构 condition,timeoutMs,target；457 的 capture 不读 args；479 只解构 urlContains,limit。getRootValidator('tools') 接受带另一 pageId 的 scroll/click。缺 pageId 的 click 会被工具 schema 拒绝。",
+      "validator": "探针 tools.sample-calls：scroll ok=true；click ok=true；clickMissingPage ok=false，其中一条是 /args/target must have required property 'pageId'。"
+    },
+    {
+      "id": "browser.assert-criterion",
+      "package": "@localqa/browser",
+      "checkpoint": "工具结果",
+      "conclusion": "不符合",
+      "summary": "assert_criterion 固定返回 result=passed、evidenceRefs=[]。这个对象能通过 CriterionResult schema（evidenceRefs 允许 0 项）。README 要求判定引用本次有效观察，schema 不能单独证明证据真实性。执行器没有做这层检查，也没有调用 getToolResultValidator。",
+      "location": "packages/browser/src/executor.ts:499",
+      "contract": "tools.schema.json assert_criterion x-result-schema=CriterionResult。docs/contracts/README.md 第 24 行：判定只能引用本次有效观察。",
+      "repro": "按执行器字面量构造 {criterionId:'smoke.visible', result:'passed', reason:'...', evidenceRefs:[]}。validateContract('CriterionResult') 与 getToolResultValidator('assert_criterion') 都通过。",
+      "validator": "探针 browser.assert-criterion-data：contract ok=true；resultSchema=true。"
+    },
+    {
+      "id": "browser.unimplemented-tools",
+      "package": "@localqa/browser",
+      "checkpoint": "工具名与结果 schema",
+      "conclusion": "不符合",
+      "summary": "16 个工具名里，执行器 switch 只覆盖 11 个浏览器动作。schema 合法的 finish_case 与 request_input 会落到 default，reasonCode=INVALID_TOOL_ARGUMENTS，data 仍是 BrowserSnapshot。README 要求 Dispatcher 按 x-result-schema 校验 ToolResult.data。执行器只校验了工具入参。",
+      "location": "packages/browser/src/executor.ts:105",
+      "contract": "tools.schema.json 中 submit_case、report_suspect、finish_case、complete_reproduction、request_input 的 x-result-schema 分别是 CaseDefinition、Finding、Verdict、Reproduction、InputRequest。README 第 26 行。",
+      "repro": "getRootValidator('tools') 接受 {name:'finish_case', args:{summary:'done', gaps:[]}} 和 {name:'request_input', args:{kind:'clarification', prompt:'which account?'}}。二者不在 switch 中。getToolResultValidator('submit_case')(BrowserSnapshot 样例) 为 false。",
+      "validator": "探针 tools.sample-calls.finishCase ok=true；requestInput ok=true；namesInSchemaNotInBrowserSwitch 为上述 5 个名字。browser.tool-result-envelope.submitCaseDataIsSnapshot=false。"
+    },
+    {
+      "id": "browser.trace-oversize",
+      "package": "@localqa/browser",
+      "checkpoint": "错误码与状态枚举",
+      "conclusion": "不符合",
+      "summary": "trace 超过 50MB 时只把内部 traceDegraded 设为 true，返回的 Artifact.status 仍是 available，也不使用 §7 的 ARTIFACT_TOO_LARGE。契约状态枚举含 degraded/failed。",
+      "location": "packages/browser/src/recorder.ts:167",
+      "contract": "docs/03-data-and-api.md §7 ARTIFACT_TOO_LARGE。domain.schema.json Artifact.status：available|degraded|missing|failed。",
+      "repro": "stopTrace 在 stats.size > 50*1024*1024 时 recordDegradation，随后仍 return status:'available'。未生成真实超限文件。",
+      "validator": "未对这条超限对象调用校验器；status=available 本身是合法枚举值，问题是没有改成 degraded/failed。"
+    },
+    {
+      "id": "browser.snapshot-and-network-shape",
+      "package": "@localqa/browser",
+      "checkpoint": "DTO 形状",
+      "conclusion": "符合",
+      "summary": "BrowserSnapshot 在返回前 validateContract。NetworkEntry 的五个字段与契约一致，样例数组可以通过 NetworkEntries。本次没有启动浏览器，没有证明真实 DOM 抽取总能通过这道门。responseStatus 的 null 问题另见 browser.snapshot-null-status。",
+      "location": "packages/browser/src/snapshot.ts:113",
+      "contract": "domain.schema.json BrowserSnapshot、NetworkEntry、NetworkEntries。",
+      "repro": "手写的 null 状态快照通过 BrowserSnapshot。手写 {url,method,status:null,resourceType,summary} 通过 NetworkEntries。recorder 把 status 写成 null 或 res.status()，长度按契约截断。",
+      "validator": "探针 browser.snapshot-null-status.nullStatus ok=true；browser.network-entry ok=true。"
+    },
+    {
+      "id": "browser.tool-result-fields",
+      "package": "@localqa/browser",
+      "checkpoint": "DTO 字段名",
+      "conclusion": "符合",
+      "summary": "执行器返回的对象使用契约字段 requestId、actionId、status、data、reasonCode、evidenceRefs。status 使用 succeeded/failed/denied/cancelled，都在 ToolResult 枚举内。reasonCode 的词表问题另见 browser.reason-codes。",
+      "location": "packages/browser/src/executor.ts:45",
+      "contract": "domain.schema.json ToolResult required 上述 6 字段；status 枚举含 succeeded,failed,denied,blocked,cancelled。",
+      "repro": "按失败路径字面量构造的 ToolResult 通过 validateContract。未见 snake_case 字段。",
+      "validator": "探针 browser.tool-result-envelope.envelope ok=true。"
+    },
+    {
+      "id": "agents.tool-allowlist",
+      "package": "@localqa/agents",
+      "checkpoint": "工具名与角色",
+      "conclusion": "符合",
+      "summary": "toolsForRole 直接过滤 toolMetadata.roles。coordinator 只有 request_input 与 submit_case；explorer 没有 assert_criterion/finish_case/complete_reproduction；executor 有 finish_case 与 assert_criterion；reproducer 有 complete_reproduction；planner 与 finalizer 为空。与 x-roles 一致。planner 不是 Task.role，assertion 不是 AgentRole；二者没有被写成 Task 或 RoleModels 的同名错字段对象。",
+      "location": "packages/agents/src/prompts.ts:24",
+      "contract": "tools.schema.json 各工具 x-roles。domain.schema.json Task.role 与 RoleModels。",
+      "repro": "探针 agents.roles.toolsByRole 与 metadataRoles 对照。Task.role 无 planner；RoleModels 有 assertion 无 planner。",
+      "validator": "探针 agents.roles。"
+    },
+    {
+      "id": "agents.dispatch-result",
+      "package": "@localqa/agents",
+      "checkpoint": "工具结果",
+      "conclusion": "不符合",
+      "summary": "createPolicyDispatcher 的返回值是 DispatchResult，不是 ToolResult。它校验工具入参和角色，但不调用 getToolResultValidator。成功时 data 是注入函数的原样返回值。另有两个 reasonCode 不在 §7：FAKE_EVIDENCE、REPEAT_ACTION。VALIDATION_ERROR 与 POLICY_DENIED 在 §7 内。",
+      "location": "packages/agents/src/dispatcher.ts:10",
+      "contract": "domain.schema.json ToolResult。README 第 26 行：x-result-schema 必须由 Dispatcher 验证。docs/03-data-and-api.md §7。",
+      "repro": "对 explorer 分发合法 observe。返回 {status:'succeeded', reasonCode:null, executed:true, data:{observed:true}}。validateContract('ToolResult') 失败：缺 requestId、actionId、evidenceRefs，且有额外字段 executed。finish_case 给 explorer 得到 POLICY_DENIED。args 带 extra 得到 VALIDATION_ERROR。连续相同调用会得到 REPEAT_ACTION（dispatcher.ts:72）。",
+      "validator": "探针 agents.dispatch-result.successIsToolResult ok=false；executedDataIsBrowserSnapshot=false。"
+    },
+    {
+      "id": "agents.review-plan",
+      "package": "@localqa/agents",
+      "checkpoint": "枚举与必填",
+      "conclusion": "不符合",
+      "summary": "reviewPlan 只检查 criteria[].id、sourceKind、sourceRef。sourceKind 的五个值与契约枚举一致。缺 kind、description、locator 的条目仍被接受。完整的 element_visible 若没有 locator，Criterion 校验失败。",
+      "location": "packages/agents/src/plan.ts:16",
+      "contract": "domain.schema.json Criterion：required id,kind,description,sourceKind,sourceRef；element_visible/text_equals 还要求 locator。",
+      "repro": "reviewPlan({criteria:[{id:'smoke.visible', sourceKind:'generic_smoke', sourceRef:'smoke'}]}) 返回 accepted:true。validateContract('Criterion') 对带齐字段但没有 locator 的 element_visible 失败：缺 locator。",
+      "validator": "探针 agents.review-plan.missingKind.accepted=true；elementVisibleWithoutLocator ok=false。"
+    },
+    {
+      "id": "agents.decision-schema",
+      "package": "@localqa/agents",
+      "checkpoint": "工具参数",
+      "conclusion": "不符合",
+      "summary": "交给模型的 DECISION_SCHEMA 只要求 done 与 toolCalls。toolCalls 的元素是不约束字段的 object。{foo:1} 能通过这个 schema，不能通过 tools.schema.json。执行前 dispatcher 会拒绝它，所以不会当成合法工具执行。模型侧 schema 本身与工具契约不等价。",
+      "location": "packages/agents/src/loop.ts:6",
+      "contract": "tools.schema.json ToolCall：required name,args，additionalProperties:false，oneOf 按工具名分支。",
+      "repro": "用 Ajv 编译与 DECISION_SCHEMA 相同的 schema，{done:false, toolCalls:[{foo:1}]} 通过。getRootValidator('tools')({foo:1}) 失败：缺 name 与 args。",
+      "validator": "探针 agents.decision-schema.looseAccepted=true；toolsRejected.ok=false。"
+    },
+    {
+      "id": "gateway.emitted-contracts",
+      "package": "@localqa/model-gateway",
+      "checkpoint": "DTO 形状",
+      "conclusion": "符合",
+      "summary": "stub 的 complete() 把 data 收成通过 parseContract 的 ModelResult。capabilityProbe 的 data 通过 ModelProbeResult。usageSource=reported 与契约枚举一致。GatewayProfile 多了 kind/encryptedApiKey/approvedFallbackIds，少了 adapter/status；它不是 ModelProfile，校验会失败，代码也没有把它当作 ModelProfile 输出。stub 不在 ModelProfile.adapter 枚举里。",
+      "location": "packages/model-gateway/src/gateway.ts:624",
+      "contract": "domain.schema.json ModelResult、ModelProbeResult、ModelUsage、ModelProfile.adapter 仅 openai_compatible。",
+      "repro": "createGateway + createStubAdapter，complete(purpose=decide, maxOutputTokens=200) 的 data 通过 ModelResult。capabilityProbe 的 data 通过 ModelProbeResult。把 GatewayProfile 交给 validateContract('ModelProfile') 失败：缺 adapter、status，且有额外字段。",
+      "validator": "探针 gateway.runtime.completeDataIsModelResult ok=true；probeDataIsModelProbeResult ok=true；gatewayProfileIsNotModelProfile ok=false。"
+    },
+    {
+      "id": "gateway.https-and-error-literals",
+      "package": "@localqa/model-gateway",
+      "checkpoint": "错误码",
+      "conclusion": "符合",
+      "summary": "CallRecord.errorCode 的字面量都在 §7：MODEL_NOT_CONFIGURED、BUDGET_EXCEEDED、VALIDATION_ERROR、RATE_LIMITED、MODEL_CAPABILITY_MISSING、MODEL_TIMEOUT。http 端点在解密前返回 MODEL_NOT_CONFIGURED，decryptKey 调用次数为 0，providerCalls 为 0。",
+      "location": "packages/model-gateway/src/gateway.ts:256",
+      "contract": "docs/03-data-and-api.md §7 MODEL_NOT_CONFIGURED。",
+      "repro": "openai_compatible 档案 endpoint=http://example.test/v1，encryptedApiKey 非空。generateDecision 后 decrypts=0，errorCode=MODEL_NOT_CONFIGURED。",
+      "validator": "探针 gateway-errorCode-literals.outsideSection7=[]；gateway.runtime.httpDoesNotDecrypt。"
+    },
+    {
+      "id": "gateway.provider-error-mapping",
+      "package": "@localqa/model-gateway",
+      "checkpoint": "错误码",
+      "conclusion": "不符合",
+      "summary": "适配器把非中断的 fetch 失败抛成 PROVIDER_ERROR。网关 catch 把所有抛出都收成 errorCode=MODEL_TIMEOUT、requestResult=timeout，包括并不是超时的失败。非 429 的 HTTP 状态（含 5xx）在适配器里 errorCode=null，随后当作普通完成去解析，而不是 SERVICE_UNAVAILABLE 或其他既有类。429 正确映射为 RATE_LIMITED。",
+      "location": "packages/model-gateway/src/gateway.ts:510",
+      "contract": "docs/03-data-and-api.md §7：新 provider 的原始错误须映射到既有分类。MODEL_TIMEOUT 与 RATE_LIMITED、SERVICE_UNAVAILABLE 是不同类。",
+      "repro": "自定义 openai_compatible 适配器在 send 中 throw {code:'PROVIDER_ERROR'}。实测 sends=1，errorCode=MODEL_TIMEOUT，requestResult=timeout。生产路径见 packages/model-gateway/src/openai.ts:92（非 abort 的 fetch 异常）与 openai.ts:117（除 429 外 errorCode:null）。本次没有发真实 HTTP。",
+      "validator": "探针 gateway.runtime.providerErrorMapped。"
+    },
+    {
+      "id": "gateway.assessment-codes",
+      "package": "@localqa/model-gateway",
+      "checkpoint": "错误码",
+      "conclusion": "不符合",
+      "summary": "Assessment 不是 Verdict，也不是 Error。它的 reasonCode 有 6 个不在 §7。MODEL_CAPABILITY_MISSING 在 §7 内，视觉条件且无图片能力时实测为 blocked + 该码，criterionResult=not_evaluated。假证据不会被当成 passed。这些码能塞进 Verdict.reasonCode，因为该字段在 schema 里是开放字符串。",
+      "location": "packages/model-gateway/src/gateway.ts:142",
+      "contract": "docs/03-data-and-api.md §7。domain.schema.json Verdict.reasonCode 为 string，无枚举。errors.ts:38-40。",
+      "repro": "assessCriterionOutput：证据 ID 不在已知集合 → reasonCode=FAKE_EVIDENCE，verdictStatus=inconclusive，acceptedEvidenceRefs=[]。空 evidenceRefs → NO_OBSERVATION_REF。visual 且 imageInput=false → MODEL_CAPABILITY_MISSING / blocked。不在 §7 的码：NO_OBSERVATION_REF、CRITERION_MISMATCH、FAKE_EVIDENCE、MALFORMED_JUDGMENT、NO_DECISION、OBSERVED。",
+      "validator": "探针 gateway.assessment。"
+    },
+    {
+      "id": "events.unwritten-types",
+      "package": "@localqa/storage",
+      "checkpoint": "事件 type 与 payload",
+      "conclusion": "无法判定",
+      "summary": "十三个事件 type 里，这三个包只写出 run.updated 与 task.updated。其余 type 没有构造 payload 的代码，无法核对 phase.changed、case.created、case.result、finding.updated、step.recorded、budget.updated、input.requested、input.resolved、artifact.updated、report.ready、run.finished 的实际对象。读路径会校验库里已有行，但本次没有行。",
+      "location": "packages/storage/src/repositories.ts:979",
+      "contract": "events.schema.json RunEvent.type 枚举，以及各 if/then payload。",
+      "repro": "源码检索 appendEvent 只有 repositories.ts 的两处 run.updated 与 leases.ts:203 的 task.updated。",
+      "validator": "只对 phase.changed 的手写样例做过校验，见 storage.event-envelope。那不是这几个包发出的对象。"
+    },
+    {
+      "id": "report.no-runtime-object",
+      "package": "三个包都没有",
+      "checkpoint": "报告 DTO",
+      "conclusion": "无法判定",
+      "summary": "report.schema.json 已加载。Report、Finding、Reproduction、Summary 等名字在 domain 里也有同名定义。storage/browser/model-gateway/agents 都没有组装完整 Report 的代码。不能对运行时报告做逐字段等价结论。",
+      "location": null,
+      "contract": "docs/contracts/report.schema.json 与 domain.schema.json 中的 Report。",
+      "repro": "在这四个包的 src 中没有 Report 对象字面量或 parseContract('Report')。",
+      "validator": "探针 schema-surface 只列出了同名定义，没有做两份 schema 的字节级比对，也没有校验运行时报告。"
+    }
+  ],
+  "未覆盖的范围": [
+    "未连接 Postgres，没有执行 runDTO、attemptDTO、appendEvent 或任何仓储 SQL 的真实返回行。",
+    "未启动 Playwright，没有真实页面、截图字节、trace 或网络日志。BrowserSnapshot 的通过结论来自手写样例和源码中的 validateContract 调用。",
+    "未调用真实模型。没有设置 LOCALQA_MODEL_BASE_URL、LOCALQA_MODEL_API_KEY、LOCALQA_MODEL_ID 或 LOCALQA_MODEL_PROBE。",
+    "未核对 openapi.json，也没有 HTTP 服务。Error 信封的 code/message/requestId 没有运行时样本。",
+    "未核对 regression.schema.json。任务范围不含它。",
+    "未审计 packages/domain。本次只看 storage、browser、model-gateway、agents。",
+    "未逐字段核对 domain 全部 99 个 $defs。核对了这三个包实际映射或可构造的类型。",
+    "report.schema.json 与 domain 同名定义没有做字节级 diff。",
+    "README 写明 schema 不能单独证明的部分本次也不证明：权限、跨记录归属、当前租约、动作副作用、前提等价、证据真实性、聚合统计。",
+    "五个非浏览器工具的正确生产方不在本次包内，不能判定 CaseDefinition、Finding、Verdict、Reproduction、InputRequest 应由谁组装。",
+    "SecretVault、数据库预算事务、BrowserPort 与 Dispatcher 的接线没有样本。",
+    "设计指定的 Node 24 LTS 没有跑。本次进程是 Node v26.3.0，平台 darwin。",
+    "不把本次结果写成 G3 或 P0 通过。"
+  ]
+}

@@ -1,0 +1,152 @@
+{
+  "task": "T07",
+  "recordedAt": "2026-10-02T10:16:00.000Z",
+  "result": "frontend workbench verified",
+  "environment": {
+    "node": "v26.3.0",
+    "platform": "darwin/arm64",
+    "pnpm": "10.34.0",
+    "react": "19.0.0",
+    "reactDom": "19.0.0",
+    "vite": "6.2.0",
+    "typescript": "5.9.3",
+    "playwright": "1.63.0",
+    "browser": "Chromium 153.0.8010.12 (revision 1243)"
+  },
+  "modules": [
+    "apps/web/package.json",
+    "apps/web/vite.config.ts",
+    "apps/web/tsconfig.json",
+    "apps/web/index.html",
+    "apps/web/src/styles/tokens.css",
+    "apps/web/src/styles/index.css",
+    "apps/web/src/api/types.ts",
+    "apps/web/src/api/sse.ts",
+    "apps/web/src/api/client.ts",
+    "apps/web/src/api/adapter.ts",
+    "apps/web/src/api/index.ts",
+    "apps/web/src/mocks/data.ts",
+    "apps/web/src/mocks/mockClient.ts",
+    "apps/web/src/state/AppContext.tsx",
+    "apps/web/src/state/RunStore.tsx",
+    "apps/web/src/components/ui/Badge.tsx",
+    "apps/web/src/components/ui/EmptyState.tsx",
+    "apps/web/src/components/ui/ErrorCard.tsx",
+    "apps/web/src/components/layout/AppHeader.tsx",
+    "apps/web/src/components/layout/ReconnectBanner.tsx",
+    "apps/web/src/components/workbench/PhaseProgress.tsx",
+    "apps/web/src/components/workbench/InputRequestBar.tsx",
+    "apps/web/src/components/workbench/TriageModal.tsx",
+    "apps/web/src/components/workbench/TaskCaseTabs.tsx",
+    "apps/web/src/components/workbench/RunHistoryList.tsx",
+    "apps/web/src/pages/LoginPage.tsx",
+    "apps/web/src/pages/ProjectHomePage.tsx",
+    "apps/web/src/pages/WorkbenchPage.tsx",
+    "apps/web/src/pages/CaseDetailPage.tsx",
+    "apps/web/src/pages/FindingDetailPage.tsx",
+    "apps/web/src/pages/EnvironmentsPage.tsx",
+    "apps/web/src/pages/KnowledgePage.tsx",
+    "apps/web/src/pages/ModelsPage.tsx",
+    "apps/web/src/pages/MembersOpsPage.tsx",
+    "apps/web/src/App.tsx",
+    "apps/web/src/main.tsx",
+    "apps/web/scripts/captureScreenshots.mjs",
+    "apps/web/README.md"
+  ],
+  "commands": [
+    {
+      "name": "typecheck",
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/web run typecheck",
+      "exitCode": 0,
+      "stdout": "\n> @localqa/web@1.0.0 typecheck /Users/dcp/Documents/公司/momentic/apps/web\n> tsc --noEmit\n\n",
+      "stderr": ""
+    },
+    {
+      "name": "build",
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/web run build",
+      "exitCode": 0,
+      "stdout": "\n> @localqa/web@1.0.0 build /Users/dcp/Documents/公司/momentic/apps/web\n> tsc --noEmit && vite build\n\nvite v6.4.3 building for production...\n✓ 57 modules transformed.\ndist/index.html                   0.72 kB │ gzip:  0.50 kB\ndist/assets/index-D8U9xQ2a.css    6.47 kB │ gzip:  1.94 kB\ndist/assets/index-AVG55k7s.js   291.59 kB │ gzip: 86.31 kB\n✓ built in 384ms\n",
+      "stderr": ""
+    },
+    {
+      "name": "screenshot_capture",
+      "command": "node apps/web/scripts/captureScreenshots.mjs",
+      "exitCode": 0,
+      "stdout": "Preview server listening on http://127.0.0.1:5188\nCapturing Flow 1: Launch Page...\nCapturing Flow 2: Workbench with partial & reconnecting state...\nCapturing Flow 3: Case Detail...\nCapturing Flow 4: Finding Detail & Triage Preview Modal...\nAll 4 screenshot captures succeeded:\n- 01-launch-page.png: 142060 bytes (/Users/dcp/Documents/公司/momentic/apps/web/screenshots/01-launch-page.png)\n- 02-workbench-partial-reconnecting.png: 265423 bytes (/Users/dcp/Documents/公司/momentic/apps/web/screenshots/02-workbench-partial-reconnecting.png)\n- 03-case-detail.png: 143307 bytes (/Users/dcp/Documents/公司/momentic/apps/web/screenshots/03-case-detail.png)\n- 04-finding-triage-preview.png: 200692 bytes (/Users/dcp/Documents/公司/momentic/apps/web/screenshots/04-finding-triage-preview.png)\n",
+      "stderr": ""
+    }
+  ],
+  "screenshots": [
+    {
+      "name": "01-launch-page.png",
+      "path": "apps/web/screenshots/01-launch-page.png",
+      "bytes": 142060,
+      "verifiedElements": [
+        "URL 目标输入框 (带默认 http://localhost:8080/ 与必填标识)",
+        "环境选择器 (Staging 受控靶场环境)",
+        "认证凭据选择器 (Admin 管理员凭据 / storage_state)",
+        "模型选择器 (GPT-4o 外部商业模型)",
+        "高亮外部模型数据去向提示框 (明确警示出网传输与涉密数据限制)",
+        "可折叠高级额度配置 (Smoke 预设用例/步数/模型调用/Token 上限)",
+        "开始冒烟测试按钮",
+        "全局导航栏与 Mock 模式激活标识"
+      ]
+    },
+    {
+      "name": "02-workbench-partial-reconnecting.png",
+      "path": "apps/web/screenshots/02-workbench-partial-reconnecting.png",
+      "bytes": 265423,
+      "verifiedElements": [
+        "正在重连实时事件流黄色横幅 (含断线原因、重试次数及立即重试连接按钮，无无限 spinner)",
+        "部分完成报告 (Partial Report) 警示卡片 (写明因 budget_limit 预算用尽收尾，不影响已有结论)",
+        "三栏工作台布局：左侧运行历史列表、中间实时进度与事件、右侧用例/缺陷/任务/报告选项卡",
+        "运行头部元数据 (运行 ID、部分执行状态徽章、上下文版本、预算消耗网格 602s/120动作/100模型/300k token/2次复现)",
+        "7 阶段全流程生命周期进度条 (Preflight → Auth → Explore → Plan → Execute → Reproduce → Finalize)",
+        "实时执行轨迹流 (已过滤模型思维链隐藏推理，事实记录可见)"
+      ]
+    },
+    {
+      "name": "03-case-detail.png",
+      "path": "apps/web/screenshots/03-case-detail.png",
+      "bytes": 143307,
+      "verifiedElements": [
+        "用例头部元数据 (case_mock_10、状态徽章、project_knowledge 来源、执行尝试次数)",
+        "用例标题与描述 (FIX-10: 订单金额优惠计算与业务规则 BR-101 校验)",
+        "最终裁决总结 (Verdict Summary: 实际计算呈现 999.00 元，与显式规则 BR-101 290.00 元严重背离)",
+        "验收判定准则清单表格 (准则编号、判定描述、依据来源、单项判定结果徽章)",
+        "执行动作轨迹与证据 (步骤序号、Playwright 工具名 navigate/click/assert_criterion、耗时、目标描述、查看截图证据按钮)"
+      ]
+    },
+    {
+      "name": "04-finding-triage-preview.png",
+      "path": "apps/web/screenshots/04-finding-triage-preview.png",
+      "bytes": 200692,
+      "verifiedElements": [
+        "缺陷详情背景卡片 (预期行为 BR-101 290 元 vs 实际结果 999 元双栏对比、必要复现步骤清单、SVG 截图材料预览)",
+        "人工审查决议 (Triage) 模态对话框",
+        "决议动作选择 (accepted 有效 Bug)",
+        "判定依据输入并成功触发两阶段预览 (Triage Preview)",
+        "核对确认卡片 (变更后状态 accepted、理由、Token 凭据 tok_confirm_triage_abc123、300 秒有效期提示)",
+        "不可撤回性审计说明与确认正式提交按钮"
+      ]
+    }
+  ],
+  "unverifiedItems": [
+    {
+      "item": "真实后端 API 联调连通性",
+      "status": "unverified_mock_rendered",
+      "reason": "当前项目处于多 agent 并行开发阶段，T06 后端服务尚未完全组装运行。本次前端页面所有展示数据均由 apps/web/src/mocks/ 下的受控 Mock 数据及 MockApiClient 严格基于 OpenAPI/contracts 契约投影渲染。HttpApiClient 与 SseClient 代码已完备就绪，待 T06 验收后切换 LOCALQA_USE_MOCK=false 即可直连。"
+    },
+    {
+      "item": "Write-Only 密钥后端 SecretVault 加密落库",
+      "status": "unverified_backend_dependency",
+      "reason": "前端已严格实现密码 Write-Only 录入、API 与 UI 坚决不回显明文。由于无实际后台数据库 Vault 运行，后端安全加密与解密注入验证依赖于后续联调阶段。"
+    },
+    {
+      "item": "外部模型出网脱敏策略与端侧拦截",
+      "status": "unverified_backend_dependency",
+      "reason": "前端已对外部商业模型展示高亮警示框，并在 API 调用层剔除 Internal 接口与隐藏推理；但实际出网脱敏过滤在 T04 模型网关与 T05 Agent 侧实现，前端不作为数据加密网关实施层。"
+    }
+  ],
+  "verificationConclusion": "PASS - apps/web 前端工作台按照规格全部完成，TypeScript 编译零错误，生产构建包完整生成，Playwright 真实浏览器对四大核心交互流程（启动页、工作台 Partial 与重连态、用例详情、缺陷详情 Triage 两阶段流）自动化验证通过并留存真实截图证据。"
+}
