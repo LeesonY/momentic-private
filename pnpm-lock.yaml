@@ -27,6 +27,37 @@ importers:
         specifier: 8.71.0
         version: 8.71.0(eslint@10.11.0)(typescript@5.9.3)
 
+  apps/api:
+    dependencies:
+      '@localqa/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@localqa/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@localqa/model-gateway':
+        specifier: workspace:*
+        version: link:../../packages/model-gateway
+      '@localqa/orchestrator':
+        specifier: workspace:*
+        version: link:../../packages/orchestrator
+      '@localqa/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
+      pg:
+        specifier: ^8.13.1
+        version: 8.23.1
+    devDependencies:
+      '@types/node':
+        specifier: 24.19.1
+        version: 24.19.1
+      '@types/pg':
+        specifier: ^8.11.11
+        version: 8.23.1
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
   apps/web:
     dependencies:
       '@localqa/contracts':
@@ -182,6 +213,34 @@ importers:
         specifier: workspace:*
         version: link:../storage
     devDependencies:
+      '@types/pg':
+        specifier: 8.23.1
+        version: 8.23.1
+
+  packages/report:
+    dependencies:
+      '@localqa/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@localqa/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@localqa/storage':
+        specifier: workspace:*
+        version: link:../storage
+      pg:
+        specifier: 8.23.1
+        version: 8.23.1
+    devDependencies:
+      '@localqa/browser':
+        specifier: workspace:*
+        version: link:../browser
+      '@localqa/model-gateway':
+        specifier: workspace:*
+        version: link:../model-gateway
+      '@localqa/orchestrator':
+        specifier: workspace:*
+        version: link:../orchestrator
       '@types/pg':
         specifier: 8.23.1
         version: 8.23.1
