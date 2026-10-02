@@ -1,0 +1,18 @@
+node_modules/
+dist/
+coverage/
+.cache/
+.localqa-t01/
+*.tsbuildinfo
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+# Local evidence/scratch must not be committed; reviewed JSON validation records remain visible.
+.tmp/
+tmp/
+
+# Playwright 运行产物
+test-results/
+playwright-report/

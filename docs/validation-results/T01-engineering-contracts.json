@@ -1,0 +1,589 @@
+{
+  "task": "T01",
+  "recordedAt": "2026-10-02T08:33:51.993110+00:00",
+  "project": "/Users/dcp/Documents/公司/momentic",
+  "result": "Local engineering/contract checks passed; integration owner acceptance pending",
+  "claims": {
+    "M0Passed": false,
+    "P0Passed": false,
+    "productImplemented": false,
+    "remoteCIRun": false
+  },
+  "environment": {
+    "nodeActual": "26.3.0",
+    "nodeTarget": "24 LTS",
+    "npm": "11.16.0",
+    "pnpm": "10.34.0 (npx, no global install)",
+    "typescript": "5.9.3",
+    "eslint": "10.11.0",
+    "prettier": "3.9.9",
+    "pythonActual": "3.9.6",
+    "platform": "darwin/arm64",
+    "gitObservedBeforeOwnerNotice": "2.54.0 (Apple Git-157)"
+  },
+  "dependencies": [
+    {
+      "name": "localqa",
+      "version": "0.0.0",
+      "path": "/Users/dcp/Documents/公司/momentic",
+      "private": true,
+      "devDependencies": {
+        "@eslint/js": {
+          "from": "@eslint/js",
+          "version": "10.0.1",
+          "resolved": "https://registry.npmjs.org/@eslint/js/-/js-10.0.1.tgz",
+          "path": "/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/@eslint+js@10.0.1_eslint@10.11.0/node_modules/@eslint/js"
+        },
+        "@types/node": {
+          "from": "@types/node",
+          "version": "24.19.1",
+          "resolved": "https://registry.npmjs.org/@types/node/-/node-24.19.1.tgz",
+          "path": "/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/@types+node@24.19.1/node_modules/@types/node"
+        },
+        "eslint": {
+          "from": "eslint",
+          "version": "10.11.0",
+          "resolved": "https://registry.npmjs.org/eslint/-/eslint-10.11.0.tgz",
+          "path": "/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/eslint@10.11.0/node_modules/eslint"
+        },
+        "prettier": {
+          "from": "prettier",
+          "version": "3.9.9",
+          "resolved": "https://registry.npmjs.org/prettier/-/prettier-3.9.9.tgz",
+          "path": "/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/prettier@3.9.9/node_modules/prettier"
+        },
+        "typescript": {
+          "from": "typescript",
+          "version": "5.9.3",
+          "resolved": "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz",
+          "path": "/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+        },
+        "typescript-eslint": {
+          "from": "typescript-eslint",
+          "version": "8.71.0",
+          "resolved": "https://registry.npmjs.org/typescript-eslint/-/typescript-eslint-8.71.0.tgz",
+          "path": "/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/typescript-eslint@8.71.0_eslint@10.11.0_typescript@5.9.3/node_modules/typescript-eslint"
+        }
+      }
+    },
+    {
+      "name": "@localqa/contracts",
+      "version": "1.0.0",
+      "path": "/Users/dcp/Documents/公司/momentic/packages/contracts",
+      "private": true,
+      "dependencies": {
+        "ajv": {
+          "from": "ajv",
+          "version": "8.20.0",
+          "resolved": "https://registry.npmjs.org/ajv/-/ajv-8.20.0.tgz",
+          "path": "/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv"
+        },
+        "ajv-formats": {
+          "from": "ajv-formats",
+          "version": "3.0.1",
+          "resolved": "https://registry.npmjs.org/ajv-formats/-/ajv-formats-3.0.1.tgz",
+          "path": "/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/ajv-formats@3.0.1_ajv@8.20.0/node_modules/ajv-formats"
+        }
+      },
+      "devDependencies": {
+        "@apidevtools/swagger-parser": {
+          "from": "@apidevtools/swagger-parser",
+          "version": "13.1.0",
+          "resolved": "https://registry.npmjs.org/@apidevtools/swagger-parser/-/swagger-parser-13.1.0.tgz",
+          "path": "/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/@apidevtools+swagger-parser@13.1.0_openapi-types@12.1.3/node_modules/@apidevtools/swagger-parser"
+        },
+        "json-schema-to-typescript": {
+          "from": "json-schema-to-typescript",
+          "version": "16.0.0",
+          "resolved": "https://registry.npmjs.org/json-schema-to-typescript/-/json-schema-to-typescript-16.0.0.tgz",
+          "path": "/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/json-schema-to-typescript@16.0.0/node_modules/json-schema-to-typescript"
+        }
+      },
+      "unsavedDependencies": {
+        "eslint": {
+          "from": "eslint",
+          "version": "link:../../node_modules/.pnpm/eslint@10.11.0/node_modules/eslint",
+          "path": "/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/eslint@10.11.0/node_modules/eslint"
+        },
+        "prettier": {
+          "from": "prettier",
+          "version": "link:../../node_modules/.pnpm/prettier@3.9.9/node_modules/prettier",
+          "path": "/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/prettier@3.9.9/node_modules/prettier"
+        },
+        "typescript": {
+          "from": "typescript",
+          "version": "link:../../node_modules/.pnpm/typescript@5.9.3/node_modules/typescript",
+          "path": "/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+        },
+        "typescript-eslint": {
+          "from": "typescript-eslint",
+          "version": "link:../../node_modules/.pnpm/typescript-eslint@8.71.0_eslint@10.11.0_typescript@5.9.3/node_modules/typescript-eslint",
+          "path": "/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/typescript-eslint@8.71.0_eslint@10.11.0_typescript@5.9.3/node_modules/typescript-eslint"
+        },
+        "@eslint/js": {
+          "from": "@eslint/js",
+          "version": "link:../../node_modules/.pnpm/@eslint+js@10.0.1_eslint@10.11.0/node_modules/@eslint/js",
+          "path": "/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/@eslint+js@10.0.1_eslint@10.11.0/node_modules/@eslint/js"
+        },
+        "@types/node": {
+          "from": "@types/node",
+          "version": "link:../../node_modules/.pnpm/@types+node@24.19.1/node_modules/@types/node",
+          "path": "/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/@types+node@24.19.1/node_modules/@types/node"
+        }
+      }
+    }
+  ],
+  "verifiedCommands": [
+    {
+      "command": "npx --yes pnpm@10.34.0 install --frozen-lockfile --ignore-scripts",
+      "cwd": "/Users/dcp/Documents/公司/momentic",
+      "exitCode": 0,
+      "log": ".localqa-t01/logs/install-acceptance.log"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 run ci",
+      "cwd": "/Users/dcp/Documents/公司/momentic",
+      "exitCode": 0,
+      "log": ".localqa-t01/logs/ci-acceptance.log"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 contracts:check",
+      "cwd": "/Users/dcp/Documents/公司/momentic",
+      "exitCode": 0,
+      "log": ".localqa-t01/logs/restored-generated-check.log"
+    }
+  ],
+  "historicalCommands": [
+    {
+      "command": "npx --yes pnpm@10.34.0 --version",
+      "outcome": "passed",
+      "log": ".localqa-t01/logs/pnpm-version.log"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 install --ignore-scripts",
+      "outcome": "failed ECONNRESET resolving fixture dependencies",
+      "log": ".localqa-t01/logs/install.log"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 --filter localqa --filter @localqa/contracts install --ignore-scripts",
+      "outcome": "passed after fixture exclusion",
+      "log": ".localqa-t01/logs/install-isolated.log"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 contracts:generate",
+      "outcome": "passed",
+      "log": ".localqa-t01/logs/generate-initial.log"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 contracts:check",
+      "outcome": "passed",
+      "log": ".localqa-t01/logs/check-initial.log"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 typecheck",
+      "outcome": "initial failed CJS formatsPlugin import, fixed",
+      "log": ".localqa-t01/logs/typecheck-initial.log"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 typecheck",
+      "outcome": "second failed expect-error placement after formatting, fixed",
+      "log": ".localqa-t01/logs/typecheck-second.log"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 test",
+      "outcome": "initial 113/115 passed; fixed oracle strictNumbers and invalid URL assumption",
+      "log": ".localqa-t01/logs/tests-initial.log"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 lint",
+      "outcome": "initial failed missing JS globals/type-only unused const, fixed",
+      "log": ".localqa-t01/logs/lint-initial.log"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 --filter localqa --filter @localqa/contracts install --ignore-scripts",
+      "outcome": "passed after replacing deprecated ESLint 9 with ESLint 10",
+      "log": ".localqa-t01/logs/install-eslint10.log"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 ci",
+      "outcome": "failed ERR_PNPM_CI_NOT_IMPLEMENTED; use run ci",
+      "log": ".localqa-t01/logs/ci-first.log"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 format",
+      "outcome": "passed; T01 paths only",
+      "log": ".localqa-t01/logs/format-with-drift-test.log"
+    },
+    {
+      "command": "git init",
+      "outcome": "executed before owner git-management notice; no agent commit/remote/push; no git commands after latest notice",
+      "log": ".localqa-t01/logs/git-init.log"
+    },
+    {
+      "command": "mv /Users/dcp/.local/state/pnpm/pnpm-state.json .cache/pnpm/state/pnpm-state.json",
+      "outcome": "migrated pnpm update-check state into project; configured project-local store/cache/state and disabled notifier",
+      "log": ".localqa-t01/logs/state-migration.log"
+    }
+  ],
+  "summary": {
+    "sharedDefinitions": 99,
+    "definitionsIncludingRootCopies": 160,
+    "apiPaths": 49,
+    "apiOperations": 60,
+    "publicOperations": 52,
+    "internalOperations": 8,
+    "embeddedApiSchemas": 217,
+    "runtimeApiValidatorsCompiled": 328,
+    "fictionalExamples": 5,
+    "generatorFilesComparedByteForByte": 11,
+    "testsPassed": 116,
+    "testsFailed": 0,
+    "sourceRuntimeComparisonSamples": 5715,
+    "generatedDriftNegativeCases": 3,
+    "errorCodes": 26,
+    "configKeys": 15
+  },
+  "contractSourceHashes": {
+    "domain.schema.json": "03da1053ba021897f97677a2b2024b57bc571371560b24120e1308cc96129bae",
+    "events.schema.json": "11cbfd7c4f612929831b5f3da9b647e496317a6bd3f128e0889e5c05ef24aeea",
+    "openapi.json": "e61d40c584ab02e884f38cb767d87731915cbebda463cd6b4811354f22881046",
+    "regression.schema.json": "b5df5b59a42a69126ff807f775f27979aa36e601309308bff7aa88475c3f25c6",
+    "report.schema.json": "514e640de06f34c4ce357aeef48242a97974833986e4dd797ead55e1ff26450d",
+    "tools.schema.json": "e424d2937d5739b577bfda1bb4b3100f544298fbebf0732e87cd3b0616da4bac"
+  },
+  "deliveredFiles": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "047afe163f70f96976737cb8a47a36d37bb9008f6e102913104ae04610594e19"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "a819212277155038979c172bcaa161eb1fb8e701bff91e2df182b1e25435233e"
+    },
+    {
+      "path": ".node-version",
+      "sha256": "68ca3fba3b7e864770cb61aeb306d4bd4354b68ab4dd38450860c5d823e42a53"
+    },
+    {
+      "path": ".npmrc",
+      "sha256": "be85cc462e740587626bbcbb1c3ed1c40b26e62ec072e8cbd2768f23915c28e6"
+    },
+    {
+      "path": ".nvmrc",
+      "sha256": "68ca3fba3b7e864770cb61aeb306d4bd4354b68ab4dd38450860c5d823e42a53"
+    },
+    {
+      "path": ".prettierignore",
+      "sha256": "b50e8b839b418d9c9e9418444438178ba48d37f0640667f52d8794a1e996453b"
+    },
+    {
+      "path": ".prettierrc.json",
+      "sha256": "e51419e8206a0a5493e85ef1f4dea080982dc9187992bb253220a93d0784f6b2"
+    },
+    {
+      "path": "eslint.config.mjs",
+      "sha256": "78175fe8033829fd1a0411720cd56b217dc46417e68fe8ba5415aadc7c830d1e"
+    },
+    {
+      "path": "package.json",
+      "sha256": "8f030bd34ae40c0c96a2515faf81047a704195c8680941f538bd50833266e7fa"
+    },
+    {
+      "path": "packages/contracts/README.md",
+      "sha256": "96d7c24e4490ed011098bd5979cc3d42875739b6c3c6692dc310503cefea7fd2"
+    },
+    {
+      "path": "packages/contracts/package.json",
+      "sha256": "bf49582e533dd2a491ec85dd4efdb217218e7ea448218ded50202bb6efa571fa"
+    },
+    {
+      "path": "packages/contracts/scripts/check.mjs",
+      "sha256": "91f2917bd4aaee4ab4ccaf3ca2b9149f693a168e14473a8e82dda36fa448725e"
+    },
+    {
+      "path": "packages/contracts/scripts/generate.mjs",
+      "sha256": "09fea1fd8bb0d92e83df06046d52f4a2c4bb593725a75d09fe8eec672d04f0f9"
+    },
+    {
+      "path": "packages/contracts/src/config.ts",
+      "sha256": "332eab8e7328a0c5363ddcf8a366ee399a557d9a5d6ab77cbc07808ffb728fd9"
+    },
+    {
+      "path": "packages/contracts/src/errors.ts",
+      "sha256": "c91a1bca03d4d23050d467ac02428f43b7efb2ae4809a51ea7e49c8739ece7cd"
+    },
+    {
+      "path": "packages/contracts/src/generated/manifest.json",
+      "sha256": "0d8563394e9f37cc770f1eb2b63d415aa291018316626c81f63dda9b84af65d4"
+    },
+    {
+      "path": "packages/contracts/src/generated/schemas.json",
+      "sha256": "ab8d93f8fcc3a6891cd101cc288b377c9009bba8ba681461e7e6435406f58995"
+    },
+    {
+      "path": "packages/contracts/src/generated/types.ts",
+      "sha256": "8bc8ac4c17585868a1254205f4dfa23ab5df826ebab91914b9619ba4b0e37983"
+    },
+    {
+      "path": "packages/contracts/src/index.ts",
+      "sha256": "00999dcfb567841e77e7928294c0fb4bab441f3166c888a7aed8fb98cc73db4c"
+    },
+    {
+      "path": "packages/contracts/test/contracts.test.mjs",
+      "sha256": "83e6653b5dbd4da9535942d95c236fe5f8026f5951c4477a45d48898e40c9a24"
+    },
+    {
+      "path": "packages/contracts/test/drift.test.mjs",
+      "sha256": "48057d42917ebbb4c121a88454405eb50b41502a5e4aac5dc824d9030f0ee7f0"
+    },
+    {
+      "path": "packages/contracts/test/types.test.ts",
+      "sha256": "82e32a83233834ba7b495aba2f5d0dd86165e213f0b5993ede09f4c4ab1f2a4e"
+    },
+    {
+      "path": "packages/contracts/tsconfig.build.json",
+      "sha256": "305bb12409ceb21b09ad0109529b02c3e267aba20b629c32d77b7126d954e576"
+    },
+    {
+      "path": "packages/contracts/tsconfig.json",
+      "sha256": "8232231dbe3ceecb55d79ad73c513bb64778d5eb29b707314b8058d300a4e234"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "sha256": "b625161b6b31298f7ded8c2067cd6ac7d77161fa2b4d517be5d10d5ecd45f128"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "sha256": "ce39fd10b50ad83461fdcc2a011b5b9fb85e377cc504e566fe87f3f96797e865"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "sha256": "aa099d3e0abffa50eb36060f4b1ac03576d9f94b1e4af96fad8cd033ddb84058"
+    }
+  ],
+  "coverage": [
+    "All 99 domain definitions have fictional valid shape baselines and source/runtime comparison samples; top-level property omission, wrong types, null/empty/space/negative/unknown fields.",
+    "All 10 budget override fields min/max/default, fractional, outside bounds, no coercion/default insertion.",
+    "OneOf, recursive JsonValue, Unicode code-point lengths, nullable/required, UUID/email/URI/date-time formats.",
+    "Criterion and AuthProfileCreate if/then constraints; functional confirmed Finding constraints; all 13 event payload mappings.",
+    "All 16 tools and result schema refs; forbidden tool names rejected; metadata retained, not treated as authorization.",
+    "All API request/response/media/parameter validators compile, representative API query/body/default-error/readiness validation; Internal excluded by default.",
+    "All documented error codes covered; deployment key/default registry; TS positive/negative consumer checks.",
+    "Generator consistency, JSON Schema/OpenAPI standards validation and generated drift detection, including deliberate corruption and restoration of three T01-owned outputs."
+  ],
+  "unverified": [
+    "Node 24 LTS not executed locally; actual Node 26.3.0 differs. Ubuntu/Linux and Python 3.12 GitHub Actions execution pending.",
+    "No actual HTTP service, authentication/RBAC/CSRF, persistence, leases/fencing, browser/Playwright, model, sandbox, evidence capture or complete UI-to-report workflow tested; no M0/P0 claim.",
+    "No full per-field HTTP API functional suite, data CRUD cleanup, exhaustive enum combinations, sorting/pagination traversal or error-path integration. Tests are bounded contract-engineering samples, not all possible inputs.",
+    "Cross-record ownership, event id=seq, report statistics, independent reproduction validity, secret redaction, URL target policy and Criterion expectedValue business typing require domain/policy integration.",
+    "TS is a static shape projection; bounds/patterns/formats/if-then require runtime validation. binary is only a transport annotation.",
+    "Configuration environment parsing, protected file permissions, relation constraints, TLS/deployment and reference-aware retention/GC not implemented by T01.",
+    "Fixture remains explicitly excluded from workspace install/check scripts pending integration-owner removal of exclusion and lockfile update; source/runtime validations here do not cover fixture."
+  ],
+  "boundaryIncident": {
+    "what": "A concurrently created packages/test-fixture was auto-discovered by the first workspace install. pnpm reported moving cookie-parser/cors/express from fixture node_modules into node_modules/.ignored before network failure.",
+    "sourceFilesEditedByT01": false,
+    "dependencyDirectoryTouchedByPackageManager": true,
+    "mitigation": "Incident disclosed immediately; fixture excluded explicitly; no fixture source or manual restore touched; all subsequent installs cover 2 T01 projects. Owner later reported fixture accepted/committed, but T01 did not independently reverify fixture dependencies.",
+    "evidence": ".localqa-t01/logs/install.log"
+  },
+  "artifactLocations": {
+    "projectCode": "/Users/dcp/Documents/公司/momentic",
+    "logs": ".localqa-t01/logs",
+    "scratch": ".localqa-t01 (generator scratch cleaned each run)",
+    "pnpmStore": ".cache/pnpm/store/v10",
+    "pnpmCacheAfterConfiguration": ".cache/pnpm/cache",
+    "pnpmStateAfterConfiguration": ".cache/pnpm/state",
+    "toolCacheExceptionsRetained": [
+      "/Users/dcp/.npm",
+      "/Users/dcp/.npm/_npx/b0d06d8bb12cd156",
+      "/Users/dcp/Library/Caches/pnpm"
+    ],
+    "outsideProjectStateMigrated": {
+      "from": "/Users/dcp/.local/state/pnpm/pnpm-state.json",
+      "to": ".cache/pnpm/state/pnpm-state.json"
+    },
+    "globalNpmPackagesInstalled": false
+  },
+  "nextPackageInputs": [
+    "Consumers use @localqa/contracts workspace:* after root build, shared generated DTOs and validators; no field variants.",
+    "T02/T05/T09 use src/config.ts key registry and src/errors.ts status/reason mappings; select explicit event-retention value and approved deployment inputs.",
+    "T03 Dispatcher must enforce toolMetadata roles and ownership/fencing/policy, then validate ToolResult.data using result schema.",
+    "T05 coordinates port signatures and business invariants with module owners; authoritative contract changes require owner editing docs/build_contracts.py, regeneration and validation.",
+    "Integration owner runs npx --yes pnpm@10.34.0 install --frozen-lockfile --ignore-scripts and npx --yes pnpm@10.34.0 run ci, then decides commits; pnpm ci is unsupported.",
+    "Integration owner removes fixture exclusion only when ready to own cross-module dependency/lockfile validation.",
+    "M0 owner supplies real Node24/Linux/browser/model compatibility evidence; missing results remain pending."
+  ],
+  "rawLogs": [
+    {
+      "path": ".localqa-t01/logs/check-after-drift-test.log",
+      "sha256": "098808aac68f237424cbedef29a80f8903f03fed3e86aafa33fe01e61ea62dcb",
+      "rawOutput": "\n> localqa@0.0.0 contracts:check /Users/dcp/Documents/公司/momentic\n> pnpm --filter @localqa/contracts check\n\n\n> @localqa/contracts@1.0.0 check /Users/dcp/Documents/公司/momentic/packages/contracts\n> node scripts/check.mjs && node scripts/generate.mjs --check\n\nP1 regression example is fictional and not an implemented replay engine.\nGenerated 99 shared schemas, 49 API paths and five fictional JSON examples.\n{\"result\":\"passed\",\"generatorFilesCompared\":11,\"jsonSchemaDraft\":\"2020-12\",\"openapi\":\"3.1.0\",\"definitions\":160,\"domainDefinitions\":99,\"operations\":60,\"apiSchemas\":217,\"examples\":5,\"note\":\"Contract engineering only; no M0/P0 gate or business-semantic validation claimed.\"}\n{\"check\":true,\"generated\":[\"types.ts\",\"schemas.json\",\"manifest.json\"],\"definitions\":99,\"sourceHashes\":{\"domain.schema.json\":\"03da1053ba021897f97677a2b2024b57bc571371560b24120e1308cc96129bae\",\"events.schema.json\":\"11cbfd7c4f612929831b5f3da9b647e496317a6bd3f128e0889e5c05ef24aeea\",\"openapi.json\":\"e61d40c584ab02e884f38cb767d87731915cbebda463cd6b4811354f22881046\",\"regression.schema.json\":\"b5df5b59a42a69126ff807f775f27979aa36e601309308bff7aa88475c3f25c6\",\"report.schema.json\":\"514e640de06f34c4ce357aeef48242a97974833986e4dd797ead55e1ff26450d\",\"tools.schema.json\":\"e424d2937d5739b577bfda1bb4b3100f544298fbebf0732e87cd3b0616da4bac\"}}\n"
+    },
+    {
+      "path": ".localqa-t01/logs/check-initial.log",
+      "sha256": "098808aac68f237424cbedef29a80f8903f03fed3e86aafa33fe01e61ea62dcb",
+      "rawOutput": "\n> localqa@0.0.0 contracts:check /Users/dcp/Documents/公司/momentic\n> pnpm --filter @localqa/contracts check\n\n\n> @localqa/contracts@1.0.0 check /Users/dcp/Documents/公司/momentic/packages/contracts\n> node scripts/check.mjs && node scripts/generate.mjs --check\n\nP1 regression example is fictional and not an implemented replay engine.\nGenerated 99 shared schemas, 49 API paths and five fictional JSON examples.\n{\"result\":\"passed\",\"generatorFilesCompared\":11,\"jsonSchemaDraft\":\"2020-12\",\"openapi\":\"3.1.0\",\"definitions\":160,\"domainDefinitions\":99,\"operations\":60,\"apiSchemas\":217,\"examples\":5,\"note\":\"Contract engineering only; no M0/P0 gate or business-semantic validation claimed.\"}\n{\"check\":true,\"generated\":[\"types.ts\",\"schemas.json\",\"manifest.json\"],\"definitions\":99,\"sourceHashes\":{\"domain.schema.json\":\"03da1053ba021897f97677a2b2024b57bc571371560b24120e1308cc96129bae\",\"events.schema.json\":\"11cbfd7c4f612929831b5f3da9b647e496317a6bd3f128e0889e5c05ef24aeea\",\"openapi.json\":\"e61d40c584ab02e884f38cb767d87731915cbebda463cd6b4811354f22881046\",\"regression.schema.json\":\"b5df5b59a42a69126ff807f775f27979aa36e601309308bff7aa88475c3f25c6\",\"report.schema.json\":\"514e640de06f34c4ce357aeef48242a97974833986e4dd797ead55e1ff26450d\",\"tools.schema.json\":\"e424d2937d5739b577bfda1bb4b3100f544298fbebf0732e87cd3b0616da4bac\"}}\n"
+    },
+    {
+      "path": ".localqa-t01/logs/ci-acceptance.log",
+      "sha256": "40a020f876f583c893eb9a532706190af3cdb68c7200f4b6461561eb0382d40d",
+      "rawOutput": "\n> localqa@0.0.0 ci /Users/dcp/Documents/公司/momentic\n> pnpm contracts:check && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test\n\n\n> localqa@0.0.0 contracts:check /Users/dcp/Documents/公司/momentic\n> pnpm --filter @localqa/contracts check\n\n\n> @localqa/contracts@1.0.0 check /Users/dcp/Documents/公司/momentic/packages/contracts\n> node scripts/check.mjs && node scripts/generate.mjs --check\n\nP1 regression example is fictional and not an implemented replay engine.\nGenerated 99 shared schemas, 49 API paths and five fictional JSON examples.\n{\"result\":\"passed\",\"generatorFilesCompared\":11,\"jsonSchemaDraft\":\"2020-12\",\"openapi\":\"3.1.0\",\"definitions\":160,\"domainDefinitions\":99,\"operations\":60,\"apiSchemas\":217,\"examples\":5,\"note\":\"Contract engineering only; no M0/P0 gate or business-semantic validation claimed.\"}\n{\"check\":true,\"generated\":[\"types.ts\",\"schemas.json\",\"manifest.json\"],\"definitions\":99,\"sourceHashes\":{\"domain.schema.json\":\"03da1053ba021897f97677a2b2024b57bc571371560b24120e1308cc96129bae\",\"events.schema.json\":\"11cbfd7c4f612929831b5f3da9b647e496317a6bd3f128e0889e5c05ef24aeea\",\"openapi.json\":\"e61d40c584ab02e884f38cb767d87731915cbebda463cd6b4811354f22881046\",\"regression.schema.json\":\"b5df5b59a42a69126ff807f775f27979aa36e601309308bff7aa88475c3f25c6\",\"report.schema.json\":\"514e640de06f34c4ce357aeef48242a97974833986e4dd797ead55e1ff26450d\",\"tools.schema.json\":\"e424d2937d5739b577bfda1bb4b3100f544298fbebf0732e87cd3b0616da4bac\"}}\n\n> localqa@0.0.0 lint /Users/dcp/Documents/公司/momentic\n> eslint eslint.config.mjs packages/contracts/src packages/contracts/scripts packages/contracts/test\n\n\n> localqa@0.0.0 format:check /Users/dcp/Documents/公司/momentic\n> prettier --check package.json pnpm-workspace.yaml tsconfig.base.json eslint.config.mjs .prettierrc.json .github/workflows/ci.yml packages/contracts\n\nChecking formatting...\nAll matched files use Prettier code style!\n\n> localqa@0.0.0 typecheck /Users/dcp/Documents/公司/momentic\n> pnpm --filter @localqa/contracts typecheck\n\n\n> @localqa/contracts@1.0.0 typecheck /Users/dcp/Documents/公司/momentic/packages/contracts\n> tsc --noEmit -p tsconfig.json\n\n\n> localqa@0.0.0 test /Users/dcp/Documents/公司/momentic\n> pnpm --filter @localqa/contracts test\n\n\n> @localqa/contracts@1.0.0 test /Users/dcp/Documents/公司/momentic/packages/contracts\n> pnpm build && node --test test/*.test.mjs\n\n\n> @localqa/contracts@1.0.0 build /Users/dcp/Documents/公司/momentic/packages/contracts\n> tsc -p tsconfig.build.json\n\n{\"definitionTests\":99,\"sourceRuntimeComparisons\":5715}\n{\"compiledRuntimeApiValidators\":328,\"publicOperations\":52,\"internalOperations\":8}\n✔ source/runtime equivalence: JsonValue (2.114ms)\n✔ source/runtime equivalence: Error (1.56775ms)\n✔ source/runtime equivalence: User (1.426667ms)\n✔ source/runtime equivalence: LoginInput (0.616ms)\n✔ source/runtime equivalence: LoginResult (1.40325ms)\n✔ source/runtime equivalence: Project (1.838834ms)\n✔ source/runtime equivalence: ProjectCreate (0.48425ms)\n✔ source/runtime equivalence: Member (0.513ms)\n✔ source/runtime equivalence: MemberUpdate (1.047375ms)\n✔ source/runtime equivalence: BudgetLimits (2.212084ms)\n✔ source/runtime equivalence: BudgetOverrides (1.525292ms)\n✔ source/runtime equivalence: BudgetUsed (1.092625ms)\n✔ source/runtime equivalence: Environment (5.820833ms)\n✔ source/runtime equivalence: EnvironmentCreate (1.673417ms)\n✔ source/runtime equivalence: EnvironmentPatch (1.486584ms)\n✔ source/runtime equivalence: Locator (0.493167ms)\n✔ source/runtime equivalence: Criterion (5.877542ms)\n✔ source/runtime equivalence: CandidateCase (4.884416ms)\n✔ source/runtime equivalence: CaseDefinition (5.200792ms)\n✔ source/runtime equivalence: AuthProfile (11.081541ms)\n✔ source/runtime equivalence: FormConfig (5.811792ms)\n✔ source/runtime equivalence: AuthProfileCreate (5.470584ms)\n✔ source/runtime equivalence: AuthProfilePatch (1.083417ms)\n✔ source/runtime equivalence: Knowledge (1.144416ms)\n✔ source/runtime equivalence: KnowledgeCreate (0.681334ms)\n✔ source/runtime equivalence: KnowledgePatch (0.587958ms)\n✔ source/runtime equivalence: ModelCapabilities (0.496667ms)\n✔ source/runtime equivalence: ModelProfile (2.100208ms)\n✔ source/runtime equivalence: ModelProfileCreate (1.4385ms)\n✔ source/runtime equivalence: ModelProbeResult (1.398834ms)\n✔ source/runtime equivalence: RunCreate (2.215458ms)\n✔ source/runtime equivalence: RunConfig (6.753459ms)\n✔ source/runtime equivalence: Run (5.084709ms)\n✔ source/runtime equivalence: CriterionResult (1.503625ms)\n✔ source/runtime equivalence: Verdict (3.225542ms)\n✔ source/runtime equivalence: CaseRecord (3.335166ms)\n✔ source/runtime equivalence: Task (1.564042ms)\n✔ source/runtime equivalence: Artifact (11.402584ms)\n✔ source/runtime equivalence: Finding (6.292ms)\n✔ source/runtime equivalence: Reproduction (1.610333ms)\n✔ source/runtime equivalence: Summary (3.396542ms)\n✔ source/runtime equivalence: ModelUsage (2.634667ms)\n✔ source/runtime equivalence: Report (18.227916ms)\n✔ source/runtime equivalence: InputRequest (2.18175ms)\n✔ source/runtime equivalence: InputResponse (1.269917ms)\n✔ source/runtime equivalence: MessageInput (0.549959ms)\n✔ source/runtime equivalence: TriageInput (0.652459ms)\n✔ source/runtime equivalence: TriagePreview (1.151334ms)\n✔ source/runtime equivalence: TriageCommit (0.949083ms)\n✔ source/runtime equivalence: ExportInput (0.496916ms)\n✔ source/runtime equivalence: Export (1.508ms)\n✔ source/runtime equivalence: RunEvent (40.699208ms)\n✔ source/runtime equivalence: NodeTarget (0.94675ms)\n✔ source/runtime equivalence: WorkerClaim (0.705084ms)\n✔ source/runtime equivalence: Lease (2.193625ms)\n✔ source/runtime equivalence: HeartbeatInput (0.460708ms)\n✔ source/runtime equivalence: HeartbeatResult (0.525666ms)\n✔ source/runtime equivalence: TaskComplete (0.792125ms)\n✔ source/runtime equivalence: ActionReservation (16.641583ms)\n✔ source/runtime equivalence: ActionPermit (0.863833ms)\n✔ source/runtime equivalence: ActionResult (0.96875ms)\n✔ source/runtime equivalence: ModelPart (0.858833ms)\n✔ source/runtime equivalence: ModelMessage (1.395708ms)\n✔ source/runtime equivalence: ModelRequest (1.601167ms)\n✔ source/runtime equivalence: ModelResult (2.213917ms)\n✔ source/runtime equivalence: AuthResolve (0.680834ms)\n✔ source/runtime equivalence: CredentialMaterial (0.765042ms)\n✔ source/runtime equivalence: Health (0.54225ms)\n✔ source/runtime equivalence: UserCreate (1.066625ms)\n✔ source/runtime equivalence: UserPatch (1.319333ms)\n✔ source/runtime equivalence: ProjectPatch (1.438ms)\n✔ source/runtime equivalence: ModelProfilePatch (0.86525ms)\n✔ source/runtime equivalence: ModelBinding (0.820958ms)\n✔ source/runtime equivalence: RoleModels (2.656417ms)\n✔ source/runtime equivalence: Step (2.728833ms)\n✔ source/runtime equivalence: CaseAttempt (1.843542ms)\n✔ source/runtime equivalence: Bounds (0.601833ms)\n✔ source/runtime equivalence: SnapshotNode (2.10575ms)\n✔ source/runtime equivalence: NetworkEntry (1.111333ms)\n✔ source/runtime equivalence: NetworkEntries (1.176875ms)\n✔ source/runtime equivalence: BrowserSnapshot (3.800792ms)\n✔ source/runtime equivalence: ToolResult (1.543917ms)\n✔ source/runtime equivalence: UserPage (1.923292ms)\n✔ source/runtime equivalence: ProjectPage (1.686917ms)\n✔ source/runtime equivalence: EnvironmentPage (2.434125ms)\n✔ source/runtime equivalence: AuthProfilePage (0.853875ms)\n✔ source/runtime equivalence: KnowledgePage (1.627584ms)\n✔ source/runtime equivalence: ModelProfilePage (1.279667ms)\n✔ source/runtime equivalence: RunPage (0.965917ms)\n✔ source/runtime equivalence: CaseRecordPage (1.056958ms)\n✔ source/runtime equivalence: CaseAttemptPage (1.030709ms)\n✔ source/runtime equivalence: StepPage (3.117542ms)\n✔ source/runtime equivalence: RunEventPage (0.911833ms)\n✔ source/runtime equivalence: TaskPage (2.035ms)\n✔ source/runtime equivalence: FindingPage (4.444959ms)\n✔ source/runtime equivalence: MemberPage (1.082833ms)\n✔ source/runtime equivalence: ToolCall (15.174916ms)\n✔ source/runtime equivalence: ReplayStep (5.025875ms)\n✔ source/runtime equivalence: RegressionDocument (5.121209ms)\n✔ comparison evidence (0.42225ms)\n✔ all five fictional examples validate; four root schemas match domain schemas (56.15525ms)\n✔ unknown input fields reject, defaults/coercion/stripping never mutate inputs (1.17775ms)\n✔ all budget fields: minimum, maximum, fractional, outside bounds, all optional/default absence (0.251791ms)\n✔ Unicode maxLength follows JSON Schema code points; URL, email, UUID and date formats (0.297875ms)\n✔ Criterion conditionally requires locator and expectedValue; business typing is not invented (0.051833ms)\n✔ form and storage state auth conditional requirements (2.976334ms)\n✔ functional confirmed needs reproduction/evidence and rejects inferred source (0.142875ms)\n✔ all 13 event types validate their matching payloads and reject mismatches (6.083208ms)\n✔ all tools and result metadata resolve; unknown/shell/eval tools reject (7.670291ms)\n✔ recursive JsonValue, nullable fields and oneOf rejection (0.152584ms)\n✔ parse errors contain no input password and retain detached errors (0.292792ms)\n✔ every OpenAPI request, response, media and parameter validator compiles; Internal opt-in (44.266167ms)\n✔ API input/output/query constraints follow OpenAPI without implicit coercion (0.991042ms)\n✔ error registry exactly covers documented §7 codes; does not tighten Error.code (0.672584ms)\n✔ frozen deployment registry covers §12 inputs and documented defaults (0.057959ms)\n✔ generation gate rejects stale TS, schema snapshots and source hash manifest (801.67175ms)\nℹ tests 116\nℹ suites 0\nℹ pass 116\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 873.685167\n"
+    },
+    {
+      "path": ".localqa-t01/logs/ci-final.log",
+      "sha256": "25715df868e6183daacf19ccf1d0285e2d98e2aff2fc2a4dc0f2d1a5b1b50477",
+      "rawOutput": "\n> localqa@0.0.0 ci /Users/dcp/Documents/公司/momentic\n> pnpm contracts:check && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test\n\n\n> localqa@0.0.0 contracts:check /Users/dcp/Documents/公司/momentic\n> pnpm --filter @localqa/contracts check\n\n\n> @localqa/contracts@1.0.0 check /Users/dcp/Documents/公司/momentic/packages/contracts\n> node scripts/check.mjs && node scripts/generate.mjs --check\n\nP1 regression example is fictional and not an implemented replay engine.\nGenerated 99 shared schemas, 49 API paths and five fictional JSON examples.\n{\"result\":\"passed\",\"generatorFilesCompared\":11,\"jsonSchemaDraft\":\"2020-12\",\"openapi\":\"3.1.0\",\"definitions\":160,\"domainDefinitions\":99,\"operations\":60,\"apiSchemas\":217,\"examples\":5,\"note\":\"Contract engineering only; no M0/P0 gate or business-semantic validation claimed.\"}\n{\"check\":true,\"generated\":[\"types.ts\",\"schemas.json\",\"manifest.json\"],\"definitions\":99,\"sourceHashes\":{\"domain.schema.json\":\"03da1053ba021897f97677a2b2024b57bc571371560b24120e1308cc96129bae\",\"events.schema.json\":\"11cbfd7c4f612929831b5f3da9b647e496317a6bd3f128e0889e5c05ef24aeea\",\"openapi.json\":\"e61d40c584ab02e884f38cb767d87731915cbebda463cd6b4811354f22881046\",\"regression.schema.json\":\"b5df5b59a42a69126ff807f775f27979aa36e601309308bff7aa88475c3f25c6\",\"report.schema.json\":\"514e640de06f34c4ce357aeef48242a97974833986e4dd797ead55e1ff26450d\",\"tools.schema.json\":\"e424d2937d5739b577bfda1bb4b3100f544298fbebf0732e87cd3b0616da4bac\"}}\n\n> localqa@0.0.0 lint /Users/dcp/Documents/公司/momentic\n> eslint eslint.config.mjs packages/contracts/src packages/contracts/scripts packages/contracts/test\n\n\n> localqa@0.0.0 format:check /Users/dcp/Documents/公司/momentic\n> prettier --check package.json pnpm-workspace.yaml tsconfig.base.json eslint.config.mjs .prettierrc.json .github/workflows/ci.yml packages/contracts\n\nChecking formatting...\nAll matched files use Prettier code style!\n\n> localqa@0.0.0 typecheck /Users/dcp/Documents/公司/momentic\n> pnpm --filter @localqa/contracts typecheck\n\n\n> @localqa/contracts@1.0.0 typecheck /Users/dcp/Documents/公司/momentic/packages/contracts\n> tsc --noEmit -p tsconfig.json\n\n\n> localqa@0.0.0 test /Users/dcp/Documents/公司/momentic\n> pnpm --filter @localqa/contracts test\n\n\n> @localqa/contracts@1.0.0 test /Users/dcp/Documents/公司/momentic/packages/contracts\n> pnpm build && node --test test/*.test.mjs\n\n\n> @localqa/contracts@1.0.0 build /Users/dcp/Documents/公司/momentic/packages/contracts\n> tsc -p tsconfig.build.json\n\n{\"definitionTests\":99,\"sourceRuntimeComparisons\":5715}\n{\"compiledRuntimeApiValidators\":328,\"publicOperations\":52,\"internalOperations\":8}\n✔ source/runtime equivalence: JsonValue (3.282292ms)\n✔ source/runtime equivalence: Error (2.895708ms)\n✔ source/runtime equivalence: User (2.893875ms)\n✔ source/runtime equivalence: LoginInput (0.762ms)\n✔ source/runtime equivalence: LoginResult (1.848708ms)\n✔ source/runtime equivalence: Project (2.112375ms)\n✔ source/runtime equivalence: ProjectCreate (0.842583ms)\n✔ source/runtime equivalence: Member (1.667542ms)\n✔ source/runtime equivalence: MemberUpdate (1.715958ms)\n✔ source/runtime equivalence: BudgetLimits (4.401333ms)\n✔ source/runtime equivalence: BudgetOverrides (2.81825ms)\n✔ source/runtime equivalence: BudgetUsed (2.354083ms)\n✔ source/runtime equivalence: Environment (7.288458ms)\n✔ source/runtime equivalence: EnvironmentCreate (2.9825ms)\n✔ source/runtime equivalence: EnvironmentPatch (3.437208ms)\n✔ source/runtime equivalence: Locator (0.778708ms)\n✔ source/runtime equivalence: Criterion (9.9695ms)\n✔ source/runtime equivalence: CandidateCase (10.727875ms)\n✔ source/runtime equivalence: CaseDefinition (11.534167ms)\n✔ source/runtime equivalence: AuthProfile (19.663208ms)\n✔ source/runtime equivalence: FormConfig (12.572292ms)\n✔ source/runtime equivalence: AuthProfileCreate (8.715458ms)\n✔ source/runtime equivalence: AuthProfilePatch (2.317792ms)\n✔ source/runtime equivalence: Knowledge (1.660417ms)\n✔ source/runtime equivalence: KnowledgeCreate (1.615375ms)\n✔ source/runtime equivalence: KnowledgePatch (0.844709ms)\n✔ source/runtime equivalence: ModelCapabilities (1.056875ms)\n✔ source/runtime equivalence: ModelProfile (3.961583ms)\n✔ source/runtime equivalence: ModelProfileCreate (3.520917ms)\n✔ source/runtime equivalence: ModelProbeResult (3.459042ms)\n✔ source/runtime equivalence: RunCreate (4.072333ms)\n✔ source/runtime equivalence: RunConfig (9.914959ms)\n✔ source/runtime equivalence: Run (7.845667ms)\n✔ source/runtime equivalence: CriterionResult (2.893292ms)\n✔ source/runtime equivalence: Verdict (4.350875ms)\n✔ source/runtime equivalence: CaseRecord (5.72075ms)\n✔ source/runtime equivalence: Task (2.383542ms)\n✔ source/runtime equivalence: Artifact (18.956875ms)\n✔ source/runtime equivalence: Finding (13.546709ms)\n✔ source/runtime equivalence: Reproduction (3.772916ms)\n✔ source/runtime equivalence: Summary (5.716459ms)\n✔ source/runtime equivalence: ModelUsage (2.37375ms)\n✔ source/runtime equivalence: Report (32.928792ms)\n✔ source/runtime equivalence: InputRequest (2.467666ms)\n✔ source/runtime equivalence: InputResponse (5.586125ms)\n✔ source/runtime equivalence: MessageInput (2.209209ms)\n✔ source/runtime equivalence: TriageInput (1.172625ms)\n✔ source/runtime equivalence: TriagePreview (1.711417ms)\n✔ source/runtime equivalence: TriageCommit (2.595542ms)\n✔ source/runtime equivalence: ExportInput (1.70775ms)\n✔ source/runtime equivalence: Export (2.663291ms)\n✔ source/runtime equivalence: RunEvent (62.395ms)\n✔ source/runtime equivalence: NodeTarget (1.571417ms)\n✔ source/runtime equivalence: WorkerClaim (1.007167ms)\n✔ source/runtime equivalence: Lease (3.841875ms)\n✔ source/runtime equivalence: HeartbeatInput (0.879542ms)\n✔ source/runtime equivalence: HeartbeatResult (0.659ms)\n✔ source/runtime equivalence: TaskComplete (1.113167ms)\n✔ source/runtime equivalence: ActionReservation (26.9995ms)\n✔ source/runtime equivalence: ActionPermit (2.572792ms)\n✔ source/runtime equivalence: ActionResult (2.16875ms)\n✔ source/runtime equivalence: ModelPart (1.381333ms)\n✔ source/runtime equivalence: ModelMessage (2.29475ms)\n✔ source/runtime equivalence: ModelRequest (3.247833ms)\n✔ source/runtime equivalence: ModelResult (3.662958ms)\n✔ source/runtime equivalence: AuthResolve (0.982833ms)\n✔ source/runtime equivalence: CredentialMaterial (1.017709ms)\n✔ source/runtime equivalence: Health (0.73875ms)\n✔ source/runtime equivalence: UserCreate (1.597375ms)\n✔ source/runtime equivalence: UserPatch (0.968875ms)\n✔ source/runtime equivalence: ProjectPatch (1.112833ms)\n✔ source/runtime equivalence: ModelProfilePatch (9.010416ms)\n✔ source/runtime equivalence: ModelBinding (4.097291ms)\n✔ source/runtime equivalence: RoleModels (6.549417ms)\n✔ source/runtime equivalence: Step (5.81375ms)\n✔ source/runtime equivalence: CaseAttempt (3.10175ms)\n✔ source/runtime equivalence: Bounds (1.007459ms)\n✔ source/runtime equivalence: SnapshotNode (3.448333ms)\n✔ source/runtime equivalence: NetworkEntry (6.603ms)\n✔ source/runtime equivalence: NetworkEntries (7.3985ms)\n✔ source/runtime equivalence: BrowserSnapshot (13.274708ms)\n✔ source/runtime equivalence: ToolResult (4.324459ms)\n✔ source/runtime equivalence: UserPage (3.500166ms)\n✔ source/runtime equivalence: ProjectPage (5.011958ms)\n✔ source/runtime equivalence: EnvironmentPage (6.009166ms)\n✔ source/runtime equivalence: AuthProfilePage (2.238583ms)\n✔ source/runtime equivalence: KnowledgePage (2.265083ms)\n✔ source/runtime equivalence: ModelProfilePage (2.312584ms)\n✔ source/runtime equivalence: RunPage (1.695083ms)\n✔ source/runtime equivalence: CaseRecordPage (1.082875ms)\n✔ source/runtime equivalence: CaseAttemptPage (0.918333ms)\n✔ source/runtime equivalence: StepPage (5.200625ms)\n✔ source/runtime equivalence: RunEventPage (1.856917ms)\n✔ source/runtime equivalence: TaskPage (2.467583ms)\n✔ source/runtime equivalence: FindingPage (8.311875ms)\n✔ source/runtime equivalence: MemberPage (1.707792ms)\n✔ source/runtime equivalence: ToolCall (29.760334ms)\n✔ source/runtime equivalence: ReplayStep (10.58575ms)\n✔ source/runtime equivalence: RegressionDocument (11.43975ms)\n✔ comparison evidence (0.99475ms)\n✔ all five fictional examples validate; four root schemas match domain schemas (94.045417ms)\n✔ unknown input fields reject, defaults/coercion/stripping never mutate inputs (3.382584ms)\n✔ all budget fields: minimum, maximum, fractional, outside bounds, all optional/default absence (0.381ms)\n✔ Unicode maxLength follows JSON Schema code points; URL, email, UUID and date formats (0.750084ms)\n✔ Criterion conditionally requires locator and expectedValue; business typing is not invented (0.096041ms)\n✔ form and storage state auth conditional requirements (8.015166ms)\n✔ functional confirmed needs reproduction/evidence and rejects inferred source (0.19775ms)\n✔ all 13 event types validate their matching payloads and reject mismatches (8.224334ms)\n✔ all tools and result metadata resolve; unknown/shell/eval tools reject (17.134917ms)\n✔ recursive JsonValue, nullable fields and oneOf rejection (0.161292ms)\n✔ parse errors contain no input password and retain detached errors (0.357708ms)\n✔ every OpenAPI request, response, media and parameter validator compiles; Internal opt-in (66.174333ms)\n✔ API input/output/query constraints follow OpenAPI without implicit coercion (2.047291ms)\n✔ error registry exactly covers documented §7 codes; does not tighten Error.code (4.354958ms)\n✔ frozen deployment registry covers §12 inputs and documented defaults (0.067ms)\n✔ generation gate rejects stale TS, schema snapshots and source hash manifest (1278.620625ms)\nℹ tests 116\nℹ suites 0\nℹ pass 116\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 1379.849083\n"
+    },
+    {
+      "path": ".localqa-t01/logs/ci-first.log",
+      "sha256": "0341baae459d117d0b4bb772ac7a05daddc5cae8c620d5bfedde24da97e8268d",
+      "rawOutput": " ERR_PNPM_CI_NOT_IMPLEMENTED  The ci command is not implemented yet\n"
+    },
+    {
+      "path": ".localqa-t01/logs/ci-second.log",
+      "sha256": "4e6f8cc4fcee26e1f096343c6255b981ff15957b14b7bffa8bb963f33a6485b0",
+      "rawOutput": "\n> localqa@0.0.0 ci /Users/dcp/Documents/公司/momentic\n> pnpm contracts:check && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test\n\n\n> localqa@0.0.0 contracts:check /Users/dcp/Documents/公司/momentic\n> pnpm --filter @localqa/contracts check\n\n\n> @localqa/contracts@1.0.0 check /Users/dcp/Documents/公司/momentic/packages/contracts\n> node scripts/check.mjs && node scripts/generate.mjs --check\n\nP1 regression example is fictional and not an implemented replay engine.\nGenerated 99 shared schemas, 49 API paths and five fictional JSON examples.\n{\"result\":\"passed\",\"generatorFilesCompared\":11,\"jsonSchemaDraft\":\"2020-12\",\"openapi\":\"3.1.0\",\"definitions\":160,\"domainDefinitions\":99,\"operations\":60,\"apiSchemas\":217,\"examples\":5,\"note\":\"Contract engineering only; no M0/P0 gate or business-semantic validation claimed.\"}\n{\"check\":true,\"generated\":[\"types.ts\",\"schemas.json\",\"manifest.json\"],\"definitions\":99,\"sourceHashes\":{\"domain.schema.json\":\"03da1053ba021897f97677a2b2024b57bc571371560b24120e1308cc96129bae\",\"events.schema.json\":\"11cbfd7c4f612929831b5f3da9b647e496317a6bd3f128e0889e5c05ef24aeea\",\"openapi.json\":\"e61d40c584ab02e884f38cb767d87731915cbebda463cd6b4811354f22881046\",\"regression.schema.json\":\"b5df5b59a42a69126ff807f775f27979aa36e601309308bff7aa88475c3f25c6\",\"report.schema.json\":\"514e640de06f34c4ce357aeef48242a97974833986e4dd797ead55e1ff26450d\",\"tools.schema.json\":\"e424d2937d5739b577bfda1bb4b3100f544298fbebf0732e87cd3b0616da4bac\"}}\n\n> localqa@0.0.0 lint /Users/dcp/Documents/公司/momentic\n> eslint eslint.config.mjs packages/contracts/src packages/contracts/scripts packages/contracts/test\n\n\n> localqa@0.0.0 format:check /Users/dcp/Documents/公司/momentic\n> prettier --check package.json pnpm-workspace.yaml tsconfig.base.json eslint.config.mjs .prettierrc.json .github/workflows/ci.yml packages/contracts\n\nChecking formatting...\nAll matched files use Prettier code style!\n\n> localqa@0.0.0 typecheck /Users/dcp/Documents/公司/momentic\n> pnpm --filter @localqa/contracts typecheck\n\n\n> @localqa/contracts@1.0.0 typecheck /Users/dcp/Documents/公司/momentic/packages/contracts\n> tsc --noEmit -p tsconfig.json\n\n\n> localqa@0.0.0 test /Users/dcp/Documents/公司/momentic\n> pnpm --filter @localqa/contracts test\n\n\n> @localqa/contracts@1.0.0 test /Users/dcp/Documents/公司/momentic/packages/contracts\n> pnpm build && node --test test/*.test.mjs\n\n\n> @localqa/contracts@1.0.0 build /Users/dcp/Documents/公司/momentic/packages/contracts\n> tsc -p tsconfig.build.json\n\n{\"definitionTests\":99,\"sourceRuntimeComparisons\":5715}\n{\"compiledRuntimeApiValidators\":328,\"publicOperations\":52,\"internalOperations\":8}\n✔ source/runtime equivalence: JsonValue (2.119375ms)\n✔ source/runtime equivalence: Error (1.5925ms)\n✔ source/runtime equivalence: User (1.462833ms)\n✔ source/runtime equivalence: LoginInput (0.617375ms)\n✔ source/runtime equivalence: LoginResult (1.377209ms)\n✔ source/runtime equivalence: Project (1.341417ms)\n✔ source/runtime equivalence: ProjectCreate (0.377041ms)\n✔ source/runtime equivalence: Member (0.455791ms)\n✔ source/runtime equivalence: MemberUpdate (0.953666ms)\n✔ source/runtime equivalence: BudgetLimits (2.139542ms)\n✔ source/runtime equivalence: BudgetOverrides (1.189458ms)\n✔ source/runtime equivalence: BudgetUsed (0.808667ms)\n✔ source/runtime equivalence: Environment (5.197667ms)\n✔ source/runtime equivalence: EnvironmentCreate (1.470959ms)\n✔ source/runtime equivalence: EnvironmentPatch (1.491833ms)\n✔ source/runtime equivalence: Locator (0.560875ms)\n✔ source/runtime equivalence: Criterion (5.074166ms)\n✔ source/runtime equivalence: CandidateCase (4.117833ms)\n✔ source/runtime equivalence: CaseDefinition (4.589875ms)\n✔ source/runtime equivalence: AuthProfile (9.620292ms)\n✔ source/runtime equivalence: FormConfig (5.190875ms)\n✔ source/runtime equivalence: AuthProfileCreate (4.70425ms)\n✔ source/runtime equivalence: AuthProfilePatch (0.901791ms)\n✔ source/runtime equivalence: Knowledge (1.098125ms)\n✔ source/runtime equivalence: KnowledgeCreate (0.61375ms)\n✔ source/runtime equivalence: KnowledgePatch (0.581917ms)\n✔ source/runtime equivalence: ModelCapabilities (0.59875ms)\n✔ source/runtime equivalence: ModelProfile (2.1365ms)\n✔ source/runtime equivalence: ModelProfileCreate (1.282417ms)\n✔ source/runtime equivalence: ModelProbeResult (1.200375ms)\n✔ source/runtime equivalence: RunCreate (2.008916ms)\n✔ source/runtime equivalence: RunConfig (5.774041ms)\n✔ source/runtime equivalence: Run (4.060375ms)\n✔ source/runtime equivalence: CriterionResult (0.879375ms)\n✔ source/runtime equivalence: Verdict (2.8325ms)\n✔ source/runtime equivalence: CaseRecord (3.084958ms)\n✔ source/runtime equivalence: Task (1.449709ms)\n✔ source/runtime equivalence: Artifact (10.13775ms)\n✔ source/runtime equivalence: Finding (5.79075ms)\n✔ source/runtime equivalence: Reproduction (1.826417ms)\n✔ source/runtime equivalence: Summary (2.007125ms)\n✔ source/runtime equivalence: ModelUsage (1.676125ms)\n✔ source/runtime equivalence: Report (16.105292ms)\n✔ source/runtime equivalence: InputRequest (1.459666ms)\n✔ source/runtime equivalence: InputResponse (1.09275ms)\n✔ source/runtime equivalence: MessageInput (0.503333ms)\n✔ source/runtime equivalence: TriageInput (0.580458ms)\n✔ source/runtime equivalence: TriagePreview (0.983208ms)\n✔ source/runtime equivalence: TriageCommit (0.706375ms)\n✔ source/runtime equivalence: ExportInput (0.439375ms)\n✔ source/runtime equivalence: Export (1.400833ms)\n✔ source/runtime equivalence: RunEvent (35.718875ms)\n✔ source/runtime equivalence: NodeTarget (0.934209ms)\n✔ source/runtime equivalence: WorkerClaim (0.664084ms)\n✔ source/runtime equivalence: Lease (1.977542ms)\n✔ source/runtime equivalence: HeartbeatInput (0.424041ms)\n✔ source/runtime equivalence: HeartbeatResult (0.509209ms)\n✔ source/runtime equivalence: TaskComplete (0.710917ms)\n✔ source/runtime equivalence: ActionReservation (15.042375ms)\n✔ source/runtime equivalence: ActionPermit (0.802458ms)\n✔ source/runtime equivalence: ActionResult (0.881542ms)\n✔ source/runtime equivalence: ModelPart (0.782417ms)\n✔ source/runtime equivalence: ModelMessage (1.330375ms)\n✔ source/runtime equivalence: ModelRequest (1.335792ms)\n✔ source/runtime equivalence: ModelResult (2.079167ms)\n✔ source/runtime equivalence: AuthResolve (0.607833ms)\n✔ source/runtime equivalence: CredentialMaterial (0.685584ms)\n✔ source/runtime equivalence: Health (0.436ms)\n✔ source/runtime equivalence: UserCreate (0.670875ms)\n✔ source/runtime equivalence: UserPatch (0.636083ms)\n✔ source/runtime equivalence: ProjectPatch (0.970958ms)\n✔ source/runtime equivalence: ModelProfilePatch (0.770291ms)\n✔ source/runtime equivalence: ModelBinding (0.43ms)\n✔ source/runtime equivalence: RoleModels (2.066167ms)\n✔ source/runtime equivalence: Step (2.170084ms)\n✔ source/runtime equivalence: CaseAttempt (1.7855ms)\n✔ source/runtime equivalence: Bounds (0.561333ms)\n✔ source/runtime equivalence: SnapshotNode (1.460125ms)\n✔ source/runtime equivalence: NetworkEntry (0.92375ms)\n✔ source/runtime equivalence: NetworkEntries (1.054875ms)\n✔ source/runtime equivalence: BrowserSnapshot (3.586709ms)\n✔ source/runtime equivalence: ToolResult (1.298917ms)\n✔ source/runtime equivalence: UserPage (1.310667ms)\n✔ source/runtime equivalence: ProjectPage (1.740833ms)\n✔ source/runtime equivalence: EnvironmentPage (2.393584ms)\n✔ source/runtime equivalence: AuthProfilePage (0.785333ms)\n✔ source/runtime equivalence: KnowledgePage (1.403ms)\n✔ source/runtime equivalence: ModelProfilePage (0.649917ms)\n✔ source/runtime equivalence: RunPage (0.56525ms)\n✔ source/runtime equivalence: CaseRecordPage (0.563833ms)\n✔ source/runtime equivalence: CaseAttemptPage (0.596ms)\n✔ source/runtime equivalence: StepPage (2.652459ms)\n✔ source/runtime equivalence: RunEventPage (0.911ms)\n✔ source/runtime equivalence: TaskPage (1.650917ms)\n✔ source/runtime equivalence: FindingPage (3.491334ms)\n✔ source/runtime equivalence: MemberPage (0.985167ms)\n✔ source/runtime equivalence: ToolCall (13.052833ms)\n✔ source/runtime equivalence: ReplayStep (3.374833ms)\n✔ source/runtime equivalence: RegressionDocument (4.496291ms)\n✔ comparison evidence (0.418167ms)\n✔ all five fictional examples validate; four root schemas match domain schemas (42.873375ms)\n✔ unknown input fields reject, defaults/coercion/stripping never mutate inputs (0.993042ms)\n✔ all budget fields: minimum, maximum, fractional, outside bounds, all optional/default absence (0.211209ms)\n✔ Unicode maxLength follows JSON Schema code points; URL, email, UUID and date formats (0.233208ms)\n✔ Criterion conditionally requires locator and expectedValue; business typing is not invented (0.054916ms)\n✔ form and storage state auth conditional requirements (2.208917ms)\n✔ functional confirmed needs reproduction/evidence and rejects inferred source (0.07425ms)\n✔ all 13 event types validate their matching payloads and reject mismatches (5.19425ms)\n✔ all tools and result metadata resolve; unknown/shell/eval tools reject (5.567917ms)\n✔ recursive JsonValue, nullable fields and oneOf rejection (0.085209ms)\n✔ parse errors contain no input password and retain detached errors (0.223583ms)\n✔ every OpenAPI request, response, media and parameter validator compiles; Internal opt-in (36.758709ms)\n✔ API input/output/query constraints follow OpenAPI without implicit coercion (0.96925ms)\n✔ error registry exactly covers documented §7 codes; does not tighten Error.code (1.248208ms)\n✔ frozen deployment registry covers §12 inputs and documented defaults (0.040459ms)\nℹ tests 115\nℹ suites 0\nℹ pass 115\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 480.85325\n"
+    },
+    {
+      "path": ".localqa-t01/logs/dependencies.json",
+      "sha256": "b9a8beaf2a0ae4cb243868851db8bf2dffbf9ad7251108e27435412e0c81789a",
+      "rawOutput": "[\n  {\n    \"name\": \"localqa\",\n    \"version\": \"0.0.0\",\n    \"path\": \"/Users/dcp/Documents/公司/momentic\",\n    \"private\": true,\n    \"devDependencies\": {\n      \"@eslint/js\": {\n        \"from\": \"@eslint/js\",\n        \"version\": \"10.0.1\",\n        \"resolved\": \"https://registry.npmjs.org/@eslint/js/-/js-10.0.1.tgz\",\n        \"path\": \"/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/@eslint+js@10.0.1_eslint@10.11.0/node_modules/@eslint/js\"\n      },\n      \"@types/node\": {\n        \"from\": \"@types/node\",\n        \"version\": \"24.19.1\",\n        \"resolved\": \"https://registry.npmjs.org/@types/node/-/node-24.19.1.tgz\",\n        \"path\": \"/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/@types+node@24.19.1/node_modules/@types/node\"\n      },\n      \"eslint\": {\n        \"from\": \"eslint\",\n        \"version\": \"10.11.0\",\n        \"resolved\": \"https://registry.npmjs.org/eslint/-/eslint-10.11.0.tgz\",\n        \"path\": \"/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/eslint@10.11.0/node_modules/eslint\"\n      },\n      \"prettier\": {\n        \"from\": \"prettier\",\n        \"version\": \"3.9.9\",\n        \"resolved\": \"https://registry.npmjs.org/prettier/-/prettier-3.9.9.tgz\",\n        \"path\": \"/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/prettier@3.9.9/node_modules/prettier\"\n      },\n      \"typescript\": {\n        \"from\": \"typescript\",\n        \"version\": \"5.9.3\",\n        \"resolved\": \"https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz\",\n        \"path\": \"/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript\"\n      },\n      \"typescript-eslint\": {\n        \"from\": \"typescript-eslint\",\n        \"version\": \"8.71.0\",\n        \"resolved\": \"https://registry.npmjs.org/typescript-eslint/-/typescript-eslint-8.71.0.tgz\",\n        \"path\": \"/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/typescript-eslint@8.71.0_eslint@10.11.0_typescript@5.9.3/node_modules/typescript-eslint\"\n      }\n    }\n  },\n  {\n    \"name\": \"@localqa/contracts\",\n    \"version\": \"1.0.0\",\n    \"path\": \"/Users/dcp/Documents/公司/momentic/packages/contracts\",\n    \"private\": true,\n    \"dependencies\": {\n      \"ajv\": {\n        \"from\": \"ajv\",\n        \"version\": \"8.20.0\",\n        \"resolved\": \"https://registry.npmjs.org/ajv/-/ajv-8.20.0.tgz\",\n        \"path\": \"/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/ajv@8.20.0/node_modules/ajv\"\n      },\n      \"ajv-formats\": {\n        \"from\": \"ajv-formats\",\n        \"version\": \"3.0.1\",\n        \"resolved\": \"https://registry.npmjs.org/ajv-formats/-/ajv-formats-3.0.1.tgz\",\n        \"path\": \"/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/ajv-formats@3.0.1_ajv@8.20.0/node_modules/ajv-formats\"\n      }\n    },\n    \"devDependencies\": {\n      \"@apidevtools/swagger-parser\": {\n        \"from\": \"@apidevtools/swagger-parser\",\n        \"version\": \"13.1.0\",\n        \"resolved\": \"https://registry.npmjs.org/@apidevtools/swagger-parser/-/swagger-parser-13.1.0.tgz\",\n        \"path\": \"/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/@apidevtools+swagger-parser@13.1.0_openapi-types@12.1.3/node_modules/@apidevtools/swagger-parser\"\n      },\n      \"json-schema-to-typescript\": {\n        \"from\": \"json-schema-to-typescript\",\n        \"version\": \"16.0.0\",\n        \"resolved\": \"https://registry.npmjs.org/json-schema-to-typescript/-/json-schema-to-typescript-16.0.0.tgz\",\n        \"path\": \"/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/json-schema-to-typescript@16.0.0/node_modules/json-schema-to-typescript\"\n      }\n    },\n    \"unsavedDependencies\": {\n      \"eslint\": {\n        \"from\": \"eslint\",\n        \"version\": \"link:../../node_modules/.pnpm/eslint@10.11.0/node_modules/eslint\",\n        \"path\": \"/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/eslint@10.11.0/node_modules/eslint\"\n      },\n      \"prettier\": {\n        \"from\": \"prettier\",\n        \"version\": \"link:../../node_modules/.pnpm/prettier@3.9.9/node_modules/prettier\",\n        \"path\": \"/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/prettier@3.9.9/node_modules/prettier\"\n      },\n      \"typescript\": {\n        \"from\": \"typescript\",\n        \"version\": \"link:../../node_modules/.pnpm/typescript@5.9.3/node_modules/typescript\",\n        \"path\": \"/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript\"\n      },\n      \"typescript-eslint\": {\n        \"from\": \"typescript-eslint\",\n        \"version\": \"link:../../node_modules/.pnpm/typescript-eslint@8.71.0_eslint@10.11.0_typescript@5.9.3/node_modules/typescript-eslint\",\n        \"path\": \"/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/typescript-eslint@8.71.0_eslint@10.11.0_typescript@5.9.3/node_modules/typescript-eslint\"\n      },\n      \"@eslint/js\": {\n        \"from\": \"@eslint/js\",\n        \"version\": \"link:../../node_modules/.pnpm/@eslint+js@10.0.1_eslint@10.11.0/node_modules/@eslint/js\",\n        \"path\": \"/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/@eslint+js@10.0.1_eslint@10.11.0/node_modules/@eslint/js\"\n      },\n      \"@types/node\": {\n        \"from\": \"@types/node\",\n        \"version\": \"link:../../node_modules/.pnpm/@types+node@24.19.1/node_modules/@types/node\",\n        \"path\": \"/Users/dcp/Documents/公司/momentic/node_modules/.pnpm/@types+node@24.19.1/node_modules/@types/node\"\n      }\n    }\n  }\n]\n"
+    },
+    {
+      "path": ".localqa-t01/logs/environment.log",
+      "sha256": "e438268436db02dd472a57862862f701e6d015801ae295ff22174f3428c9983f",
+      "rawOutput": "cwd=/Users/dcp/Documents/公司/momentic\nnode=v26.3.0\nnpm=11.16.0\npython=Python 3.9.6\nnpm-cache=/Users/dcp/.npm\npnpm=10.34.0\npnpm-store=/Users/dcp/Documents/公司/momentic/.cache/pnpm/store/v10\nnpx-pnpm-executable=/Users/dcp/.npm/_npx/b0d06d8bb12cd156/node_modules/.bin/pnpm\nplatform=darwin/arm64\ntsc=Version 5.9.3\neslint=v10.11.0\nprettier=3.9.9\n"
+    },
+    {
+      "path": ".localqa-t01/logs/format-acceptance.log",
+      "sha256": "e3323ed01c574a5842364057308140193752592dc5ee6dcac92ae7a2502468ce",
+      "rawOutput": "\n> localqa@0.0.0 format /Users/dcp/Documents/公司/momentic\n> prettier --write package.json pnpm-workspace.yaml tsconfig.base.json eslint.config.mjs .prettierrc.json .github/workflows/ci.yml packages/contracts\n\npackage.json 11ms (unchanged)\npnpm-workspace.yaml 11ms (unchanged)\ntsconfig.base.json 3ms (unchanged)\neslint.config.mjs 5ms (unchanged)\n.prettierrc.json 0ms (unchanged)\n.github/workflows/ci.yml 3ms (unchanged)\npackages/contracts/package.json 1ms (unchanged)\npackages/contracts/README.md 39ms (unchanged)\npackages/contracts/scripts/check.mjs 13ms (unchanged)\npackages/contracts/scripts/generate.mjs 4ms (unchanged)\npackages/contracts/src/config.ts 5ms (unchanged)\npackages/contracts/src/errors.ts 3ms (unchanged)\npackages/contracts/src/index.ts 15ms (unchanged)\npackages/contracts/test/contracts.test.mjs 18ms (unchanged)\npackages/contracts/test/drift.test.mjs 2ms (unchanged)\npackages/contracts/test/types.test.ts 3ms (unchanged)\npackages/contracts/tsconfig.build.json 1ms (unchanged)\npackages/contracts/tsconfig.json 0ms (unchanged)\n"
+    },
+    {
+      "path": ".localqa-t01/logs/format-final.log",
+      "sha256": "187ff7ea63a053a335094be66c9ddf1e520ce49652c4bf71e65deeda82d415a3",
+      "rawOutput": "\n> localqa@0.0.0 format /Users/dcp/Documents/公司/momentic\n> prettier --write package.json pnpm-workspace.yaml tsconfig.base.json eslint.config.mjs .prettierrc.json .github/workflows/ci.yml packages/contracts\n\npackage.json 8ms (unchanged)\npnpm-workspace.yaml 6ms (unchanged)\ntsconfig.base.json 2ms (unchanged)\neslint.config.mjs 4ms (unchanged)\n.prettierrc.json 0ms (unchanged)\n.github/workflows/ci.yml 2ms (unchanged)\npackages/contracts/package.json 1ms (unchanged)\npackages/contracts/README.md 44ms (unchanged)\npackages/contracts/scripts/check.mjs 14ms (unchanged)\npackages/contracts/scripts/generate.mjs 5ms (unchanged)\npackages/contracts/src/config.ts 5ms (unchanged)\npackages/contracts/src/errors.ts 3ms (unchanged)\npackages/contracts/src/index.ts 16ms (unchanged)\npackages/contracts/test/contracts.test.mjs 18ms (unchanged)\npackages/contracts/test/types.test.ts 2ms (unchanged)\npackages/contracts/tsconfig.build.json 1ms (unchanged)\npackages/contracts/tsconfig.json 1ms (unchanged)\n"
+    },
+    {
+      "path": ".localqa-t01/logs/format-initial.log",
+      "sha256": "17f8ae8a4147bc961e11bd926dfcf18f9f7b8a2a6c9d1cb6be41d3cbe5701afa",
+      "rawOutput": "\n> localqa@0.0.0 format /Users/dcp/Documents/公司/momentic\n> prettier --write package.json pnpm-workspace.yaml tsconfig.base.json eslint.config.mjs .prettierrc.json .github/workflows/ci.yml packages/contracts\n\npackage.json 14ms\npnpm-workspace.yaml 8ms (unchanged)\ntsconfig.base.json 3ms (unchanged)\neslint.config.mjs 4ms\n.prettierrc.json 0ms (unchanged)\n.github/workflows/ci.yml 2ms (unchanged)\npackages/contracts/package.json 1ms\npackages/contracts/scripts/check.mjs 14ms\npackages/contracts/scripts/generate.mjs 4ms\npackages/contracts/src/config.ts 24ms\npackages/contracts/src/errors.ts 3ms\npackages/contracts/src/index.ts 16ms\npackages/contracts/test/contracts.test.mjs 17ms\npackages/contracts/test/types.test.ts 3ms\npackages/contracts/tsconfig.build.json 1ms (unchanged)\npackages/contracts/tsconfig.json 0ms (unchanged)\n"
+    },
+    {
+      "path": ".localqa-t01/logs/format-second.log",
+      "sha256": "5e163f8ec1e461ca2565a906d8ff0c402991fa6429fb1acfb17758744ffd9c41",
+      "rawOutput": "\n> localqa@0.0.0 format /Users/dcp/Documents/公司/momentic\n> prettier --write package.json pnpm-workspace.yaml tsconfig.base.json eslint.config.mjs .prettierrc.json .github/workflows/ci.yml packages/contracts\n\npackage.json 13ms (unchanged)\npnpm-workspace.yaml 6ms (unchanged)\ntsconfig.base.json 3ms (unchanged)\neslint.config.mjs 5ms\n.prettierrc.json 0ms (unchanged)\n.github/workflows/ci.yml 3ms (unchanged)\npackages/contracts/package.json 1ms (unchanged)\npackages/contracts/scripts/check.mjs 16ms (unchanged)\npackages/contracts/scripts/generate.mjs 4ms (unchanged)\npackages/contracts/src/config.ts 16ms (unchanged)\npackages/contracts/src/errors.ts 3ms (unchanged)\npackages/contracts/src/index.ts 16ms\npackages/contracts/test/contracts.test.mjs 18ms (unchanged)\npackages/contracts/test/types.test.ts 2ms (unchanged)\npackages/contracts/tsconfig.build.json 1ms (unchanged)\npackages/contracts/tsconfig.json 0ms (unchanged)\n"
+    },
+    {
+      "path": ".localqa-t01/logs/format-with-drift-test.log",
+      "sha256": "754026e5e87c537d0fd8bc8d9284fc01d35db5fda15880617418c9f9aa9f6379",
+      "rawOutput": "\n> localqa@0.0.0 format /Users/dcp/Documents/公司/momentic\n> prettier --write package.json pnpm-workspace.yaml tsconfig.base.json eslint.config.mjs .prettierrc.json .github/workflows/ci.yml packages/contracts\n\npackage.json 14ms (unchanged)\npnpm-workspace.yaml 11ms (unchanged)\ntsconfig.base.json 4ms (unchanged)\neslint.config.mjs 7ms (unchanged)\n.prettierrc.json 1ms (unchanged)\n.github/workflows/ci.yml 4ms (unchanged)\npackages/contracts/package.json 1ms (unchanged)\npackages/contracts/README.md 53ms (unchanged)\npackages/contracts/scripts/check.mjs 22ms (unchanged)\npackages/contracts/scripts/generate.mjs 6ms (unchanged)\npackages/contracts/src/config.ts 8ms (unchanged)\npackages/contracts/src/errors.ts 5ms (unchanged)\npackages/contracts/src/index.ts 26ms (unchanged)\npackages/contracts/test/contracts.test.mjs 28ms (unchanged)\npackages/contracts/test/drift.test.mjs 2ms\npackages/contracts/test/types.test.ts 4ms (unchanged)\npackages/contracts/tsconfig.build.json 2ms (unchanged)\npackages/contracts/tsconfig.json 1ms (unchanged)\n"
+    },
+    {
+      "path": ".localqa-t01/logs/generate-initial.log",
+      "sha256": "98f40d380ce70b04d00c3c1ec005e96b9579ecea35936fee134a46b0b3e28bca",
+      "rawOutput": "\n> localqa@0.0.0 contracts:generate /Users/dcp/Documents/公司/momentic\n> pnpm --filter @localqa/contracts generate\n\n\n> @localqa/contracts@1.0.0 generate /Users/dcp/Documents/公司/momentic/packages/contracts\n> node scripts/generate.mjs\n\n{\"check\":false,\"generated\":[\"types.ts\",\"schemas.json\",\"manifest.json\"],\"definitions\":99,\"sourceHashes\":{\"domain.schema.json\":\"03da1053ba021897f97677a2b2024b57bc571371560b24120e1308cc96129bae\",\"events.schema.json\":\"11cbfd7c4f612929831b5f3da9b647e496317a6bd3f128e0889e5c05ef24aeea\",\"openapi.json\":\"e61d40c584ab02e884f38cb767d87731915cbebda463cd6b4811354f22881046\",\"regression.schema.json\":\"b5df5b59a42a69126ff807f775f27979aa36e601309308bff7aa88475c3f25c6\",\"report.schema.json\":\"514e640de06f34c4ce357aeef48242a97974833986e4dd797ead55e1ff26450d\",\"tools.schema.json\":\"e424d2937d5739b577bfda1bb4b3100f544298fbebf0732e87cd3b0616da4bac\"}}\n"
+    },
+    {
+      "path": ".localqa-t01/logs/git-init.log",
+      "sha256": "361862c5509b5a2227fd59c1da3c46f6ce41864b2d658f23689f4de65a8c7236",
+      "rawOutput": "Initialized empty Git repository in /Users/dcp/Documents/公司/momentic/.git/\n"
+    },
+    {
+      "path": ".localqa-t01/logs/git-status-initial.log",
+      "sha256": "37b37cbaa379483da69273d673ae9ae3bf8b17a089300f2cdf6d5aa3cc4b3ff4",
+      "rawOutput": "?? .github/\n?? .gitignore\n?? .node-version\n?? .npmrc\n?? .nvmrc\n?? .prettierignore\n?? .prettierrc.json\n?? \"Momentic-\\344\\272\\247\\345\\223\\201\\344\\270\\216\\346\\212\\200\\346\\234\\257\\346\\213\\206\\350\\247\\243.md\"\n?? \"Momentic-\\347\\247\\201\\346\\234\\211\\345\\214\\226\\345\\217\\257\\350\\241\\214\\346\\200\\247\\345\\210\\206\\346\\236\\220.md\"\n?? README.md\n?? docs/\n?? eslint.config.mjs\n?? evidence/\n?? package.json\n?? packages/\n?? pnpm-lock.yaml\n?? pnpm-workspace.yaml\n?? tsconfig.base.json\n?? \"\\350\\260\\203\\347\\240\\224\\346\\235\\245\\346\\272\\220.md\"\n"
+    },
+    {
+      "path": ".localqa-t01/logs/install-acceptance.log",
+      "sha256": "0b8326fdccfc9f8084096595f482b97b8a81a0030ed66a529b97a71b32716258",
+      "rawOutput": "Scope: all 2 workspace projects\nLockfile is up to date, resolution step is skipped\nAlready up to date\n\nDone in 208ms using pnpm v10.34.0\n"
+    },
+    {
+      "path": ".localqa-t01/logs/install-eslint10.log",
+      "sha256": "5ae0421ec6589fec31d7eac204744110f955a3f29da223acbf794b1553711c00",
+      "rawOutput": "Scope: all 2 workspace projects\nProgress: resolved 1, reused 0, downloaded 0, added 0\nProgress: resolved 56, reused 54, downloaded 0, added 0\n WARN  GET https://registry.npmjs.org/espree error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\nProgress: resolved 75, reused 67, downloaded 0, added 0\nProgress: resolved 78, reused 70, downloaded 6, added 0\n WARN  GET https://registry.npmjs.org/file-entry-cache/-/file-entry-cache-11.1.5.tgz error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\nProgress: resolved 78, reused 70, downloaded 7, added 0\n WARN  Request took 13248ms: https://registry.npmjs.org/espree\nProgress: resolved 79, reused 70, downloaded 7, added 0\nProgress: resolved 79, reused 70, downloaded 8, added 0\n WARN  GET https://registry.npmjs.org/acorn error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\nProgress: resolved 101, reused 89, downloaded 8, added 0\nProgress: resolved 108, reused 95, downloaded 12, added 0\nProgress: resolved 110, reused 96, downloaded 12, added 0\n WARN  GET https://registry.npmjs.org/keyv error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\nProgress: resolved 114, reused 97, downloaded 14, added 0\nProgress: resolved 114, reused 97, downloaded 17, added 0\n WARN  Request took 13345ms: https://registry.npmjs.org/acorn\nProgress: resolved 115, reused 97, downloaded 17, added 0\nProgress: resolved 115, reused 98, downloaded 17, added 0\n WARN  Request took 13139ms: https://registry.npmjs.org/keyv\nProgress: resolved 116, reused 98, downloaded 17, added 0\nProgress: resolved 117, reused 98, downloaded 17, added 0\n.                                        |  +28  -38 +++----\nProgress: resolved 121, reused 99, downloaded 19, added 25\nProgress: resolved 121, reused 99, downloaded 22, added 28, done\nDone in 32.5s using pnpm v10.34.0\n"
+    },
+    {
+      "path": ".localqa-t01/logs/install-frozen-final.log",
+      "sha256": "0c1504e1fdb2c5ab93465643aa70d231f1a933088b15906eb57913e774f4989d",
+      "rawOutput": "Scope: all 2 workspace projects\nLockfile is up to date, resolution step is skipped\nAlready up to date\n\nDone in 197ms using pnpm v10.34.0\n"
+    },
+    {
+      "path": ".localqa-t01/logs/install-frozen.log",
+      "sha256": "a3209021bee8275ac83fdd2feb27830a1e037006c6271561d1aaec3259a2838e",
+      "rawOutput": "Scope: all 2 workspace projects\nLockfile is up to date, resolution step is skipped\nAlready up to date\n\nDone in 212ms using pnpm v10.34.0\n"
+    },
+    {
+      "path": ".localqa-t01/logs/install-isolated.log",
+      "sha256": "70eb903300e476141643cf15313ba16c969ad88efffe026b9aa1b1c492fe42e3",
+      "rawOutput": "Scope: all 2 workspace projects\nProgress: resolved 1, reused 0, downloaded 0, added 0\n.                                        |  WARN  deprecated eslint@9.39.4\nProgress: resolved 10, reused 10, downloaded 0, added 0\n WARN  GET https://registry.npmjs.org/fast-uri error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\nProgress: resolved 32, reused 32, downloaded 0, added 0\nProgress: resolved 68, reused 68, downloaded 0, added 0\n WARN  GET https://registry.npmjs.org/imurmurhash error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\nProgress: resolved 75, reused 75, downloaded 0, added 0\nProgress: resolved 78, reused 78, downloaded 0, added 0\nProgress: resolved 79, reused 79, downloaded 0, added 0\nProgress: resolved 80, reused 80, downloaded 0, added 0\n WARN  GET https://registry.npmjs.org/fast-uri error (ECONNRESET). Will retry in 1 minute. 1 retries left.\n WARN  Request took 12963ms: https://registry.npmjs.org/imurmurhash\nProgress: resolved 81, reused 80, downloaded 0, added 0\nProgress: resolved 82, reused 82, downloaded 0, added 0\n WARN  GET https://registry.npmjs.org/@humanfs%2Fcore error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\nProgress: resolved 110, reused 110, downloaded 0, added 0\nProgress: resolved 122, reused 122, downloaded 0, added 0\nProgress: resolved 124, reused 124, downloaded 0, added 0\nProgress: resolved 126, reused 126, downloaded 0, added 0\nProgress: resolved 128, reused 128, downloaded 0, added 0\n WARN  Request took 12815ms: https://registry.npmjs.org/@humanfs%2Fcore\nProgress: resolved 129, reused 128, downloaded 0, added 0\nProgress: resolved 129, reused 129, downloaded 0, added 0\n WARN  Request took 74783ms: https://registry.npmjs.org/fast-uri\nProgress: resolved 130, reused 129, downloaded 0, added 0\nProgress: resolved 130, reused 130, downloaded 0, added 0\n.                                        | +131 +++++++++++++\nProgress: resolved 131, reused 130, downloaded 0, added 20\nProgress: resolved 131, reused 130, downloaded 0, added 130\nProgress: resolved 131, reused 130, downloaded 1, added 131, done\nDone in 1m 18.2s using pnpm v10.34.0\n"
+    },
+    {
+      "path": ".localqa-t01/logs/install.log",
+      "sha256": "9b1eabd35eb1efbe5609c0dd31caf5a392e76eefda1198d390933f0c6ac59ad6",
+      "rawOutput": "npm warn Unknown project config \"store-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nScope: all 3 workspace projects\npackages/test-fixture                    |  WARN  Moving cookie-parser that was installed by a different package manager to \"node_modules/.ignored\"\npackages/test-fixture                    |  WARN  Moving cors that was installed by a different package manager to \"node_modules/.ignored\"\npackages/test-fixture                    |  WARN  Moving express that was installed by a different package manager to \"node_modules/.ignored\"\nProgress: resolved 1, reused 0, downloaded 0, added 0\n WARN  deprecated eslint@9.39.4: This version is no longer supported. Please see https://eslint.org/version-support for other options.\nProgress: resolved 9, reused 0, downloaded 0, added 0\n\n   ╭─────────────────────────────────────────╮\n   │                                         │\n   │   Update available! 10.34.0 → 12.8.1.   │\n   │   Changelog: https://pnpm.io/v/12.8.1   │\n   │    To update, run: pnpm add -g pnpm     │\n   │                                         │\n   ╰─────────────────────────────────────────╯\n\nProgress: resolved 11, reused 0, downloaded 3, added 0\nProgress: resolved 12, reused 0, downloaded 8, added 0\nProgress: resolved 13, reused 0, downloaded 10, added 0\nProgress: resolved 34, reused 0, downloaded 11, added 0\n WARN  GET https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\nProgress: resolved 37, reused 0, downloaded 18, added 0\n WARN  GET https://registry.npmjs.org/etag/-/etag-1.8.1.tgz error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\nProgress: resolved 41, reused 0, downloaded 30, added 0\nProgress: resolved 60, reused 0, downloaded 38, added 0\nProgress: resolved 66, reused 0, downloaded 52, added 0\n WARN  GET https://registry.npmjs.org/utils-merge/-/utils-merge-1.0.1.tgz error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\nProgress: resolved 76, reused 0, downloaded 58, added 0\n WARN  GET https://registry.npmjs.org/eslint-scope error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\nProgress: resolved 86, reused 0, downloaded 66, added 0\n WARN  GET https://registry.npmjs.org/esquery/-/esquery-1.7.0.tgz error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\nProgress: resolved 93, reused 0, downloaded 74, added 0\nProgress: resolved 98, reused 0, downloaded 81, added 0\nProgress: resolved 108, reused 0, downloaded 89, added 0\nProgress: resolved 112, reused 0, downloaded 95, added 0\n WARN  GET https://registry.npmjs.org/mime/-/mime-1.6.0.tgz error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\n WARN  GET https://registry.npmjs.org/inherits error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\nProgress: resolved 122, reused 0, downloaded 101, added 0\n WARN  GET https://registry.npmjs.org/media-typer/-/media-typer-0.3.0.tgz error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\nProgress: resolved 125, reused 0, downloaded 111, added 0\nProgress: resolved 131, reused 0, downloaded 114, added 0\n WARN  GET https://registry.npmjs.org/es-errors error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\nProgress: resolved 136, reused 0, downloaded 120, added 0\nProgress: resolved 139, reused 0, downloaded 131, added 0\n WARN  GET https://registry.npmjs.org/side-channel-map/-/side-channel-map-1.0.1.tgz error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\nProgress: resolved 139, reused 0, downloaded 134, added 0\nProgress: resolved 140, reused 0, downloaded 135, added 0\n WARN  Request took 13258ms: https://registry.npmjs.org/eslint-scope\nProgress: resolved 143, reused 0, downloaded 136, added 0\nProgress: resolved 163, reused 0, downloaded 138, added 0\nProgress: resolved 167, reused 0, downloaded 151, added 0\n WARN  GET https://registry.npmjs.org/which/-/which-2.0.2.tgz error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\nProgress: resolved 174, reused 0, downloaded 160, added 0\n WARN  Request took 13197ms: https://registry.npmjs.org/inherits\nProgress: resolved 182, reused 0, downloaded 169, added 0\n WARN  GET https://registry.npmjs.org/p-limit error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\nProgress: resolved 186, reused 0, downloaded 177, added 0\nProgress: resolved 187, reused 0, downloaded 183, added 0\n WARN  GET https://registry.npmjs.org/resolve-from/-/resolve-from-4.0.0.tgz error (ECONNRESET). Will retry in 10 seconds. 2 retries left.\n WARN  GET https://registry.npmjs.org/es-errors error (ECONNRESET). Will retry in 1 minute. 1 retries left.\nProgress: resolved 187, reused 0, downloaded 184, added 0\nProgress: resolved 187, reused 0, downloaded 185, added 0\nProgress: resolved 187, reused 0, downloaded 186, added 0\n WARN  Request took 13159ms: https://registry.npmjs.org/p-limit\nProgress: resolved 188, reused 0, downloaded 186, added 0\nProgress: resolved 189, reused 0, downloaded 186, added 0\nProgress: resolved 189, reused 0, downloaded 188, added 0\nProgress: resolved 189, reused 0, downloaded 189, added 0\n/Users/dcp/Documents/公司/momentic/packages/test-fixture:\n ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/es-errors: request to https://registry.npmjs.org/es-errors failed, reason: Client network socket disconnected before secure TLS connection was established\n\nThis error happened while installing the dependencies of express@4.22.3\n at qs@6.16.0\n at side-channel@1.1.1\n"
+    },
+    {
+      "path": ".localqa-t01/logs/lint-initial.log",
+      "sha256": "de41c4e4b40a60d410b46e48addb5b8b2110d0be601ef26647d73bba43b1fddc",
+      "rawOutput": "\n> localqa@0.0.0 lint /Users/dcp/Documents/公司/momentic\n> eslint eslint.config.mjs packages/contracts/src packages/contracts/scripts packages/contracts/test\n\n\n/Users/dcp/Documents/公司/momentic/packages/contracts/scripts/check.mjs\n    9:32  error  'URL' is not defined              no-undef\n  106:30  error  'structuredClone' is not defined  no-undef\n\n/Users/dcp/Documents/公司/momentic/packages/contracts/scripts/generate.mjs\n  6:39  error  'URL' is not defined  no-undef\n\n/Users/dcp/Documents/公司/momentic/packages/contracts/src/index.ts\n  75:7  error  'roots' is assigned a value but only used as a type  @typescript-eslint/no-unused-vars\n\n/Users/dcp/Documents/公司/momentic/packages/contracts/test/contracts.test.mjs\n   26:31  error  'URL' is not defined              no-undef\n  135:25  error  'structuredClone' is not defined  no-undef\n  197:18  error  'structuredClone' is not defined  no-undef\n  406:17  error  'structuredClone' is not defined  no-undef\n  525:9   error  'URL' is not defined              no-undef\n\n✖ 9 problems (9 errors, 0 warnings)\n\n ELIFECYCLE  Command failed with exit code 1.\n"
+    },
+    {
+      "path": ".localqa-t01/logs/pnpm-config-final.json",
+      "sha256": "1e6e4ce72fbd8764f2e2fa23e74325435f1293961f9fab552aebfe649fd76c1e",
+      "rawOutput": "{\n  \"@jsr:registry\": \"https://npm.jsr.io/\",\n  \"cache\": \"/Users/dcp/.npm\",\n  \"cache-dir\": \".cache/pnpm/cache\",\n  \"global-prefix\": \"/opt/homebrew\",\n  \"globalconfig\": \"/Users/dcp/Library/Preferences/pnpm/rc\",\n  \"init-module\": \"/Users/dcp/.npm-init.js\",\n  \"json\": true,\n  \"local-prefix\": \"/Users/dcp/Documents/公司/momentic\",\n  \"node-gyp\": \"/opt/homebrew/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js\",\n  \"npm-globalconfig\": \"/opt/homebrew/Cellar/node/26.3.0/etc/npmrc\",\n  \"npm-version\": \"11.16.0\",\n  \"packages\": [\n    \"apps/*\",\n    \"packages/*\",\n    \"!packages/test-fixture\"\n  ],\n  \"prefix\": \"/opt/homebrew\",\n  \"registry\": \"https://registry.npmjs.org/\",\n  \"save-exact\": true,\n  \"state-dir\": \".cache/pnpm/state\",\n  \"store-dir\": \".cache/pnpm/store\",\n  \"update-notifier\": false,\n  \"user-agent\": \"pnpm/10.34.0 npm/? node/v26.3.0 darwin arm64\",\n  \"userconfig\": \"/Users/dcp/.npmrc\",\n  \"yes\": true\n}\n"
+    },
+    {
+      "path": ".localqa-t01/logs/pnpm-config.json",
+      "sha256": "5396d2f614533beaac988e3c6b29858020faba30bb06f0b7bef0deff0c688cbc",
+      "rawOutput": "{\n  \"@jsr:registry\": \"https://npm.jsr.io/\",\n  \"cache\": \"/Users/dcp/.npm\",\n  \"global-prefix\": \"/opt/homebrew\",\n  \"globalconfig\": \"/Users/dcp/Library/Preferences/pnpm/rc\",\n  \"init-module\": \"/Users/dcp/.npm-init.js\",\n  \"json\": true,\n  \"local-prefix\": \"/Users/dcp/Documents/公司/momentic\",\n  \"node-gyp\": \"/opt/homebrew/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js\",\n  \"npm-globalconfig\": \"/opt/homebrew/Cellar/node/26.3.0/etc/npmrc\",\n  \"npm-version\": \"11.16.0\",\n  \"packages\": [\n    \"apps/*\",\n    \"packages/*\",\n    \"!packages/test-fixture\"\n  ],\n  \"prefix\": \"/opt/homebrew\",\n  \"registry\": \"https://registry.npmjs.org/\",\n  \"save-exact\": true,\n  \"store-dir\": \".cache/pnpm/store\",\n  \"user-agent\": \"pnpm/10.34.0 npm/? node/v26.3.0 darwin arm64\",\n  \"userconfig\": \"/Users/dcp/.npmrc\",\n  \"yes\": true\n}\n"
+    },
+    {
+      "path": ".localqa-t01/logs/pnpm-version.log",
+      "sha256": "34e6b38a7c1969fad7be1dd2f28f260f04b5e24e3c71f5d6a83b4a978e284c6a",
+      "rawOutput": "10.34.0\n"
+    },
+    {
+      "path": ".localqa-t01/logs/restored-generated-check.log",
+      "sha256": "098808aac68f237424cbedef29a80f8903f03fed3e86aafa33fe01e61ea62dcb",
+      "rawOutput": "\n> localqa@0.0.0 contracts:check /Users/dcp/Documents/公司/momentic\n> pnpm --filter @localqa/contracts check\n\n\n> @localqa/contracts@1.0.0 check /Users/dcp/Documents/公司/momentic/packages/contracts\n> node scripts/check.mjs && node scripts/generate.mjs --check\n\nP1 regression example is fictional and not an implemented replay engine.\nGenerated 99 shared schemas, 49 API paths and five fictional JSON examples.\n{\"result\":\"passed\",\"generatorFilesCompared\":11,\"jsonSchemaDraft\":\"2020-12\",\"openapi\":\"3.1.0\",\"definitions\":160,\"domainDefinitions\":99,\"operations\":60,\"apiSchemas\":217,\"examples\":5,\"note\":\"Contract engineering only; no M0/P0 gate or business-semantic validation claimed.\"}\n{\"check\":true,\"generated\":[\"types.ts\",\"schemas.json\",\"manifest.json\"],\"definitions\":99,\"sourceHashes\":{\"domain.schema.json\":\"03da1053ba021897f97677a2b2024b57bc571371560b24120e1308cc96129bae\",\"events.schema.json\":\"11cbfd7c4f612929831b5f3da9b647e496317a6bd3f128e0889e5c05ef24aeea\",\"openapi.json\":\"e61d40c584ab02e884f38cb767d87731915cbebda463cd6b4811354f22881046\",\"regression.schema.json\":\"b5df5b59a42a69126ff807f775f27979aa36e601309308bff7aa88475c3f25c6\",\"report.schema.json\":\"514e640de06f34c4ce357aeef48242a97974833986e4dd797ead55e1ff26450d\",\"tools.schema.json\":\"e424d2937d5739b577bfda1bb4b3100f544298fbebf0732e87cd3b0616da4bac\"}}\n"
+    },
+    {
+      "path": ".localqa-t01/logs/state-migration.log",
+      "sha256": "9ab1cd7bf3878a08467a6c82a141b40ba87ac6f05b4e841cd19c0e16a2a78236",
+      "rawOutput": "Moved pnpm-generated update-check state from /Users/dcp/.local/state/pnpm/pnpm-state.json to project .cache/pnpm/state/pnpm-state.json\n"
+    },
+    {
+      "path": ".localqa-t01/logs/tests-initial.log",
+      "sha256": "19db1999ecfcf53cee32bee87aa50cc591067b811d6086c3148781cb1e8153fa",
+      "rawOutput": "\n> localqa@0.0.0 test /Users/dcp/Documents/公司/momentic\n> pnpm --filter @localqa/contracts test\n\n\n> @localqa/contracts@1.0.0 test /Users/dcp/Documents/公司/momentic/packages/contracts\n> pnpm build && node --test test/*.test.mjs\n\n\n> @localqa/contracts@1.0.0 build /Users/dcp/Documents/公司/momentic/packages/contracts\n> tsc -p tsconfig.build.json\n\n{\"definitionTests\":99,\"sourceRuntimeComparisons\":5712}\n{\"compiledRuntimeApiValidators\":328,\"publicOperations\":52,\"internalOperations\":8}\n✖ source/runtime equivalence: JsonValue (2.7375ms)\n✔ source/runtime equivalence: Error (1.653333ms)\n✔ source/runtime equivalence: User (1.448167ms)\n✔ source/runtime equivalence: LoginInput (0.586375ms)\n✔ source/runtime equivalence: LoginResult (1.558792ms)\n✔ source/runtime equivalence: Project (1.402ms)\n✔ source/runtime equivalence: ProjectCreate (0.372417ms)\n✔ source/runtime equivalence: Member (0.459291ms)\n✔ source/runtime equivalence: MemberUpdate (1.291459ms)\n✔ source/runtime equivalence: BudgetLimits (2.682291ms)\n✔ source/runtime equivalence: BudgetOverrides (1.539917ms)\n✔ source/runtime equivalence: BudgetUsed (0.938708ms)\n✔ source/runtime equivalence: Environment (6.662708ms)\n✔ source/runtime equivalence: EnvironmentCreate (1.803416ms)\n✔ source/runtime equivalence: EnvironmentPatch (1.946458ms)\n✔ source/runtime equivalence: Locator (0.54ms)\n✔ source/runtime equivalence: Criterion (7.423ms)\n✔ source/runtime equivalence: CandidateCase (4.79925ms)\n✔ source/runtime equivalence: CaseDefinition (5.234375ms)\n✔ source/runtime equivalence: AuthProfile (7.959459ms)\n✔ source/runtime equivalence: FormConfig (4.783875ms)\n✔ source/runtime equivalence: AuthProfileCreate (5.225083ms)\n✔ source/runtime equivalence: AuthProfilePatch (1.100458ms)\n✔ source/runtime equivalence: Knowledge (1.285292ms)\n✔ source/runtime equivalence: KnowledgeCreate (0.721167ms)\n✔ source/runtime equivalence: KnowledgePatch (0.790917ms)\n✔ source/runtime equivalence: ModelCapabilities (0.635583ms)\n✔ source/runtime equivalence: ModelProfile (2.059791ms)\n✔ source/runtime equivalence: ModelProfileCreate (1.056792ms)\n✔ source/runtime equivalence: ModelProbeResult (1.174667ms)\n✔ source/runtime equivalence: RunCreate (2.6255ms)\n✔ source/runtime equivalence: RunConfig (5.980667ms)\n✔ source/runtime equivalence: Run (4.7965ms)\n✔ source/runtime equivalence: CriterionResult (0.928792ms)\n✔ source/runtime equivalence: Verdict (2.499167ms)\n✔ source/runtime equivalence: CaseRecord (3.478ms)\n✔ source/runtime equivalence: Task (1.65525ms)\n✔ source/runtime equivalence: Artifact (10.787708ms)\n✔ source/runtime equivalence: Finding (5.146583ms)\n✔ source/runtime equivalence: Reproduction (1.952708ms)\n✔ source/runtime equivalence: Summary (1.856833ms)\n✔ source/runtime equivalence: ModelUsage (1.592166ms)\n✔ source/runtime equivalence: Report (15.975625ms)\n✔ source/runtime equivalence: InputRequest (1.388208ms)\n✔ source/runtime equivalence: InputResponse (1.146292ms)\n✔ source/runtime equivalence: MessageInput (0.550834ms)\n✔ source/runtime equivalence: TriageInput (0.731833ms)\n✔ source/runtime equivalence: TriagePreview (1.514917ms)\n✔ source/runtime equivalence: TriageCommit (1.057958ms)\n✔ source/runtime equivalence: ExportInput (0.487458ms)\n✔ source/runtime equivalence: Export (1.547709ms)\n✔ source/runtime equivalence: RunEvent (52.2815ms)\n✔ source/runtime equivalence: NodeTarget (0.91825ms)\n✔ source/runtime equivalence: WorkerClaim (0.747084ms)\n✔ source/runtime equivalence: Lease (2.578292ms)\n✔ source/runtime equivalence: HeartbeatInput (0.535792ms)\n✔ source/runtime equivalence: HeartbeatResult (0.673708ms)\n✔ source/runtime equivalence: TaskComplete (0.8495ms)\n✔ source/runtime equivalence: ActionReservation (18.708416ms)\n✔ source/runtime equivalence: ActionPermit (1.130084ms)\n✔ source/runtime equivalence: ActionResult (1.074583ms)\n✔ source/runtime equivalence: ModelPart (0.971583ms)\n✔ source/runtime equivalence: ModelMessage (1.514542ms)\n✔ source/runtime equivalence: ModelRequest (1.660167ms)\n✔ source/runtime equivalence: ModelResult (2.138292ms)\n✔ source/runtime equivalence: AuthResolve (0.794708ms)\n✔ source/runtime equivalence: CredentialMaterial (1.041333ms)\n✔ source/runtime equivalence: Health (0.613917ms)\n✔ source/runtime equivalence: UserCreate (0.749292ms)\n✔ source/runtime equivalence: UserPatch (0.679041ms)\n✔ source/runtime equivalence: ProjectPatch (1.0225ms)\n✔ source/runtime equivalence: ModelProfilePatch (0.825209ms)\n✔ source/runtime equivalence: ModelBinding (0.83225ms)\n✔ source/runtime equivalence: RoleModels (3.067375ms)\n✔ source/runtime equivalence: Step (2.877083ms)\n✔ source/runtime equivalence: CaseAttempt (2.515458ms)\n✔ source/runtime equivalence: Bounds (0.971959ms)\n✔ source/runtime equivalence: SnapshotNode (1.923333ms)\n✔ source/runtime equivalence: NetworkEntry (1.176625ms)\n✔ source/runtime equivalence: NetworkEntries (1.287083ms)\n✔ source/runtime equivalence: BrowserSnapshot (4.260875ms)\n✔ source/runtime equivalence: ToolResult (1.57775ms)\n✔ source/runtime equivalence: UserPage (1.485ms)\n✔ source/runtime equivalence: ProjectPage (1.650083ms)\n✔ source/runtime equivalence: EnvironmentPage (2.585708ms)\n✔ source/runtime equivalence: AuthProfilePage (0.896708ms)\n✔ source/runtime equivalence: KnowledgePage (1.926917ms)\n✔ source/runtime equivalence: ModelProfilePage (1.025584ms)\n✔ source/runtime equivalence: RunPage (0.888708ms)\n✔ source/runtime equivalence: CaseRecordPage (1.098458ms)\n✔ source/runtime equivalence: CaseAttemptPage (0.839292ms)\n✔ source/runtime equivalence: StepPage (3.096958ms)\n✔ source/runtime equivalence: RunEventPage (1.298791ms)\n✔ source/runtime equivalence: TaskPage (2.130792ms)\n✔ source/runtime equivalence: FindingPage (4.244583ms)\n✔ source/runtime equivalence: MemberPage (1.017166ms)\n✔ source/runtime equivalence: ToolCall (17.341375ms)\n✔ source/runtime equivalence: ReplayStep (4.903625ms)\n✔ source/runtime equivalence: RegressionDocument (5.527208ms)\n✔ comparison evidence (0.443708ms)\n✔ all five fictional examples validate; four root schemas match domain schemas (54.938583ms)\n✔ unknown input fields reject, defaults/coercion/stripping never mutate inputs (1.337959ms)\n✔ all budget fields: minimum, maximum, fractional, outside bounds, all optional/default absence (0.265625ms)\n✖ Unicode maxLength follows JSON Schema code points; URL, email, UUID and date formats (0.251167ms)\n✔ Criterion conditionally requires locator and expectedValue; business typing is not invented (0.068541ms)\n✔ form and storage state auth conditional requirements (6.368834ms)\n✔ functional confirmed needs reproduction/evidence and rejects inferred source (0.159833ms)\n✔ all 13 event types validate their matching payloads and reject mismatches (7.153667ms)\n✔ all tools and result metadata resolve; unknown/shell/eval tools reject (6.161625ms)\n✔ recursive JsonValue, nullable fields and oneOf rejection (0.1105ms)\n✔ parse errors contain no input password and retain detached errors (0.246291ms)\n✔ every OpenAPI request, response, media and parameter validator compiles; Internal opt-in (40.890459ms)\n✔ API input/output/query constraints follow OpenAPI without implicit coercion (1.38975ms)\n✔ error registry exactly covers documented §7 codes; does not tighten Error.code (0.847375ms)\n✔ frozen deployment registry covers §12 inputs and documented defaults (0.063083ms)\nℹ tests 115\nℹ suites 0\nℹ pass 113\nℹ fail 2\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 575.384833\n\n✖ failing tests:\n\ntest at test/contracts.test.mjs:109:3\n✖ source/runtime equivalence: JsonValue (2.7375ms)\n  AssertionError [ERR_ASSERTION]: JsonValue mismatch\n  \n  false !== true\n  \n      at TestContext.<anonymous> (file:///Users/dcp/Documents/%E5%85%AC%E5%8F%B8/momentic/packages/contracts/test/contracts.test.mjs:153:14)\n      at Test.runInAsyncScope (node:async_hooks:226:14)\n      at Test.run (node:internal/test_runner/test:1382:25)\n      at Test.start (node:internal/test_runner/test:1242:17)\n      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',\n    actual: false,\n    expected: true,\n    operator: 'strictEqual',\n    diff: 'simple'\n  }\n\ntest at test/contracts.test.mjs:232:1\n✖ Unicode maxLength follows JSON Schema code points; URL, email, UUID and date formats (0.251167ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  true !== false\n  \n      at TestContext.<anonymous> (file:///Users/dcp/Documents/%E5%85%AC%E5%8F%B8/momentic/packages/contracts/test/contracts.test.mjs:239:12)\n      at Test.runInAsyncScope (node:async_hooks:226:14)\n      at Test.run (node:internal/test_runner/test:1382:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)\n      at Test.postRun (node:internal/test_runner/test:1522:19)\n      at Test.run (node:internal/test_runner/test:1447:12)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\n    generatedMessage: true,\n    code: 'ERR_ASSERTION',\n    actual: true,\n    expected: false,\n    operator: 'strictEqual',\n    diff: 'simple'\n  }\n/Users/dcp/Documents/公司/momentic/packages/contracts:\n ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @localqa/contracts@1.0.0 test: `pnpm build && node --test test/*.test.mjs`\nExit status 1\n ELIFECYCLE  Test failed. See above for more details.\n"
+    },
+    {
+      "path": ".localqa-t01/logs/tests-second.log",
+      "sha256": "88b1c1e182da54505d04153c1e59cf28a02b6b1b6f450f3d02215617e0d7c92d",
+      "rawOutput": "\n> localqa@0.0.0 test /Users/dcp/Documents/公司/momentic\n> pnpm --filter @localqa/contracts test\n\n\n> @localqa/contracts@1.0.0 test /Users/dcp/Documents/公司/momentic/packages/contracts\n> pnpm build && node --test test/*.test.mjs\n\n\n> @localqa/contracts@1.0.0 build /Users/dcp/Documents/公司/momentic/packages/contracts\n> tsc -p tsconfig.build.json\n\n{\"definitionTests\":99,\"sourceRuntimeComparisons\":5715}\n{\"compiledRuntimeApiValidators\":328,\"publicOperations\":52,\"internalOperations\":8}\n✔ source/runtime equivalence: JsonValue (2.075917ms)\n✔ source/runtime equivalence: Error (1.433ms)\n✔ source/runtime equivalence: User (1.41425ms)\n✔ source/runtime equivalence: LoginInput (0.7495ms)\n✔ source/runtime equivalence: LoginResult (1.471333ms)\n✔ source/runtime equivalence: Project (1.222167ms)\n✔ source/runtime equivalence: ProjectCreate (0.422292ms)\n✔ source/runtime equivalence: Member (0.462666ms)\n✔ source/runtime equivalence: MemberUpdate (0.975583ms)\n✔ source/runtime equivalence: BudgetLimits (2.061875ms)\n✔ source/runtime equivalence: BudgetOverrides (1.214958ms)\n✔ source/runtime equivalence: BudgetUsed (0.882208ms)\n✔ source/runtime equivalence: Environment (5.254583ms)\n✔ source/runtime equivalence: EnvironmentCreate (1.701584ms)\n✔ source/runtime equivalence: EnvironmentPatch (1.5135ms)\n✔ source/runtime equivalence: Locator (0.482667ms)\n✔ source/runtime equivalence: Criterion (5.078875ms)\n✔ source/runtime equivalence: CandidateCase (3.914917ms)\n✔ source/runtime equivalence: CaseDefinition (4.70475ms)\n✔ source/runtime equivalence: AuthProfile (7.848958ms)\n✔ source/runtime equivalence: FormConfig (7.030625ms)\n✔ source/runtime equivalence: AuthProfileCreate (5.149ms)\n✔ source/runtime equivalence: AuthProfilePatch (0.962167ms)\n✔ source/runtime equivalence: Knowledge (1.391208ms)\n✔ source/runtime equivalence: KnowledgeCreate (0.8165ms)\n✔ source/runtime equivalence: KnowledgePatch (0.615292ms)\n✔ source/runtime equivalence: ModelCapabilities (0.517375ms)\n✔ source/runtime equivalence: ModelProfile (2.423666ms)\n✔ source/runtime equivalence: ModelProfileCreate (1.384667ms)\n✔ source/runtime equivalence: ModelProbeResult (1.245208ms)\n✔ source/runtime equivalence: RunCreate (2.00975ms)\n✔ source/runtime equivalence: RunConfig (5.826917ms)\n✔ source/runtime equivalence: Run (4.110917ms)\n✔ source/runtime equivalence: CriterionResult (0.886208ms)\n✔ source/runtime equivalence: Verdict (2.687917ms)\n✔ source/runtime equivalence: CaseRecord (3.044417ms)\n✔ source/runtime equivalence: Task (1.485583ms)\n✔ source/runtime equivalence: Artifact (10.64775ms)\n✔ source/runtime equivalence: Finding (5.949667ms)\n✔ source/runtime equivalence: Reproduction (1.853542ms)\n✔ source/runtime equivalence: Summary (2.169417ms)\n✔ source/runtime equivalence: ModelUsage (1.579041ms)\n✔ source/runtime equivalence: Report (16.096083ms)\n✔ source/runtime equivalence: InputRequest (1.604583ms)\n✔ source/runtime equivalence: InputResponse (1.094416ms)\n✔ source/runtime equivalence: MessageInput (0.524959ms)\n✔ source/runtime equivalence: TriageInput (0.692667ms)\n✔ source/runtime equivalence: TriagePreview (0.990875ms)\n✔ source/runtime equivalence: TriageCommit (0.7075ms)\n✔ source/runtime equivalence: ExportInput (0.406125ms)\n✔ source/runtime equivalence: Export (1.359375ms)\n✔ source/runtime equivalence: RunEvent (39.8025ms)\n✔ source/runtime equivalence: NodeTarget (1.129ms)\n✔ source/runtime equivalence: WorkerClaim (0.691917ms)\n✔ source/runtime equivalence: Lease (2.083875ms)\n✔ source/runtime equivalence: HeartbeatInput (0.508459ms)\n✔ source/runtime equivalence: HeartbeatResult (0.715875ms)\n✔ source/runtime equivalence: TaskComplete (0.812167ms)\n✔ source/runtime equivalence: ActionReservation (15.020667ms)\n✔ source/runtime equivalence: ActionPermit (0.760084ms)\n✔ source/runtime equivalence: ActionResult (0.847ms)\n✔ source/runtime equivalence: ModelPart (0.833458ms)\n✔ source/runtime equivalence: ModelMessage (1.302209ms)\n✔ source/runtime equivalence: ModelRequest (1.341209ms)\n✔ source/runtime equivalence: ModelResult (2.249042ms)\n✔ source/runtime equivalence: AuthResolve (0.638625ms)\n✔ source/runtime equivalence: CredentialMaterial (0.838166ms)\n✔ source/runtime equivalence: Health (0.496709ms)\n✔ source/runtime equivalence: UserCreate (0.698792ms)\n✔ source/runtime equivalence: UserPatch (0.917542ms)\n✔ source/runtime equivalence: ProjectPatch (0.731166ms)\n✔ source/runtime equivalence: ModelProfilePatch (0.8855ms)\n✔ source/runtime equivalence: ModelBinding (0.674833ms)\n✔ source/runtime equivalence: RoleModels (2.219041ms)\n✔ source/runtime equivalence: Step (2.3265ms)\n✔ source/runtime equivalence: CaseAttempt (1.836709ms)\n✔ source/runtime equivalence: Bounds (0.610166ms)\n✔ source/runtime equivalence: SnapshotNode (1.58275ms)\n✔ source/runtime equivalence: NetworkEntry (1.215416ms)\n✔ source/runtime equivalence: NetworkEntries (1.074833ms)\n✔ source/runtime equivalence: BrowserSnapshot (3.812875ms)\n✔ source/runtime equivalence: ToolResult (1.447709ms)\n✔ source/runtime equivalence: UserPage (1.36525ms)\n✔ source/runtime equivalence: ProjectPage (1.681083ms)\n✔ source/runtime equivalence: EnvironmentPage (2.694834ms)\n✔ source/runtime equivalence: AuthProfilePage (0.812292ms)\n✔ source/runtime equivalence: KnowledgePage (1.335042ms)\n✔ source/runtime equivalence: ModelProfilePage (0.613333ms)\n✔ source/runtime equivalence: RunPage (0.596ms)\n✔ source/runtime equivalence: CaseRecordPage (0.562541ms)\n✔ source/runtime equivalence: CaseAttemptPage (0.565292ms)\n✔ source/runtime equivalence: StepPage (2.718792ms)\n✔ source/runtime equivalence: RunEventPage (0.898375ms)\n✔ source/runtime equivalence: TaskPage (1.663667ms)\n✔ source/runtime equivalence: FindingPage (3.718667ms)\n✔ source/runtime equivalence: MemberPage (0.954875ms)\n✔ source/runtime equivalence: ToolCall (13.052083ms)\n✔ source/runtime equivalence: ReplayStep (3.469875ms)\n✔ source/runtime equivalence: RegressionDocument (4.647375ms)\n✔ comparison evidence (0.413125ms)\n✔ all five fictional examples validate; four root schemas match domain schemas (46.156375ms)\n✔ unknown input fields reject, defaults/coercion/stripping never mutate inputs (1.158958ms)\n✔ all budget fields: minimum, maximum, fractional, outside bounds, all optional/default absence (0.2565ms)\n✔ Unicode maxLength follows JSON Schema code points; URL, email, UUID and date formats (0.250458ms)\n✔ Criterion conditionally requires locator and expectedValue; business typing is not invented (0.046125ms)\n✔ form and storage state auth conditional requirements (2.269292ms)\n✔ functional confirmed needs reproduction/evidence and rejects inferred source (0.080167ms)\n✔ all 13 event types validate their matching payloads and reject mismatches (5.276209ms)\n✔ all tools and result metadata resolve; unknown/shell/eval tools reject (5.374833ms)\n✔ recursive JsonValue, nullable fields and oneOf rejection (0.093917ms)\n✔ parse errors contain no input password and retain detached errors (0.218667ms)\n✔ every OpenAPI request, response, media and parameter validator compiles; Internal opt-in (38.442625ms)\n✔ API input/output/query constraints follow OpenAPI without implicit coercion (0.969458ms)\n✔ error registry exactly covers documented §7 codes; does not tighten Error.code (0.673459ms)\n✔ frozen deployment registry covers §12 inputs and documented defaults (0.039709ms)\nℹ tests 115\nℹ suites 0\nℹ pass 115\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 510.783541\n"
+    },
+    {
+      "path": ".localqa-t01/logs/tool-cache-paths.log",
+      "sha256": "2018294d17989f03b26cc770dbaa9c855c6bcf47f0b4ce47b2270808797381c6",
+      "rawOutput": "pnpm-cache-config=undefined\npnpm-state-config=undefined\n\nExisting tool cache locations (read-only inspection):\ndrwxr-xr-x@ 3 dcp  staff  96 10月  2 16:05 /Users/dcp/Library/Caches/pnpm\ndrwxr-xr-x  3 dcp  staff  96  8月 13 21:41 /Users/dcp/Library/pnpm\ndrwxr-xr-x  3 dcp  staff  96 10月  2 16:05 /Users/dcp/.local/state/pnpm\n"
+    },
+    {
+      "path": ".localqa-t01/logs/typecheck-initial.log",
+      "sha256": "7841cc4100d98f17788828545d83cd3e1cae1e4ad8c8543f40a64736f9771ed3",
+      "rawOutput": "\n> localqa@0.0.0 typecheck /Users/dcp/Documents/公司/momentic\n> pnpm --filter @localqa/contracts typecheck\n\n\n> @localqa/contracts@1.0.0 typecheck /Users/dcp/Documents/公司/momentic/packages/contracts\n> tsc --noEmit -p tsconfig.json\n\nsrc/index.ts(26,1): error TS2349: This expression is not callable.\n  Type 'typeof import(\"/Users/dcp/Documents/\\u516C\\u53F8/momentic/node_modules/.pnpm/ajv-formats@3.0.1_ajv@8.20.0/node_modules/ajv-formats/dist/index\")' has no call signatures.\n/Users/dcp/Documents/公司/momentic/packages/contracts:\n ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @localqa/contracts@1.0.0 typecheck: `tsc --noEmit -p tsconfig.json`\nExit status 2\n ELIFECYCLE  Command failed with exit code 2.\n"
+    },
+    {
+      "path": ".localqa-t01/logs/typecheck-second.log",
+      "sha256": "5ac5df3fe83568ab144148bc7778058cc57dee19903757b1c73bda8d69bc5878",
+      "rawOutput": "\n> localqa@0.0.0 typecheck /Users/dcp/Documents/公司/momentic\n> pnpm --filter @localqa/contracts typecheck\n\n\n> @localqa/contracts@1.0.0 typecheck /Users/dcp/Documents/公司/momentic/packages/contracts\n> tsc --noEmit -p tsconfig.json\n\ntest/types.test.ts(31,1): error TS2578: Unused '@ts-expect-error' directive.\ntest/types.test.ts(35,3): error TS2353: Object literal may only specify known properties, and 'guessedField' does not exist in type 'RunCreate'.\ntest/types.test.ts(37,1): error TS2578: Unused '@ts-expect-error' directive.\ntest/types.test.ts(41,13): error TS2322: Type 'string' is not assignable to type 'number'.\n/Users/dcp/Documents/公司/momentic/packages/contracts:\n ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @localqa/contracts@1.0.0 typecheck: `tsc --noEmit -p tsconfig.json`\nExit status 2\n ELIFECYCLE  Command failed with exit code 2.\n"
+    },
+    {
+      "path": ".localqa-t01/logs/typecheck-third.log",
+      "sha256": "6da8408857ac5179f0d6a207cf722b65fc0e6a14926a660329e19eca9e38d1b7",
+      "rawOutput": "\n> localqa@0.0.0 typecheck /Users/dcp/Documents/公司/momentic\n> pnpm --filter @localqa/contracts typecheck\n\n\n> @localqa/contracts@1.0.0 typecheck /Users/dcp/Documents/公司/momentic/packages/contracts\n> tsc --noEmit -p tsconfig.json\n\n"
+    }
+  ]
+}

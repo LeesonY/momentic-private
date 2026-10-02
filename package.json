@@ -1,0 +1,29 @@
+{
+  "name": "localqa",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.34.0",
+  "engines": {
+    "node": ">=24 <27",
+    "pnpm": "10.34.0"
+  },
+  "scripts": {
+    "build": "pnpm --filter @localqa/contracts build",
+    "contracts:generate": "pnpm --filter @localqa/contracts generate",
+    "contracts:check": "pnpm --filter @localqa/contracts check",
+    "lint": "eslint eslint.config.mjs packages/contracts/src packages/contracts/scripts packages/contracts/test",
+    "format": "prettier --write package.json pnpm-workspace.yaml tsconfig.base.json eslint.config.mjs .prettierrc.json .github/workflows/ci.yml packages/contracts",
+    "format:check": "prettier --check package.json pnpm-workspace.yaml tsconfig.base.json eslint.config.mjs .prettierrc.json .github/workflows/ci.yml packages/contracts",
+    "test": "pnpm --filter @localqa/contracts test",
+    "typecheck": "pnpm --filter @localqa/contracts typecheck",
+    "ci": "pnpm contracts:check && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.1",
+    "eslint": "10.11.0",
+    "prettier": "3.9.9",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.0"
+  }
+}
