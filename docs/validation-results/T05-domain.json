@@ -1,0 +1,3288 @@
+{
+  "task": "T05",
+  "recordedAt": "2026-10-02T12:09:29.530Z",
+  "result": "verified first vertical slice and selected faults",
+  "P0Passed": false,
+  "G2Passed": false,
+  "realModel": "blocked; only T04 fixed stub used",
+  "failure": null,
+  "scopedEngineering": {
+    "functionalPassed": true,
+    "units": [
+      {
+        "command": "node --test packages/domain/test/domain.test.mjs",
+        "exitCode": 0,
+        "counts": {
+          "tests": 16,
+          "pass": 16,
+          "fail": 0,
+          "skipped": 0
+        }
+      },
+      {
+        "command": "node --test packages/orchestrator/test/boundary.test.mjs",
+        "exitCode": 0,
+        "counts": {
+          "tests": 3,
+          "pass": 3,
+          "fail": 0,
+          "skipped": 0
+        }
+      }
+    ],
+    "integration": [
+      {
+        "exitCode": 0,
+        "counts": {
+          "tests": 18,
+          "pass": 18,
+          "fail": 0,
+          "skipped": 0
+        }
+      }
+    ],
+    "boundaryBlocked": false
+  },
+  "logs": [
+    "apps/worker/.evidence/integration-output.log",
+    "apps/worker/.evidence/install.log",
+    "apps/worker/.evidence/boundary-change.json"
+  ],
+  "commands": [
+    {
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/domain build",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "\n> @localqa/domain@0.0.0 build /Users/dcp/Documents/公司/momentic/packages/domain\n> tsc -p tsconfig.json\n\n",
+      "stderr": "npm warn Unknown env config \"npm-globalconfig\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"recursive\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"verify-deps-before-run\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"_jsr-registry\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"state-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"store-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"cache-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/domain typecheck",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "\n> @localqa/domain@0.0.0 typecheck /Users/dcp/Documents/公司/momentic/packages/domain\n> tsc --noEmit -p tsconfig.json\n\n",
+      "stderr": "npm warn Unknown env config \"npm-globalconfig\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"recursive\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"verify-deps-before-run\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"_jsr-registry\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"state-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"store-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"cache-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/domain lint",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "\n> @localqa/domain@0.0.0 lint /Users/dcp/Documents/公司/momentic/packages/domain\n> eslint src test\n\n",
+      "stderr": "npm warn Unknown env config \"npm-globalconfig\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"recursive\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"verify-deps-before-run\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"_jsr-registry\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"state-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"store-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"cache-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/domain format:check",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "\n> @localqa/domain@0.0.0 format:check /Users/dcp/Documents/公司/momentic/packages/domain\n> prettier --check package.json tsconfig.json src test README.md\n\nChecking formatting...\nAll matched files use Prettier code style!\n",
+      "stderr": "npm warn Unknown env config \"npm-globalconfig\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"recursive\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"verify-deps-before-run\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"_jsr-registry\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"state-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"store-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"cache-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/orchestrator build",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "\n> @localqa/orchestrator@0.0.0 build /Users/dcp/Documents/公司/momentic/packages/orchestrator\n> tsc -p tsconfig.json\n\n",
+      "stderr": "npm warn Unknown env config \"npm-globalconfig\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"recursive\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"verify-deps-before-run\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"_jsr-registry\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"state-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"store-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"cache-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/orchestrator typecheck",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "\n> @localqa/orchestrator@0.0.0 typecheck /Users/dcp/Documents/公司/momentic/packages/orchestrator\n> tsc --noEmit -p tsconfig.json\n\n",
+      "stderr": "npm warn Unknown env config \"npm-globalconfig\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"recursive\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"verify-deps-before-run\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"_jsr-registry\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"state-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"store-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"cache-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/orchestrator lint",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "\n> @localqa/orchestrator@0.0.0 lint /Users/dcp/Documents/公司/momentic/packages/orchestrator\n> eslint src test\n\n",
+      "stderr": "npm warn Unknown env config \"npm-globalconfig\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"recursive\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"verify-deps-before-run\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"_jsr-registry\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"state-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"store-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"cache-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/orchestrator format:check",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "\n> @localqa/orchestrator@0.0.0 format:check /Users/dcp/Documents/公司/momentic/packages/orchestrator\n> prettier --check package.json tsconfig.json src test README.md\n\nChecking formatting...\nAll matched files use Prettier code style!\n",
+      "stderr": "npm warn Unknown env config \"npm-globalconfig\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"recursive\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"verify-deps-before-run\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"_jsr-registry\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"state-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"store-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"cache-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/worker build",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "\n> @localqa/worker@0.0.0 build /Users/dcp/Documents/公司/momentic/apps/worker\n> tsc -p tsconfig.json\n\n",
+      "stderr": "npm warn Unknown env config \"npm-globalconfig\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"recursive\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"verify-deps-before-run\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"_jsr-registry\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"state-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"store-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"cache-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/worker typecheck",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "\n> @localqa/worker@0.0.0 typecheck /Users/dcp/Documents/公司/momentic/apps/worker\n> tsc --noEmit -p tsconfig.json\n\n",
+      "stderr": "npm warn Unknown env config \"npm-globalconfig\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"recursive\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"verify-deps-before-run\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"_jsr-registry\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"state-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"store-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"cache-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/worker lint",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "\n> @localqa/worker@0.0.0 lint /Users/dcp/Documents/公司/momentic/apps/worker\n> eslint src scripts test\n\n",
+      "stderr": "npm warn Unknown env config \"npm-globalconfig\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"recursive\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"verify-deps-before-run\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"_jsr-registry\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"state-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"store-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"cache-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/worker format:check",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "\n> @localqa/worker@0.0.0 format:check /Users/dcp/Documents/公司/momentic/apps/worker\n> prettier --check package.json tsconfig.json src scripts test README.md\n\nChecking formatting...\nAll matched files use Prettier code style!\n",
+      "stderr": "npm warn Unknown env config \"npm-globalconfig\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"recursive\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"verify-deps-before-run\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"_jsr-registry\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"state-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"store-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown env config \"cache-dir\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n"
+    },
+    {
+      "command": "node --test packages/domain/test/domain.test.mjs",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "✔ status matrix: draft (0.71ms)\n✔ status matrix: queued (0.059167ms)\n✔ status matrix: running (0.049834ms)\n✔ status matrix: awaiting_input (0.042459ms)\n✔ status matrix: cancelling (0.049917ms)\n✔ status matrix: completed (0.047167ms)\n✔ status matrix: cancelled (0.0475ms)\n✔ status matrix: failed (0.040333ms)\n✔ all phase ordering and saved waiting phase (0.138834ms)\n✔ reservation boundary: exact limit, over limit, held reservations, negative/noninteger/unknown (0.60775ms)\n✔ exact scheme/host/port scope and no userinfo/metadata/side effects/arbitrary tools (14.567458ms)\n✔ criteria hashes canonical key ordering and retain all original criteria (0.466583ms)\n✔ verdict semantics: all passed, credible failed, blocked, unknown and fake evidence (1.802666ms)\n✔ all result counts and zero denominators; completion independent of success (1.656375ms)\n✔ truncated, unsupported and child-frame observations cannot prove a sourced main-frame failure or pass (0.637042ms)\n✔ graph URL/structure dedup, maxPages and maxDepth (0.119542ms)\nℹ tests 16\nℹ suites 0\nℹ pass 16\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 139.453375\n",
+      "stderr": ""
+    },
+    {
+      "command": "node --test packages/orchestrator/test/boundary.test.mjs",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "✔ RuntimeClient has no enumerable/reflection-readable DB, actor, KEK, scope or adapter state (1.124917ms)\n✔ criteria hash matches accepted storage canonical algorithm (4.42375ms)\n✔ invalid platform/project slot policy is rejected (0.16725ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 125.354875\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker image inspect postgres:18-alpine mcr.microsoft.com/playwright:v1.63.0-noble --format {{.Id}} {{json .RepoDigests}}",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873 [\"postgres@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873\"]\nsha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27 [\"mcr.microsoft.com/playwright@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27\"]\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker network create localqa-t05-5b6fc669",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "83eb2a9d012dbdd1912d6e4c457abee6a4dc5b3c3c603af58542ed3fce1e09e0\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --detach --name localqa-t05-pg-5b6fc669 --network localqa-t05-5b6fc669 --env-file /Users/dcp/Documents/公司/momentic/apps/worker/.evidence/postgres.env postgres:18-alpine",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "3f303182ab42b13fdc154cd4785f602b8c35340057d499e56f0097be679cf6f4\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect localqa-t05-pg-5b6fc669 --format {{json .Mounts}}",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "[{\"Type\":\"volume\",\"Name\":\"ccdd1bdc82a30310fab1d7a4895eebca4a90e1e6b684aefb0427af2f6140af94\",\"Source\":\"/var/lib/docker/volumes/ccdd1bdc82a30310fab1d7a4895eebca4a90e1e6b684aefb0427af2f6140af94/_data\",\"Destination\":\"/var/lib/postgresql\",\"Driver\":\"local\",\"Mode\":\"\",\"RW\":true,\"Propagation\":\"\"}]\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t05-pg-5b6fc669 pg_isready -U localqa -d localqa",
+      "exitCode": 2,
+      "signal": null,
+      "stdout": "localqa-t05-pg-5b6fc669:5432 - no response\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t05-pg-5b6fc669 pg_isready -U localqa -d localqa",
+      "exitCode": 2,
+      "signal": null,
+      "stdout": "localqa-t05-pg-5b6fc669:5432 - no response\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t05-pg-5b6fc669 pg_isready -U localqa -d localqa",
+      "exitCode": 2,
+      "signal": null,
+      "stdout": "localqa-t05-pg-5b6fc669:5432 - no response\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t05-pg-5b6fc669 pg_isready -U localqa -d localqa",
+      "exitCode": 2,
+      "signal": null,
+      "stdout": "localqa-t05-pg-5b6fc669:5432 - no response\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker exec localqa-t05-pg-5b6fc669 pg_isready -U localqa -d localqa",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "localqa-t05-pg-5b6fc669:5432 - accepting connections\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker run --name localqa-t05-browser-5b6fc669 --network localqa-t05-5b6fc669 --user 501:20 --cap-add=SYS_ADMIN --shm-size=256m --memory=2g --cpus=2 --pids-limit=512 --volume /Users/dcp/Documents/公司/momentic/:/work:ro --volume /Users/dcp/Documents/公司/momentic/apps/worker/.evidence:/work/apps/worker/.evidence:rw --volume /Users/dcp/Documents/公司/momentic/packages/orchestrator/.artifacts:/work/packages/orchestrator/.artifacts:rw --env HOME=/work/apps/worker/.evidence/home --env TMPDIR=/work/apps/worker/.evidence/tmp --env XDG_CACHE_HOME=/work/apps/worker/.evidence/cache --env PLAYWRIGHT_BROWSERS_PATH=/ms-playwright --workdir /work mcr.microsoft.com/playwright:v1.63.0-noble node --test --test-timeout=120000 apps/worker/test/integration.test.mjs",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "{\"verticalSlice\":\"real_browser_passed\",\"runId\":\"51857042-24b0-43a0-8268-5a7ff30d1202\",\"summary\":{\"passed\":1,\"issueFound\":0,\"blocked\":0,\"inconclusive\":0,\"notRun\":0,\"planned\":1,\"evaluated\":1,\"attempted\":1,\"passRate\":1,\"attemptRate\":1},\"eventCount\":50,\"evidenceSha256\":\"b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb\"}\n✔ first vertical slice: Run+Job+event -> leased Worker -> real browser -> evidence/verdict -> sequential events (1305.23329ms)\n✔ create idempotency, duplicate job key and transaction rollback leave no second dispatch (18.883585ms)\n✔ atomic reservations: competing final call slot, settlements/idempotency and missing usage estimation (66.189343ms)\n✔ cancel <=2s: signal closes active real browser and no later intent/model dispatch (521.581118ms)\n✔ expired lease and old fencing denied; actionless preparation can safely requeue (1171.3937ms)\n✔ crash after persisted intent: unknown action never replayed; original interrupted and recovery verdict preserves facts (1375.284369ms)\n✔ budget exhaustion prevents extra provider requests and false completion (443.315761ms)\n✔ NOTIFY discarded: polling alone recovers all stages without listener (457.787999ms)\n✔ awaiting_input only with no other runnable task; deadline expires to partial/blocked result (130.826797ms)\n✔ runtime binding rejects forged run/task/lease IDs, forbidden roles/tools and foreign project proof (21.393579ms)\n✔ independent reproduction: original suspected, fresh context/same criteria/real new evidence required for confirmed (398.966801ms)\n✔ interrupted case is not replayed; another independent case runs in a fresh real context (1638.641007ms)\n✔ platform/project/run slots reserve atomically and rollback quota-denied claims (42.11051ms)\n✔ SIGKILL after real browser action before outcome: unknown intent retained and never replayed (1777.849027ms)\n✔ expired model reservation is charged conservatively; late reported usage is audit-only and old result rejected (1180.411ms)\n✔ clarification CAS resumes saved phase without changing fixed criteria or replaying actions (28.34925ms)\n✔ budget stop after plan preserves original tried result and independent not_run projection (280.930758ms)\n✔ one case input deadline blocks only that case; another queued independent case completes with real evidence (532.919287ms)\nℹ tests 18\nℹ suites 0\nℹ pass 18\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 11730.535795\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker logs localqa-t05-pg-5b6fc669",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "The files belonging to this database system will be owned by user \"postgres\".\nThis user must also own the server process.\n\nThe database cluster will be initialized with locale \"en_US.utf8\".\nThe default database encoding has accordingly been set to \"UTF8\".\nThe default text search configuration will be set to \"english\".\n\nData page checksums are enabled.\n\nfixing permissions on existing directory /var/lib/postgresql/18/docker ... ok\ncreating subdirectories ... ok\nselecting dynamic shared memory implementation ... posix\nselecting default \"max_connections\" ... 100\nselecting default \"shared_buffers\" ... 128MB\nselecting default time zone ... UTC\ncreating configuration files ... ok\nrunning bootstrap script ... ok\nperforming post-bootstrap initialization ... ok\nsyncing data to disk ... ok\n\n\nSuccess. You can now start the database server using:\n\n    pg_ctl -D /var/lib/postgresql/18/docker -l logfile start\n\nwaiting for server to start....2026-10-02 12:09:17.075 UTC [62] LOG:  starting PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit\n2026-10-02 12:09:17.075 UTC [62] LOG:  listening on Unix socket \"/var/run/postgresql/.s.PGSQL.5432\"\n2026-10-02 12:09:17.078 UTC [68] LOG:  database system was shut down at 2026-10-02 12:09:17 UTC\n2026-10-02 12:09:17.079 UTC [62] LOG:  database system is ready to accept connections\n done\nserver started\nCREATE DATABASE\n\n\n/usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*\n\nwaiting for server to shut down....2026-10-02 12:09:17.210 UTC [62] LOG:  received fast shutdown request\n2026-10-02 12:09:17.213 UTC [62] LOG:  aborting any active transactions\n2026-10-02 12:09:17.214 UTC [62] LOG:  background worker \"logical replication launcher\" (PID 71) exited with exit code 1\n2026-10-02 12:09:17.215 UTC [66] LOG:  shutting down\n2026-10-02 12:09:17.215 UTC [66] LOG:  checkpoint starting: shutdown immediate\n2026-10-02 12:09:17.231 UTC [66] LOG:  checkpoint complete: wrote 943 buffers (5.8%), wrote 3 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.008 s, sync=0.008 s, total=0.016 s; sync files=303, longest=0.003 s, average=0.001 s; distance=4362 kB, estimate=4362 kB; lsn=0/1BA8880, redo lsn=0/1BA8880\n2026-10-02 12:09:17.240 UTC [62] LOG:  database system is shut down\n done\nserver stopped\n\nPostgreSQL init process complete; ready for start up.\n\n",
+      "stderr": "sh: locale: not found\n2026-10-02 12:09:16.864 UTC [45] WARNING:  no usable system locales were found\ninitdb: warning: enabling \"trust\" authentication for local connections\ninitdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.\n2026-10-02 12:09:17.322 UTC [1] LOG:  starting PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit\n2026-10-02 12:09:17.322 UTC [1] LOG:  listening on IPv4 address \"0.0.0.0\", port 5432\n2026-10-02 12:09:17.322 UTC [1] LOG:  listening on IPv6 address \"::\", port 5432\n2026-10-02 12:09:17.323 UTC [1] LOG:  listening on Unix socket \"/var/run/postgresql/.s.PGSQL.5432\"\n2026-10-02 12:09:17.325 UTC [90] LOG:  database system was shut down at 2026-10-02 12:09:17 UTC\n2026-10-02 12:09:17.327 UTC [1] LOG:  database system is ready to accept connections\n2026-10-02 12:09:19.133 UTC [100] ERROR:  duplicate key value violates unique constraint \"jobs_unique_key_key\"\n2026-10-02 12:09:19.133 UTC [100] DETAIL:  Key (unique_key)=(d742c57c-6737-432f-8a76-ebfb61641b4a:coordinator:preflight:prepare:v1:1) already exists.\n2026-10-02 12:09:19.133 UTC [100] STATEMENT:  INSERT INTO jobs(id,project_id,run_id,unique_key,role,document) VALUES($1,$2,$3,$4,$5,$6)\n2026-10-02 12:09:19.140 UTC [103] ERROR:  new row for relation \"runs\" violates check constraint \"runs_check\"\n2026-10-02 12:09:19.140 UTC [103] STATEMENT:  INSERT INTO runs(id,project_id,creator_id,display_url,raw_url_secret_id,raw_url_secret_version,status,phase,completion,termination_reason,effective_config,budget_used,environment_id,environment_version,auth_profile_id,auth_profile_version,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,'queued','preflight','none',NULL,$7,$8,$9,$10,$11,$12,$13,$13)\n"
+    },
+    {
+      "command": "docker rm --force --volumes localqa-t05-pg-5b6fc669",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "localqa-t05-pg-5b6fc669\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect localqa-t05-pg-5b6fc669",
+      "exitCode": 1,
+      "signal": null,
+      "stdout": "[]\n",
+      "stderr": "error: no such object: localqa-t05-pg-5b6fc669\n"
+    },
+    {
+      "command": "docker logs localqa-t05-browser-5b6fc669",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "{\"verticalSlice\":\"real_browser_passed\",\"runId\":\"51857042-24b0-43a0-8268-5a7ff30d1202\",\"summary\":{\"passed\":1,\"issueFound\":0,\"blocked\":0,\"inconclusive\":0,\"notRun\":0,\"planned\":1,\"evaluated\":1,\"attempted\":1,\"passRate\":1,\"attemptRate\":1},\"eventCount\":50,\"evidenceSha256\":\"b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb\"}\n✔ first vertical slice: Run+Job+event -> leased Worker -> real browser -> evidence/verdict -> sequential events (1305.23329ms)\n✔ create idempotency, duplicate job key and transaction rollback leave no second dispatch (18.883585ms)\n✔ atomic reservations: competing final call slot, settlements/idempotency and missing usage estimation (66.189343ms)\n✔ cancel <=2s: signal closes active real browser and no later intent/model dispatch (521.581118ms)\n✔ expired lease and old fencing denied; actionless preparation can safely requeue (1171.3937ms)\n✔ crash after persisted intent: unknown action never replayed; original interrupted and recovery verdict preserves facts (1375.284369ms)\n✔ budget exhaustion prevents extra provider requests and false completion (443.315761ms)\n✔ NOTIFY discarded: polling alone recovers all stages without listener (457.787999ms)\n✔ awaiting_input only with no other runnable task; deadline expires to partial/blocked result (130.826797ms)\n✔ runtime binding rejects forged run/task/lease IDs, forbidden roles/tools and foreign project proof (21.393579ms)\n✔ independent reproduction: original suspected, fresh context/same criteria/real new evidence required for confirmed (398.966801ms)\n✔ interrupted case is not replayed; another independent case runs in a fresh real context (1638.641007ms)\n✔ platform/project/run slots reserve atomically and rollback quota-denied claims (42.11051ms)\n✔ SIGKILL after real browser action before outcome: unknown intent retained and never replayed (1777.849027ms)\n✔ expired model reservation is charged conservatively; late reported usage is audit-only and old result rejected (1180.411ms)\n✔ clarification CAS resumes saved phase without changing fixed criteria or replaying actions (28.34925ms)\n✔ budget stop after plan preserves original tried result and independent not_run projection (280.930758ms)\n✔ one case input deadline blocks only that case; another queued independent case completes with real evidence (532.919287ms)\nℹ tests 18\nℹ suites 0\nℹ pass 18\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 11730.535795\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker rm --force --volumes localqa-t05-browser-5b6fc669",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "localqa-t05-browser-5b6fc669\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker inspect localqa-t05-browser-5b6fc669",
+      "exitCode": 1,
+      "signal": null,
+      "stdout": "[]\n",
+      "stderr": "error: no such object: localqa-t05-browser-5b6fc669\n"
+    },
+    {
+      "command": "docker volume inspect ccdd1bdc82a30310fab1d7a4895eebca4a90e1e6b684aefb0427af2f6140af94",
+      "exitCode": 1,
+      "signal": null,
+      "stdout": "[]\n",
+      "stderr": "Error response from daemon: get ccdd1bdc82a30310fab1d7a4895eebca4a90e1e6b684aefb0427af2f6140af94: no such volume\n"
+    },
+    {
+      "command": "docker network rm localqa-t05-5b6fc669",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "localqa-t05-5b6fc669\n",
+      "stderr": ""
+    },
+    {
+      "command": "docker network inspect localqa-t05-5b6fc669",
+      "exitCode": 1,
+      "signal": null,
+      "stdout": "[]\n",
+      "stderr": "Error response from daemon: network localqa-t05-5b6fc669 not found\n"
+    }
+  ],
+  "installation": {
+    "command": "npx --yes pnpm@10.34.0 install",
+    "stdout": "Scope: all 11 workspace projects\nProgress: resolved 0, reused 1, downloaded 0, added 0\nAlready up to date\nProgress: resolved 363, reused 313, downloaded 0, added 0, done\n\nDone in 478ms using pnpm v10.34.0\n",
+    "rootLockfile": "Updated by explicitly requested root install; integration owner reviews it; no direct root source edits",
+    "pnpmLockfileSha256": "21f64a99bd57dc7c356f38df10db431a394fc76bdb63ed0a4151fdf956e2d349",
+    "toolCaches": "npm/npx default user cache permitted; pnpm cache/settings inherited from root .npmrc; application temporary/evidence/material files stay inside the project"
+  },
+  "facts": {
+    "task": "T05",
+    "node": "v24.20.0",
+    "uid": 501,
+    "browser": "Chromium via T03 sandbox-enabled BrowserManager",
+    "modelMode": "T04 fixed stub; no real provider",
+    "tests": [
+      {
+        "name": "cancel",
+        "elapsedMs": 276.6524459999998,
+        "status": "cancelled"
+      },
+      {
+        "name": "fencing",
+        "old": 1,
+        "new": 2
+      },
+      {
+        "name": "crash-recovery",
+        "originalAttempt": "75a496b9-c8cd-4a9e-af74-6ae91b98d2ce",
+        "replayed": false
+      },
+      {
+        "name": "budgets",
+        "calls": 1,
+        "tokens": 90
+      },
+      {
+        "name": "notify-loss",
+        "listener": false,
+        "status": "completed"
+      },
+      {
+        "name": "independent-reproduction",
+        "finding": {
+          "id": "15a69a16-066d-434e-9d22-5b74fb824d27",
+          "kind": "functional",
+          "runId": "acf96d36-59f1-4f1d-8ac1-198db8bd53fd",
+          "title": "Expected main",
+          "actual": "Fixed sourced criterion failed",
+          "status": "confirmed",
+          "caseIds": [
+            "541add5b-26d4-4ab3-9e6b-c7d2d25b54b6"
+          ],
+          "version": 2,
+          "expected": "Expected main",
+          "severity": "medium",
+          "reproSteps": [
+            "Navigate http://localhost:8080/fix-09/blank",
+            "Observe visible primary content"
+          ],
+          "evidenceRefs": [
+            "4ecdfe09-d2c8-428e-a5ce-18b4cdab6a4d"
+          ],
+          "expectedSource": "user_spec",
+          "reproductionRef": "9dfc1cf4-449f-4312-a770-f93c158c3dc3",
+          "triageDisposition": "open"
+        },
+        "reproduction": {
+          "id": "9dfc1cf4-449f-4312-a770-f93c158c3dc3",
+          "taskId": "d45ab456-32b9-405c-9299-6adb8a241fcc",
+          "outcome": "reproduced",
+          "summary": "Independent reproduction: reproduced",
+          "createdAt": "2026-10-02T12:09:23.701Z",
+          "findingId": "15a69a16-066d-434e-9d22-5b74fb824d27",
+          "evidenceRefs": [
+            "985c0f5c-1f3e-4ec2-809e-83512fc85a90"
+          ],
+          "freshContext": true
+        },
+        "contexts": [
+          {
+            "context_id": "49f06527-a087-4ee9-a11c-9aeb7da5a0ce"
+          },
+          {
+            "context_id": "b9b04e38-1e9c-4706-a1e7-e1e66b2827b0"
+          }
+        ],
+        "sameCriteria": true
+      },
+      {
+        "name": "independent-after-crash",
+        "interrupted": "00eb2525-3a95-4da5-b18e-9400984cda70",
+        "summary": {
+          "passed": 1,
+          "issueFound": 0,
+          "blocked": 0,
+          "inconclusive": 1,
+          "notRun": 0,
+          "planned": 2,
+          "evaluated": 1,
+          "attempted": 2,
+          "passRate": 1,
+          "attemptRate": 1
+        },
+        "contexts": [
+          {
+            "context_id": "df3e1935-dfc4-48d4-b05a-7cbe898a9281",
+            "status": "interrupted"
+          },
+          {
+            "context_id": "818bf096-9fab-4b76-b95f-d6c7e745a50d",
+            "status": "completed"
+          },
+          {
+            "context_id": "107a43b6-8ca3-4c83-a8bc-f2c4574cbd9d",
+            "status": "completed"
+          }
+        ]
+      },
+      {
+        "name": "atomic-slots",
+        "platformLimit": 2,
+        "projectLimit": 1,
+        "runLimit": 1,
+        "held": 2
+      },
+      {
+        "name": "real-SIGKILL",
+        "exit": {
+          "code": null,
+          "signal": "SIGKILL"
+        },
+        "observed": {
+          "event": "browserActionExecuted",
+          "kind": "navigate",
+          "responseStatus": 200,
+          "snapshotId": "a69333f1-e1be-459f-a129-0da76c105c7f",
+          "pid": 239
+        },
+        "logs": "",
+        "replayed": false
+      },
+      {
+        "name": "late-model",
+        "charged": {
+          "actions": 0,
+          "modelCalls": 1,
+          "totalTokens": 455,
+          "activeSeconds": 1,
+          "reproductions": 0
+        },
+        "lateAudit": {
+          "role": "coordinator",
+          "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe",
+          "inputTokens": 11,
+          "usageSource": "unknown",
+          "outputTokens": 7,
+          "profileVersion": 1,
+          "lateUsageSource": "reported",
+          "reportedModelId": null,
+          "configuredModelId": "stub-normal"
+        },
+        "oldResultRejected": true
+      },
+      {
+        "name": "budget-after-plan",
+        "summary": {
+          "passed": 0,
+          "issueFound": 0,
+          "blocked": 1,
+          "inconclusive": 0,
+          "notRun": 1,
+          "planned": 2,
+          "evaluated": 0,
+          "attempted": 1,
+          "passRate": null,
+          "attemptRate": 0.5
+        }
+      },
+      {
+        "name": "input-timeout-independent",
+        "summary": {
+          "passed": 1,
+          "issueFound": 0,
+          "blocked": 1,
+          "inconclusive": 0,
+          "notRun": 0,
+          "planned": 2,
+          "evaluated": 1,
+          "attempted": 2,
+          "passRate": 1,
+          "attemptRate": 1
+        },
+        "criteriaUnchanged": true
+      }
+    ],
+    "verticalSlice": {
+      "run": {
+        "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+        "phase": "finalize",
+        "status": "completed",
+        "version": 8,
+        "createdAt": "2026-10-02T12:09:18.404Z",
+        "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
+        "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+        "targetUrl": "http://localhost:8080/",
+        "updatedAt": "2026-10-02T12:09:19.110Z",
+        "budgetUsed": {
+          "actions": 5,
+          "modelCalls": 7,
+          "totalTokens": 126,
+          "activeSeconds": 0,
+          "reproductions": 0
+        },
+        "completion": "complete",
+        "contextVersion": 1,
+        "effectiveConfig": {
+          "budget": {
+            "maxCases": 8,
+            "maxDepth": 2,
+            "maxPages": 6,
+            "maxActions": 120,
+            "concurrency": 2,
+            "maxModelCalls": 100,
+            "maxTotalTokens": 300000,
+            "maxActiveSeconds": 600,
+            "maxReproductions": 3,
+            "maxActionsPerCase": 12
+          },
+          "models": {
+            "executor": {
+              "version": 1,
+              "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+            },
+            "explorer": {
+              "version": 1,
+              "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+            },
+            "assertion": {
+              "version": 1,
+              "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+            },
+            "reproducer": {
+              "version": 1,
+              "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+            },
+            "coordinator": {
+              "version": 1,
+              "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+            }
+          },
+          "actionPolicy": "non_submitting",
+          "allowedOrigins": [
+            "http://localhost:8080"
+          ],
+          "authProfileVersion": null,
+          "environmentVersion": null,
+          "knowledgeVersionIds": []
+        },
+        "terminationReason": "normal"
+      },
+      "summary": {
+        "passed": 1,
+        "issueFound": 0,
+        "blocked": 0,
+        "inconclusive": 0,
+        "notRun": 0,
+        "planned": 1,
+        "evaluated": 1,
+        "attempted": 1,
+        "passRate": 1,
+        "attemptRate": 1
+      },
+      "verdict": {
+        "id": "a3549d25-bc59-4d34-b1af-c86039deb3bd",
+        "gaps": [],
+        "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+        "status": "passed",
+        "summary": "Fixed criteria evaluated against owned observations",
+        "attemptId": "c2d5d6a3-937c-4daa-8652-d0763d06b2f9",
+        "createdAt": "2026-10-02T12:09:19.078Z",
+        "reasonCode": "OBSERVED",
+        "criterionResults": [
+          {
+            "reason": "Observed successful navigation response",
+            "result": "passed",
+            "criterionId": "smoke.http",
+            "evidenceRefs": [
+              "cd6a4a5b-25ac-4a14-8f62-384ab9b28f70"
+            ]
+          },
+          {
+            "reason": "Visible matching node observed",
+            "result": "passed",
+            "criterionId": "smoke.visible",
+            "evidenceRefs": [
+              "cd6a4a5b-25ac-4a14-8f62-384ab9b28f70"
+            ]
+          }
+        ]
+      },
+      "material": {
+        "id": "cd6a4a5b-25ac-4a14-8f62-384ab9b28f70",
+        "kind": "screenshot",
+        "bytes": 265850,
+        "error": null,
+        "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+        "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+        "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
+        "status": "available",
+        "stepId": "955f2b18-2773-48c4-8293-dfea4deb79e2",
+        "taskId": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+        "createdAt": "2026-10-02T12:09:19.046Z",
+        "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+        "redaction": "not_needed",
+        "contentUrl": "/api/v1/projects/808285aa-c17a-4374-a917-da40196d832a/runs/51857042-24b0-43a0-8268-5a7ff30d1202/artifacts/cd6a4a5b-25ac-4a14-8f62-384ab9b28f70/content",
+        "snapshotId": null
+      },
+      "events": [
+        {
+          "schemaVersion": 1,
+          "id": "1",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 1,
+          "type": "run.updated",
+          "at": "2026-10-02T12:09:18.402Z",
+          "payload": {
+            "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "phase": "preflight",
+            "status": "queued",
+            "version": 1,
+            "createdAt": "2026-10-02T12:09:18.404Z",
+            "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
+            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "targetUrl": "http://localhost:8080/",
+            "updatedAt": "2026-10-02T12:09:18.404Z",
+            "budgetUsed": {
+              "actions": 0,
+              "modelCalls": 0,
+              "totalTokens": 0,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "completion": "none",
+            "contextVersion": 1,
+            "effectiveConfig": {
+              "budget": {
+                "maxCases": 8,
+                "maxDepth": 2,
+                "maxPages": 6,
+                "maxActions": 120,
+                "concurrency": 2,
+                "maxModelCalls": 100,
+                "maxTotalTokens": 300000,
+                "maxActiveSeconds": 600,
+                "maxReproductions": 3,
+                "maxActionsPerCase": 12
+              },
+              "models": {
+                "executor": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "explorer": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "assertion": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "reproducer": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "coordinator": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                }
+              },
+              "actionPolicy": "non_submitting",
+              "allowedOrigins": [
+                "http://localhost:8080"
+              ],
+              "authProfileVersion": null,
+              "environmentVersion": null,
+              "knowledgeVersionIds": []
+            },
+            "terminationReason": null
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "2",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 2,
+          "type": "task.updated",
+          "at": "2026-10-02T12:09:18.402Z",
+          "payload": {
+            "id": "60d0d6ba-7e2e-4c61-99aa-a540424614c5",
+            "role": "coordinator",
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": null,
+            "status": "queued",
+            "attempt": 1,
+            "summary": "preflight",
+            "elapsedSeconds": 0
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "3",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 3,
+          "type": "run.updated",
+          "at": "2026-10-02T12:09:18.450Z",
+          "payload": {
+            "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "phase": "preflight",
+            "status": "running",
+            "version": 2,
+            "createdAt": "2026-10-02T12:09:18.404Z",
+            "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
+            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "targetUrl": "http://localhost:8080/",
+            "updatedAt": "2026-10-02T12:09:18.455Z",
+            "budgetUsed": {
+              "actions": 0,
+              "modelCalls": 0,
+              "totalTokens": 0,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "completion": "none",
+            "contextVersion": 1,
+            "effectiveConfig": {
+              "budget": {
+                "maxCases": 8,
+                "maxDepth": 2,
+                "maxPages": 6,
+                "maxActions": 120,
+                "concurrency": 2,
+                "maxModelCalls": 100,
+                "maxTotalTokens": 300000,
+                "maxActiveSeconds": 600,
+                "maxReproductions": 3,
+                "maxActionsPerCase": 12
+              },
+              "models": {
+                "executor": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "explorer": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "assertion": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "reproducer": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "coordinator": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                }
+              },
+              "actionPolicy": "non_submitting",
+              "allowedOrigins": [
+                "http://localhost:8080"
+              ],
+              "authProfileVersion": null,
+              "environmentVersion": null,
+              "knowledgeVersionIds": []
+            },
+            "terminationReason": null
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "4",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 4,
+          "type": "budget.updated",
+          "at": "2026-10-02T12:09:18.474Z",
+          "payload": {
+            "used": {
+              "actions": 0,
+              "modelCalls": 1,
+              "totalTokens": 18,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "limits": {
+              "maxCases": 8,
+              "maxDepth": 2,
+              "maxPages": 6,
+              "maxActions": 120,
+              "concurrency": 2,
+              "maxModelCalls": 100,
+              "maxTotalTokens": 300000,
+              "maxActiveSeconds": 600,
+              "maxReproductions": 3,
+              "maxActionsPerCase": 12
+            }
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "5",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 5,
+          "type": "task.updated",
+          "at": "2026-10-02T12:09:18.478Z",
+          "payload": {
+            "id": "60d0d6ba-7e2e-4c61-99aa-a540424614c5",
+            "role": "coordinator",
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": null,
+            "status": "succeeded",
+            "attempt": 1,
+            "summary": "preflight",
+            "elapsedSeconds": 0
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "6",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 6,
+          "type": "phase.changed",
+          "at": "2026-10-02T12:09:18.483Z",
+          "payload": {
+            "phase": "auth",
+            "contextVersion": 1
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "7",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 7,
+          "type": "run.updated",
+          "at": "2026-10-02T12:09:18.483Z",
+          "payload": {
+            "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "phase": "auth",
+            "status": "running",
+            "version": 3,
+            "createdAt": "2026-10-02T12:09:18.404Z",
+            "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
+            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "targetUrl": "http://localhost:8080/",
+            "updatedAt": "2026-10-02T12:09:18.485Z",
+            "budgetUsed": {
+              "actions": 0,
+              "modelCalls": 1,
+              "totalTokens": 18,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "completion": "none",
+            "contextVersion": 1,
+            "effectiveConfig": {
+              "budget": {
+                "maxCases": 8,
+                "maxDepth": 2,
+                "maxPages": 6,
+                "maxActions": 120,
+                "concurrency": 2,
+                "maxModelCalls": 100,
+                "maxTotalTokens": 300000,
+                "maxActiveSeconds": 600,
+                "maxReproductions": 3,
+                "maxActionsPerCase": 12
+              },
+              "models": {
+                "executor": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "explorer": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "assertion": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "reproducer": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "coordinator": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                }
+              },
+              "actionPolicy": "non_submitting",
+              "allowedOrigins": [
+                "http://localhost:8080"
+              ],
+              "authProfileVersion": null,
+              "environmentVersion": null,
+              "knowledgeVersionIds": []
+            },
+            "terminationReason": null
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "8",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 8,
+          "type": "phase.changed",
+          "at": "2026-10-02T12:09:18.483Z",
+          "payload": {
+            "phase": "explore",
+            "contextVersion": 1
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "9",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 9,
+          "type": "run.updated",
+          "at": "2026-10-02T12:09:18.483Z",
+          "payload": {
+            "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "phase": "explore",
+            "status": "running",
+            "version": 4,
+            "createdAt": "2026-10-02T12:09:18.404Z",
+            "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
+            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "targetUrl": "http://localhost:8080/",
+            "updatedAt": "2026-10-02T12:09:18.487Z",
+            "budgetUsed": {
+              "actions": 0,
+              "modelCalls": 1,
+              "totalTokens": 18,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "completion": "none",
+            "contextVersion": 1,
+            "effectiveConfig": {
+              "budget": {
+                "maxCases": 8,
+                "maxDepth": 2,
+                "maxPages": 6,
+                "maxActions": 120,
+                "concurrency": 2,
+                "maxModelCalls": 100,
+                "maxTotalTokens": 300000,
+                "maxActiveSeconds": 600,
+                "maxReproductions": 3,
+                "maxActionsPerCase": 12
+              },
+              "models": {
+                "executor": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "explorer": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "assertion": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "reproducer": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "coordinator": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                }
+              },
+              "actionPolicy": "non_submitting",
+              "allowedOrigins": [
+                "http://localhost:8080"
+              ],
+              "authProfileVersion": null,
+              "environmentVersion": null,
+              "knowledgeVersionIds": []
+            },
+            "terminationReason": null
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "10",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 10,
+          "type": "task.updated",
+          "at": "2026-10-02T12:09:18.483Z",
+          "payload": {
+            "id": "e02be45b-8ef7-4074-b574-f17a6eb106a4",
+            "role": "explorer",
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": null,
+            "status": "queued",
+            "attempt": 1,
+            "summary": "explore",
+            "elapsedSeconds": 0
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "11",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 11,
+          "type": "step.recorded",
+          "at": "2026-10-02T12:09:18.607Z",
+          "payload": {
+            "id": "a886e3ee-7548-44c8-acec-5c8d4f38455e",
+            "seq": 1,
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": null,
+            "status": "running",
+            "taskId": "e02be45b-8ef7-4074-b574-f17a6eb106a4",
+            "summary": "Action intent persisted before execution",
+            "toolName": "navigate",
+            "createdAt": "2026-10-02T12:09:18.614Z",
+            "finishedAt": null,
+            "evidenceRefs": [],
+            "targetDescription": "navigate"
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "12",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 12,
+          "type": "budget.updated",
+          "at": "2026-10-02T12:09:18.701Z",
+          "payload": {
+            "used": {
+              "actions": 1,
+              "modelCalls": 1,
+              "totalTokens": 18,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "limits": {
+              "maxCases": 8,
+              "maxDepth": 2,
+              "maxPages": 6,
+              "maxActions": 120,
+              "concurrency": 2,
+              "maxModelCalls": 100,
+              "maxTotalTokens": 300000,
+              "maxActiveSeconds": 600,
+              "maxReproductions": 3,
+              "maxActionsPerCase": 12
+            }
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "13",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 13,
+          "type": "step.recorded",
+          "at": "2026-10-02T12:09:18.701Z",
+          "payload": {
+            "id": "a886e3ee-7548-44c8-acec-5c8d4f38455e",
+            "seq": 1,
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": null,
+            "status": "succeeded",
+            "taskId": "e02be45b-8ef7-4074-b574-f17a6eb106a4",
+            "summary": "Browser succeeded",
+            "toolName": "navigate",
+            "createdAt": "2026-10-02T12:09:18.614Z",
+            "finishedAt": "2026-10-02T12:09:18.713Z",
+            "evidenceRefs": [],
+            "targetDescription": "navigate"
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "14",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 14,
+          "type": "budget.updated",
+          "at": "2026-10-02T12:09:18.732Z",
+          "payload": {
+            "used": {
+              "actions": 1,
+              "modelCalls": 2,
+              "totalTokens": 36,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "limits": {
+              "maxCases": 8,
+              "maxDepth": 2,
+              "maxPages": 6,
+              "maxActions": 120,
+              "concurrency": 2,
+              "maxModelCalls": 100,
+              "maxTotalTokens": 300000,
+              "maxActiveSeconds": 600,
+              "maxReproductions": 3,
+              "maxActionsPerCase": 12
+            }
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "15",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 15,
+          "type": "step.recorded",
+          "at": "2026-10-02T12:09:18.736Z",
+          "payload": {
+            "id": "8b57875b-9595-46be-9de7-c70fca18d9d7",
+            "seq": 2,
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": null,
+            "status": "running",
+            "taskId": "e02be45b-8ef7-4074-b574-f17a6eb106a4",
+            "summary": "Action intent persisted before execution",
+            "toolName": "observe",
+            "createdAt": "2026-10-02T12:09:18.739Z",
+            "finishedAt": null,
+            "evidenceRefs": [],
+            "targetDescription": "observe"
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "16",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 16,
+          "type": "budget.updated",
+          "at": "2026-10-02T12:09:18.747Z",
+          "payload": {
+            "used": {
+              "actions": 2,
+              "modelCalls": 2,
+              "totalTokens": 36,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "limits": {
+              "maxCases": 8,
+              "maxDepth": 2,
+              "maxPages": 6,
+              "maxActions": 120,
+              "concurrency": 2,
+              "maxModelCalls": 100,
+              "maxTotalTokens": 300000,
+              "maxActiveSeconds": 600,
+              "maxReproductions": 3,
+              "maxActionsPerCase": 12
+            }
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "17",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 17,
+          "type": "step.recorded",
+          "at": "2026-10-02T12:09:18.747Z",
+          "payload": {
+            "id": "8b57875b-9595-46be-9de7-c70fca18d9d7",
+            "seq": 2,
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": null,
+            "status": "succeeded",
+            "taskId": "e02be45b-8ef7-4074-b574-f17a6eb106a4",
+            "summary": "Browser succeeded",
+            "toolName": "observe",
+            "createdAt": "2026-10-02T12:09:18.739Z",
+            "finishedAt": "2026-10-02T12:09:18.752Z",
+            "evidenceRefs": [],
+            "targetDescription": "observe"
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "18",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 18,
+          "type": "budget.updated",
+          "at": "2026-10-02T12:09:18.758Z",
+          "payload": {
+            "used": {
+              "actions": 2,
+              "modelCalls": 3,
+              "totalTokens": 54,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "limits": {
+              "maxCases": 8,
+              "maxDepth": 2,
+              "maxPages": 6,
+              "maxActions": 120,
+              "concurrency": 2,
+              "maxModelCalls": 100,
+              "maxTotalTokens": 300000,
+              "maxActiveSeconds": 600,
+              "maxReproductions": 3,
+              "maxActionsPerCase": 12
+            }
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "19",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 19,
+          "type": "task.updated",
+          "at": "2026-10-02T12:09:18.762Z",
+          "payload": {
+            "id": "e02be45b-8ef7-4074-b574-f17a6eb106a4",
+            "role": "explorer",
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": null,
+            "status": "succeeded",
+            "attempt": 1,
+            "summary": "explore",
+            "elapsedSeconds": 0
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "20",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 20,
+          "type": "phase.changed",
+          "at": "2026-10-02T12:09:18.771Z",
+          "payload": {
+            "phase": "plan",
+            "contextVersion": 1
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "21",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 21,
+          "type": "run.updated",
+          "at": "2026-10-02T12:09:18.771Z",
+          "payload": {
+            "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "phase": "plan",
+            "status": "running",
+            "version": 5,
+            "createdAt": "2026-10-02T12:09:18.404Z",
+            "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
+            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "targetUrl": "http://localhost:8080/",
+            "updatedAt": "2026-10-02T12:09:18.774Z",
+            "budgetUsed": {
+              "actions": 2,
+              "modelCalls": 3,
+              "totalTokens": 54,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "completion": "none",
+            "contextVersion": 1,
+            "effectiveConfig": {
+              "budget": {
+                "maxCases": 8,
+                "maxDepth": 2,
+                "maxPages": 6,
+                "maxActions": 120,
+                "concurrency": 2,
+                "maxModelCalls": 100,
+                "maxTotalTokens": 300000,
+                "maxActiveSeconds": 600,
+                "maxReproductions": 3,
+                "maxActionsPerCase": 12
+              },
+              "models": {
+                "executor": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "explorer": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "assertion": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "reproducer": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "coordinator": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                }
+              },
+              "actionPolicy": "non_submitting",
+              "allowedOrigins": [
+                "http://localhost:8080"
+              ],
+              "authProfileVersion": null,
+              "environmentVersion": null,
+              "knowledgeVersionIds": []
+            },
+            "terminationReason": null
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "22",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 22,
+          "type": "task.updated",
+          "at": "2026-10-02T12:09:18.771Z",
+          "payload": {
+            "id": "8954dfd4-4467-40b2-b24a-605b76c8ab6f",
+            "role": "coordinator",
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": null,
+            "status": "queued",
+            "attempt": 1,
+            "summary": "plan",
+            "elapsedSeconds": 0
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "23",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 23,
+          "type": "budget.updated",
+          "at": "2026-10-02T12:09:18.783Z",
+          "payload": {
+            "used": {
+              "actions": 2,
+              "modelCalls": 4,
+              "totalTokens": 72,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "limits": {
+              "maxCases": 8,
+              "maxDepth": 2,
+              "maxPages": 6,
+              "maxActions": 120,
+              "concurrency": 2,
+              "maxModelCalls": 100,
+              "maxTotalTokens": 300000,
+              "maxActiveSeconds": 600,
+              "maxReproductions": 3,
+              "maxActionsPerCase": 12
+            }
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "24",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 24,
+          "type": "task.updated",
+          "at": "2026-10-02T12:09:18.785Z",
+          "payload": {
+            "id": "8954dfd4-4467-40b2-b24a-605b76c8ab6f",
+            "role": "coordinator",
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": null,
+            "status": "succeeded",
+            "attempt": 1,
+            "summary": "plan",
+            "elapsedSeconds": 0
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "25",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 25,
+          "type": "case.created",
+          "at": "2026-10-02T12:09:18.789Z",
+          "payload": {
+            "id": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "title": "Entry smoke 1",
+            "outline": [
+              "Navigate http://localhost:8080/",
+              "Observe visible primary content"
+            ],
+            "summary": "Technical entry/content smoke; not a business-rule oracle",
+            "version": 1,
+            "criteria": [
+              {
+                "id": "smoke.http",
+                "kind": "http_status",
+                "sourceRef": "FR-013/016",
+                "sourceKind": "generic_smoke",
+                "description": "Entry is reachable with a successful HTTP response",
+                "expectedValue": {
+                  "max": 399,
+                  "min": 200
+                }
+              },
+              {
+                "id": "smoke.visible",
+                "kind": "element_visible",
+                "locator": {
+                  "by": "css",
+                  "value": "body"
+                },
+                "sourceRef": "FR-016",
+                "sourceKind": "generic_smoke",
+                "description": "Visible primary content"
+              }
+            ],
+            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "preconditions": [
+              "Fresh context; approved authentication only"
+            ]
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "26",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 26,
+          "type": "phase.changed",
+          "at": "2026-10-02T12:09:18.789Z",
+          "payload": {
+            "phase": "execute",
+            "contextVersion": 1
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "27",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 27,
+          "type": "run.updated",
+          "at": "2026-10-02T12:09:18.789Z",
+          "payload": {
+            "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "phase": "execute",
+            "status": "running",
+            "version": 6,
+            "createdAt": "2026-10-02T12:09:18.404Z",
+            "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
+            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "targetUrl": "http://localhost:8080/",
+            "updatedAt": "2026-10-02T12:09:18.795Z",
+            "budgetUsed": {
+              "actions": 2,
+              "modelCalls": 4,
+              "totalTokens": 72,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "completion": "none",
+            "contextVersion": 1,
+            "effectiveConfig": {
+              "budget": {
+                "maxCases": 8,
+                "maxDepth": 2,
+                "maxPages": 6,
+                "maxActions": 120,
+                "concurrency": 2,
+                "maxModelCalls": 100,
+                "maxTotalTokens": 300000,
+                "maxActiveSeconds": 600,
+                "maxReproductions": 3,
+                "maxActionsPerCase": 12
+              },
+              "models": {
+                "executor": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "explorer": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "assertion": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "reproducer": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "coordinator": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                }
+              },
+              "actionPolicy": "non_submitting",
+              "allowedOrigins": [
+                "http://localhost:8080"
+              ],
+              "authProfileVersion": null,
+              "environmentVersion": null,
+              "knowledgeVersionIds": []
+            },
+            "terminationReason": null
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "28",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 28,
+          "type": "task.updated",
+          "at": "2026-10-02T12:09:18.789Z",
+          "payload": {
+            "id": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+            "role": "executor",
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "status": "queued",
+            "attempt": 1,
+            "summary": "execute",
+            "elapsedSeconds": 0
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "29",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 29,
+          "type": "step.recorded",
+          "at": "2026-10-02T12:09:18.822Z",
+          "payload": {
+            "id": "b3bfb55f-5ea8-4efd-8ab5-de2d877d243f",
+            "seq": 1,
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "status": "running",
+            "taskId": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+            "summary": "Action intent persisted before execution",
+            "toolName": "navigate",
+            "createdAt": "2026-10-02T12:09:18.825Z",
+            "finishedAt": null,
+            "evidenceRefs": [],
+            "targetDescription": "navigate"
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "30",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 30,
+          "type": "budget.updated",
+          "at": "2026-10-02T12:09:18.869Z",
+          "payload": {
+            "used": {
+              "actions": 3,
+              "modelCalls": 4,
+              "totalTokens": 72,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "limits": {
+              "maxCases": 8,
+              "maxDepth": 2,
+              "maxPages": 6,
+              "maxActions": 120,
+              "concurrency": 2,
+              "maxModelCalls": 100,
+              "maxTotalTokens": 300000,
+              "maxActiveSeconds": 600,
+              "maxReproductions": 3,
+              "maxActionsPerCase": 12
+            }
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "31",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 31,
+          "type": "step.recorded",
+          "at": "2026-10-02T12:09:18.869Z",
+          "payload": {
+            "id": "b3bfb55f-5ea8-4efd-8ab5-de2d877d243f",
+            "seq": 1,
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "status": "succeeded",
+            "taskId": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+            "summary": "Browser succeeded",
+            "toolName": "navigate",
+            "createdAt": "2026-10-02T12:09:18.825Z",
+            "finishedAt": "2026-10-02T12:09:18.875Z",
+            "evidenceRefs": [],
+            "targetDescription": "navigate"
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "32",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 32,
+          "type": "budget.updated",
+          "at": "2026-10-02T12:09:18.881Z",
+          "payload": {
+            "used": {
+              "actions": 3,
+              "modelCalls": 5,
+              "totalTokens": 90,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "limits": {
+              "maxCases": 8,
+              "maxDepth": 2,
+              "maxPages": 6,
+              "maxActions": 120,
+              "concurrency": 2,
+              "maxModelCalls": 100,
+              "maxTotalTokens": 300000,
+              "maxActiveSeconds": 600,
+              "maxReproductions": 3,
+              "maxActionsPerCase": 12
+            }
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "33",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 33,
+          "type": "step.recorded",
+          "at": "2026-10-02T12:09:18.885Z",
+          "payload": {
+            "id": "d8dfcee0-1e12-42e1-ab1c-149b64a83e7f",
+            "seq": 2,
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "status": "running",
+            "taskId": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+            "summary": "Action intent persisted before execution",
+            "toolName": "observe",
+            "createdAt": "2026-10-02T12:09:18.888Z",
+            "finishedAt": null,
+            "evidenceRefs": [],
+            "targetDescription": "observe"
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "34",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 34,
+          "type": "budget.updated",
+          "at": "2026-10-02T12:09:18.900Z",
+          "payload": {
+            "used": {
+              "actions": 4,
+              "modelCalls": 5,
+              "totalTokens": 90,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "limits": {
+              "maxCases": 8,
+              "maxDepth": 2,
+              "maxPages": 6,
+              "maxActions": 120,
+              "concurrency": 2,
+              "maxModelCalls": 100,
+              "maxTotalTokens": 300000,
+              "maxActiveSeconds": 600,
+              "maxReproductions": 3,
+              "maxActionsPerCase": 12
+            }
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "35",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 35,
+          "type": "step.recorded",
+          "at": "2026-10-02T12:09:18.900Z",
+          "payload": {
+            "id": "d8dfcee0-1e12-42e1-ab1c-149b64a83e7f",
+            "seq": 2,
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "status": "succeeded",
+            "taskId": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+            "summary": "Browser succeeded",
+            "toolName": "observe",
+            "createdAt": "2026-10-02T12:09:18.888Z",
+            "finishedAt": "2026-10-02T12:09:18.904Z",
+            "evidenceRefs": [],
+            "targetDescription": "observe"
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "36",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 36,
+          "type": "budget.updated",
+          "at": "2026-10-02T12:09:18.910Z",
+          "payload": {
+            "used": {
+              "actions": 4,
+              "modelCalls": 6,
+              "totalTokens": 108,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "limits": {
+              "maxCases": 8,
+              "maxDepth": 2,
+              "maxPages": 6,
+              "maxActions": 120,
+              "concurrency": 2,
+              "maxModelCalls": 100,
+              "maxTotalTokens": 300000,
+              "maxActiveSeconds": 600,
+              "maxReproductions": 3,
+              "maxActionsPerCase": 12
+            }
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "37",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 37,
+          "type": "step.recorded",
+          "at": "2026-10-02T12:09:18.913Z",
+          "payload": {
+            "id": "955f2b18-2773-48c4-8293-dfea4deb79e2",
+            "seq": 3,
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "status": "running",
+            "taskId": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+            "summary": "Action intent persisted before execution",
+            "toolName": "capture",
+            "createdAt": "2026-10-02T12:09:18.916Z",
+            "finishedAt": null,
+            "evidenceRefs": [],
+            "targetDescription": "capture"
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "38",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 38,
+          "type": "artifact.updated",
+          "at": "2026-10-02T12:09:19.064Z",
+          "payload": {
+            "id": "cd6a4a5b-25ac-4a14-8f62-384ab9b28f70",
+            "kind": "screenshot",
+            "bytes": 265850,
+            "error": null,
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
+            "status": "available",
+            "stepId": "955f2b18-2773-48c4-8293-dfea4deb79e2",
+            "taskId": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+            "createdAt": "2026-10-02T12:09:19.046Z",
+            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "redaction": "not_needed",
+            "contentUrl": "/api/v1/projects/808285aa-c17a-4374-a917-da40196d832a/runs/51857042-24b0-43a0-8268-5a7ff30d1202/artifacts/cd6a4a5b-25ac-4a14-8f62-384ab9b28f70/content",
+            "snapshotId": null
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "39",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 39,
+          "type": "budget.updated",
+          "at": "2026-10-02T12:09:19.066Z",
+          "payload": {
+            "used": {
+              "actions": 5,
+              "modelCalls": 6,
+              "totalTokens": 108,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "limits": {
+              "maxCases": 8,
+              "maxDepth": 2,
+              "maxPages": 6,
+              "maxActions": 120,
+              "concurrency": 2,
+              "maxModelCalls": 100,
+              "maxTotalTokens": 300000,
+              "maxActiveSeconds": 600,
+              "maxReproductions": 3,
+              "maxActionsPerCase": 12
+            }
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "40",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 40,
+          "type": "step.recorded",
+          "at": "2026-10-02T12:09:19.066Z",
+          "payload": {
+            "id": "955f2b18-2773-48c4-8293-dfea4deb79e2",
+            "seq": 3,
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "status": "succeeded",
+            "taskId": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+            "summary": "Browser succeeded",
+            "toolName": "capture",
+            "createdAt": "2026-10-02T12:09:18.916Z",
+            "finishedAt": "2026-10-02T12:09:19.068Z",
+            "evidenceRefs": [
+              "cd6a4a5b-25ac-4a14-8f62-384ab9b28f70"
+            ],
+            "targetDescription": "capture"
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "41",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 41,
+          "type": "budget.updated",
+          "at": "2026-10-02T12:09:19.074Z",
+          "payload": {
+            "used": {
+              "actions": 5,
+              "modelCalls": 7,
+              "totalTokens": 126,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "limits": {
+              "maxCases": 8,
+              "maxDepth": 2,
+              "maxPages": 6,
+              "maxActions": 120,
+              "concurrency": 2,
+              "maxModelCalls": 100,
+              "maxTotalTokens": 300000,
+              "maxActiveSeconds": 600,
+              "maxReproductions": 3,
+              "maxActionsPerCase": 12
+            }
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "42",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 42,
+          "type": "case.result",
+          "at": "2026-10-02T12:09:19.077Z",
+          "payload": {
+            "outcome": "passed",
+            "verdict": {
+              "id": "a3549d25-bc59-4d34-b1af-c86039deb3bd",
+              "gaps": [],
+              "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+              "status": "passed",
+              "summary": "Fixed criteria evaluated against owned observations",
+              "attemptId": "c2d5d6a3-937c-4daa-8652-d0763d06b2f9",
+              "createdAt": "2026-10-02T12:09:19.078Z",
+              "reasonCode": "OBSERVED",
+              "criterionResults": [
+                {
+                  "reason": "Observed successful navigation response",
+                  "result": "passed",
+                  "criterionId": "smoke.http",
+                  "evidenceRefs": [
+                    "cd6a4a5b-25ac-4a14-8f62-384ab9b28f70"
+                  ]
+                },
+                {
+                  "reason": "Visible matching node observed",
+                  "result": "passed",
+                  "criterionId": "smoke.visible",
+                  "evidenceRefs": [
+                    "cd6a4a5b-25ac-4a14-8f62-384ab9b28f70"
+                  ]
+                }
+              ]
+            },
+            "definition": {
+              "id": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+              "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+              "title": "Entry smoke 1",
+              "outline": [
+                "Navigate http://localhost:8080/",
+                "Observe visible primary content"
+              ],
+              "summary": "Technical entry/content smoke; not a business-rule oracle",
+              "version": 1,
+              "criteria": [
+                {
+                  "id": "smoke.http",
+                  "kind": "http_status",
+                  "sourceRef": "FR-013/016",
+                  "sourceKind": "generic_smoke",
+                  "description": "Entry is reachable with a successful HTTP response",
+                  "expectedValue": {
+                    "max": 399,
+                    "min": 200
+                  }
+                },
+                {
+                  "id": "smoke.visible",
+                  "kind": "element_visible",
+                  "locator": {
+                    "by": "css",
+                    "value": "body"
+                  },
+                  "sourceRef": "FR-016",
+                  "sourceKind": "generic_smoke",
+                  "description": "Visible primary content"
+                }
+              ],
+              "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+              "preconditions": [
+                "Fresh context; approved authentication only"
+              ]
+            }
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "43",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 43,
+          "type": "task.updated",
+          "at": "2026-10-02T12:09:19.077Z",
+          "payload": {
+            "id": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+            "role": "executor",
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "status": "succeeded",
+            "attempt": 1,
+            "summary": "execute",
+            "elapsedSeconds": 0
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "44",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 44,
+          "type": "phase.changed",
+          "at": "2026-10-02T12:09:19.089Z",
+          "payload": {
+            "phase": "finalize",
+            "contextVersion": 1
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "45",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 45,
+          "type": "run.updated",
+          "at": "2026-10-02T12:09:19.089Z",
+          "payload": {
+            "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "phase": "finalize",
+            "status": "running",
+            "version": 7,
+            "createdAt": "2026-10-02T12:09:18.404Z",
+            "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
+            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "targetUrl": "http://localhost:8080/",
+            "updatedAt": "2026-10-02T12:09:19.093Z",
+            "budgetUsed": {
+              "actions": 5,
+              "modelCalls": 7,
+              "totalTokens": 126,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "completion": "none",
+            "contextVersion": 1,
+            "effectiveConfig": {
+              "budget": {
+                "maxCases": 8,
+                "maxDepth": 2,
+                "maxPages": 6,
+                "maxActions": 120,
+                "concurrency": 2,
+                "maxModelCalls": 100,
+                "maxTotalTokens": 300000,
+                "maxActiveSeconds": 600,
+                "maxReproductions": 3,
+                "maxActionsPerCase": 12
+              },
+              "models": {
+                "executor": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "explorer": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "assertion": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "reproducer": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "coordinator": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                }
+              },
+              "actionPolicy": "non_submitting",
+              "allowedOrigins": [
+                "http://localhost:8080"
+              ],
+              "authProfileVersion": null,
+              "environmentVersion": null,
+              "knowledgeVersionIds": []
+            },
+            "terminationReason": null
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "46",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 46,
+          "type": "task.updated",
+          "at": "2026-10-02T12:09:19.089Z",
+          "payload": {
+            "id": "e7a49a01-6cf4-4f2a-bc5d-ee42c3b7affb",
+            "role": "finalizer",
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": null,
+            "status": "queued",
+            "attempt": 1,
+            "summary": "finalize",
+            "elapsedSeconds": 0
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "47",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 47,
+          "type": "task.updated",
+          "at": "2026-10-02T12:09:19.102Z",
+          "payload": {
+            "id": "e7a49a01-6cf4-4f2a-bc5d-ee42c3b7affb",
+            "role": "finalizer",
+            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "caseId": null,
+            "status": "succeeded",
+            "attempt": 1,
+            "summary": "finalize",
+            "elapsedSeconds": 0
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "48",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 48,
+          "type": "run.updated",
+          "at": "2026-10-02T12:09:19.105Z",
+          "payload": {
+            "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "phase": "finalize",
+            "status": "completed",
+            "version": 8,
+            "createdAt": "2026-10-02T12:09:18.404Z",
+            "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
+            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "targetUrl": "http://localhost:8080/",
+            "updatedAt": "2026-10-02T12:09:19.110Z",
+            "budgetUsed": {
+              "actions": 5,
+              "modelCalls": 7,
+              "totalTokens": 126,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "completion": "complete",
+            "contextVersion": 1,
+            "effectiveConfig": {
+              "budget": {
+                "maxCases": 8,
+                "maxDepth": 2,
+                "maxPages": 6,
+                "maxActions": 120,
+                "concurrency": 2,
+                "maxModelCalls": 100,
+                "maxTotalTokens": 300000,
+                "maxActiveSeconds": 600,
+                "maxReproductions": 3,
+                "maxActionsPerCase": 12
+              },
+              "models": {
+                "executor": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "explorer": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "assertion": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "reproducer": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "coordinator": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                }
+              },
+              "actionPolicy": "non_submitting",
+              "allowedOrigins": [
+                "http://localhost:8080"
+              ],
+              "authProfileVersion": null,
+              "environmentVersion": null,
+              "knowledgeVersionIds": []
+            },
+            "terminationReason": "normal"
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "49",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 49,
+          "type": "report.ready",
+          "at": "2026-10-02T12:09:19.105Z",
+          "payload": {
+            "generatedAt": "2026-10-02T12:09:19.112Z",
+            "reportVersion": 8,
+            "schemaVersion": 1
+          }
+        },
+        {
+          "schemaVersion": 1,
+          "id": "50",
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "seq": 50,
+          "type": "run.finished",
+          "at": "2026-10-02T12:09:19.105Z",
+          "payload": {
+            "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "phase": "finalize",
+            "status": "completed",
+            "version": 8,
+            "createdAt": "2026-10-02T12:09:18.404Z",
+            "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
+            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "targetUrl": "http://localhost:8080/",
+            "updatedAt": "2026-10-02T12:09:19.110Z",
+            "budgetUsed": {
+              "actions": 5,
+              "modelCalls": 7,
+              "totalTokens": 126,
+              "activeSeconds": 0,
+              "reproductions": 0
+            },
+            "completion": "complete",
+            "contextVersion": 1,
+            "effectiveConfig": {
+              "budget": {
+                "maxCases": 8,
+                "maxDepth": 2,
+                "maxPages": 6,
+                "maxActions": 120,
+                "concurrency": 2,
+                "maxModelCalls": 100,
+                "maxTotalTokens": 300000,
+                "maxActiveSeconds": 600,
+                "maxReproductions": 3,
+                "maxActionsPerCase": 12
+              },
+              "models": {
+                "executor": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "explorer": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "assertion": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "reproducer": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                },
+                "coordinator": {
+                  "version": 1,
+                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                }
+              },
+              "actionPolicy": "non_submitting",
+              "allowedOrigins": [
+                "http://localhost:8080"
+              ],
+              "authProfileVersion": null,
+              "environmentVersion": null,
+              "knowledgeVersionIds": []
+            },
+            "terminationReason": "normal"
+          }
+        }
+      ],
+      "browserContextIds": [
+        {
+          "context_id": "9312ae92-f4d5-4961-ae50-94033117311f"
+        }
+      ],
+      "stubAssertionRejected": {
+        "reasonCode": "FAKE_EVIDENCE",
+        "criterionId": "smoke.visible",
+        "verdictStatus": "inconclusive",
+        "criterionResult": "not_evaluated",
+        "acceptedEvidenceRefs": []
+      }
+    },
+    "postgres": {
+      "version": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+      "number": 180006
+    },
+    "migrations": [
+      "001_core.sql",
+      "002_invariants.sql",
+      "003_access.sql",
+      "004_hardening.sql"
+    ],
+    "fixtureLogs": "[LocalQA Fixture] Server listening on http://localhost:8080\n[LocalQA Fixture] Ops endpoints: /api/reset, /api/seed, /api/audit\n",
+    "sandbox": {
+      "nonRoot": true,
+      "noNoSandbox": true,
+      "processes": [
+        {
+          "pid": 35,
+          "args": [
+            "/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux-arm64/chrome-headless-shell",
+            "--disable-field-trial-config",
+            "--disable-background-networking",
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-back-forward-cache",
+            "--disable-breakpad",
+            "--disable-client-side-phishing-detection",
+            "--disable-component-extensions-with-background-pages",
+            "--disable-component-update",
+            "--no-default-browser-check",
+            "--disable-default-apps",
+            "--disable-dev-shm-usage",
+            "--disable-edgeupdater",
+            "--disable-extensions",
+            "--disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion",
+            "--enable-features=CDPScreenshotNewSurface",
+            "--allow-pre-commit-input",
+            "--disable-hang-monitor",
+            "--disable-ipc-flooding-protection",
+            "--disable-popup-blocking",
+            "--disable-prompt-on-repost",
+            "--disable-renderer-backgrounding",
+            "--disable-updater-scheduler",
+            "--force-color-profile=srgb",
+            "--metrics-recording-only",
+            "--no-first-run",
+            "--password-store=basic",
+            "--use-mock-keychain",
+            "--no-service-autorun",
+            "--export-tagged-pdf",
+            "--disable-search-engine-choice-screen",
+            "--unsafely-disable-devtools-self-xss-warnings",
+            "--edge-skip-compat-layer-relaunch",
+            "--disable-infobars",
+            "--disable-search-engine-choice-screen",
+            "--disable-sync",
+            "--enable-unsafe-swiftshader",
+            "--headless",
+            "--hide-scrollbars",
+            "--mute-audio",
+            "--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4",
+            "--user-data-dir=/work/apps/worker/.evidence/tmp/playwright_chromiumdev_profile-3pMpNa",
+            "--remote-debugging-pipe",
+            "--no-startup-window"
+          ],
+          "status": [
+            "Uid:\t501\t501\t501\t501",
+            "Seccomp:\t2"
+          ]
+        }
+      ]
+    },
+    "stubProviderCalls": 60,
+    "allMaterialHashes": [
+      {
+        "id": "17a6f79e-e670-4379-9c83-80568a150e1c",
+        "project_id": "f10a5f27-5579-4c55-9856-90e7ce0a02e3",
+        "run_id": "0238bc48-1e5d-4acf-8219-934a1d3df7ec",
+        "document": {
+          "id": "17a6f79e-e670-4379-9c83-80568a150e1c",
+          "kind": "screenshot",
+          "bytes": 265850,
+          "error": null,
+          "runId": "0238bc48-1e5d-4acf-8219-934a1d3df7ec",
+          "caseId": "acc61a68-c001-4a13-920d-5ebc603be3c5",
+          "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
+          "status": "available",
+          "stepId": "9552f0ba-62cf-4405-bb93-5224bea898a5",
+          "taskId": "54127407-33eb-410a-bcef-faffcfe863a2",
+          "createdAt": "2026-10-02T12:09:23.128Z",
+          "projectId": "f10a5f27-5579-4c55-9856-90e7ce0a02e3",
+          "redaction": "not_needed",
+          "contentUrl": "/api/v1/projects/f10a5f27-5579-4c55-9856-90e7ce0a02e3/runs/0238bc48-1e5d-4acf-8219-934a1d3df7ec/artifacts/17a6f79e-e670-4379-9c83-80568a150e1c/content",
+          "snapshotId": null
+        }
+      },
+      {
+        "id": "1900e653-23c8-475e-94a8-53a2a0103253",
+        "project_id": "fb2c0eec-9fa4-4ef3-aa13-1ef14e94eab3",
+        "run_id": "d7e7e702-6544-476f-9422-8b16ded658ab",
+        "document": {
+          "id": "1900e653-23c8-475e-94a8-53a2a0103253",
+          "kind": "screenshot",
+          "bytes": 265850,
+          "error": null,
+          "runId": "d7e7e702-6544-476f-9422-8b16ded658ab",
+          "caseId": "e9cc2421-6cfb-4d20-873d-7ddaf3217fca",
+          "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
+          "status": "available",
+          "stepId": "9b0079ec-406a-4b8b-8658-670e58ae005d",
+          "taskId": "6e904d0d-3812-4270-a237-76c8c7cf0844",
+          "createdAt": "2026-10-02T12:09:25.306Z",
+          "projectId": "fb2c0eec-9fa4-4ef3-aa13-1ef14e94eab3",
+          "redaction": "not_needed",
+          "contentUrl": "/api/v1/projects/fb2c0eec-9fa4-4ef3-aa13-1ef14e94eab3/runs/d7e7e702-6544-476f-9422-8b16ded658ab/artifacts/1900e653-23c8-475e-94a8-53a2a0103253/content",
+          "snapshotId": null
+        }
+      },
+      {
+        "id": "4ecdfe09-d2c8-428e-a5ce-18b4cdab6a4d",
+        "project_id": "beab29a8-26a5-4528-a9f3-7c982c273bb3",
+        "run_id": "acf96d36-59f1-4f1d-8ac1-198db8bd53fd",
+        "document": {
+          "id": "4ecdfe09-d2c8-428e-a5ce-18b4cdab6a4d",
+          "kind": "screenshot",
+          "bytes": 4254,
+          "error": null,
+          "runId": "acf96d36-59f1-4f1d-8ac1-198db8bd53fd",
+          "caseId": "541add5b-26d4-4ab3-9e6b-c7d2d25b54b6",
+          "sha256": "3878570f4a62a0d65f57cf1754e0269e56ec797f4e36e26b44c172eb6e800401",
+          "status": "available",
+          "stepId": "9345b7ff-f213-4fe1-ba26-0b0732c95418",
+          "taskId": "111bf1ff-43ac-42fb-8391-6c6f6a3588ad",
+          "createdAt": "2026-10-02T12:09:23.549Z",
+          "projectId": "beab29a8-26a5-4528-a9f3-7c982c273bb3",
+          "redaction": "not_needed",
+          "contentUrl": "/api/v1/projects/beab29a8-26a5-4528-a9f3-7c982c273bb3/runs/acf96d36-59f1-4f1d-8ac1-198db8bd53fd/artifacts/4ecdfe09-d2c8-428e-a5ce-18b4cdab6a4d/content",
+          "snapshotId": null
+        }
+      },
+      {
+        "id": "985c0f5c-1f3e-4ec2-809e-83512fc85a90",
+        "project_id": "beab29a8-26a5-4528-a9f3-7c982c273bb3",
+        "run_id": "acf96d36-59f1-4f1d-8ac1-198db8bd53fd",
+        "document": {
+          "id": "985c0f5c-1f3e-4ec2-809e-83512fc85a90",
+          "kind": "screenshot",
+          "bytes": 4254,
+          "error": null,
+          "runId": "acf96d36-59f1-4f1d-8ac1-198db8bd53fd",
+          "caseId": "541add5b-26d4-4ab3-9e6b-c7d2d25b54b6",
+          "sha256": "3878570f4a62a0d65f57cf1754e0269e56ec797f4e36e26b44c172eb6e800401",
+          "status": "available",
+          "stepId": "90446453-9c0d-48cc-9fa1-3fe8cf2c96e0",
+          "taskId": "d45ab456-32b9-405c-9299-6adb8a241fcc",
+          "createdAt": "2026-10-02T12:09:23.685Z",
+          "projectId": "beab29a8-26a5-4528-a9f3-7c982c273bb3",
+          "redaction": "not_needed",
+          "contentUrl": "/api/v1/projects/beab29a8-26a5-4528-a9f3-7c982c273bb3/runs/acf96d36-59f1-4f1d-8ac1-198db8bd53fd/artifacts/985c0f5c-1f3e-4ec2-809e-83512fc85a90/content",
+          "snapshotId": null
+        }
+      },
+      {
+        "id": "cd6a4a5b-25ac-4a14-8f62-384ab9b28f70",
+        "project_id": "808285aa-c17a-4374-a917-da40196d832a",
+        "run_id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+        "document": {
+          "id": "cd6a4a5b-25ac-4a14-8f62-384ab9b28f70",
+          "kind": "screenshot",
+          "bytes": 265850,
+          "error": null,
+          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+          "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
+          "status": "available",
+          "stepId": "955f2b18-2773-48c4-8293-dfea4deb79e2",
+          "taskId": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+          "createdAt": "2026-10-02T12:09:19.046Z",
+          "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+          "redaction": "not_needed",
+          "contentUrl": "/api/v1/projects/808285aa-c17a-4374-a917-da40196d832a/runs/51857042-24b0-43a0-8268-5a7ff30d1202/artifacts/cd6a4a5b-25ac-4a14-8f62-384ab9b28f70/content",
+          "snapshotId": null
+        }
+      },
+      {
+        "id": "d2dd1af8-5f40-44fe-9201-5983a1d59e7a",
+        "project_id": "1d33eade-c6d9-4582-bf4b-b9c0b7ec25d9",
+        "run_id": "04667a48-8344-4066-a8f2-7be87b3b43a7",
+        "document": {
+          "id": "d2dd1af8-5f40-44fe-9201-5983a1d59e7a",
+          "kind": "screenshot",
+          "bytes": 265850,
+          "error": null,
+          "runId": "04667a48-8344-4066-a8f2-7be87b3b43a7",
+          "caseId": "e571e072-d4e0-4b39-8ff6-e18990423ba7",
+          "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
+          "status": "available",
+          "stepId": "fafc8d9c-bfc9-493f-874d-84c489b874fb",
+          "taskId": "22c0b7d3-1a11-4031-8525-10df7ac1af7f",
+          "createdAt": "2026-10-02T12:09:29.162Z",
+          "projectId": "1d33eade-c6d9-4582-bf4b-b9c0b7ec25d9",
+          "redaction": "not_needed",
+          "contentUrl": "/api/v1/projects/1d33eade-c6d9-4582-bf4b-b9c0b7ec25d9/runs/04667a48-8344-4066-a8f2-7be87b3b43a7/artifacts/d2dd1af8-5f40-44fe-9201-5983a1d59e7a/content",
+          "snapshotId": null
+        }
+      }
+    ]
+  },
+  "runtimeDependencies": {
+    "unchangedDuringVerification": true,
+    "before": {
+      "packages/contracts/dist/config.d.ts": "e1be943a50a7afe60b9803d3c6eb1e118395523c9e95713b974cdef96d145c9f",
+      "packages/contracts/dist/config.js": "a9ef1aee7057e3cc70310c4c962617183632b813c27f5ee37fffc3cd556b47d8",
+      "packages/contracts/dist/config.js.map": "32c57bb75827e8064ab1b969f36d53ae3bd1fa0268cefe2c7925a63cfc6676b2",
+      "packages/contracts/dist/errors.d.ts": "1d885cb6b35d11fac393b405af5abbeb74632752fabe91a06b714f112b8bd9f8",
+      "packages/contracts/dist/errors.js": "b9d26a27e40efad7b13fc3030b5a4bff3b309e9b658dacc07fac95d3fafc5212",
+      "packages/contracts/dist/errors.js.map": "0e7a2c46f150bc6962ee7f16acf02648120c6c77713403a6f4db6c39e1399ca3",
+      "packages/contracts/dist/generated/schemas.json": "f0a27ae81b8ced95d74b714d3c2a732a5c404b69bcd7274fed62e4365d39d6f1",
+      "packages/contracts/dist/generated/types.d.ts": "6ebd5db857d475028a76449cc72a296cb3f592e2d4443d1e6f893154bb50cc82",
+      "packages/contracts/dist/generated/types.js": "a96e8510c6079e05ce43d632a2c0f7b02d420307b8206ced1e5fdfb48711b004",
+      "packages/contracts/dist/generated/types.js.map": "8173f64db5b944f464798f1931df8fc95b1032ca40b337503aeecaf5670f5d45",
+      "packages/contracts/dist/index.d.ts": "57a8464773c833bc517fe1b34fd7df7e1dd39a20b3bb14c69425d85358c45407",
+      "packages/contracts/dist/index.js": "9f02cc3a0818090890c015397bb7d577fec78f3131c714d470c0c363f1571202",
+      "packages/contracts/dist/index.js.map": "2fde42314dc29b92f6098208ddc5dd3e02fc5a7972d2bcbe0020948f3b12b0fe",
+      "packages/storage/dist/accounts.d.ts": "b129a0054e61b6bdb08e5c110b6f601ec750575cd1304c82bae3a6aa8c5a059e",
+      "packages/storage/dist/accounts.js": "dd3b97a391cc5b9f13a6d07ee54b85eef1ff2e714ef3e018458043173d6933a7",
+      "packages/storage/dist/accounts.js.map": "6998e88d1a651f656c302b76e3d2226a6f5c530dc89042eccbd330326f2cea10",
+      "packages/storage/dist/crypto.d.ts": "513684bf93c026d0e0b3ac12815211cba6c97fcd1ceeb924ea67d2fdae530e94",
+      "packages/storage/dist/crypto.js": "367957937d9f11cf07faebdf9bee970bdf64254a2d1bff96ba7f35cc32fa1b17",
+      "packages/storage/dist/crypto.js.map": "1a856d637f13485459dd5a54d57e79316539bf03234a6e8fa04d7c014ced043d",
+      "packages/storage/dist/database.d.ts": "276f59a61f1b72d09c7ba83de4b24616cef514c6f88abeb8bcda8d1ca6a69a2e",
+      "packages/storage/dist/database.js": "14d371d93b86ec62b82ac28518b40c9e93c1ade2b16d9bd47fdac3381fcffb6d",
+      "packages/storage/dist/database.js.map": "46666f27ed03057ac85f1cea2643589e7b23f822e599042093b7c61c223958c1",
+      "packages/storage/dist/index.d.ts": "4e93ae36372715a36f2cf1e0865b98a27df4752af7e897664c4b07c58ad6e85a",
+      "packages/storage/dist/index.js": "be09721f79b1f7d7cea914c48d745e0661913bf41a6e754a3fc68b1ab418bcd3",
+      "packages/storage/dist/index.js.map": "b63321aa13fbf3b16c27c05354338ac4631f690ac0c31f205f58ea5bab9c1cee",
+      "packages/storage/dist/leases.d.ts": "1fdc56584d660514cf32bc331c1fe012a2857ce4021d835a8741a8e9a4896d5f",
+      "packages/storage/dist/leases.js": "c15d3f9c8969238f0af0f6a349603cb1f89b5fb7d40699d8a26a3db6b20e002c",
+      "packages/storage/dist/leases.js.map": "5bf5618a19d675680c25cb9f627d8088b15847a9449bf068a3f90e5791c20894",
+      "packages/storage/dist/repositories.d.ts": "b7421ffcb999531ab814c88e100bd7d8648833d9133c9a7e30c5ff8540f1bc42",
+      "packages/storage/dist/repositories.js": "c5cbaff258b32cc62b95870136f9c4bab250d084cf33b73ae2539f0ded460e12",
+      "packages/storage/dist/repositories.js.map": "d1140c81851f2adf96d47c638f73a267cf06d268eeb5ea381c3a71e69efaddc9",
+      "packages/browser/dist/executor.d.ts": "4bf646c84017c53793b544d53437681b254b32ebbf944ed01244fbdd1bc6a7ab",
+      "packages/browser/dist/executor.js": "e4058c408549b27534268d319beda02d5ba2009394e2b1ea341d7edfa55b089c",
+      "packages/browser/dist/executor.js.map": "98a52507ef914d36b1b6a0a41167289b3d314a066efa938f46d39a0edca9e812",
+      "packages/browser/dist/index.d.ts": "23ee3034c1171e4ce8948b276e80419f89fd1a5f484eb35332742b79eb69fa41",
+      "packages/browser/dist/index.js": "8d4918758a3f84b95ac5e1c22d7e4a95afa381ab0971634835f21065f394a102",
+      "packages/browser/dist/index.js.map": "b54c554f0ebbc7da015c59224a343663da1df79d0cfbaf6d9bf229acd004274a",
+      "packages/browser/dist/policy.d.ts": "92c09a70b9a872531ec6f198d3ff62c8d4e664c7a8a341dc1294e0956ed07b41",
+      "packages/browser/dist/policy.js": "978c6cb1ac52d82b5c38c7f5ab99b964d9709fa3fbc2963e1f13deb9c1a93e7c",
+      "packages/browser/dist/policy.js.map": "a438dbcc39227e3b3b404fbc696ca0c6ce6fcff215ca9447da064c671d6c0bfc",
+      "packages/browser/dist/port.d.ts": "33ac9d5e360622b4b58c5430d6b6d6943a17ce44ca5fc3ea7b49c10412134b25",
+      "packages/browser/dist/port.js": "842ded44bb50abe0bf8ae5ddaa74a79af749f904c20d7d6a812afcaa3d1cb586",
+      "packages/browser/dist/port.js.map": "f35d25e9ccb99398f75270ce899f19022eaea570c5427e16942759d8476700d6",
+      "packages/browser/dist/recorder.d.ts": "f44ab9a84a7794b26fafe6b8d596d16b15c7dd9831c41d7af29b9d35310cea3b",
+      "packages/browser/dist/recorder.js": "f68d0054415d73e97ffcecf4eadb1255bccf4e55f3468f0082f367188019a8cc",
+      "packages/browser/dist/recorder.js.map": "bec9604f7ef2d54d706ad66f998132c2f921e924d7782ca812e1d63367c9a397",
+      "packages/browser/dist/redaction.d.ts": "b8a8015f644efd0be10ffcfe3445fad9952411f41fd2d09da6e4bfec6ede03b0",
+      "packages/browser/dist/redaction.js": "f1fa05f709f9cec08ec0859856c283b0bc79e275447e0fea4086645063ea098c",
+      "packages/browser/dist/redaction.js.map": "657efd80e06045c32e1ea08c34111ca4da16147389a1cb8dffe914cb47dd8193",
+      "packages/browser/dist/resolver.d.ts": "75e95fedc57b090b926c5e52734371f94beb4635184468f5c1402de2ea262868",
+      "packages/browser/dist/resolver.js": "a523848e994a43f6c4573e79600d0902da610a162688505e8c989db8e11809a7",
+      "packages/browser/dist/resolver.js.map": "4123054970085e97a9d6e2d7f93c2f400310b756e6b2d1090a634d3ed3eaa090",
+      "packages/browser/dist/session.d.ts": "7ccd5d4213caf7be6bb6bf0953257a9ef7185f8f05bf1ba121a4ac117e9ef875",
+      "packages/browser/dist/session.js": "3b2fed6e026a98453a03a69580f65379d8e258550a70fbb65aec02241b92a752",
+      "packages/browser/dist/session.js.map": "16276c8494919fe491a984a03bbbafbdfcf98bf74e1e35fdce1989887b0bb0c3",
+      "packages/browser/dist/snapshot.d.ts": "8cd00dc1756dbcba6303095f55977e0bb693523b888a4ef178d549947bd4399c",
+      "packages/browser/dist/snapshot.js": "e68747fb83095b3ae0ed6003cd89f546b6824ccb7799dfdbbf6d28fa5a1af34e",
+      "packages/browser/dist/snapshot.js.map": "8aceb751fb2911a3a3e2796342e9a232332005101e96787e2531ad92862dee49",
+      "packages/browser/dist/types.d.ts": "6e7fa301fc341d7411dd1de06ebf6b98a4622cdee03bc95eadce6b317cfd53f7",
+      "packages/browser/dist/types.js": "56f833248226a84398cf98e663157a615e1ecb02bd4dcad98cdf6b272733978a",
+      "packages/browser/dist/types.js.map": "091ffb9c1d7f5afc52ea1b89d428a81eb4f85e8cd3639561e135385eea077f2b",
+      "packages/browser/dist/waiter.d.ts": "f147b3b15eece23af1980b3848a21f14975e6f34c5b755abc1794275ee87f033",
+      "packages/browser/dist/waiter.js": "81e5ddd3dc2ff9e8f6b94785c5225a175a66849241e8caf2d2b25c382f15305a",
+      "packages/browser/dist/waiter.js.map": "7a7d4dec17178072c0e7109e26d9f56adf55b595078dcc4008cf54bae55ee57b",
+      "packages/model-gateway/dist/adapter.d.ts": "8bb6b050c654b3c6a2bdf4b588985d9e4fb2fd951ee7a1d2a5f229e658395a4b",
+      "packages/model-gateway/dist/adapter.js": "7b934ca80717c347052ab7a5076eb1d7984a594580db4554cba20e1b5c118c9a",
+      "packages/model-gateway/dist/adapter.js.map": "6fa56acd29aa6f33186629b757b9fde224cfc4126b37fb7a289a29970fb0d88b",
+      "packages/model-gateway/dist/gateway.d.ts": "c3e62b2b41398d852b1b942063697e9269f8d84633d5285ede80cb9340b345c3",
+      "packages/model-gateway/dist/gateway.js": "ab363c5f268aa613828528ae1d12b178552011d6d68a7bb718fa62da2f569839",
+      "packages/model-gateway/dist/gateway.js.map": "bd671c375f8d1d6a0da002f6b7a8765cd467c9db97825caa59a23d0e8b5d5c5e",
+      "packages/model-gateway/dist/index.d.ts": "ab9816e27e7a08e8a8143b6003690b6fea13750083f468941b051775ae78d080",
+      "packages/model-gateway/dist/index.js": "526aea40384cc03e137ecce6da7e61a951317e25e14beb30d6923ee0953fe38e",
+      "packages/model-gateway/dist/index.js.map": "b329d75fb9500d0dcfc5825a94154564212c58d78ffe35813a8dab7257225dfc",
+      "packages/model-gateway/dist/openai.d.ts": "221b8be24f0fde3ecea7920faf5362cccd80ebe6d8c3fc3a99a9acc2ce0b22d0",
+      "packages/model-gateway/dist/openai.js": "f14379544e7da3be2296482f0b4ad2195eb8fe8794b5068edcc32bc149499363",
+      "packages/model-gateway/dist/openai.js.map": "6281145ac5131793fb7e0ea4ede9bbb4acce3e7ca5015b7fddf69aced976c455",
+      "packages/model-gateway/dist/redact.d.ts": "40d686838c6e0c10f90fdc2b2c7141429ee72fbd11d3db43b539ea3d290a4f2c",
+      "packages/model-gateway/dist/redact.js": "91b3b4994ef6b36196a1b4a1b9503fbf06cf228a2f0ec469c059af7a54a9c597",
+      "packages/model-gateway/dist/redact.js.map": "8ecc4e4ecdbc1afac11878fce7cb0a8fae086725af5e4da4701306f50773b732",
+      "packages/model-gateway/dist/stub.d.ts": "94ea0f5ffd43ea46ee41c77e3454a5070fa5ce013a0b274f46381b5bbe775a8e",
+      "packages/model-gateway/dist/stub.js": "25e92fda823951e1735794ef4b955a0d720da78049756995566b8e23724ac4c9",
+      "packages/model-gateway/dist/stub.js.map": "baf459796766ffb6fc9cdd020d446dfa937a389992c1dc0e37100a86c95b8828",
+      "packages/model-gateway/dist/usage.d.ts": "972774e334303edf8e4156484aa9522101fd7d62dad30f68ca4d8716b230dff6",
+      "packages/model-gateway/dist/usage.js": "55b03294d81fe0bf31579443f003ae266d016c574e89ec162d050fb5c0bc32c4",
+      "packages/model-gateway/dist/usage.js.map": "0ef5036f7f1c675b97b08a932877f65d92696da60d9fa5784139f81ae4334602",
+      "packages/agents/dist/dispatcher.d.ts": "5c82a0a0d2ac5f0c216af79ea7566d234ab15662d3a637efe01ce7956e9fc176",
+      "packages/agents/dist/dispatcher.js": "14cbd638d0b44dc34ecdcd14858f480282d69e243b410c2437e63db204ec1465",
+      "packages/agents/dist/dispatcher.js.map": "f6418b77ccf2a11a8eb20a9a322d33f031172fa16fcde0efc3007fd71d6e3499",
+      "packages/agents/dist/index.d.ts": "c2f7aff502a5dbc84002eeba5fd3ada85a40cb885332d5ddfab1b1ab4a11cd90",
+      "packages/agents/dist/index.js": "774ebd8fde1b1e894387aa9a143b003e938c62d5d9198b604d27da996cb185ab",
+      "packages/agents/dist/index.js.map": "8dba4324f0ac3c7e0cf43a75cfa71a1632119bcc35dc33739f06edb64937542c",
+      "packages/agents/dist/loop.d.ts": "7bd3f678758b2e494ba20ca2d152ac29e5098d6801f39b7c93d4ce698aa4907d",
+      "packages/agents/dist/loop.js": "a3fe4d92999bb5720e1c93488f4fb945eaf519db926f817d359dfc1a623ca7ec",
+      "packages/agents/dist/loop.js.map": "fe9bc6ecaae1ca95b54855780637dfe74941a24fe78e2ac4d09766cbee63df19",
+      "packages/agents/dist/plan.d.ts": "4a51cd2cbd24e945ab9f96983999feb578909550e1fcff91b62ee29793110e2b",
+      "packages/agents/dist/plan.js": "d24ccee47b957e743b241e7d9b4bbc6dc710c2d2f53476205727cadd075b41a1",
+      "packages/agents/dist/plan.js.map": "d39d27fceb61c589e8154d7f957aee0acc4faffdbbbadbbbce9063b108479a87",
+      "packages/agents/dist/prompts.d.ts": "f6d5c94110a7e38e324d07d35cc307ac24faddf3bc221b57f9b5cdbe5a682288",
+      "packages/agents/dist/prompts.js": "ac5e187809335074f0a0fff58f3c5b099c6e1e42b2be7696657067bbbba07794",
+      "packages/agents/dist/prompts.js.map": "bd2077ad195a3c724380776b36e45a0bb6221605a8e9886d90e0df456d302743"
+    },
+    "after": {
+      "packages/contracts/dist/config.d.ts": "e1be943a50a7afe60b9803d3c6eb1e118395523c9e95713b974cdef96d145c9f",
+      "packages/contracts/dist/config.js": "a9ef1aee7057e3cc70310c4c962617183632b813c27f5ee37fffc3cd556b47d8",
+      "packages/contracts/dist/config.js.map": "32c57bb75827e8064ab1b969f36d53ae3bd1fa0268cefe2c7925a63cfc6676b2",
+      "packages/contracts/dist/errors.d.ts": "1d885cb6b35d11fac393b405af5abbeb74632752fabe91a06b714f112b8bd9f8",
+      "packages/contracts/dist/errors.js": "b9d26a27e40efad7b13fc3030b5a4bff3b309e9b658dacc07fac95d3fafc5212",
+      "packages/contracts/dist/errors.js.map": "0e7a2c46f150bc6962ee7f16acf02648120c6c77713403a6f4db6c39e1399ca3",
+      "packages/contracts/dist/generated/schemas.json": "f0a27ae81b8ced95d74b714d3c2a732a5c404b69bcd7274fed62e4365d39d6f1",
+      "packages/contracts/dist/generated/types.d.ts": "6ebd5db857d475028a76449cc72a296cb3f592e2d4443d1e6f893154bb50cc82",
+      "packages/contracts/dist/generated/types.js": "a96e8510c6079e05ce43d632a2c0f7b02d420307b8206ced1e5fdfb48711b004",
+      "packages/contracts/dist/generated/types.js.map": "8173f64db5b944f464798f1931df8fc95b1032ca40b337503aeecaf5670f5d45",
+      "packages/contracts/dist/index.d.ts": "57a8464773c833bc517fe1b34fd7df7e1dd39a20b3bb14c69425d85358c45407",
+      "packages/contracts/dist/index.js": "9f02cc3a0818090890c015397bb7d577fec78f3131c714d470c0c363f1571202",
+      "packages/contracts/dist/index.js.map": "2fde42314dc29b92f6098208ddc5dd3e02fc5a7972d2bcbe0020948f3b12b0fe",
+      "packages/storage/dist/accounts.d.ts": "b129a0054e61b6bdb08e5c110b6f601ec750575cd1304c82bae3a6aa8c5a059e",
+      "packages/storage/dist/accounts.js": "dd3b97a391cc5b9f13a6d07ee54b85eef1ff2e714ef3e018458043173d6933a7",
+      "packages/storage/dist/accounts.js.map": "6998e88d1a651f656c302b76e3d2226a6f5c530dc89042eccbd330326f2cea10",
+      "packages/storage/dist/crypto.d.ts": "513684bf93c026d0e0b3ac12815211cba6c97fcd1ceeb924ea67d2fdae530e94",
+      "packages/storage/dist/crypto.js": "367957937d9f11cf07faebdf9bee970bdf64254a2d1bff96ba7f35cc32fa1b17",
+      "packages/storage/dist/crypto.js.map": "1a856d637f13485459dd5a54d57e79316539bf03234a6e8fa04d7c014ced043d",
+      "packages/storage/dist/database.d.ts": "276f59a61f1b72d09c7ba83de4b24616cef514c6f88abeb8bcda8d1ca6a69a2e",
+      "packages/storage/dist/database.js": "14d371d93b86ec62b82ac28518b40c9e93c1ade2b16d9bd47fdac3381fcffb6d",
+      "packages/storage/dist/database.js.map": "46666f27ed03057ac85f1cea2643589e7b23f822e599042093b7c61c223958c1",
+      "packages/storage/dist/index.d.ts": "4e93ae36372715a36f2cf1e0865b98a27df4752af7e897664c4b07c58ad6e85a",
+      "packages/storage/dist/index.js": "be09721f79b1f7d7cea914c48d745e0661913bf41a6e754a3fc68b1ab418bcd3",
+      "packages/storage/dist/index.js.map": "b63321aa13fbf3b16c27c05354338ac4631f690ac0c31f205f58ea5bab9c1cee",
+      "packages/storage/dist/leases.d.ts": "1fdc56584d660514cf32bc331c1fe012a2857ce4021d835a8741a8e9a4896d5f",
+      "packages/storage/dist/leases.js": "c15d3f9c8969238f0af0f6a349603cb1f89b5fb7d40699d8a26a3db6b20e002c",
+      "packages/storage/dist/leases.js.map": "5bf5618a19d675680c25cb9f627d8088b15847a9449bf068a3f90e5791c20894",
+      "packages/storage/dist/repositories.d.ts": "b7421ffcb999531ab814c88e100bd7d8648833d9133c9a7e30c5ff8540f1bc42",
+      "packages/storage/dist/repositories.js": "c5cbaff258b32cc62b95870136f9c4bab250d084cf33b73ae2539f0ded460e12",
+      "packages/storage/dist/repositories.js.map": "d1140c81851f2adf96d47c638f73a267cf06d268eeb5ea381c3a71e69efaddc9",
+      "packages/browser/dist/executor.d.ts": "4bf646c84017c53793b544d53437681b254b32ebbf944ed01244fbdd1bc6a7ab",
+      "packages/browser/dist/executor.js": "e4058c408549b27534268d319beda02d5ba2009394e2b1ea341d7edfa55b089c",
+      "packages/browser/dist/executor.js.map": "98a52507ef914d36b1b6a0a41167289b3d314a066efa938f46d39a0edca9e812",
+      "packages/browser/dist/index.d.ts": "23ee3034c1171e4ce8948b276e80419f89fd1a5f484eb35332742b79eb69fa41",
+      "packages/browser/dist/index.js": "8d4918758a3f84b95ac5e1c22d7e4a95afa381ab0971634835f21065f394a102",
+      "packages/browser/dist/index.js.map": "b54c554f0ebbc7da015c59224a343663da1df79d0cfbaf6d9bf229acd004274a",
+      "packages/browser/dist/policy.d.ts": "92c09a70b9a872531ec6f198d3ff62c8d4e664c7a8a341dc1294e0956ed07b41",
+      "packages/browser/dist/policy.js": "978c6cb1ac52d82b5c38c7f5ab99b964d9709fa3fbc2963e1f13deb9c1a93e7c",
+      "packages/browser/dist/policy.js.map": "a438dbcc39227e3b3b404fbc696ca0c6ce6fcff215ca9447da064c671d6c0bfc",
+      "packages/browser/dist/port.d.ts": "33ac9d5e360622b4b58c5430d6b6d6943a17ce44ca5fc3ea7b49c10412134b25",
+      "packages/browser/dist/port.js": "842ded44bb50abe0bf8ae5ddaa74a79af749f904c20d7d6a812afcaa3d1cb586",
+      "packages/browser/dist/port.js.map": "f35d25e9ccb99398f75270ce899f19022eaea570c5427e16942759d8476700d6",
+      "packages/browser/dist/recorder.d.ts": "f44ab9a84a7794b26fafe6b8d596d16b15c7dd9831c41d7af29b9d35310cea3b",
+      "packages/browser/dist/recorder.js": "f68d0054415d73e97ffcecf4eadb1255bccf4e55f3468f0082f367188019a8cc",
+      "packages/browser/dist/recorder.js.map": "bec9604f7ef2d54d706ad66f998132c2f921e924d7782ca812e1d63367c9a397",
+      "packages/browser/dist/redaction.d.ts": "b8a8015f644efd0be10ffcfe3445fad9952411f41fd2d09da6e4bfec6ede03b0",
+      "packages/browser/dist/redaction.js": "f1fa05f709f9cec08ec0859856c283b0bc79e275447e0fea4086645063ea098c",
+      "packages/browser/dist/redaction.js.map": "657efd80e06045c32e1ea08c34111ca4da16147389a1cb8dffe914cb47dd8193",
+      "packages/browser/dist/resolver.d.ts": "75e95fedc57b090b926c5e52734371f94beb4635184468f5c1402de2ea262868",
+      "packages/browser/dist/resolver.js": "a523848e994a43f6c4573e79600d0902da610a162688505e8c989db8e11809a7",
+      "packages/browser/dist/resolver.js.map": "4123054970085e97a9d6e2d7f93c2f400310b756e6b2d1090a634d3ed3eaa090",
+      "packages/browser/dist/session.d.ts": "7ccd5d4213caf7be6bb6bf0953257a9ef7185f8f05bf1ba121a4ac117e9ef875",
+      "packages/browser/dist/session.js": "3b2fed6e026a98453a03a69580f65379d8e258550a70fbb65aec02241b92a752",
+      "packages/browser/dist/session.js.map": "16276c8494919fe491a984a03bbbafbdfcf98bf74e1e35fdce1989887b0bb0c3",
+      "packages/browser/dist/snapshot.d.ts": "8cd00dc1756dbcba6303095f55977e0bb693523b888a4ef178d549947bd4399c",
+      "packages/browser/dist/snapshot.js": "e68747fb83095b3ae0ed6003cd89f546b6824ccb7799dfdbbf6d28fa5a1af34e",
+      "packages/browser/dist/snapshot.js.map": "8aceb751fb2911a3a3e2796342e9a232332005101e96787e2531ad92862dee49",
+      "packages/browser/dist/types.d.ts": "6e7fa301fc341d7411dd1de06ebf6b98a4622cdee03bc95eadce6b317cfd53f7",
+      "packages/browser/dist/types.js": "56f833248226a84398cf98e663157a615e1ecb02bd4dcad98cdf6b272733978a",
+      "packages/browser/dist/types.js.map": "091ffb9c1d7f5afc52ea1b89d428a81eb4f85e8cd3639561e135385eea077f2b",
+      "packages/browser/dist/waiter.d.ts": "f147b3b15eece23af1980b3848a21f14975e6f34c5b755abc1794275ee87f033",
+      "packages/browser/dist/waiter.js": "81e5ddd3dc2ff9e8f6b94785c5225a175a66849241e8caf2d2b25c382f15305a",
+      "packages/browser/dist/waiter.js.map": "7a7d4dec17178072c0e7109e26d9f56adf55b595078dcc4008cf54bae55ee57b",
+      "packages/model-gateway/dist/adapter.d.ts": "8bb6b050c654b3c6a2bdf4b588985d9e4fb2fd951ee7a1d2a5f229e658395a4b",
+      "packages/model-gateway/dist/adapter.js": "7b934ca80717c347052ab7a5076eb1d7984a594580db4554cba20e1b5c118c9a",
+      "packages/model-gateway/dist/adapter.js.map": "6fa56acd29aa6f33186629b757b9fde224cfc4126b37fb7a289a29970fb0d88b",
+      "packages/model-gateway/dist/gateway.d.ts": "c3e62b2b41398d852b1b942063697e9269f8d84633d5285ede80cb9340b345c3",
+      "packages/model-gateway/dist/gateway.js": "ab363c5f268aa613828528ae1d12b178552011d6d68a7bb718fa62da2f569839",
+      "packages/model-gateway/dist/gateway.js.map": "bd671c375f8d1d6a0da002f6b7a8765cd467c9db97825caa59a23d0e8b5d5c5e",
+      "packages/model-gateway/dist/index.d.ts": "ab9816e27e7a08e8a8143b6003690b6fea13750083f468941b051775ae78d080",
+      "packages/model-gateway/dist/index.js": "526aea40384cc03e137ecce6da7e61a951317e25e14beb30d6923ee0953fe38e",
+      "packages/model-gateway/dist/index.js.map": "b329d75fb9500d0dcfc5825a94154564212c58d78ffe35813a8dab7257225dfc",
+      "packages/model-gateway/dist/openai.d.ts": "221b8be24f0fde3ecea7920faf5362cccd80ebe6d8c3fc3a99a9acc2ce0b22d0",
+      "packages/model-gateway/dist/openai.js": "f14379544e7da3be2296482f0b4ad2195eb8fe8794b5068edcc32bc149499363",
+      "packages/model-gateway/dist/openai.js.map": "6281145ac5131793fb7e0ea4ede9bbb4acce3e7ca5015b7fddf69aced976c455",
+      "packages/model-gateway/dist/redact.d.ts": "40d686838c6e0c10f90fdc2b2c7141429ee72fbd11d3db43b539ea3d290a4f2c",
+      "packages/model-gateway/dist/redact.js": "91b3b4994ef6b36196a1b4a1b9503fbf06cf228a2f0ec469c059af7a54a9c597",
+      "packages/model-gateway/dist/redact.js.map": "8ecc4e4ecdbc1afac11878fce7cb0a8fae086725af5e4da4701306f50773b732",
+      "packages/model-gateway/dist/stub.d.ts": "94ea0f5ffd43ea46ee41c77e3454a5070fa5ce013a0b274f46381b5bbe775a8e",
+      "packages/model-gateway/dist/stub.js": "25e92fda823951e1735794ef4b955a0d720da78049756995566b8e23724ac4c9",
+      "packages/model-gateway/dist/stub.js.map": "baf459796766ffb6fc9cdd020d446dfa937a389992c1dc0e37100a86c95b8828",
+      "packages/model-gateway/dist/usage.d.ts": "972774e334303edf8e4156484aa9522101fd7d62dad30f68ca4d8716b230dff6",
+      "packages/model-gateway/dist/usage.js": "55b03294d81fe0bf31579443f003ae266d016c574e89ec162d050fb5c0bc32c4",
+      "packages/model-gateway/dist/usage.js.map": "0ef5036f7f1c675b97b08a932877f65d92696da60d9fa5784139f81ae4334602",
+      "packages/agents/dist/dispatcher.d.ts": "5c82a0a0d2ac5f0c216af79ea7566d234ab15662d3a637efe01ce7956e9fc176",
+      "packages/agents/dist/dispatcher.js": "14cbd638d0b44dc34ecdcd14858f480282d69e243b410c2437e63db204ec1465",
+      "packages/agents/dist/dispatcher.js.map": "f6418b77ccf2a11a8eb20a9a322d33f031172fa16fcde0efc3007fd71d6e3499",
+      "packages/agents/dist/index.d.ts": "c2f7aff502a5dbc84002eeba5fd3ada85a40cb885332d5ddfab1b1ab4a11cd90",
+      "packages/agents/dist/index.js": "774ebd8fde1b1e894387aa9a143b003e938c62d5d9198b604d27da996cb185ab",
+      "packages/agents/dist/index.js.map": "8dba4324f0ac3c7e0cf43a75cfa71a1632119bcc35dc33739f06edb64937542c",
+      "packages/agents/dist/loop.d.ts": "7bd3f678758b2e494ba20ca2d152ac29e5098d6801f39b7c93d4ce698aa4907d",
+      "packages/agents/dist/loop.js": "a3fe4d92999bb5720e1c93488f4fb945eaf519db926f817d359dfc1a623ca7ec",
+      "packages/agents/dist/loop.js.map": "fe9bc6ecaae1ca95b54855780637dfe74941a24fe78e2ac4d09766cbee63df19",
+      "packages/agents/dist/plan.d.ts": "4a51cd2cbd24e945ab9f96983999feb578909550e1fcff91b62ee29793110e2b",
+      "packages/agents/dist/plan.js": "d24ccee47b957e743b241e7d9b4bbc6dc710c2d2f53476205727cadd075b41a1",
+      "packages/agents/dist/plan.js.map": "d39d27fceb61c589e8154d7f957aee0acc4faffdbbbadbbbce9063b108479a87",
+      "packages/agents/dist/prompts.d.ts": "f6d5c94110a7e38e324d07d35cc307ac24faddf3bc221b57f9b5cdbe5a682288",
+      "packages/agents/dist/prompts.js": "ac5e187809335074f0a0fff58f3c5b099c6e1e42b2be7696657067bbbba07794",
+      "packages/agents/dist/prompts.js.map": "bd2077ad195a3c724380776b36e45a0bb6221605a8e9886d90e0df456d302743"
+    }
+  },
+  "sourceFiles": [
+    {
+      "path": "packages/domain/.gitignore",
+      "sha256": "053b21d0a5c86b87ab0fb239a42e4b394620df04d968718eee5b818ed2e37a77"
+    },
+    {
+      "path": "packages/domain/README.md",
+      "sha256": "0d772c6a8184a49401661b2623ba664aa94b86c938ad5ce1716e6672698bf31d"
+    },
+    {
+      "path": "packages/domain/package.json",
+      "sha256": "8af7e3a2f0b6888c9e21d8cae0d41b3a6a406498410753af15b890f9a62b1df6"
+    },
+    {
+      "path": "packages/domain/src/index.ts",
+      "sha256": "a6b275e7a86cfad37f30777349aefbf7764bbb5e723cd53060b9a956401d2d38"
+    },
+    {
+      "path": "packages/domain/test/domain.test.mjs",
+      "sha256": "e6f8ec1fda9c11ef3a4631540812799b2f2275c3fbe8eb5f71a56dedfa30622c"
+    },
+    {
+      "path": "packages/domain/tsconfig.json",
+      "sha256": "e0dcaf38aa33c1affc81425294b08ffd4b4ddc2f032a0fb1cdd6ff6e926735a2"
+    },
+    {
+      "path": "packages/orchestrator/.gitignore",
+      "sha256": "053b21d0a5c86b87ab0fb239a42e4b394620df04d968718eee5b818ed2e37a77"
+    },
+    {
+      "path": "packages/orchestrator/README.md",
+      "sha256": "4ac16c10d8336459a7805bdf18d49cf53265f51cd353f12566009c2b16007096"
+    },
+    {
+      "path": "packages/orchestrator/package.json",
+      "sha256": "0586c438c909ce432f7a2a455e7390e1d66b0cb01d09ab86d8c83382c040c4a7"
+    },
+    {
+      "path": "packages/orchestrator/src/artifacts.ts",
+      "sha256": "e930d2d7375eac1d1c850e2e101fcf8562fc319d5894a7a036744ddc5c2f2dfa"
+    },
+    {
+      "path": "packages/orchestrator/src/core.ts",
+      "sha256": "bea304cb2b3743ad8be697ef96da58fd8665bb592b7d5c7f7367016fb4f8e4ea"
+    },
+    {
+      "path": "packages/orchestrator/src/index.ts",
+      "sha256": "ebb25bade007896523504ba721f9e11bd160a8d9403288eb3d93bf8c9f25cae1"
+    },
+    {
+      "path": "packages/orchestrator/src/model.ts",
+      "sha256": "9d82ed2d4debbc2968aa031d33b74236ad6cfb9df1fc15026fc965025b769712"
+    },
+    {
+      "path": "packages/orchestrator/src/runtime.ts",
+      "sha256": "c1da0f0c4f46fcd4345febf42110d8b620eacb072da09db30f19045c54625524"
+    },
+    {
+      "path": "packages/orchestrator/test/boundary.test.mjs",
+      "sha256": "613168658891e17ebdd82fe0955b361e63fa607908b333e4823df6506ec738a8"
+    },
+    {
+      "path": "packages/orchestrator/tsconfig.json",
+      "sha256": "e0dcaf38aa33c1affc81425294b08ffd4b4ddc2f032a0fb1cdd6ff6e926735a2"
+    },
+    {
+      "path": "apps/worker/.gitignore",
+      "sha256": "053b21d0a5c86b87ab0fb239a42e4b394620df04d968718eee5b818ed2e37a77"
+    },
+    {
+      "path": "apps/worker/README.md",
+      "sha256": "c3355e904ad4269fbcf212c62e068909e7360c31a5b1aafbe6cbfcd9ef1b1584"
+    },
+    {
+      "path": "apps/worker/package.json",
+      "sha256": "99a6092689f4d29eea8899289075a923a22effd20ca23f01757d9654e549e5e0"
+    },
+    {
+      "path": "apps/worker/scripts/verify.mjs",
+      "sha256": "98c25cded5f97a4c7ca90c89ed53eb23e1f8cfcb1d2ccfaf76b4f5bfc178e98f"
+    },
+    {
+      "path": "apps/worker/src/index.ts",
+      "sha256": "97c547c5a1cf259657c2cca42e5d01354d5ad994e1661b66ee2392ad5eb66dbc"
+    },
+    {
+      "path": "apps/worker/test/crash-child.mjs",
+      "sha256": "e50985350326024649cf75f6e468a4c2a8c4a7fc66f906ab1534f09b7158d599"
+    },
+    {
+      "path": "apps/worker/test/integration.test.mjs",
+      "sha256": "1f1ec8cc913c70a78473de045a8f5020f077c6c4737ed9a921ef51f288191e18"
+    },
+    {
+      "path": "apps/worker/tsconfig.json",
+      "sha256": "f1c40fc2b197f56107fb31d4100eb9365f3289883032f7b9a338f31fa8207576"
+    }
+  ],
+  "readonlyPackages": {
+    "unchanged": true,
+    "files": [
+      {
+        "path": "packages/agents/package.json",
+        "before": "9017249b11e1cee6daa036249f64c972b92f13514fc540ae239d3d18dc75fe7d",
+        "after": "9017249b11e1cee6daa036249f64c972b92f13514fc540ae239d3d18dc75fe7d"
+      },
+      {
+        "path": "packages/agents/src/dispatcher.ts",
+        "before": "5371a6fd7fba798e0eff2ea561a7cd7f1168431256c6b5075241f7c703a2ff77",
+        "after": "5371a6fd7fba798e0eff2ea561a7cd7f1168431256c6b5075241f7c703a2ff77"
+      },
+      {
+        "path": "packages/agents/src/index.ts",
+        "before": "ef15f1e822c9902e5eade867825fcdb919b111d3003d33ab823cd1d0face9988",
+        "after": "ef15f1e822c9902e5eade867825fcdb919b111d3003d33ab823cd1d0face9988"
+      },
+      {
+        "path": "packages/agents/src/loop.ts",
+        "before": "90b5962949ffd5266a65178cb0fb86ee3f96bfbe0b5f1f02f14a13939c2222e8",
+        "after": "90b5962949ffd5266a65178cb0fb86ee3f96bfbe0b5f1f02f14a13939c2222e8"
+      },
+      {
+        "path": "packages/agents/src/plan.ts",
+        "before": "fca28ec211d1a5b0a05631748e04b00deff65c9d8ae7fe7e834d61d906bc7436",
+        "after": "fca28ec211d1a5b0a05631748e04b00deff65c9d8ae7fe7e834d61d906bc7436"
+      },
+      {
+        "path": "packages/agents/src/prompts.ts",
+        "before": "cc2d746b11eb7e28f7bd783b3fedd5b49c791f4f715cc0888823d5df8456fc6a",
+        "after": "cc2d746b11eb7e28f7bd783b3fedd5b49c791f4f715cc0888823d5df8456fc6a"
+      },
+      {
+        "path": "packages/agents/tsconfig.build.json",
+        "before": "305bb12409ceb21b09ad0109529b02c3e267aba20b629c32d77b7126d954e576",
+        "after": "305bb12409ceb21b09ad0109529b02c3e267aba20b629c32d77b7126d954e576"
+      },
+      {
+        "path": "packages/agents/tsconfig.json",
+        "before": "055076ab4314c141b41809604316512a8f25456a4f435145d8e154c5db940621",
+        "after": "055076ab4314c141b41809604316512a8f25456a4f435145d8e154c5db940621"
+      },
+      {
+        "path": "packages/browser/README.md",
+        "before": "9a880c443dc4ef8ad99f4c65e577c027cdab18b3a5b31240301d41504b2b3a18",
+        "after": "9a880c443dc4ef8ad99f4c65e577c027cdab18b3a5b31240301d41504b2b3a18"
+      },
+      {
+        "path": "packages/browser/package.json",
+        "before": "6f69a960f1e6ccf2e5c08f9a108b305cc97d29d31ea75a4d0ebb3edb9225eba1",
+        "after": "6f69a960f1e6ccf2e5c08f9a108b305cc97d29d31ea75a4d0ebb3edb9225eba1"
+      },
+      {
+        "path": "packages/browser/src/executor.ts",
+        "before": "28c5b3649d769a34c069fcd2bc6b8d5a1142034011173b324db54ec04ce61940",
+        "after": "28c5b3649d769a34c069fcd2bc6b8d5a1142034011173b324db54ec04ce61940"
+      },
+      {
+        "path": "packages/browser/src/index.ts",
+        "before": "23ee3034c1171e4ce8948b276e80419f89fd1a5f484eb35332742b79eb69fa41",
+        "after": "23ee3034c1171e4ce8948b276e80419f89fd1a5f484eb35332742b79eb69fa41"
+      },
+      {
+        "path": "packages/browser/src/policy.ts",
+        "before": "10eca92aa65aadfed6bad68036b0242e202b2d518f360dd76557470298f91d99",
+        "after": "10eca92aa65aadfed6bad68036b0242e202b2d518f360dd76557470298f91d99"
+      },
+      {
+        "path": "packages/browser/src/port.ts",
+        "before": "30dcefa5a376b5c1065dedf09b959ee6f62fe1c4f1beef049bb555a04eec99f4",
+        "after": "30dcefa5a376b5c1065dedf09b959ee6f62fe1c4f1beef049bb555a04eec99f4"
+      },
+      {
+        "path": "packages/browser/src/recorder.ts",
+        "before": "45f01b25957e794f39b76aad82d1571dbbc35bd00dfa94560a65f6ea5ee97f23",
+        "after": "45f01b25957e794f39b76aad82d1571dbbc35bd00dfa94560a65f6ea5ee97f23"
+      },
+      {
+        "path": "packages/browser/src/redaction.ts",
+        "before": "0fe21c573ec6c7d1f0dc0a0123990bf4f5f90739f557d3cda9c8ffe6f365bba6",
+        "after": "0fe21c573ec6c7d1f0dc0a0123990bf4f5f90739f557d3cda9c8ffe6f365bba6"
+      },
+      {
+        "path": "packages/browser/src/resolver.ts",
+        "before": "e1c50caa99d2b335c117fdbabe9c99a9c589be31e0e2b9fcb85120161b3b0f22",
+        "after": "e1c50caa99d2b335c117fdbabe9c99a9c589be31e0e2b9fcb85120161b3b0f22"
+      },
+      {
+        "path": "packages/browser/src/session.ts",
+        "before": "cb80b4c40c660d0ff5c50b5c50098d25a657d77efd192f1775921d5477e12cb8",
+        "after": "cb80b4c40c660d0ff5c50b5c50098d25a657d77efd192f1775921d5477e12cb8"
+      },
+      {
+        "path": "packages/browser/src/snapshot.ts",
+        "before": "d2f3470d0bedcf999f574c1fd41dd51a7060abd1f80b6da96e3b3b3a36f10697",
+        "after": "d2f3470d0bedcf999f574c1fd41dd51a7060abd1f80b6da96e3b3b3a36f10697"
+      },
+      {
+        "path": "packages/browser/src/types.ts",
+        "before": "953b41bae128e1c3b462cb90024aa8a7969d50b70b7c237381313cb59d9c56b0",
+        "after": "953b41bae128e1c3b462cb90024aa8a7969d50b70b7c237381313cb59d9c56b0"
+      },
+      {
+        "path": "packages/browser/src/waiter.ts",
+        "before": "66bb191bffc599e12558104bbefa0576c8853a61b651f7304396ac2aa1d26344",
+        "after": "66bb191bffc599e12558104bbefa0576c8853a61b651f7304396ac2aa1d26344"
+      },
+      {
+        "path": "packages/browser/test/browser.test.mjs",
+        "before": "defaffa5abd54d22513a5a366e85ba7a92baf2d07ba8c14cb8fd8dcffbb33ed3",
+        "after": "defaffa5abd54d22513a5a366e85ba7a92baf2d07ba8c14cb8fd8dcffbb33ed3"
+      },
+      {
+        "path": "packages/browser/tsconfig.build.json",
+        "before": "561407be5e72f46b9eee80451fd2ee5506c63238dcc46a8946a1ed0cc1df7cb9",
+        "after": "561407be5e72f46b9eee80451fd2ee5506c63238dcc46a8946a1ed0cc1df7cb9"
+      },
+      {
+        "path": "packages/browser/tsconfig.json",
+        "before": "cc15bc7f7e1b9e94f206d5b3629e1d7e3a32356da2344308d8cd963119f5a21c",
+        "after": "cc15bc7f7e1b9e94f206d5b3629e1d7e3a32356da2344308d8cd963119f5a21c"
+      },
+      {
+        "path": "packages/contracts/README.md",
+        "before": "96d7c24e4490ed011098bd5979cc3d42875739b6c3c6692dc310503cefea7fd2",
+        "after": "96d7c24e4490ed011098bd5979cc3d42875739b6c3c6692dc310503cefea7fd2"
+      },
+      {
+        "path": "packages/contracts/package.json",
+        "before": "bf49582e533dd2a491ec85dd4efdb217218e7ea448218ded50202bb6efa571fa",
+        "after": "bf49582e533dd2a491ec85dd4efdb217218e7ea448218ded50202bb6efa571fa"
+      },
+      {
+        "path": "packages/contracts/scripts/check.mjs",
+        "before": "91f2917bd4aaee4ab4ccaf3ca2b9149f693a168e14473a8e82dda36fa448725e",
+        "after": "91f2917bd4aaee4ab4ccaf3ca2b9149f693a168e14473a8e82dda36fa448725e"
+      },
+      {
+        "path": "packages/contracts/scripts/generate.mjs",
+        "before": "09fea1fd8bb0d92e83df06046d52f4a2c4bb593725a75d09fe8eec672d04f0f9",
+        "after": "09fea1fd8bb0d92e83df06046d52f4a2c4bb593725a75d09fe8eec672d04f0f9"
+      },
+      {
+        "path": "packages/contracts/src/config.ts",
+        "before": "332eab8e7328a0c5363ddcf8a366ee399a557d9a5d6ab77cbc07808ffb728fd9",
+        "after": "332eab8e7328a0c5363ddcf8a366ee399a557d9a5d6ab77cbc07808ffb728fd9"
+      },
+      {
+        "path": "packages/contracts/src/errors.ts",
+        "before": "c91a1bca03d4d23050d467ac02428f43b7efb2ae4809a51ea7e49c8739ece7cd",
+        "after": "c91a1bca03d4d23050d467ac02428f43b7efb2ae4809a51ea7e49c8739ece7cd"
+      },
+      {
+        "path": "packages/contracts/src/generated/manifest.json",
+        "before": "0d8563394e9f37cc770f1eb2b63d415aa291018316626c81f63dda9b84af65d4",
+        "after": "0d8563394e9f37cc770f1eb2b63d415aa291018316626c81f63dda9b84af65d4"
+      },
+      {
+        "path": "packages/contracts/src/generated/schemas.json",
+        "before": "ab8d93f8fcc3a6891cd101cc288b377c9009bba8ba681461e7e6435406f58995",
+        "after": "ab8d93f8fcc3a6891cd101cc288b377c9009bba8ba681461e7e6435406f58995"
+      },
+      {
+        "path": "packages/contracts/src/generated/types.ts",
+        "before": "8bc8ac4c17585868a1254205f4dfa23ab5df826ebab91914b9619ba4b0e37983",
+        "after": "8bc8ac4c17585868a1254205f4dfa23ab5df826ebab91914b9619ba4b0e37983"
+      },
+      {
+        "path": "packages/contracts/src/index.ts",
+        "before": "00999dcfb567841e77e7928294c0fb4bab441f3166c888a7aed8fb98cc73db4c",
+        "after": "00999dcfb567841e77e7928294c0fb4bab441f3166c888a7aed8fb98cc73db4c"
+      },
+      {
+        "path": "packages/contracts/test/contracts.test.mjs",
+        "before": "83e6653b5dbd4da9535942d95c236fe5f8026f5951c4477a45d48898e40c9a24",
+        "after": "83e6653b5dbd4da9535942d95c236fe5f8026f5951c4477a45d48898e40c9a24"
+      },
+      {
+        "path": "packages/contracts/test/drift.test.mjs",
+        "before": "48057d42917ebbb4c121a88454405eb50b41502a5e4aac5dc824d9030f0ee7f0",
+        "after": "48057d42917ebbb4c121a88454405eb50b41502a5e4aac5dc824d9030f0ee7f0"
+      },
+      {
+        "path": "packages/contracts/test/types.test.ts",
+        "before": "82e32a83233834ba7b495aba2f5d0dd86165e213f0b5993ede09f4c4ab1f2a4e",
+        "after": "82e32a83233834ba7b495aba2f5d0dd86165e213f0b5993ede09f4c4ab1f2a4e"
+      },
+      {
+        "path": "packages/contracts/tsconfig.build.json",
+        "before": "305bb12409ceb21b09ad0109529b02c3e267aba20b629c32d77b7126d954e576",
+        "after": "305bb12409ceb21b09ad0109529b02c3e267aba20b629c32d77b7126d954e576"
+      },
+      {
+        "path": "packages/contracts/tsconfig.json",
+        "before": "8232231dbe3ceecb55d79ad73c513bb64778d5eb29b707314b8058d300a4e234",
+        "after": "8232231dbe3ceecb55d79ad73c513bb64778d5eb29b707314b8058d300a4e234"
+      },
+      {
+        "path": "packages/model-gateway/package.json",
+        "before": "9d11bff09a27d7b92cd037cfe07f730ea91a42d08b0724a39dc4ac90303df710",
+        "after": "9d11bff09a27d7b92cd037cfe07f730ea91a42d08b0724a39dc4ac90303df710"
+      },
+      {
+        "path": "packages/model-gateway/scripts/probe-live.mjs",
+        "before": "119afde38f23eaa83da9c8a1f7d6b5e07ed1c7fb676ef76522e29355fe9d3c8f",
+        "after": "119afde38f23eaa83da9c8a1f7d6b5e07ed1c7fb676ef76522e29355fe9d3c8f"
+      },
+      {
+        "path": "packages/model-gateway/scripts/verify.mjs",
+        "before": "c8227a95bc7d421acf2b3d3521b666f5f47adf22ecc683f3627acd377d520bac",
+        "after": "c8227a95bc7d421acf2b3d3521b666f5f47adf22ecc683f3627acd377d520bac"
+      },
+      {
+        "path": "packages/model-gateway/src/adapter.ts",
+        "before": "0170acd657b2bae83ed46e3f11057ab4050f40a61b189f3c96f23fe37dac29fd",
+        "after": "0170acd657b2bae83ed46e3f11057ab4050f40a61b189f3c96f23fe37dac29fd"
+      },
+      {
+        "path": "packages/model-gateway/src/gateway.ts",
+        "before": "b806e18414edec1ed9ebe181ac0ea7101e47b66a26a7f4811c95708389485c64",
+        "after": "b806e18414edec1ed9ebe181ac0ea7101e47b66a26a7f4811c95708389485c64"
+      },
+      {
+        "path": "packages/model-gateway/src/index.ts",
+        "before": "8e3c1e7e15a0a4a0027a7ce54203d859c282339b5cb888a36e232138d8c8ce0a",
+        "after": "8e3c1e7e15a0a4a0027a7ce54203d859c282339b5cb888a36e232138d8c8ce0a"
+      },
+      {
+        "path": "packages/model-gateway/src/openai.ts",
+        "before": "ea372655b3c3e78c7881109d2493eabf594d1db88d8ac8ad595d44a1439be605",
+        "after": "ea372655b3c3e78c7881109d2493eabf594d1db88d8ac8ad595d44a1439be605"
+      },
+      {
+        "path": "packages/model-gateway/src/redact.ts",
+        "before": "d22413296617d9ce4be37ffabd23388268b8ac9d56cbdb05ad271d16de93bba7",
+        "after": "d22413296617d9ce4be37ffabd23388268b8ac9d56cbdb05ad271d16de93bba7"
+      },
+      {
+        "path": "packages/model-gateway/src/stub.ts",
+        "before": "fe3fd0e4ab9d4a4b65d2b82bcea4f1fde8754701d379dcd8922c155fcf10ad8a",
+        "after": "fe3fd0e4ab9d4a4b65d2b82bcea4f1fde8754701d379dcd8922c155fcf10ad8a"
+      },
+      {
+        "path": "packages/model-gateway/src/usage.ts",
+        "before": "fa44a93fadecf4aef1a6c1ae954221557e1cdd87091f5092e7f0f784b07f58ff",
+        "after": "fa44a93fadecf4aef1a6c1ae954221557e1cdd87091f5092e7f0f784b07f58ff"
+      },
+      {
+        "path": "packages/model-gateway/tsconfig.build.json",
+        "before": "305bb12409ceb21b09ad0109529b02c3e267aba20b629c32d77b7126d954e576",
+        "after": "305bb12409ceb21b09ad0109529b02c3e267aba20b629c32d77b7126d954e576"
+      },
+      {
+        "path": "packages/model-gateway/tsconfig.json",
+        "before": "055076ab4314c141b41809604316512a8f25456a4f435145d8e154c5db940621",
+        "after": "055076ab4314c141b41809604316512a8f25456a4f435145d8e154c5db940621"
+      },
+      {
+        "path": "packages/storage/.gitignore",
+        "before": "3c4c8f40b45e54d64affb404534d835a37c8ce0d7392ee0cd5539ce10aadd6f3",
+        "after": "3c4c8f40b45e54d64affb404534d835a37c8ce0d7392ee0cd5539ce10aadd6f3"
+      },
+      {
+        "path": "packages/storage/README.md",
+        "before": "09163aa2d7edbf2e76575323d149c2d8ae9a715bf0dac82a1bce0ad9574f4cec",
+        "after": "09163aa2d7edbf2e76575323d149c2d8ae9a715bf0dac82a1bce0ad9574f4cec"
+      },
+      {
+        "path": "packages/storage/migrations/001_core.sql",
+        "before": "6ad7cd958e2fb51484970ae6a0678df6ac9fca105cc138348efdcaf14cb4fbd1",
+        "after": "6ad7cd958e2fb51484970ae6a0678df6ac9fca105cc138348efdcaf14cb4fbd1"
+      },
+      {
+        "path": "packages/storage/migrations/002_invariants.sql",
+        "before": "d9c35e1165f849accb2074c99ea9e8296fb0682b7ec164402cc94337ea1dc314",
+        "after": "d9c35e1165f849accb2074c99ea9e8296fb0682b7ec164402cc94337ea1dc314"
+      },
+      {
+        "path": "packages/storage/migrations/003_access.sql",
+        "before": "6c5c975ce7b35b6c20d2a9620a4cfdb2800d668ec55320422d6172baa248e8cb",
+        "after": "6c5c975ce7b35b6c20d2a9620a4cfdb2800d668ec55320422d6172baa248e8cb"
+      },
+      {
+        "path": "packages/storage/migrations/004_hardening.sql",
+        "before": "c244cd9424cc22b67e8b11e784f0156261aa4edae5e9b11f8712778a4f1be6bb",
+        "after": "c244cd9424cc22b67e8b11e784f0156261aa4edae5e9b11f8712778a4f1be6bb"
+      },
+      {
+        "path": "packages/storage/package.json",
+        "before": "bc94fe62246017a5b4bdc708e29780a99fe1f1dafb528f1bbb9962990c93706f",
+        "after": "bc94fe62246017a5b4bdc708e29780a99fe1f1dafb528f1bbb9962990c93706f"
+      },
+      {
+        "path": "packages/storage/scripts/verify.mjs",
+        "before": "ab1adc5d53a499b0f3ff6148d4f6d53d19ff62ad57e0678c7839f3d52e8bfffe",
+        "after": "ab1adc5d53a499b0f3ff6148d4f6d53d19ff62ad57e0678c7839f3d52e8bfffe"
+      },
+      {
+        "path": "packages/storage/src/accounts.ts",
+        "before": "1101a37e4de39b4e15ade64467c7130eb121cece8f3c4c2922a656becc11e9dd",
+        "after": "1101a37e4de39b4e15ade64467c7130eb121cece8f3c4c2922a656becc11e9dd"
+      },
+      {
+        "path": "packages/storage/src/crypto.ts",
+        "before": "fbe8f16bacd1784beb57b2223509ba55d0901fa5b4899494043032764076ea33",
+        "after": "fbe8f16bacd1784beb57b2223509ba55d0901fa5b4899494043032764076ea33"
+      },
+      {
+        "path": "packages/storage/src/database.ts",
+        "before": "331d4d62a4010640b7e74225da619112a032bc2466e3e64bf82b7b89082d666a",
+        "after": "331d4d62a4010640b7e74225da619112a032bc2466e3e64bf82b7b89082d666a"
+      },
+      {
+        "path": "packages/storage/src/index.ts",
+        "before": "4e93ae36372715a36f2cf1e0865b98a27df4752af7e897664c4b07c58ad6e85a",
+        "after": "4e93ae36372715a36f2cf1e0865b98a27df4752af7e897664c4b07c58ad6e85a"
+      },
+      {
+        "path": "packages/storage/src/leases.ts",
+        "before": "d5f94108bbea219a6ba63979636d314167f3b904815ac515d5c045f4304897ec",
+        "after": "d5f94108bbea219a6ba63979636d314167f3b904815ac515d5c045f4304897ec"
+      },
+      {
+        "path": "packages/storage/src/repositories.ts",
+        "before": "6392f6476fb12e24ca11f698cb338b9a3b46f9e8e8dc39983c7223a30f50fc31",
+        "after": "6392f6476fb12e24ca11f698cb338b9a3b46f9e8e8dc39983c7223a30f50fc31"
+      },
+      {
+        "path": "packages/storage/test/integration.test.mjs",
+        "before": "f0bae68b902c94e338b91338eaf4349019b3230df0575e26c322058b4c193413",
+        "after": "f0bae68b902c94e338b91338eaf4349019b3230df0575e26c322058b4c193413"
+      },
+      {
+        "path": "packages/storage/tsconfig.json",
+        "before": "65830141c9e37d6d5a604ae796c5fe8b9258040f9e1f29547c0b238829b989d6",
+        "after": "65830141c9e37d6d5a604ae796c5fe8b9258040f9e1f29547c0b238829b989d6"
+      },
+      {
+        "path": "packages/test-fixture/README.md",
+        "before": "b4494138fce278f01196286465c64d94d78f572350406993c00cd6fc8f01cdf9",
+        "after": "b4494138fce278f01196286465c64d94d78f572350406993c00cd6fc8f01cdf9"
+      },
+      {
+        "path": "packages/test-fixture/package.json",
+        "before": "7a09ec9785ba4a24d81951f33e531dc69cd21401c832da76ca3e2fc98b613dbd",
+        "after": "7a09ec9785ba4a24d81951f33e531dc69cd21401c832da76ca3e2fc98b613dbd"
+      },
+      {
+        "path": "packages/test-fixture/playwright.config.js",
+        "before": "741675d81add1919806eaec6a9eaa65e5c0b47e7416c5307e300ee12435843a3",
+        "after": "741675d81add1919806eaec6a9eaa65e5c0b47e7416c5307e300ee12435843a3"
+      },
+      {
+        "path": "packages/test-fixture/public/fix-02-delayed.html",
+        "before": "3d2b277766864376ab38c0cd983cfc67861548b685687970eb0db5c30db5a5b7",
+        "after": "3d2b277766864376ab38c0cd983cfc67861548b685687970eb0db5c30db5a5b7"
+      },
+      {
+        "path": "packages/test-fixture/public/fix-03-auth.html",
+        "before": "66fb33aca8ad5290dd8d3d32d0f5c5e1970c313018302268b8edc2c110206e2e",
+        "after": "66fb33aca8ad5290dd8d3d32d0f5c5e1970c313018302268b8edc2c110206e2e"
+      },
+      {
+        "path": "packages/test-fixture/public/fix-04-roles.html",
+        "before": "cade23f3896dc4ec9aaa8113f09f5fbd3c532c5e48e12347799ed01eb0dcec17",
+        "after": "cade23f3896dc4ec9aaa8113f09f5fbd3c532c5e48e12347799ed01eb0dcec17"
+      },
+      {
+        "path": "packages/test-fixture/public/fix-05-dom-ambiguity.html",
+        "before": "efb8883c64b8d93c00d8451884324638ae23b28c65a4844320bea9144d6c4186",
+        "after": "efb8883c64b8d93c00d8451884324638ae23b28c65a4844320bea9144d6c4186"
+      },
+      {
+        "path": "packages/test-fixture/public/fix-06-frames.html",
+        "before": "759e2169e3fb9ca9fedb1162a4d8576e7b8ef8467fa8b0ad2c4d88edb86cfb54",
+        "after": "759e2169e3fb9ca9fedb1162a4d8576e7b8ef8467fa8b0ad2c4d88edb86cfb54"
+      },
+      {
+        "path": "packages/test-fixture/public/fix-06-mock-cross-origin-frame.html",
+        "before": "8574cea7e76f8b0b0ae4d49bcb3c5f9a50e83515a34d794a5d6992e738a7e7a2",
+        "after": "8574cea7e76f8b0b0ae4d49bcb3c5f9a50e83515a34d794a5d6992e738a7e7a2"
+      },
+      {
+        "path": "packages/test-fixture/public/fix-06-popup.html",
+        "before": "42c7fe8b9310e87f4e644bf3a9ba10303c8493e05fc92365109767a3820eeed8",
+        "after": "42c7fe8b9310e87f4e644bf3a9ba10303c8493e05fc92365109767a3820eeed8"
+      },
+      {
+        "path": "packages/test-fixture/public/fix-06-same-origin-frame.html",
+        "before": "95edabbce831634fd6a339993fb57cc1e3a803908b8b35223ffd794156e0fa00",
+        "after": "95edabbce831634fd6a339993fb57cc1e3a803908b8b35223ffd794156e0fa00"
+      },
+      {
+        "path": "packages/test-fixture/public/fix-07-mutations.html",
+        "before": "81bd431f4b25475f66d56fd1e6cf460961beefc0a1b7e6374ba9aef3b2652534",
+        "after": "81bd431f4b25475f66d56fd1e6cf460961beefc0a1b7e6374ba9aef3b2652534"
+      },
+      {
+        "path": "packages/test-fixture/public/fix-08-canvas.html",
+        "before": "943d7f85afbeeec5199f8cdeb3bff86e6b4b28fd6c3a5f74acb85d221805d04c",
+        "after": "943d7f85afbeeec5199f8cdeb3bff86e6b4b28fd6c3a5f74acb85d221805d04c"
+      },
+      {
+        "path": "packages/test-fixture/public/fix-09-faults.html",
+        "before": "93a38c60941ba96fb958beb63c51a7d8949ea2a2b17193c4a440f2f3102b3650",
+        "after": "93a38c60941ba96fb958beb63c51a7d8949ea2a2b17193c4a440f2f3102b3650"
+      },
+      {
+        "path": "packages/test-fixture/public/fix-10-rules.html",
+        "before": "da4dd25573f33a25ef3d8c963ed366017d55f89b147866ba75c137f99fb692b7",
+        "after": "da4dd25573f33a25ef3d8c963ed366017d55f89b147866ba75c137f99fb692b7"
+      },
+      {
+        "path": "packages/test-fixture/public/fix-11-reproducibility.html",
+        "before": "fe8fc6f80357da7a43859d5b188bf1a00dcbce31b7824078e6644139e3878bb2",
+        "after": "fe8fc6f80357da7a43859d5b188bf1a00dcbce31b7824078e6644139e3878bb2"
+      },
+      {
+        "path": "packages/test-fixture/public/fix-12-sentinels.html",
+        "before": "3fb8d05415905d6db6a6e3862bbd4548fe65988385c822af5589ab8bb4d33899",
+        "after": "3fb8d05415905d6db6a6e3862bbd4548fe65988385c822af5589ab8bb4d33899"
+      },
+      {
+        "path": "packages/test-fixture/public/fix-13-malicious.html",
+        "before": "bad0c5c9a045819871da89062adf793826139e94f1443273e2c895fd711f7840",
+        "after": "bad0c5c9a045819871da89062adf793826139e94f1443273e2c895fd711f7840"
+      },
+      {
+        "path": "packages/test-fixture/public/fix-14-large.html",
+        "before": "57c0c32e2e296ee5bbb4ef571232e40d34cc154460a10075f60dd4ed4e2c8f7f",
+        "after": "57c0c32e2e296ee5bbb4ef571232e40d34cc154460a10075f60dd4ed4e2c8f7f"
+      },
+      {
+        "path": "packages/test-fixture/public/index.html",
+        "before": "818f836553dfca24dd216db40b801f216c0f91e337c77b6bbf279975c98ed48d",
+        "after": "818f836553dfca24dd216db40b801f216c0f91e337c77b6bbf279975c98ed48d"
+      },
+      {
+        "path": "packages/test-fixture/public/style.css",
+        "before": "98ea78f0ff4bc46d923f45ee16d349f7b6239c5691f0fc1c1e0e0befa42547fe",
+        "after": "98ea78f0ff4bc46d923f45ee16d349f7b6239c5691f0fc1c1e0e0befa42547fe"
+      },
+      {
+        "path": "packages/test-fixture/run-curl-tests.sh",
+        "before": "87b00a812179320236499907225612dc224978844586b5d272584e3c06cb8406",
+        "after": "87b00a812179320236499907225612dc224978844586b5d272584e3c06cb8406"
+      },
+      {
+        "path": "packages/test-fixture/server.js",
+        "before": "6c5a2c16f2ad608da62ac370297cbd6344d889442631d3867bccfb8d4cec18cd",
+        "after": "6c5a2c16f2ad608da62ac370297cbd6344d889442631d3867bccfb8d4cec18cd"
+      },
+      {
+        "path": "packages/test-fixture/store.js",
+        "before": "dded5f58d062fa9113f972ad3590ff4fef2ec31e03131feabbe924c7dc430a60",
+        "after": "dded5f58d062fa9113f972ad3590ff4fef2ec31e03131feabbe924c7dc430a60"
+      },
+      {
+        "path": "packages/test-fixture/test.js",
+        "before": "d72626023d6add2a3c48a1cc9936cfbd20b3a879503a9213968aaa53d0b38257",
+        "after": "d72626023d6add2a3c48a1cc9936cfbd20b3a879503a9213968aaa53d0b38257"
+      },
+      {
+        "path": "packages/test-fixture/tests/fix-01.spec.js",
+        "before": "1a299f89df84779295b0d92f4eba61ccd1dfc50a6e87c0421973b9ecc9952c4a",
+        "after": "1a299f89df84779295b0d92f4eba61ccd1dfc50a6e87c0421973b9ecc9952c4a"
+      },
+      {
+        "path": "packages/test-fixture/tests/fix-02.spec.js",
+        "before": "0a0131cdb0ecc7405beb0a2842e2178f797e89d1dc71b6c1788e43ad35334f54",
+        "after": "0a0131cdb0ecc7405beb0a2842e2178f797e89d1dc71b6c1788e43ad35334f54"
+      },
+      {
+        "path": "packages/test-fixture/tests/fix-05.spec.js",
+        "before": "5abfb1b1e92fd8b249edf67cc460f2e59f456d0cd925ace7bc4f0125a9110c52",
+        "after": "5abfb1b1e92fd8b249edf67cc460f2e59f456d0cd925ace7bc4f0125a9110c52"
+      },
+      {
+        "path": "packages/test-fixture/tests/fix-06.spec.js",
+        "before": "4d0f1f94ab7fb7dc7474524364f40e69beb2691bf2331e3f62b8131e099d79fa",
+        "after": "4d0f1f94ab7fb7dc7474524364f40e69beb2691bf2331e3f62b8131e099d79fa"
+      },
+      {
+        "path": "packages/test-fixture/tests/fix-07.spec.js",
+        "before": "ada2fb204b981acc3146335c3f35d459c9092fccf7a251e606917ce790f83401",
+        "after": "ada2fb204b981acc3146335c3f35d459c9092fccf7a251e606917ce790f83401"
+      },
+      {
+        "path": "packages/test-fixture/tests/fix-08.spec.js",
+        "before": "0e955f3a2e29e6c3c7931404bd336c37167f616f5d1287fd6e573ad2687c0487",
+        "after": "0e955f3a2e29e6c3c7931404bd336c37167f616f5d1287fd6e573ad2687c0487"
+      },
+      {
+        "path": "packages/test-fixture/tests/fix-12.spec.js",
+        "before": "fcd9f5f5076856c8ad07c7d67fb4c8362ccfe459366517166d34f46a7906dd97",
+        "after": "fcd9f5f5076856c8ad07c7d67fb4c8362ccfe459366517166d34f46a7906dd97"
+      }
+    ]
+  },
+  "cleanup": {
+    "containers": [
+      {
+        "name": "localqa-t05-pg-5b6fc669",
+        "absent": true
+      },
+      {
+        "name": "localqa-t05-browser-5b6fc669",
+        "absent": true
+      }
+    ],
+    "volumes": [
+      {
+        "name": "ccdd1bdc82a30310fab1d7a4895eebca4a90e1e6b684aefb0427af2f6140af94",
+        "absent": true
+      }
+    ],
+    "network": {
+      "name": "localqa-t05-5b6fc669",
+      "absent": true
+    },
+    "credentialsAbsent": true
+  },
+  "prerequisites": [
+    "Linux Chromium non-root, chromiumSandbox:true, no --no-sandbox; SYS_ADMIN required on this T00 host.",
+    "Node 24 runtime from Playwright container; host typecheck/build Node v26.3.0"
+  ],
+  "unverified": [
+    "No public/internal HTTP API, SSE/download authorization, UI or complete G2/P0 gate; T06/T07 own integration.",
+    "Arbitrary business/visual semantic oracles, automatic link discovery, form/storage_state authentication and exclusive auth-account leases are not enabled; configured authentication fails closed to input.",
+    "Only a bounded read-only tool subset observe/navigate/capture enabled until T03 freezes request/redirect/popup guards and screenshot redaction/cleanup results.",
+    "Full production report/cleanup/rrweb/trace and evidence-orphan reconciliation remain integrations, not claimed complete.",
+    "Real provider quality and real credential revocation/deployment service identity/TLS blocked. Timeout/429/full eight-stub matrix not exercised. Real SIGKILL and ignored-abort late-return unknown settlement are exercised.",
+    "No performance/load/chaos DB restart/storage-full testing; selected functional fault tests only."
+  ],
+  "upstreamRequests": [
+    "T03: exact origin including scheme/port; redirect/network/popup guards before requests; screenshots with reliable masking plus bytes/stream upload, not file URLs; close/cancel outcome visible. BrowserSnapshot needs link href/content-completeness signal for safe wider exploration.",
+    "T04: confirm accepted signature/version after observed source drift; supported AbortSignal/transport budget hook freeze still needs joint review. T05 wraps ProviderAdapter to reserve EVERY send including repair; planner/finalizer map to coordinator profile because RoleModels lacks those fields.",
+    "T02: dedicated least-privileged coordinator identity and recovery-final-verdict primitive. T05 currently uses server-only admin Actor under forced-RLS app role and new recovery attempt rather than inserting verdict under expired lease."
+  ]
+}
