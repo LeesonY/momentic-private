@@ -94,7 +94,7 @@ export async function captureBrowserSnapshot(
     frameIds: frameIds.slice(0, 100),
     displayUrl,
     title,
-    responseStatus: options.lastResponseStatus ?? 200,
+    responseStatus: options.lastResponseStatus ?? null,
     capturedAt: new Date().toISOString(),
     stateVersion,
     viewport: {

@@ -138,7 +138,7 @@ export class PolicyInterceptor {
     if (prohibitedTools.has(toolName)) {
       return {
         allowed: false,
-        reasonCode: STABLE_REASON_CODES.PROHIBITED_TOOL,
+        reasonCode: STABLE_REASON_CODES.POLICY_DENIED,
         reason: `Tool '${toolName}' is prohibited in LocalQA browser executor.`
       };
     }
@@ -148,7 +148,7 @@ export class PolicyInterceptor {
       if (targetMeta.isDangerousMutation) {
         return {
           allowed: false,
-          reasonCode: STABLE_REASON_CODES.MUTATION_FORBIDDEN,
+          reasonCode: STABLE_REASON_CODES.POLICY_DENIED,
           reason: `Action on target '${targetMeta.name || targetMeta.nodeId}' is a hazardous mutation, prohibited in non_submitting mode.`
         };
       }
@@ -169,7 +169,7 @@ export class PolicyInterceptor {
       if (hasDestructiveText && (targetMeta.role === 'button' || targetMeta.tag === 'button')) {
         return {
           allowed: false,
-          reasonCode: STABLE_REASON_CODES.MUTATION_FORBIDDEN,
+          reasonCode: STABLE_REASON_CODES.POLICY_DENIED,
           reason: `Target element contains destructive intent ('${textSample.trim()}'), forbidden in non_submitting mode.`
         };
       }

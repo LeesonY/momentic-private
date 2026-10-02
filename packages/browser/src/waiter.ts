@@ -36,7 +36,7 @@ export class WaitAndRecoveryManager {
     const timeout = options.timeoutMs ?? this.navigationTimeoutMs;
 
     if (options.signal?.aborted) {
-      throw new Error(STABLE_REASON_CODES.ACTION_CANCELLED);
+      throw new Error(STABLE_REASON_CODES.USER_CANCELLED);
     }
 
     try {
@@ -48,7 +48,7 @@ export class WaitAndRecoveryManager {
       return response;
     } catch (err) {
       if (options.signal?.aborted) {
-        throw new Error(STABLE_REASON_CODES.ACTION_CANCELLED, { cause: err });
+        throw new Error(STABLE_REASON_CODES.USER_CANCELLED, { cause: err });
       }
       throw err;
     }
@@ -65,7 +65,7 @@ export class WaitAndRecoveryManager {
     const timeout = options.timeoutMs ?? this.defaultActionTimeoutMs;
 
     if (options.signal?.aborted) {
-      throw new Error(STABLE_REASON_CODES.ACTION_CANCELLED);
+      throw new Error(STABLE_REASON_CODES.USER_CANCELLED);
     }
 
     if (condition === 'dom_ready') {
@@ -143,7 +143,7 @@ export class WaitAndRecoveryManager {
     this.recoveryCount++;
     if (this.recoveryCount > this.maxRecoveries) {
       throw new Error(
-        `${STABLE_REASON_CODES.MAX_RECOVERIES_EXCEEDED}: Maximum non-destructive recoveries (${this.maxRecoveries}) exceeded.`
+        `${STABLE_REASON_CODES.REPEATED_ACTION_LIMIT}: Maximum non-destructive recoveries (${this.maxRecoveries}) exceeded.`
       );
     }
   }

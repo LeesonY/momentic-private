@@ -145,25 +145,31 @@ export interface BrowserSession {
 
 ## 4. 稳定原因码对照表 (Stable Reason Codes)
 
-| 原因码 | 分类 | 说明 |
+根据架构契约，`ToolResult.reasonCode` 由两部分构成：
+1. **6 个执行层专用原因码**：承载编排层（Orchestrator）与 Agent 自愈决策所需的细分现场语义；
+2. **收敛至 `docs/03 §7` 标准词表的原因码**：用于通用策略、权限、验证与生命周期状态。
+
+### 4.1 保留的 6 个执行层专用原因码及其处置语义
+
+| 原因码 | 现场语义 | 编排层 / Agent 推荐自愈处置策略 |
 | :--- | :--- | :--- |
-| `TARGET_NOT_FOUND` | 目标解析 | 在当前快照或活跃 DOM 中无法找到指定节点 |
-| `TARGET_AMBIGUOUS` | 目标解析 | 目标描述存在多重候选匹配（>1），拒绝盲点 |
-| `TARGET_HIDDEN` | 目标解析 | 目标元素不可见或处于隐藏状态（display:none 等） |
-| `TARGET_DISABLED` | 目标解析 | 目标元素处于禁用状态（disabled） |
-| `SNAPSHOT_STALE` | 目标解析 | 传入的目标 snapshotId 与当前活跃快照不一致 |
-| `TARGET_SEMANTICS_CHANGED` | 目标解析 | 元素标签或关键语义在重新定位时已发生突变 |
-| `POLICY_DENIED` | 策略拦截 | 违反 URL 协议、域名白名单或全局运行策略 |
-| `MUTATION_FORBIDDEN` | 策略拦截 | 在 P0 non_submitting 模式下尝试执行变动操作 |
-| `TARGET_NOT_ALLOWED` | 策略拦截 | 目标元素被策略规则明确标记为受限资源 |
-| `ACTION_TIMEOUT` | 超时生命周期 | 单个动作执行超出预设超时阈值（默认 15s） |
-| `NAVIGATION_TIMEOUT` | 超时生命周期 | 页面导航加载超出超时阈值（默认 30s） |
-| `ACTION_CANCELLED` | 超时生命周期 | 动作被调用方传入的 AbortSignal 或 session.cancel() 中止 |
-| `REPEATED_ACTION_LIMIT` | 异常恢复 | 检测到连续重复动作且页面无响应（疑似死循环） |
-| `MAX_RECOVERIES_EXCEEDED` | 异常恢复 | 自动恢复重试已达最大允许次数（2 次） |
-| `INVALID_TOOL_ARGUMENTS` | 契约校验 | 工具参数不满足 `@localqa/contracts` schema 规范 |
-| `PROHIBITED_TOOL` | 安全限制 | 尝试调用 `evaluate`, `shell`, `exec` 等受禁工具 |
-| `FRAME_INACCESSIBLE` | 框架边界 | 跨域受沙箱隔离 iframe 无法直接穿透读取 |
+| `TARGET_NOT_FOUND` | 目标节点在当前 DOM 或指定 Frame/Page 中未找到 | **重新观察或重定位**：可能因异步加载或滚动未到视口引起。建议 Agent 先执行 `wait_for` 或 `scroll`，再重新 `observe` 获取新 snapshot。 |
+| `TARGET_AMBIGUOUS` | 目标描述存在多重候选匹配（count > 1），拒绝盲点 | **提高定位精度**：说明文本或泛化选择器存在歧义（如 9 个同名按钮）。建议 Agent 改用 `test_id`（`testid_*`）或结合父级容器限定 scope 定位。 |
+| `TARGET_HIDDEN` | 目标节点存在于 DOM，但处于不可见/隐藏状态（`display:none`、`visibility:hidden`、尺寸为 0） | **前置交互或等待淡入**：说明元素当前未展示。建议 Agent 检查是否需先展开 `<details>` 折叠项、切换 Tab 标签页，或等待加载动画结束。 |
+| `TARGET_DISABLED` | 目标节点带有 `disabled` 属性或 `aria-disabled="true"` | **满足表单/前置条件**：说明按钮或输入框处于不可交互态。Agent 应检查前置输入是否完整有效，不可盲目重复点击。 |
+| `ACTION_TIMEOUT` | 单个浏览器动作或状态等待（如 `wait_for`、页面跳转）超时 | **诊断卡死或放宽等待**：可能因服务端长请求卡死或渲染延迟。Agent 可评估是否重试一次或标记该 step 发生超时。 |
+| `REPEATED_ACTION_LIMIT` | 连续多次重复执行相同动作且页面指纹无变化（触发防死锁死循环机制） | **及时止损并阻断**：表明 Agent 陷入认知死循环或页面无响应。编排层应立即停止当前 Attempt，将用例判定为 `inconclusive` 或 `blocked`，防止 Token 消耗失控。 |
+
+### 4.2 收敛至 docs/03 §7 词表的原因码对照
+
+| 执行层原因码 | 收敛归属（docs/03 §7 对应项） | 原旧码收敛说明 |
+| :--- | :--- | :--- |
+| `POLICY_DENIED` | `POLICY_DENIED` | 收敛原 `PROHIBITED_TOOL`（禁用工具调用）与 `MUTATION_FORBIDDEN`（非提交模式破坏性写操作拦截） |
+| `TARGET_NOT_ALLOWED` | `TARGET_NOT_ALLOWED` (422) | 目标 URL 属于外部域或非允许协议（`javascript:`, `file:` 等） |
+| `VALIDATION_ERROR` | `VALIDATION_ERROR` (422) | 收敛原 `INVALID_TOOL_ARGUMENTS`（入参不符合 tools.schema.json） |
+| `USER_CANCELLED` | `USER_CANCELLED` | 收敛原 `ACTION_CANCELLED`（AbortSignal 或用户主动中止） |
+| `BROWSER_UNAVAILABLE` | `BROWSER_UNAVAILABLE` (503) | 收敛原 `BROWSER_ERROR`（Playwright 进程崩溃或底层协议失联） |
+| `VERSION_CONFLICT` | `VERSION_CONFLICT` (409) | 收敛原 `SNAPSHOT_STALE` 与 `TARGET_SEMANTICS_CHANGED`（快照版本过期或页面突变） |
 
 ---
 

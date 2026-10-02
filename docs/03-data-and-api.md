@@ -183,6 +183,21 @@ payload 为各 type 对应资源摘要；UI 从这些摘要更新状态，并按
 
 enum 不能让前端通过解析自然语言猜状态。新 provider 的原始错误须映射到既有分类，保留受控诊断而非原始敏感响应。
 
+### 7.1 执行层原因码与本节的关系
+
+浏览器执行层在 `ToolResult.reasonCode` 中使用下列 6 个码。契约把该字段定义为开放字符串，它们**不是** API 错误信封的 `Error.code`；对用户与 API 呈现时按下表归类，前端、报告与编排层不得绕过该映射自行解释。
+
+| 执行层码 | 归入分类 | 处置语义 |
+| --- | --- | --- |
+| TARGET_NOT_FOUND | 不产生 API 错误码；用例转 blocked/inconclusive | 目标不存在或已移除：不重试同一定位，先重取 snapshot |
+| TARGET_AMBIGUOUS | 同上 | 多候选：拒绝盲点，改用更稳定定位（禁止按出现顺序取第一个） |
+| TARGET_HIDDEN | 同上 | 不可见/不可操作：短暂等待后标受阻，不计产品缺陷 |
+| TARGET_DISABLED | 同上 | 目标被禁用：属产品观察，可由断言判定，不当作执行失败 |
+| ACTION_TIMEOUT | BROWSER_UNAVAILABLE（基础设施类） | 动作超时：有限次非破坏性恢复后转 blocked |
+| REPEATED_ACTION_LIMIT | POLICY_DENIED | 同动作与页面指纹重复达上限：停止该用例，防循环 |
+
+定位失败、策略拒绝、取消、入参校验失败等其他执行层含义一律使用本节既有错误码，不再另设同义词；新增执行层码须先在此登记并说明归类。
+
 ## 8. 导出和审查
 
 报告是 `schemaVersion=1` 的单一规范 JSON，可附 Markdown/ZIP。每个 finding 至少保留 expected/actual/reproSteps/evidenceRefs；功能 confirmed 还必须有 reproductionRef。截图/录像不可得时 artifact entry 记录 status/error，而不是写一个打不开的假链接。

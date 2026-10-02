@@ -28,11 +28,20 @@ export async function resolveTarget(
   target: NodeTarget,
   currentSnapshot: BrowserSnapshot
 ): Promise<ResolveTargetResult> {
-  // 1. Freshness Check: Snapshot ID must match current active snapshot
+  // 1. Page ID Check: target.pageId must match currentSnapshot.pageId
+  if (target.pageId && currentSnapshot.pageId && target.pageId !== currentSnapshot.pageId) {
+    return {
+      status: 'rejected',
+      reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
+      message: `Target pageId '${target.pageId}' does not match active snapshot pageId '${currentSnapshot.pageId}'.`
+    };
+  }
+
+  // 2. Freshness Check: Snapshot ID must match current active snapshot
   if (target.snapshotId !== currentSnapshot.snapshotId) {
     return {
       status: 'rejected',
-      reasonCode: STABLE_REASON_CODES.SNAPSHOT_STALE,
+      reasonCode: STABLE_REASON_CODES.VERSION_CONFLICT,
       message: `Snapshot '${target.snapshotId}' is stale. Active snapshot is '${currentSnapshot.snapshotId}' (stateVersion: ${currentSnapshot.stateVersion}).`
     };
   }
@@ -59,7 +68,7 @@ export async function resolveTarget(
     if (!foundFrame) {
       return {
         status: 'rejected',
-        reasonCode: STABLE_REASON_CODES.FRAME_INACCESSIBLE,
+        reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
         message: `Target frame '${target.frameId}' not accessible or detached.`
       };
     }

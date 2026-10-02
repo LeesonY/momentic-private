@@ -41,6 +41,16 @@ export interface BrowserSession {
    * Cleanly closes the session, context, and associated resources.
    */
   close(): Promise<void>;
+
+  /**
+   * Looks up a page by its assigned pageId.
+   */
+  getPageById?(id: string): import('playwright').Page | undefined;
+
+  /**
+   * Retrieves the pageId for a specific Playwright Page instance.
+   */
+  getPageId?(page: import('playwright').Page): string | undefined;
 }
 
 /**

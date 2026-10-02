@@ -3,8 +3,14 @@ import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Artifact, NetworkEntry } from '@localqa/contracts';
+import { validateContract } from '@localqa/contracts';
 import { sanitizeUrl, sanitizeText } from './redaction.js';
 import type { RecorderOptions } from './types.js';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export function isValidUuid(id: unknown): id is string {
+  return typeof id === 'string' && UUID_REGEX.test(id);
+}
 
 export class SessionRecorder {
   private readonly maxConsoleSummary: number;
@@ -26,9 +32,19 @@ export class SessionRecorder {
   private readonly runId: string;
   private readonly taskId: string | null;
 
-  constructor(options: RecorderOptions = {}) {
-    this.projectId = options.projectId || 'project-default';
-    this.runId = options.runId || 'run-default';
+  constructor(options: RecorderOptions) {
+    if (!options?.projectId || !isValidUuid(options.projectId)) {
+      throw new Error(`SessionRecorder requires a valid UUID 'projectId', got: ${options?.projectId}`);
+    }
+    if (!options?.runId || !isValidUuid(options.runId)) {
+      throw new Error(`SessionRecorder requires a valid UUID 'runId', got: ${options?.runId}`);
+    }
+    if (options.taskId && !isValidUuid(options.taskId)) {
+      throw new Error(`SessionRecorder 'taskId' must be a valid UUID or null, got: ${options.taskId}`);
+    }
+
+    this.projectId = options.projectId;
+    this.runId = options.runId;
     this.taskId = options.taskId ?? null;
     this.maxConsoleSummary = options.maxConsoleSummary || 50;
     this.maxNetworkSummary = options.maxNetworkSummary || 100;
@@ -39,6 +55,18 @@ export class SessionRecorder {
     if (this.artifactsDir && !fs.existsSync(this.artifactsDir)) {
       fs.mkdirSync(this.artifactsDir, { recursive: true });
     }
+  }
+
+  public getProjectId(): string {
+    return this.projectId;
+  }
+
+  public getRunId(): string {
+    return this.runId;
+  }
+
+  public getTaskId(): string | null {
+    return this.taskId;
   }
 
   /**
@@ -164,31 +192,40 @@ export class SessionRecorder {
       const stats = fs.statSync(targetPath);
 
       // Check max trace size limit (50MB)
-      if (stats.size > 50 * 1024 * 1024) {
+      const isTooLarge = stats.size > 50 * 1024 * 1024;
+      if (isTooLarge) {
         this.traceDegraded = true;
-        this.recordDegradation('Playwright trace exceeded 50MB capacity limit');
+        this.recordDegradation('ARTIFACT_TOO_LARGE: Playwright trace exceeded 50MB capacity limit');
       }
 
       const fileBuffer = fs.readFileSync(targetPath);
       const sha256 = createHash('sha256').update(fileBuffer).digest('hex');
 
-      return {
+      const artifact: Artifact = {
         id: traceId,
         projectId: this.projectId,
         runId: this.runId,
         kind: 'trace',
-        status: 'available',
+        status: isTooLarge ? 'degraded' : 'available',
         bytes: stats.size,
         sha256,
         contentUrl: `file://${targetPath}`,
         redaction: 'applied',
-        error: null,
+        error: isTooLarge ? 'ARTIFACT_TOO_LARGE: Playwright trace exceeded 50MB capacity limit' : null,
         createdAt: new Date().toISOString(),
         taskId: this.taskId,
         stepId: null,
         caseId: null,
         snapshotId: null
       };
+
+      const validation = validateContract('Artifact', artifact);
+      if (!validation.success) {
+        const errorDetails = validation.errors.map((e) => `${e.instancePath} ${e.message}`).join(', ');
+        throw new Error(`Generated trace Artifact violated contract schema: ${errorDetails}`);
+      }
+
+      return artifact;
     } catch (err) {
       this.traceDegraded = true;
       this.recordDegradation(`Failed to save Playwright trace: ${(err as Error).message}`);
@@ -211,7 +248,7 @@ export class SessionRecorder {
       storageUri = `file://${filePath}`;
     }
 
-    return {
+    const artifact: Artifact = {
       id: screenshotId,
       projectId: this.projectId,
       runId: this.runId,
@@ -228,6 +265,14 @@ export class SessionRecorder {
       caseId: null,
       snapshotId: null
     };
+
+    const validation = validateContract('Artifact', artifact);
+    if (!validation.success) {
+      const errorDetails = validation.errors.map((e) => `${e.instancePath} ${e.message}`).join(', ');
+      throw new Error(`Generated screenshot Artifact violated contract schema: ${errorDetails}`);
+    }
+
+    return artifact;
   }
 
   /**

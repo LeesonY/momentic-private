@@ -9,7 +9,7 @@ import type {
 import type { BrowserPort, BrowserSession } from './port.js';
 import type { BrowserSessionOptions } from './types.js';
 import { PolicyInterceptor } from './policy.js';
-import { SessionRecorder } from './recorder.js';
+import { SessionRecorder, isValidUuid } from './recorder.js';
 import { WaitAndRecoveryManager } from './waiter.js';
 import { ToolExecutor } from './executor.js';
 import { captureBrowserSnapshot } from './snapshot.js';
@@ -30,6 +30,9 @@ export class BrowserSessionImpl implements BrowserSession {
   private stateVersion = 1;
   private readonly abortController = new AbortController();
 
+  private readonly pages = new Map<string, Page>();
+  private readonly pageIds = new Map<Page, string>();
+
   constructor(
     id: string,
     options: BrowserSessionOptions,
@@ -42,6 +45,9 @@ export class BrowserSessionImpl implements BrowserSession {
     this.activePageId = pageId;
     this.context = context;
     this.page = page;
+
+    this.pages.set(pageId, page);
+    this.pageIds.set(page, pageId);
 
     this.policy = new PolicyInterceptor({
       mode: options.mode,
@@ -66,8 +72,23 @@ export class BrowserSessionImpl implements BrowserSession {
 
     // Listen for new tabs/popups and attach recorder
     this.context.on('page', (newPage) => {
+      const newPageId = randomUUID();
+      this.pages.set(newPageId, newPage);
+      this.pageIds.set(newPage, newPageId);
       this.recorder.attachToPage(newPage);
+      newPage.on('close', () => {
+        this.pages.delete(newPageId);
+        this.pageIds.delete(newPage);
+      });
     });
+  }
+
+  public getPageById(id: string): Page | undefined {
+    return this.pages.get(id);
+  }
+
+  public getPageId(page: Page): string | undefined {
+    return this.pageIds.get(page);
   }
 
   public async executeTool(
@@ -101,6 +122,7 @@ export class BrowserSessionImpl implements BrowserSession {
     const { result, snapshot } = await this.executor.execute(toolCall, {
       page: this.page,
       pageId: this.activePageId,
+      getPage: (id: string) => this.pages.get(id),
       stateVersion: this.stateVersion,
       currentSnapshot: this.currentSnapshot,
       policy: this.policy,
@@ -185,6 +207,16 @@ export class BrowserManager implements BrowserPort {
   }
 
   public async createSession(options: BrowserSessionOptions): Promise<BrowserSession> {
+    if (!options?.projectId || !isValidUuid(options.projectId)) {
+      throw new Error(`BrowserSessionOptions requires a valid UUID 'projectId', got: ${options?.projectId}`);
+    }
+    if (!options?.runId || !isValidUuid(options.runId)) {
+      throw new Error(`BrowserSessionOptions requires a valid UUID 'runId', got: ${options?.runId}`);
+    }
+    if (!options?.taskId || !isValidUuid(options.taskId)) {
+      throw new Error(`BrowserSessionOptions requires a valid UUID 'taskId', got: ${options?.taskId}`);
+    }
+
     const browser = await this.ensureBrowser();
     const sessionId = options.sessionId || randomUUID();
 

@@ -1,32 +1,26 @@
 /**
  * Stable reason codes for tool execution, target resolution, and policy denials.
+ *
+ * 包含：
+ * 1. 6 个保留在 ToolResult.reasonCode 的执行层专用原因码（承载编排层自愈处置语义）
+ * 2. 收敛映射至 docs/03 §7 标准词表的原因码
  */
 export const STABLE_REASON_CODES = Object.freeze({
-  // Target resolution errors
+  // 6 个保留的执行层专用原因码（供编排层/Agent 自愈决策）
   TARGET_NOT_FOUND: 'TARGET_NOT_FOUND',
   TARGET_AMBIGUOUS: 'TARGET_AMBIGUOUS',
   TARGET_HIDDEN: 'TARGET_HIDDEN',
   TARGET_DISABLED: 'TARGET_DISABLED',
-  SNAPSHOT_STALE: 'SNAPSHOT_STALE',
-  TARGET_SEMANTICS_CHANGED: 'TARGET_SEMANTICS_CHANGED',
+  ACTION_TIMEOUT: 'ACTION_TIMEOUT',
+  REPEATED_ACTION_LIMIT: 'REPEATED_ACTION_LIMIT',
 
-  // Policy & scope errors
+  // 收敛映射至 docs/03 §7 标准词表的原因码
   POLICY_DENIED: 'POLICY_DENIED',
   TARGET_NOT_ALLOWED: 'TARGET_NOT_ALLOWED',
-  MUTATION_FORBIDDEN: 'MUTATION_FORBIDDEN',
-
-  // Lifecycle & timeout errors
-  ACTION_TIMEOUT: 'ACTION_TIMEOUT',
-  NAVIGATION_TIMEOUT: 'NAVIGATION_TIMEOUT',
-  ACTION_CANCELLED: 'ACTION_CANCELLED',
-  REPEATED_ACTION_LIMIT: 'REPEATED_ACTION_LIMIT',
-  MAX_RECOVERIES_EXCEEDED: 'MAX_RECOVERIES_EXCEEDED',
-
-  // Tool validation & execution
-  INVALID_TOOL_ARGUMENTS: 'INVALID_TOOL_ARGUMENTS',
-  PROHIBITED_TOOL: 'PROHIBITED_TOOL',
-  FRAME_INACCESSIBLE: 'FRAME_INACCESSIBLE',
-  BROWSER_ERROR: 'BROWSER_ERROR'
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  USER_CANCELLED: 'USER_CANCELLED',
+  BROWSER_UNAVAILABLE: 'BROWSER_UNAVAILABLE',
+  VERSION_CONFLICT: 'VERSION_CONFLICT'
 } as const);
 
 export type StableReasonCode = (typeof STABLE_REASON_CODES)[keyof typeof STABLE_REASON_CODES];
@@ -57,9 +51,9 @@ export interface ApprovedAuthState {
 
 export interface BrowserSessionOptions {
   sessionId?: string | undefined;
-  projectId?: string | undefined;
+  projectId: string;
+  runId: string;
   taskId: string;
-  runId?: string | undefined;
   mode?: ExecutionMode | undefined;
   viewport?: ViewportSize | undefined;
   userAgent?: string | undefined;
@@ -99,9 +93,9 @@ export interface TargetResolutionResult {
 }
 
 export interface RecorderOptions {
-  projectId?: string | undefined;
-  runId?: string | undefined;
-  taskId?: string | undefined;
+  projectId: string;
+  runId: string;
+  taskId?: string | null | undefined;
   maxConsoleSummary?: number | undefined;
   maxNetworkSummary?: number | undefined;
   maxConsoleBuffer?: number | undefined;
