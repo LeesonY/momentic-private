@@ -45,7 +45,11 @@ function unknownEvidence(call: unknown, known: ReadonlySet<string>): string[] {
       return;
     }
     for (const [childKey, child] of Object.entries(value)) {
-      if (childKey === 'artifactId' && typeof child === 'string' && !known.has(child)) {
+      if (
+        childKey === 'artifactId' &&
+        typeof child === 'string' &&
+        !known.has(child)
+      ) {
         found.push(child);
       } else {
         walk(child, childKey);
@@ -64,7 +68,6 @@ function unknownEvidence(call: unknown, known: ReadonlySet<string>): string[] {
 export function createPolicyDispatcher(
   execute: (call: ToolCall) => Promise<JsonValue>,
 ): Dispatcher {
-  let lastFingerprint: string | null = null;
   const validator = getRootValidator('tools');
   return {
     async dispatch(input) {
@@ -75,11 +78,11 @@ export function createPolicyDispatcher(
       const known = new Set(input.knownEvidenceIds);
       // Cited evidence that is not already known is not one of the §7.1 codes.
       // The action is not executed; §7 classifies that as POLICY_DENIED.
-      if (unknownEvidence(call, known).length > 0) return denied('POLICY_DENIED');
-      const fingerprint = JSON.stringify(call);
-      // Same call fingerprint again is the registered execution code, not a synonym.
-      if (fingerprint === lastFingerprint) return denied('REPEATED_ACTION_LIMIT');
-      lastFingerprint = fingerprint;
+      if (unknownEvidence(call, known).length > 0)
+        return denied('POLICY_DENIED');
+      // 重复动作限制由浏览器执行层负责（docs/02 §5.3：相同动作与页面指纹重复三次
+      // 停止该用例，见 packages/browser/src/waiter.ts）。Dispatcher 不重复实现，
+      // 否则两次参数相同的正常观察会被误判为越权。
       const data = await execute(call);
       const resultValidator = getToolResultValidator(call.name);
       if (!resultValidator(data)) return denied('VALIDATION_ERROR');

@@ -8,6 +8,7 @@ import {
   type BrowserSnapshot,
   type ToolCall,
   type ModelMessage,
+  type JsonValue,
 } from '@localqa/contracts';
 import { evaluateTechnical, PageGraph, DomainError } from '@localqa/domain';
 import {
@@ -212,6 +213,7 @@ export class Worker {
       let navigationStatus: number | null = null;
       const graph = new PageGraph(work.run.effectiveConfig.budget);
       let depth = 0;
+      const knownEvidenceIds = new Set<string>();
       const execute = async (call: ToolCall) => {
         if (signal.aborted) throw new DomainError('CANCELLED');
         let actual = call;
@@ -277,9 +279,11 @@ export class Worker {
           await this.runtime.record(proof, grant, 'succeeded', null, [
             artifact.id,
           ]);
+          knownEvidenceIds.add(artifact.id);
           return { artifactId: artifact.id };
         }
         snapshot = parseContract('BrowserSnapshot', result.data);
+        if (snapshot.snapshotId) knownEvidenceIds.add(snapshot.snapshotId);
         if (actual.name === 'navigate') {
           navigationStatus = snapshot.responseStatus;
           if (work.stage === 'explore') {
@@ -288,6 +292,7 @@ export class Worker {
           }
         }
         await this.runtime.record(proof, grant, 'succeeded', snapshot);
+        if (actual.name === 'observe') return snapshot;
         return {
           snapshotId: snapshot.snapshotId,
           pageId: snapshot.pageId,
@@ -296,7 +301,9 @@ export class Worker {
       };
       await execute({ name: 'navigate', args: { url: work.targetUrl } });
       const role = work.task.role as AgentRole;
-      const dispatcher = createPolicyDispatcher(async (call) => execute(call));
+      const dispatcher = createPolicyDispatcher(
+        async (call) => execute(call) as unknown as JsonValue,
+      );
       let messages: ModelMessage[] = [
         {
           role: 'user',
@@ -318,10 +325,24 @@ export class Worker {
           const dispatch = await dispatcher.dispatch({
             role,
             call,
-            knownEvidenceIds: [],
+            knownEvidenceIds: Array.from(knownEvidenceIds),
           });
-          if (!dispatch.executed)
-            throw new DomainError(dispatch.reasonCode ?? 'POLICY_DENIED');
+          const executed = dispatch.status === 'succeeded';
+          if (!executed) {
+            messages = [
+              ...messages,
+              {
+                role: 'tool',
+                content: [
+                  {
+                    type: 'text',
+                    text: `DISPATCHED ${JSON.stringify({ executed: false, reasonCode: dispatch.reasonCode ?? 'POLICY_DENIED' })}`,
+                  },
+                ],
+              },
+            ];
+            break;
+          }
           messages = [
             ...messages,
             {
@@ -329,7 +350,7 @@ export class Worker {
               content: [
                 {
                   type: 'text',
-                  text: `DISPATCHED ${JSON.stringify({ executed: true, result: dispatch.data })}`,
+                  text: `DISPATCHED ${JSON.stringify({ executed: true, action: (call as ToolCall).name })}`,
                 },
               ],
             },

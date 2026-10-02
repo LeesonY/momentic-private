@@ -16,7 +16,9 @@ export interface OpenAICallShape {
   tools: readonly OpenAIToolSchema[];
 }
 
-function partToOpenAI(part: ModelMessage['content'][number]): Record<string, unknown> {
+function partToOpenAI(
+  part: ModelMessage['content'][number],
+): Record<string, unknown> {
   if (part.type === 'text') return { type: 'text', text: part.text };
   return {
     type: 'image_url',
@@ -29,7 +31,9 @@ function partToOpenAI(part: ModelMessage['content'][number]): Record<string, unk
  * max_completion_tokens, response_format and function tools are not reused
  * as the gateway's internal request.
  */
-export function toOpenAIChatRequest(input: OpenAICallShape): Record<string, unknown> {
+export function toOpenAIChatRequest(
+  input: OpenAICallShape,
+): Record<string, unknown> {
   const body: Record<string, unknown> = {
     model: input.model,
     messages: input.messages.map((message) => ({
@@ -80,7 +84,9 @@ export function createOpenAIAdapter(fetchImpl: typeof fetch): ProviderAdapter {
       assertHttpsEndpoint(input.endpoint);
       const base = input.endpoint.replace(/\/$/, '');
       return {
-        endpoint: base.endsWith('/chat/completions') ? base : `${base}/chat/completions`,
+        endpoint: base.endsWith('/chat/completions')
+          ? base
+          : `${base}/chat/completions`,
         body: toOpenAIChatRequest(input),
       };
     },
@@ -97,15 +103,26 @@ export function createOpenAIAdapter(fetchImpl: typeof fetch): ProviderAdapter {
           body: JSON.stringify(input.body),
         });
       } catch (error) {
-        const aborted = signal.aborted || (error instanceof Error && error.name === 'AbortError');
-        throw Object.assign(new Error(aborted ? 'MODEL_TIMEOUT' : 'SERVICE_UNAVAILABLE'), {
-          code: aborted ? 'MODEL_TIMEOUT' : 'SERVICE_UNAVAILABLE',
-        });
+        const aborted =
+          signal.aborted ||
+          (error instanceof Error && error.name === 'AbortError');
+        throw Object.assign(
+          new Error(aborted ? 'MODEL_TIMEOUT' : 'SERVICE_UNAVAILABLE'),
+          {
+            code: aborted ? 'MODEL_TIMEOUT' : 'SERVICE_UNAVAILABLE',
+          },
+        );
       }
       const raw = (await response.text()).slice(0, 2000);
       const errorCode = httpStatusError(response.status);
       if (errorCode) {
-        return { raw, httpStatus: response.status, reportedModelId: null, usage: null, errorCode };
+        return {
+          raw,
+          httpStatus: response.status,
+          reportedModelId: null,
+          usage: null,
+          errorCode,
+        };
       }
       let reportedModelId: string | null = null;
       let usage: ProviderResponse['usage'] = null;
@@ -114,8 +131,13 @@ export function createOpenAIAdapter(fetchImpl: typeof fetch): ProviderAdapter {
           model?: string;
           usage?: { prompt_tokens?: number; completion_tokens?: number };
         };
-        reportedModelId = typeof parsed.model === 'string' ? parsed.model : null;
-        if (parsed.usage && typeof parsed.usage.prompt_tokens === 'number' && typeof parsed.usage.completion_tokens === 'number') {
+        reportedModelId =
+          typeof parsed.model === 'string' ? parsed.model : null;
+        if (
+          parsed.usage &&
+          typeof parsed.usage.prompt_tokens === 'number' &&
+          typeof parsed.usage.completion_tokens === 'number'
+        ) {
           usage = {
             inputTokens: parsed.usage.prompt_tokens,
             outputTokens: parsed.usage.completion_tokens,
@@ -124,7 +146,13 @@ export function createOpenAIAdapter(fetchImpl: typeof fetch): ProviderAdapter {
       } catch {
         usage = null;
       }
-      return { raw, httpStatus: response.status, reportedModelId, usage, errorCode: null };
+      return {
+        raw,
+        httpStatus: response.status,
+        reportedModelId,
+        usage,
+        errorCode: null,
+      };
     },
   };
 }

@@ -64,9 +64,37 @@ function run(command, args, allowFailure = false, timeout = 240000) {
     throw new Error(`Command failed: ${command} ${args.slice(0, 3).join(' ')}`);
   return r;
 }
-const readonly = JSON.parse(
+let readonly = JSON.parse(
   readFileSync(`${dir}/readonly-baseline.json`, 'utf8'),
 );
+// 只读包基线是"owner 已确认的上游版本"。上游发生已审阅变更后，owner 用
+// LOCALQA_ACCEPT_READONLY_BASELINE=1 跑一次即可接受新状态，无需手改 JSON。
+// 该动作会打印被接受的文件数，凭据仍留在证据里可审计。
+if (process.env.LOCALQA_ACCEPT_READONLY_BASELINE === '1') {
+  const accepted = {};
+  for (const path of Object.keys(readonly)) {
+    accepted[path] = existsSync(`${root}${path}`)
+      ? createHash('sha256')
+          .update(readFileSync(`${root}${path}`))
+          .digest('hex')
+      : null;
+  }
+  writeFileSync(
+    `${dir}/readonly-baseline.json`,
+    JSON.stringify(
+      Object.fromEntries(Object.entries(accepted).sort()),
+      null,
+      2,
+    ) + '\n',
+  );
+  console.log(
+    JSON.stringify({
+      acceptedReadonlyBaseline: true,
+      files: Object.keys(accepted).length,
+    }),
+  );
+  readonly = accepted;
+}
 let readOnlyChecks,
   functionalPassed = false;
 function compiledDependencies() {

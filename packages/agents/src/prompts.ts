@@ -15,9 +15,11 @@ export type AgentRole = (typeof AGENT_ROLES)[number];
 const DUTY: Record<AgentRole, string> = {
   coordinator: '推进阶段和汇总。不直接点击页面。',
   explorer: '在获准入口内做非提交式探索并记录控件。不确认 Bug。',
-  planner: '冻结用例。每条 criterion 必须有 sourceKind 和 sourceRef。没有来源就不能执行。',
+  planner:
+    '冻结用例。每条 criterion 必须有 sourceKind 和 sourceRef。没有来源就不能执行。',
   executor: '只执行交给你的那一条不可变用例。',
-  reproducer: '用新的 context、等价前提和相同验收标准复现。不能削弱原来的预期。',
+  reproducer:
+    '用新的 context、等价前提和相同验收标准复现。不能削弱原来的预期。',
   finalizer: '通过数由确定性代码计算。不要编造统计，不要补业务规则。',
 };
 

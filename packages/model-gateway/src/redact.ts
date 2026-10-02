@@ -23,7 +23,10 @@ function isText(part: ModelPart): part is { type: 'text'; text: string } {
 }
 
 export function messageText(message: ModelMessage): string {
-  return message.content.filter(isText).map((part) => part.text).join('\n');
+  return message.content
+    .filter(isText)
+    .map((part) => part.text)
+    .join('\n');
 }
 
 export interface RedactionResult {
@@ -59,7 +62,10 @@ export function redactMessages(
     }
     if (content.length === 0) continue;
     let role = message.role;
-    const text = content.filter(isText).map((part) => part.text).join('\n');
+    const text = content
+      .filter(isText)
+      .map((part) => part.text)
+      .join('\n');
     if (role === 'system' && text.includes('PAGE_OBSERVATION:')) {
       role = 'user';
       redactionCount += 1;

@@ -1,8 +1,14 @@
-import { FIXTURE, type ProviderAdapter, type ProviderResponse } from './adapter.js';
+import {
+  FIXTURE,
+  type ProviderAdapter,
+  type ProviderResponse,
+} from './adapter.js';
 
 const REPAIR_MARK = '格式修复';
 
-function textBlob(messages: readonly { content: readonly { type: string; text?: string }[] }[]): string {
+function textBlob(
+  messages: readonly { content: readonly { type: string; text?: string }[] }[],
+): string {
   return messages
     .flatMap((message) => message.content)
     .filter((part) => part.type === 'text')
@@ -10,7 +16,10 @@ function textBlob(messages: readonly { content: readonly { type: string; text?: 
     .join('\n');
 }
 
-function json(value: unknown, usage: ProviderResponse['usage']): ProviderResponse {
+function json(
+  value: unknown,
+  usage: ProviderResponse['usage'],
+): ProviderResponse {
   return {
     raw: JSON.stringify(value),
     httpStatus: 200,
@@ -69,7 +78,9 @@ export function createStubAdapter(): ProviderAdapter & { calls: number } {
       if (model === 'stub-timeout') {
         return new Promise((_resolve, reject) => {
           const fail = () =>
-            reject(Object.assign(new Error('MODEL_TIMEOUT'), { code: 'TIMEOUT' }));
+            reject(
+              Object.assign(new Error('MODEL_TIMEOUT'), { code: 'TIMEOUT' }),
+            );
           if (signal.aborted) fail();
           else signal.addEventListener('abort', fail, { once: true });
         });
@@ -124,7 +135,9 @@ export function createStubAdapter(): ProviderAdapter & { calls: number } {
         return Promise.resolve(
           json(
             {
-              toolCalls: [{ name: 'finish_case', args: { summary: '越权', gaps: [] } }],
+              toolCalls: [
+                { name: 'finish_case', args: { summary: '越权', gaps: [] } },
+              ],
               done: false,
             },
             null,
@@ -166,7 +179,12 @@ export function createStubAdapter(): ProviderAdapter & { calls: number } {
         );
       }
       if (blob.includes('"executed":true') || blob.includes('DISPATCHED')) {
-        return Promise.resolve(json({ toolCalls: [], done: true }, { inputTokens: 11, outputTokens: 7 }));
+        return Promise.resolve(
+          json(
+            { toolCalls: [], done: true },
+            { inputTokens: 11, outputTokens: 7 },
+          ),
+        );
       }
       return Promise.resolve(
         json(

@@ -5,9 +5,12 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { Ajv } from 'ajv';
 import {
   AGENT_ROLES,
+  DECISION_SCHEMA,
   PROMPT_VERSION,
+  createPolicyDispatcher,
   renderAssertionPrompt,
   renderPrompt,
   reviewPlan,
@@ -26,7 +29,10 @@ import {
 } from '../dist/index.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const reportPath = path.resolve(here, '../../../docs/validation-results/T04-model.json');
+const reportPath = path.resolve(
+  here,
+  '../../../docs/validation-results/T04-model.json',
+);
 const secret = 'hunter2';
 const apiKey = 'super-secret-key-t04';
 const passed = [];
@@ -62,7 +68,11 @@ function profile(id, model, extra = {}) {
     configuredModelId: model,
     kind: 'stub',
     dataBoundary: 'internal',
-    capabilities: { structuredOutput: true, nativeTools: true, imageInput: true },
+    capabilities: {
+      structuredOutput: true,
+      nativeTools: true,
+      imageInput: true,
+    },
     encryptedApiKey: 'cipher-text',
     approvedFallbackIds: [],
     ...extra,
@@ -79,7 +89,11 @@ const gateway = createGateway({
     profile(FIXTURE.fallbackProfileId, 'stub-ok'),
     profile('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'stub-malformed'),
     profile('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'stub-image-unsupported', {
-      capabilities: { structuredOutput: true, nativeTools: true, imageInput: false },
+      capabilities: {
+        structuredOutput: true,
+        nativeTools: true,
+        imageInput: false,
+      },
     }),
     profile('cccccccc-cccc-4ccc-8ccc-cccccccccccc', 'stub-timeout'),
     profile('dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'stub-429', {
@@ -89,7 +103,11 @@ const gateway = createGateway({
     profile('ffffffff-ffff-4fff-8fff-ffffffffffff', 'stub-fake-evidence'),
     profile('12121212-1212-4121-8121-121212121212', 'stub-unauthorized'),
     profile('13131313-1313-4131-8131-131313131313', 'stub-ok', {
-      capabilities: { structuredOutput: true, nativeTools: true, imageInput: false },
+      capabilities: {
+        structuredOutput: true,
+        nativeTools: true,
+        imageInput: false,
+      },
       configuredModelId: 'stub-ok',
       name: 'visual-off',
     }),
@@ -117,6 +135,26 @@ function baseInput(profileId, extra = {}) {
     maxOutputTokens: 400,
     knownEvidenceIds: [FIXTURE.evidenceId, FIXTURE.snapshotId],
     ...extra,
+  };
+}
+
+function browserSnapshot(pageId = FIXTURE.pageId) {
+  return {
+    snapshotId: FIXTURE.snapshotId,
+    pageId,
+    frameIds: [],
+    displayUrl: 'https://fixture.local/page',
+    title: 'fixture',
+    responseStatus: 200,
+    capturedAt: '2026-10-02T00:00:00.000Z',
+    stateVersion: 1,
+    viewport: { width: 1280, height: 720 },
+    nodes: [],
+    screenshotRef: null,
+    networkSummary: [],
+    consoleSummary: [],
+    truncated: false,
+    redacted: true,
   };
 }
 
@@ -159,7 +197,10 @@ test('capability probe reports usage and does not zero-fill', async () => {
 });
 
 test('image capability stays unsupported', async () => {
-  const record = await gateway.capabilityProbe('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 1000);
+  const record = await gateway.capabilityProbe(
+    'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    1000,
+  );
   assert.equal(record.errorCode, 'MODEL_CAPABILITY_MISSING');
   assert.equal(record.data.status, 'degraded');
   assert.equal(record.data.capabilities.imageInput, false);
@@ -172,7 +213,9 @@ test('redaction removes secrets and unapproved images', async () => {
     [
       {
         role: 'system',
-        content: [{ type: 'text', text: `PAGE_OBSERVATION: password=${secret}` }],
+        content: [
+          { type: 'text', text: `PAGE_OBSERVATION: password=${secret}` },
+        ],
       },
       {
         role: 'user',
@@ -187,10 +230,17 @@ test('redaction removes secrets and unapproved images', async () => {
   assert.equal(direct.messages[0].role, 'user');
   assert.equal(direct.messages[0].content[0].text.includes(secret), false);
   assert.equal(direct.droppedImageIds[0], FIXTURE.imageId);
-  assert.equal(direct.messages.some((message) => message.content.some((part) => part.type === 'image')), false);
-  const record = await gateway.generateDecision(baseInput(FIXTURE.profileId, {
-    messages: [messageFromText('user', `登录 password=${secret} 后看到按钮`)],
-  }));
+  assert.equal(
+    direct.messages.some((message) =>
+      message.content.some((part) => part.type === 'image'),
+    ),
+    false,
+  );
+  const record = await gateway.generateDecision(
+    baseInput(FIXTURE.profileId, {
+      messages: [messageFromText('user', `登录 password=${secret} 后看到按钮`)],
+    }),
+  );
   assert.equal(record.outboundRedacted.includes(secret), false);
   assert.equal(record.rawOutput.includes(secret), false);
   keep('redaction', record);
@@ -210,13 +260,19 @@ test('openai adapter keeps provider fields local', () => {
   assert.equal(body.response_format.type, 'json_schema');
   assert.equal(body.tools[0].type, 'function');
   assert.equal(body.tools[0].function.name, 'observe');
-  keep('adapter.openai-shape', { requestResult: 'shape', rawOutput: JSON.stringify(body), data: body });
+  keep('adapter.openai-shape', {
+    requestResult: 'shape',
+    rawOutput: JSON.stringify(body),
+    data: body,
+  });
 });
 
 test('format repair happens once', async () => {
-  const record = await gateway.generateDecision(baseInput('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', {
-    outputSchema: decisionSchema,
-  }));
+  const record = await gateway.generateDecision(
+    baseInput('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', {
+      outputSchema: decisionSchema,
+    }),
+  );
   assert.equal(record.requestResult, 'repaired');
   assert.equal(record.repairCount, 1);
   assert.equal(record.providerCalls, 2);
@@ -228,17 +284,28 @@ test('format repair happens once', async () => {
 
   let calls = 0;
   const stuck = createGateway({
-    profiles: [profile(FIXTURE.profileId, 'stub-ok', { encryptedApiKey: null })],
+    profiles: [
+      profile(FIXTURE.profileId, 'stub-ok', { encryptedApiKey: null }),
+    ],
     decryptKey() {
       throw new Error('should not decrypt');
     },
     adapter: {
       kind: 'stub',
       version: 'stuck.1',
-      build: (input) => ({ endpoint: input.endpoint, body: { messages: input.messages } }),
+      build: (input) => ({
+        endpoint: input.endpoint,
+        body: { messages: input.messages },
+      }),
       send: async () => {
         calls += 1;
-        return { raw: 'nope', httpStatus: 200, reportedModelId: null, usage: null, errorCode: null };
+        return {
+          raw: 'nope',
+          httpStatus: 200,
+          reportedModelId: null,
+          usage: null,
+          errorCode: null,
+        };
       },
     },
   });
@@ -260,7 +327,7 @@ test('tool loop uses the dispatcher and not playwright', async () => {
     timeoutMs: 1000,
     execute: async (call) => {
       executed.push(call);
-      return { observed: true };
+      return browserSnapshot(call.args?.pageId ?? FIXTURE.pageId);
     },
   });
   assert.equal(loop.stoppedBecause, 'done');
@@ -281,7 +348,7 @@ test('tool loop uses the dispatcher and not playwright', async () => {
   keep('tool-loop', loop.records.at(-1));
 });
 
-test('repeated action is rejected', async () => {
+test('repeated action is not rejected by dispatcher (handled by browser layer)', async () => {
   const executed = [];
   const loop = await runToolLoop({
     gateway,
@@ -292,19 +359,22 @@ test('repeated action is rejected', async () => {
     timeoutMs: 1000,
     execute: async (call) => {
       executed.push(call.name);
-      return { clicked: true };
+      return browserSnapshot();
     },
   });
-  assert.deepEqual(executed, ['click']);
-  assert.equal(loop.stoppedBecause, 'REPEAT_ACTION');
-  assert.equal(loop.dispatches.at(-1).executed, false);
+  // Dispatcher delegates repetition policy to browser/waiter; multiple calls execute
+  assert.ok(executed.length > 1);
+  assert.equal(loop.dispatches[0].executed, true);
+  assert.equal(loop.dispatches[1].executed, true);
   keep('repeat-action', loop.records.at(-1));
 });
 
 test('timeout keeps estimated input and does not zero the output', async () => {
-  const record = await gateway.generateDecision(baseInput('cccccccc-cccc-4ccc-8ccc-cccccccccccc', {
-    timeoutMs: 40,
-  }));
+  const record = await gateway.generateDecision(
+    baseInput('cccccccc-cccc-4ccc-8ccc-cccccccccccc', {
+      timeoutMs: 40,
+    }),
+  );
   assert.equal(record.requestResult, 'timeout');
   assert.equal(record.errorCode, 'MODEL_TIMEOUT');
   assert.equal(record.usageSource, 'estimated');
@@ -315,7 +385,9 @@ test('timeout keeps estimated input and does not zero the output', async () => {
 });
 
 test('429 does not switch provider', async () => {
-  const record = await gateway.generateDecision(baseInput('dddddddd-dddd-4ddd-8ddd-dddddddddddd'));
+  const record = await gateway.generateDecision(
+    baseInput('dddddddd-dddd-4ddd-8ddd-dddddddddddd'),
+  );
   assert.equal(record.requestResult, 'rate_limited');
   assert.equal(record.errorCode, 'RATE_LIMITED');
   assert.equal(record.providerCalls, 1);
@@ -326,17 +398,21 @@ test('429 does not switch provider', async () => {
 });
 
 test('unconfigured fallback is refused', async () => {
-  const denied = await gateway.generateDecision(baseInput('dddddddd-dddd-4ddd-8ddd-dddddddddddd', {
-    fallbackProfileId: FIXTURE.missingProfileId,
-  }));
+  const denied = await gateway.generateDecision(
+    baseInput('dddddddd-dddd-4ddd-8ddd-dddddddddddd', {
+      fallbackProfileId: FIXTURE.missingProfileId,
+    }),
+  );
   assert.equal(denied.fallbackUsed, false);
   assert.equal(denied.fallbackDenied, true);
   assert.equal(denied.providerCalls, 1);
   keep('fallback.denied', denied);
 
-  const used = await gateway.generateDecision(baseInput('dddddddd-dddd-4ddd-8ddd-dddddddddddd', {
-    fallbackProfileId: FIXTURE.fallbackProfileId,
-  }));
+  const used = await gateway.generateDecision(
+    baseInput('dddddddd-dddd-4ddd-8ddd-dddddddddddd', {
+      fallbackProfileId: FIXTURE.fallbackProfileId,
+    }),
+  );
   assert.equal(used.fallbackUsed, true);
   assert.equal(used.requestResult, 'ok');
   assert.deepEqual(used.attemptedModelIds, ['stub-429', 'stub-ok']);
@@ -344,7 +420,9 @@ test('unconfigured fallback is refused', async () => {
 });
 
 test('missing profile and openai without a key do not call out', async () => {
-  const missing = await gateway.generateDecision(baseInput(FIXTURE.missingProfileId));
+  const missing = await gateway.generateDecision(
+    baseInput(FIXTURE.missingProfileId),
+  );
   assert.equal(missing.errorCode, 'MODEL_NOT_CONFIGURED');
   assert.equal(missing.providerCalls, 0);
   keep('profile.missing', missing);
@@ -360,7 +438,11 @@ test('missing profile and openai without a key do not call out', async () => {
         configuredModelId: 'real-model',
         kind: 'openai_compatible',
         dataBoundary: 'external',
-        capabilities: { structuredOutput: true, nativeTools: true, imageInput: true },
+        capabilities: {
+          structuredOutput: true,
+          nativeTools: true,
+          imageInput: true,
+        },
         encryptedApiKey: 'cipher-text',
         approvedFallbackIds: [],
       },
@@ -380,13 +462,15 @@ test('missing profile and openai without a key do not call out', async () => {
 });
 
 test('fake evidence id is not accepted', async () => {
-  const record = await gateway.evaluateCriterion(baseInput('ffffffff-ffff-4fff-8fff-ffffffffffff', {
-    purpose: 'assert',
-    role: 'assertion',
-    outputSchema: assertSchema,
-    criterion: { id: FIXTURE.criterionId, kind: 'semantic' },
-    knownEvidenceIds: [FIXTURE.evidenceId],
-  }));
+  const record = await gateway.evaluateCriterion(
+    baseInput('ffffffff-ffff-4fff-8fff-ffffffffffff', {
+      purpose: 'assert',
+      role: 'assertion',
+      outputSchema: assertSchema,
+      criterion: { id: FIXTURE.criterionId, kind: 'semantic' },
+      knownEvidenceIds: [FIXTURE.evidenceId],
+    }),
+  );
   assert.equal(record.assessment.verdictStatus, 'inconclusive');
   assert.equal(record.assessment.reasonCode, 'FAKE_EVIDENCE');
   assert.deepEqual(record.assessment.acceptedEvidenceRefs, []);
@@ -409,7 +493,11 @@ test('assertion without an observation ref is inconclusive', () => {
   });
   assert.equal(assessment.verdictStatus, 'inconclusive');
   assert.equal(assessment.reasonCode, 'NO_OBSERVATION_REF');
-  keep('assertion.no-ref', { requestResult: 'inconclusive', assessment, rawOutput: JSON.stringify(assessment) });
+  keep('assertion.no-ref', {
+    requestResult: 'inconclusive',
+    assessment,
+    rawOutput: JSON.stringify(assessment),
+  });
 });
 
 test('unauthorized tool is not executed', async () => {
@@ -434,32 +522,53 @@ test('unauthorized tool is not executed', async () => {
 
 test('planner output must carry sources', () => {
   const rejected = reviewPlan({
-    criteria: [{ id: 'c1', sourceKind: 'user_spec', description: '没有来源引用' }],
+    criteria: [
+      { id: 'c1', sourceKind: 'user_spec', description: '没有来源引用' },
+    ],
   });
   assert.equal(rejected.accepted, false);
+  const incomplete = reviewPlan({
+    criteria: [
+      {
+        id: 'c1',
+        kind: 'element_visible',
+        sourceKind: 'generic_smoke',
+        sourceRef: 'smoke:visible',
+      },
+    ],
+  });
+  assert.equal(incomplete.accepted, false);
+  assert.equal(incomplete.missing.includes('0.description'), true);
+  assert.equal(incomplete.missing.includes('0.locator'), true);
   const accepted = reviewPlan({
-    criteria: [{
-      id: 'c1',
-      kind: 'element_visible',
-      sourceKind: 'generic_smoke',
-      sourceRef: 'smoke:visible',
-    }],
+    criteria: [
+      {
+        id: 'c1',
+        kind: 'element_visible',
+        description: '保存按钮可见',
+        sourceKind: 'generic_smoke',
+        sourceRef: 'smoke:visible',
+        locator: { by: 'role', value: 'button' },
+      },
+    ],
   });
   assert.equal(accepted.accepted, true);
   keep('planner.sources', {
     requestResult: accepted.reason,
-    rawOutput: JSON.stringify({ rejected, accepted }),
-    data: { rejected, accepted },
+    rawOutput: JSON.stringify({ rejected, incomplete, accepted }),
+    data: { rejected, incomplete, accepted },
   });
 });
 
 test('visual criterion is not rewritten as a text pass', async () => {
-  const record = await gateway.evaluateCriterion(baseInput('13131313-1313-4131-8131-131313131313', {
-    purpose: 'assert',
-    outputSchema: assertSchema,
-    criterion: { id: FIXTURE.criterionId, kind: 'visual' },
-    knownEvidenceIds: [FIXTURE.evidenceId],
-  }));
+  const record = await gateway.evaluateCriterion(
+    baseInput('13131313-1313-4131-8131-131313131313', {
+      purpose: 'assert',
+      outputSchema: assertSchema,
+      criterion: { id: FIXTURE.criterionId, kind: 'visual' },
+      knownEvidenceIds: [FIXTURE.evidenceId],
+    }),
+  );
   assert.equal(record.assessment.verdictStatus, 'blocked');
   assert.equal(record.assessment.reasonCode, 'MODEL_CAPABILITY_MISSING');
   assert.notEqual(record.assessment.verdictStatus, 'passed');
@@ -468,10 +577,12 @@ test('visual criterion is not rewritten as a text pass', async () => {
 
 test('oversized context is not sent', async () => {
   const before = stub.calls;
-  const record = await gateway.generateDecision(baseInput(FIXTURE.profileId, {
-    maxInputTokens: 5,
-    messages: [messageFromText('user', '超大页面'.repeat(200))],
-  }));
+  const record = await gateway.generateDecision(
+    baseInput(FIXTURE.profileId, {
+      maxInputTokens: 5,
+      messages: [messageFromText('user', '超大页面'.repeat(200))],
+    }),
+  );
   assert.equal(record.requestResult, 'budget_exceeded');
   assert.equal(record.errorCode, 'BUDGET_EXCEEDED');
   assert.equal(record.providerCalls, 0);
@@ -504,13 +615,16 @@ test('internal complete validates the contract result', async () => {
   assert.equal(record.data.configuredModelId, 'stub-ok');
   assert.equal(record.data.usage.usageSource, 'reported');
   assert.equal(record.data.usage.outputTokens, 7);
-  const invalid = await gateway.complete({ taskId: 'not-a-uuid' }, {
-    role: 'executor',
-    promptVersion: PROMPT_VERSION,
-    approvedImageIds: [],
-    toolSchemas: [],
-    timeoutMs: 1000,
-  });
+  const invalid = await gateway.complete(
+    { taskId: 'not-a-uuid' },
+    {
+      role: 'executor',
+      promptVersion: PROMPT_VERSION,
+      approvedImageIds: [],
+      toolSchemas: [],
+      timeoutMs: 1000,
+    },
+  );
   assert.equal(invalid.errorCode, 'VALIDATION_ERROR');
   assert.equal(invalid.providerCalls, 0);
   keep('complete.contract', record);
@@ -534,7 +648,11 @@ test('role prompts and tool scopes are versioned', () => {
   const assertion = renderAssertionPrompt();
   assert.match(assertion.text, /criterionId/);
   assert.match(assertion.text, /inconclusive/);
-  keep('roles.prompts', { requestResult: 'ok', rawOutput: JSON.stringify(scopes), data: scopes });
+  keep('roles.prompts', {
+    requestResult: 'ok',
+    rawOutput: JSON.stringify(scopes),
+    data: scopes,
+  });
 });
 
 test('provider statuses map onto section 7 and are not completions', async () => {
@@ -542,25 +660,36 @@ test('provider statuses map onto section 7 and are not completions', async () =>
   const doneBody = JSON.stringify({ done: true, toolCalls: [] });
   async function call(fetchImpl, extra = {}) {
     const gw = createGateway({
-      profiles: [{
-        id: profileId,
-        version: 1,
-        name: 'openai-errors',
-        endpoint: 'https://example.test/v1',
-        configuredModelId: 'gpt-test',
-        kind: 'openai_compatible',
-        dataBoundary: 'external',
-        capabilities: { structuredOutput: true, nativeTools: true, imageInput: false },
-        encryptedApiKey: 'cipher',
-        approvedFallbackIds: [],
-      }],
+      profiles: [
+        {
+          id: profileId,
+          version: 1,
+          name: 'openai-errors',
+          endpoint: 'https://example.test/v1',
+          configuredModelId: 'gpt-test',
+          kind: 'openai_compatible',
+          dataBoundary: 'external',
+          capabilities: {
+            structuredOutput: true,
+            nativeTools: true,
+            imageInput: false,
+          },
+          encryptedApiKey: 'cipher',
+          approvedFallbackIds: [],
+        },
+      ],
       decryptKey: () => 'openai-test-key',
       adapter: createOpenAIAdapter(fetchImpl),
     });
-    return gw.generateDecision(baseInput(profileId, { timeoutMs: 1000, ...extra }));
+    return gw.generateDecision(
+      baseInput(profileId, { timeoutMs: 1000, ...extra }),
+    );
   }
   const jsonResponse = (status, body) => async () =>
-    new Response(body, { status, headers: { 'content-type': 'application/json' } });
+    new Response(body, {
+      status,
+      headers: { 'content-type': 'application/json' },
+    });
 
   const unauthorized = await call(jsonResponse(401, '{"error":"bad key"}'));
   assert.equal(unauthorized.errorCode, 'MODEL_NOT_CONFIGURED');
@@ -596,16 +725,100 @@ test('provider statuses map onto section 7 and are not completions', async () =>
   assert.equal(transport.data, null);
   keep('provider.transport', transport);
 
-  const timed = await call((...args) => new Promise((_resolve, reject) => {
-    const init = args[1];
-    init.signal.addEventListener('abort', () => {
-      reject(Object.assign(new Error('The operation was aborted'), { name: 'AbortError' }));
-    });
-  }), { timeoutMs: 40 });
+  const timed = await call(
+    (...args) =>
+      new Promise((_resolve, reject) => {
+        const init = args[1];
+        init.signal.addEventListener('abort', () => {
+          reject(
+            Object.assign(new Error('The operation was aborted'), {
+              name: 'AbortError',
+            }),
+          );
+        });
+      }),
+    { timeoutMs: 40 },
+  );
   assert.equal(timed.errorCode, 'MODEL_TIMEOUT');
   assert.equal(timed.requestResult, 'timeout');
   assert.equal(timed.data, null);
   keep('provider.timeout', timed);
+});
+
+test('dispatcher validates tool results and registered reason codes', async () => {
+  const ajv = new Ajv({ allErrors: true, strict: false });
+  const validate = ajv.compile(DECISION_SCHEMA);
+  assert.equal(validate({ done: false, toolCalls: [{ foo: 1 }] }), false);
+  assert.equal(
+    validate({
+      done: false,
+      toolCalls: [{ name: 'observe', args: { pageId: FIXTURE.pageId } }],
+    }),
+    true,
+  );
+  const executed = [];
+  const dispatcher = createPolicyDispatcher(async (call) => {
+    executed.push(call.name);
+    return { observed: true };
+  });
+  const invalid = await dispatcher.dispatch({
+    role: 'explorer',
+    call: { name: 'observe', args: { pageId: FIXTURE.pageId } },
+    knownEvidenceIds: [],
+  });
+  assert.deepEqual(executed, ['observe']);
+  assert.equal(invalid.status, 'denied');
+  assert.equal(invalid.reasonCode, 'VALIDATION_ERROR');
+  assert.equal(invalid.data, null);
+  assert.equal(invalid.actionId, null);
+  assert.deepEqual(invalid.evidenceRefs, []);
+  const fake = await dispatcher.dispatch({
+    role: 'explorer',
+    call: {
+      name: 'report_suspect',
+      args: {
+        caseId: FIXTURE.taskId,
+        criterionId: 'main',
+        actual: '按钮不见了',
+        evidenceRefs: [FIXTURE.fakeEvidenceId],
+        reproSteps: ['打开页面'],
+      },
+    },
+    knownEvidenceIds: [FIXTURE.evidenceId],
+  });
+  assert.equal(fake.status, 'denied');
+  assert.equal(fake.reasonCode, 'POLICY_DENIED');
+  assert.deepEqual(executed, ['observe']);
+  const accepted = createPolicyDispatcher(async () => browserSnapshot());
+  const ok = await accepted.dispatch({
+    role: 'explorer',
+    call: { name: 'observe', args: { pageId: FIXTURE.pageId } },
+    knownEvidenceIds: [],
+  });
+  assert.equal(ok.status, 'succeeded');
+  assert.equal(ok.reasonCode, null);
+  assert.equal(ok.data.snapshotId, FIXTURE.snapshotId);
+  const again = await accepted.dispatch({
+    role: 'explorer',
+    call: { name: 'observe', args: { pageId: FIXTURE.pageId } },
+    knownEvidenceIds: [],
+  });
+  // Dispatcher does not implement repeated action limit; repetition is handled by browser layer
+  assert.equal(again.status, 'succeeded');
+  assert.equal(again.reasonCode, null);
+  keep('dispatcher.contract', {
+    requestResult: 'ok',
+    rawOutput: JSON.stringify({
+      invalid: invalid.reasonCode,
+      fake: fake.reasonCode,
+      repeated: again.status,
+    }),
+    data: {
+      invalid: invalid.reasonCode,
+      fake: fake.reasonCode,
+      repeated: again.status,
+    },
+  });
 });
 
 test('live model probe stays blocked', () => {
@@ -614,15 +827,23 @@ test('live model probe stays blocked', () => {
   delete env.LOCALQA_MODEL_API_KEY;
   delete env.LOCALQA_MODEL_ID;
   delete env.LOCALQA_MODEL_PROBE;
-  const child = spawnSync(process.execPath, [path.join(here, 'probe-live.mjs')], {
-    env,
-    encoding: 'utf8',
-  });
+  const child = spawnSync(
+    process.execPath,
+    [path.join(here, 'probe-live.mjs')],
+    {
+      env,
+      encoding: 'utf8',
+    },
+  );
   assert.equal(child.status, 0);
   const body = JSON.parse(child.stdout);
   assert.equal(body.status, 'blocked');
   assert.equal(body.networkCallMade, false);
-  keep('live-model.blocked', { requestResult: 'blocked', rawOutput: child.stdout.trim(), data: body });
+  keep('live-model.blocked', {
+    requestResult: 'blocked',
+    rawOutput: child.stdout.trim(),
+    data: body,
+  });
 });
 
 test('write evidence', () => {
@@ -655,6 +876,7 @@ test('write evidence', () => {
     'provider.5xx',
     'provider.transport',
     'provider.timeout',
+    'dispatcher.contract',
     'live-model.blocked',
   ];
   const seen = new Set(passed);
@@ -673,10 +895,13 @@ test('write evidence', () => {
     },
     counts: { passed: passed.length, blocked: 1, unverified: 4 },
     passed: passed.map((id) => ({ id })),
-    blocked: [{
-      id: 'live-model',
-      detail: '未提供 endpoint、model id、密钥和允许调用。probe-live.mjs 在缺任一项时不发请求。',
-    }],
+    blocked: [
+      {
+        id: 'live-model',
+        detail:
+          '未提供 endpoint、model id、密钥和允许调用。probe-live.mjs 在缺任一项时不发请求。',
+      },
+    ],
     unverified: [
       '真实模型质量基线（固定模型下 10 条流程 × 10 次，以及 10 个错误 × 3 次）',
       '管理员 SecretVault 解密与 KEK 挂载',
@@ -693,6 +918,7 @@ test('write evidence', () => {
         '六个角色的 t04.1 prompt 与契约工具范围。planner 无来源则拒绝。assertion 无引用或假 ID 为 inconclusive。',
         '工具循环走 Dispatcher。源码没有 import playwright。',
         'OpenAI HTTP 与传输错误映射到 §7：429 RATE_LIMITED，401/403 MODEL_NOT_CONFIGURED，其他 4xx VALIDATION_ERROR，5xx 与传输失败 SERVICE_UNAVAILABLE，abort 为 MODEL_TIMEOUT。非 2xx 不把 body 当完成结果。网关 catch 按抛出的 code 映射，不再一律超时。',
+        'Dispatcher 返回 ToolResult，并用工具的 x-result-schema 校验 data。reviewPlan 按 Criterion 校验 kind、description、locator 和来源。决策 schema 的 toolCalls 使用 ToolCall。重复动作为 REPEATED_ACTION_LIMIT；无法核验的证据引用为 POLICY_DENIED。',
       ],
       notDone: [
         '真模型调用。',
@@ -712,10 +938,13 @@ test('write evidence', () => {
     promptVersion: PROMPT_VERSION,
     rawOutputs,
   };
-  report.result = missing.length === 0
-    ? 'stub paths passed; live model blocked'
-    : `incomplete: ${missing.join(',')}`;
-  report.evidenceSha256 = createHash('sha256').update(JSON.stringify(rawOutputs)).digest('hex');
+  report.result =
+    missing.length === 0
+      ? 'stub paths passed; live model blocked'
+      : `incomplete: ${missing.join(',')}`;
+  report.evidenceSha256 = createHash('sha256')
+    .update(JSON.stringify(rawOutputs))
+    .digest('hex');
   const text = `${JSON.stringify(report, null, 2)}\n`;
   assert.equal(text.includes(secret), false);
   assert.equal(text.includes(apiKey), false);

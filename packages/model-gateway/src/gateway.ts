@@ -16,13 +16,21 @@ import {
   type ProviderResponse,
 } from './adapter.js';
 import { assertHttpsEndpoint } from './openai.js';
-import { hideSecret, messageText, redactMessages, redactText } from './redact.js';
+import {
+  hideSecret,
+  messageText,
+  redactMessages,
+  redactText,
+} from './redact.js';
 import { combineUsage, estimateTokens, type UsageAttempt } from './usage.js';
 
 const ajv = new Ajv({ allErrors: true, strict: false });
 
 /** Thrown and returned provider codes stay on the §7 vocabulary. Unknown failures are unavailable, not timeouts. */
-function mapProviderCode(code: string): { requestResult: string; errorCode: string } {
+function mapProviderCode(code: string): {
+  requestResult: string;
+  errorCode: string;
+} {
   switch (code) {
     case 'TIMEOUT':
     case 'MODEL_TIMEOUT':
@@ -30,7 +38,10 @@ function mapProviderCode(code: string): { requestResult: string; errorCode: stri
     case 'RATE_LIMITED':
       return { requestResult: 'rate_limited', errorCode: 'RATE_LIMITED' };
     case 'MODEL_NOT_CONFIGURED':
-      return { requestResult: 'not_configured', errorCode: 'MODEL_NOT_CONFIGURED' };
+      return {
+        requestResult: 'not_configured',
+        errorCode: 'MODEL_NOT_CONFIGURED',
+      };
     case 'VALIDATION_ERROR':
       return { requestResult: 'malformed', errorCode: 'VALIDATION_ERROR' };
     default:
@@ -57,7 +68,11 @@ export interface GatewayProfile {
   configuredModelId: string;
   kind: 'stub' | 'openai_compatible';
   dataBoundary: 'internal' | 'external';
-  capabilities: { structuredOutput: boolean; nativeTools: boolean; imageInput: boolean };
+  capabilities: {
+    structuredOutput: boolean;
+    nativeTools: boolean;
+    imageInput: boolean;
+  };
   encryptedApiKey: string | null;
   approvedFallbackIds: readonly string[];
 }
@@ -90,7 +105,8 @@ export interface Assessment {
 }
 
 export interface CallRecord {
-  method: 'capabilityProbe' | 'generateDecision' | 'evaluateCriterion' | 'complete';
+  method:
+    'capabilityProbe' | 'generateDecision' | 'evaluateCriterion' | 'complete';
   profileId: string;
   profileVersion: number | null;
   modelId: string | null;
@@ -122,9 +138,21 @@ export interface Gateway {
   capabilityProbe(profileId: string, timeoutMs?: number): Promise<CallRecord>;
   generateDecision(input: CallInput): Promise<CallRecord>;
   evaluateCriterion(input: CallInput): Promise<CallRecord>;
-  complete(body: unknown, input: Omit<CallInput, 'purpose' | 'outputSchema' | 'messages' | 'maxOutputTokens' | 'taskId' | 'profileId' | 'contextVersion'> & {
-    taskId?: string;
-  }): Promise<CallRecord>;
+  complete(
+    body: unknown,
+    input: Omit<
+      CallInput,
+      | 'purpose'
+      | 'outputSchema'
+      | 'messages'
+      | 'maxOutputTokens'
+      | 'taskId'
+      | 'profileId'
+      | 'contextVersion'
+    > & {
+      taskId?: string;
+    },
+  ): Promise<CallRecord>;
 }
 
 export function assessCriterionOutput(input: {
@@ -135,7 +163,10 @@ export function assessCriterionOutput(input: {
   imageInput: boolean;
 }): Assessment {
   const known = new Set(input.knownEvidenceIds);
-  const blank = (reasonCode: string, verdictStatus: Assessment['verdictStatus']): Assessment => ({
+  const blank = (
+    reasonCode: string,
+    verdictStatus: Assessment['verdictStatus'],
+  ): Assessment => ({
     verdictStatus,
     reasonCode,
     criterionId: input.expectedCriterionId,
@@ -145,7 +176,11 @@ export function assessCriterionOutput(input: {
   if (input.criterionKind === 'visual' && !input.imageInput) {
     return blank('MODEL_CAPABILITY_MISSING', 'blocked');
   }
-  if (!input.data || typeof input.data !== 'object' || Array.isArray(input.data)) {
+  if (
+    !input.data ||
+    typeof input.data !== 'object' ||
+    Array.isArray(input.data)
+  ) {
     return blank('NO_OBSERVATION_REF', 'inconclusive');
   }
   const row = input.data as Record<string, unknown>;
@@ -153,16 +188,28 @@ export function assessCriterionOutput(input: {
     return blank('CRITERION_MISMATCH', 'inconclusive');
   }
   const refs = Array.isArray(row['evidenceRefs'])
-    ? row['evidenceRefs'].filter((item): item is string => typeof item === 'string')
+    ? row['evidenceRefs'].filter(
+        (item): item is string => typeof item === 'string',
+      )
     : [];
   if (refs.length === 0) return blank('NO_OBSERVATION_REF', 'inconclusive');
-  if (refs.some((id) => !known.has(id))) return blank('FAKE_EVIDENCE', 'inconclusive');
+  if (refs.some((id) => !known.has(id)))
+    return blank('FAKE_EVIDENCE', 'inconclusive');
   const result = row['result'];
-  if (result !== 'passed' && result !== 'failed' && result !== 'not_evaluated' && result !== 'unknown') {
+  if (
+    result !== 'passed' &&
+    result !== 'failed' &&
+    result !== 'not_evaluated' &&
+    result !== 'unknown'
+  ) {
     return blank('MALFORMED_JUDGMENT', 'inconclusive');
   }
   const verdictStatus =
-    result === 'passed' ? 'passed' : result === 'failed' ? 'issue_found' : 'inconclusive';
+    result === 'passed'
+      ? 'passed'
+      : result === 'failed'
+        ? 'issue_found'
+        : 'inconclusive';
   return {
     verdictStatus,
     reasonCode: verdictStatus === 'inconclusive' ? 'NO_DECISION' : 'OBSERVED',
@@ -172,7 +219,10 @@ export function assessCriterionOutput(input: {
   };
 }
 
-function failure(partial: Partial<CallRecord> & Pick<CallRecord, 'method' | 'requestResult' | 'errorCode'>): CallRecord {
+function failure(
+  partial: Partial<CallRecord> &
+    Pick<CallRecord, 'method' | 'requestResult' | 'errorCode'>,
+): CallRecord {
   return {
     profileId: partial.profileId ?? '',
     profileVersion: partial.profileVersion ?? null,
@@ -185,7 +235,8 @@ function failure(partial: Partial<CallRecord> & Pick<CallRecord, 'method' | 'req
     latencyMs: partial.latencyMs ?? 0,
     usageSource: partial.usageSource ?? 'unknown',
     inputTokens: partial.inputTokens === undefined ? null : partial.inputTokens,
-    outputTokens: partial.outputTokens === undefined ? null : partial.outputTokens,
+    outputTokens:
+      partial.outputTokens === undefined ? null : partial.outputTokens,
     requests: partial.requests ?? 0,
     fallbackUsed: false,
     fallbackDenied: partial.fallbackDenied ?? false,
@@ -208,9 +259,14 @@ export function createGateway(options: {
   decryptKey: (profileId: string, ciphertext: string) => string;
   adapter: ProviderAdapter;
 }): Gateway {
-  const profiles = new Map(options.profiles.map((profile) => [profile.id, profile]));
+  const profiles = new Map(
+    options.profiles.map((profile) => [profile.id, profile]),
+  );
 
-  async function run(method: CallRecord['method'], input: CallInput): Promise<CallRecord> {
+  async function run(
+    method: CallRecord['method'],
+    input: CallInput,
+  ): Promise<CallRecord> {
     const started = Date.now();
     const primary = profiles.get(input.profileId);
     if (!primary) {
@@ -228,7 +284,9 @@ export function createGateway(options: {
     const fallbackId = input.fallbackProfileId;
     const fallback = fallbackId ? profiles.get(fallbackId) : undefined;
     const fallbackAllowed = Boolean(
-      fallbackId && primary.approvedFallbackIds.includes(fallbackId) && fallback,
+      fallbackId &&
+      primary.approvedFallbackIds.includes(fallbackId) &&
+      fallback,
     );
     const fallbackDenied = Boolean(fallbackId) && !fallbackAllowed;
     const queue = [primary];
@@ -241,12 +299,23 @@ export function createGateway(options: {
       const record = await callProfile(method, input, profile, started);
       record.fallbackUsed = usedFallback;
       record.fallbackDenied = fallbackDenied;
-      record.attemptedModelIds = queue.slice(0, index + 1).map((item) => item.configuredModelId);
+      record.attemptedModelIds = queue
+        .slice(0, index + 1)
+        .map((item) => item.configuredModelId);
       last = record;
-      const retryable = record.requestResult === 'rate_limited' || record.requestResult === 'timeout';
+      const retryable =
+        record.requestResult === 'rate_limited' ||
+        record.requestResult === 'timeout';
       if (!retryable || index === queue.length - 1) break;
     }
-    return last ?? failure({ method, requestResult: 'not_configured', errorCode: 'MODEL_NOT_CONFIGURED' });
+    return (
+      last ??
+      failure({
+        method,
+        requestResult: 'not_configured',
+        errorCode: 'MODEL_NOT_CONFIGURED',
+      })
+    );
   }
 
   async function callProfile(
@@ -383,7 +452,9 @@ export function createGateway(options: {
     let reportedModelId: string | null = null;
     const maxOutput = Math.min(input.maxOutputTokens, DEFAULT_OUTPUT_TOKENS);
 
-    const sendOnce = async (current: readonly ModelMessage[]): Promise<ProviderResponse> => {
+    const sendOnce = async (
+      current: readonly ModelMessage[],
+    ): Promise<ProviderResponse> => {
       const normalized: NormalizedCall = {
         endpoint: profile.endpoint,
         model: profile.configuredModelId,
@@ -394,7 +465,10 @@ export function createGateway(options: {
         maxOutputTokens: maxOutput,
       };
       const built = options.adapter.build(normalized);
-      const outboundText = hideSecret(redactText(JSON.stringify(built.body)), apiKey);
+      const outboundText = hideSecret(
+        redactText(JSON.stringify(built.body)),
+        apiKey,
+      );
       outbound.push(outboundText);
       providerCalls += 1;
       const controller = new AbortController();
@@ -483,7 +557,12 @@ export function createGateway(options: {
                 imageInput: false,
               })
             : null;
-        return finish('capability_missing', 'MODEL_CAPABILITY_MISSING', null, assessment);
+        return finish(
+          'capability_missing',
+          'MODEL_CAPABILITY_MISSING',
+          null,
+          assessment,
+        );
       }
       if (!response.errorCode) return null;
       const outcome = mapProviderCode(response.errorCode);
@@ -513,7 +592,8 @@ export function createGateway(options: {
         if (repairedStop) return repairedStop;
         parsed = parseWithSchema(response.raw, validator);
       }
-      if (!parsed.ok) return finish('malformed', 'VALIDATION_ERROR', null, null);
+      if (!parsed.ok)
+        return finish('malformed', 'VALIDATION_ERROR', null, null);
       if (input.purpose === 'assert') {
         const assessment = assessCriterionOutput({
           data: parsed.value,
@@ -523,12 +603,27 @@ export function createGateway(options: {
           imageInput: profile.capabilities.imageInput,
         });
         const requestResult =
-          assessment.reasonCode === 'FAKE_EVIDENCE' ? 'fake_evidence' : assessment.verdictStatus;
-        return finish(requestResult, assessment.verdictStatus === 'blocked' ? assessment.reasonCode : null, parsed.value, assessment);
+          assessment.reasonCode === 'FAKE_EVIDENCE'
+            ? 'fake_evidence'
+            : assessment.verdictStatus;
+        return finish(
+          requestResult,
+          assessment.verdictStatus === 'blocked' ? assessment.reasonCode : null,
+          parsed.value,
+          assessment,
+        );
       }
-      return finish(repairCount > 0 ? 'repaired' : 'ok', null, parsed.value, null);
+      return finish(
+        repairCount > 0 ? 'repaired' : 'ok',
+        null,
+        parsed.value,
+        null,
+      );
     } catch (error) {
-      const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
+      const code =
+        typeof error === 'object' && error && 'code' in error
+          ? String(error.code)
+          : '';
       const outcome = mapProviderCode(code);
       const requestText = JSON.stringify(messages);
       attempts.push({
@@ -572,13 +667,22 @@ export function createGateway(options: {
         maxOutputTokens: 200,
         ...(profile ? {} : {}),
       }).then((record) => {
-        if (record.requestResult !== 'ok' || !record.data || typeof record.data !== 'object') {
+        if (
+          record.requestResult !== 'ok' ||
+          !record.data ||
+          typeof record.data !== 'object'
+        ) {
           if (record.errorCode === 'MODEL_CAPABILITY_MISSING') {
-            record.data = probeResult(profileId, {
-              structuredOutput: true,
-              nativeTools: true,
-              imageInput: false,
-            }, 'degraded', ['图片不受支持。视觉验收不能改成文本验收。']);
+            record.data = probeResult(
+              profileId,
+              {
+                structuredOutput: true,
+                nativeTools: true,
+                imageInput: false,
+              },
+              'degraded',
+              ['图片不受支持。视觉验收不能改成文本验收。'],
+            );
           }
           return record;
         }
@@ -588,11 +692,12 @@ export function createGateway(options: {
           nativeTools: data['nativeTools'] === true,
           imageInput: data['imageInput'] === true,
         };
-        const status = !capabilities.structuredOutput || !capabilities.nativeTools
-          ? 'disabled'
-          : capabilities.imageInput
-            ? 'ready'
-            : 'degraded';
+        const status =
+          !capabilities.structuredOutput || !capabilities.nativeTools
+            ? 'disabled'
+            : capabilities.imageInput
+              ? 'ready'
+              : 'degraded';
         const notes = capabilities.imageInput
           ? []
           : ['图片不受支持。视觉验收不能改成文本验收。'];
@@ -632,14 +737,23 @@ export function createGateway(options: {
         approvedImageIds: extra.approvedImageIds,
         toolSchemas: extra.toolSchemas,
         timeoutMs: extra.timeoutMs,
-        ...(extra.maxInputTokens !== undefined ? { maxInputTokens: extra.maxInputTokens } : {}),
-        ...(extra.fallbackProfileId !== undefined ? { fallbackProfileId: extra.fallbackProfileId } : {}),
-        ...(extra.knownEvidenceIds !== undefined ? { knownEvidenceIds: extra.knownEvidenceIds } : {}),
-        ...(extra.criterion !== undefined ? { criterion: extra.criterion } : {}),
+        ...(extra.maxInputTokens !== undefined
+          ? { maxInputTokens: extra.maxInputTokens }
+          : {}),
+        ...(extra.fallbackProfileId !== undefined
+          ? { fallbackProfileId: extra.fallbackProfileId }
+          : {}),
+        ...(extra.knownEvidenceIds !== undefined
+          ? { knownEvidenceIds: extra.knownEvidenceIds }
+          : {}),
+        ...(extra.criterion !== undefined
+          ? { criterion: extra.criterion }
+          : {}),
       };
-      const record = request.purpose === 'assert'
-        ? await run('complete', input)
-        : await run('complete', input);
+      const record =
+        request.purpose === 'assert'
+          ? await run('complete', input)
+          : await run('complete', input);
       if (record.data === null || record.errorCode) return record;
       const result: ModelResult = {
         data: record.data as ModelResult['data'],
@@ -667,7 +781,12 @@ function probeResult(
   status: ModelProbeResult['status'],
   notes: string[],
 ): ModelProbeResult {
-  return parseContract('ModelProbeResult', { profileId, capabilities, status, notes });
+  return parseContract('ModelProbeResult', {
+    profileId,
+    capabilities,
+    status,
+    notes,
+  });
 }
 
 function parseJson(raw: string): unknown {
@@ -687,7 +806,10 @@ function parseWithSchema(
   return validator(value) ? { ok: true, value } : { ok: false };
 }
 
-export function messageFromText(role: ModelMessage['role'], text: string): ModelMessage {
+export function messageFromText(
+  role: ModelMessage['role'],
+  text: string,
+): ModelMessage {
   return { role, content: [{ type: 'text', text }] };
 }
 

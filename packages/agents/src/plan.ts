@@ -12,10 +12,16 @@ function criterionGaps(index: number, item: unknown): string[] {
   const gaps = new Set<string>();
   for (const error of result.errors) {
     const missingProperty =
-      typeof error.params['missingProperty'] === 'string' ? error.params['missingProperty'] : null;
+      typeof error.params['missingProperty'] === 'string'
+        ? error.params['missingProperty']
+        : null;
     const path = error.instancePath.replace(/^\//, '').replaceAll('/', '.');
     if (missingProperty) {
-      gaps.add(path ? `${index}.${path}.${missingProperty}` : `${index}.${missingProperty}`);
+      gaps.add(
+        path
+          ? `${index}.${path}.${missingProperty}`
+          : `${index}.${missingProperty}`,
+      );
       continue;
     }
     if (path) gaps.add(`${index}.${path}`);
@@ -34,6 +40,7 @@ export function reviewPlan(input: unknown): PlanReview {
     return { accepted: false, reason: 'missing_source', missing: ['criteria'] };
   }
   const missing = criteria.flatMap((item, index) => criterionGaps(index, item));
-  if (missing.length > 0) return { accepted: false, reason: 'missing_source', missing };
+  if (missing.length > 0)
+    return { accepted: false, reason: 'missing_source', missing };
   return { accepted: true, reason: 'sourced', missing: [] };
 }
