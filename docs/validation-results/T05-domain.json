@@ -1,6 +1,6 @@
 {
   "task": "T05",
-  "recordedAt": "2026-10-02T12:09:29.530Z",
+  "recordedAt": "2026-10-02T12:14:41.825Z",
   "result": "verified first vertical slice and selected faults",
   "P0Passed": false,
   "G2Passed": false,
@@ -137,14 +137,14 @@
       "command": "node --test packages/domain/test/domain.test.mjs",
       "exitCode": 0,
       "signal": null,
-      "stdout": "✔ status matrix: draft (0.71ms)\n✔ status matrix: queued (0.059167ms)\n✔ status matrix: running (0.049834ms)\n✔ status matrix: awaiting_input (0.042459ms)\n✔ status matrix: cancelling (0.049917ms)\n✔ status matrix: completed (0.047167ms)\n✔ status matrix: cancelled (0.0475ms)\n✔ status matrix: failed (0.040333ms)\n✔ all phase ordering and saved waiting phase (0.138834ms)\n✔ reservation boundary: exact limit, over limit, held reservations, negative/noninteger/unknown (0.60775ms)\n✔ exact scheme/host/port scope and no userinfo/metadata/side effects/arbitrary tools (14.567458ms)\n✔ criteria hashes canonical key ordering and retain all original criteria (0.466583ms)\n✔ verdict semantics: all passed, credible failed, blocked, unknown and fake evidence (1.802666ms)\n✔ all result counts and zero denominators; completion independent of success (1.656375ms)\n✔ truncated, unsupported and child-frame observations cannot prove a sourced main-frame failure or pass (0.637042ms)\n✔ graph URL/structure dedup, maxPages and maxDepth (0.119542ms)\nℹ tests 16\nℹ suites 0\nℹ pass 16\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 139.453375\n",
+      "stdout": "✔ status matrix: draft (0.8365ms)\n✔ status matrix: queued (0.068167ms)\n✔ status matrix: running (0.060375ms)\n✔ status matrix: awaiting_input (0.047625ms)\n✔ status matrix: cancelling (0.05775ms)\n✔ status matrix: completed (0.050083ms)\n✔ status matrix: cancelled (0.052083ms)\n✔ status matrix: failed (0.046ms)\n✔ all phase ordering and saved waiting phase (0.151833ms)\n✔ reservation boundary: exact limit, over limit, held reservations, negative/noninteger/unknown (0.754292ms)\n✔ exact scheme/host/port scope and no userinfo/metadata/side effects/arbitrary tools (16.598875ms)\n✔ criteria hashes canonical key ordering and retain all original criteria (0.573542ms)\n✔ verdict semantics: all passed, credible failed, blocked, unknown and fake evidence (2.082209ms)\n✔ all result counts and zero denominators; completion independent of success (2.013166ms)\n✔ truncated, unsupported and child-frame observations cannot prove a sourced main-frame failure or pass (0.854167ms)\n✔ graph URL/structure dedup, maxPages and maxDepth (0.151959ms)\nℹ tests 16\nℹ suites 0\nℹ pass 16\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 151.049584\n",
       "stderr": ""
     },
     {
       "command": "node --test packages/orchestrator/test/boundary.test.mjs",
       "exitCode": 0,
       "signal": null,
-      "stdout": "✔ RuntimeClient has no enumerable/reflection-readable DB, actor, KEK, scope or adapter state (1.124917ms)\n✔ criteria hash matches accepted storage canonical algorithm (4.42375ms)\n✔ invalid platform/project slot policy is rejected (0.16725ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 125.354875\n",
+      "stdout": "✔ RuntimeClient has no enumerable/reflection-readable DB, actor, KEK, scope or adapter state (1.289917ms)\n✔ criteria hash matches accepted storage canonical algorithm (5.517333ms)\n✔ invalid platform/project slot policy is rejected (0.17775ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 144.716833\n",
       "stderr": ""
     },
     {
@@ -155,130 +155,130 @@
       "stderr": ""
     },
     {
-      "command": "docker network create localqa-t05-5b6fc669",
+      "command": "docker network create localqa-t05-eeca4c6c",
       "exitCode": 0,
       "signal": null,
-      "stdout": "83eb2a9d012dbdd1912d6e4c457abee6a4dc5b3c3c603af58542ed3fce1e09e0\n",
+      "stdout": "947750d99f57c71a50be6599f4f2948f6496e5bda2e2e12310528523739881d5\n",
       "stderr": ""
     },
     {
-      "command": "docker run --detach --name localqa-t05-pg-5b6fc669 --network localqa-t05-5b6fc669 --env-file /Users/dcp/Documents/公司/momentic/apps/worker/.evidence/postgres.env postgres:18-alpine",
+      "command": "docker run --detach --name localqa-t05-pg-eeca4c6c --network localqa-t05-eeca4c6c --env-file /Users/dcp/Documents/公司/momentic/apps/worker/.evidence/postgres.env postgres:18-alpine",
       "exitCode": 0,
       "signal": null,
-      "stdout": "3f303182ab42b13fdc154cd4785f602b8c35340057d499e56f0097be679cf6f4\n",
+      "stdout": "f8bf49b54ed3dda5f33bfd635db4a05d7ed77e777d23466dc808b97133853fd3\n",
       "stderr": ""
     },
     {
-      "command": "docker inspect localqa-t05-pg-5b6fc669 --format {{json .Mounts}}",
+      "command": "docker inspect localqa-t05-pg-eeca4c6c --format {{json .Mounts}}",
       "exitCode": 0,
       "signal": null,
-      "stdout": "[{\"Type\":\"volume\",\"Name\":\"ccdd1bdc82a30310fab1d7a4895eebca4a90e1e6b684aefb0427af2f6140af94\",\"Source\":\"/var/lib/docker/volumes/ccdd1bdc82a30310fab1d7a4895eebca4a90e1e6b684aefb0427af2f6140af94/_data\",\"Destination\":\"/var/lib/postgresql\",\"Driver\":\"local\",\"Mode\":\"\",\"RW\":true,\"Propagation\":\"\"}]\n",
+      "stdout": "[{\"Type\":\"volume\",\"Name\":\"b36c428f3283002a7997b9d5c314a10a4bf8aa905f0425a24db1acd6bd5b652c\",\"Source\":\"/var/lib/docker/volumes/b36c428f3283002a7997b9d5c314a10a4bf8aa905f0425a24db1acd6bd5b652c/_data\",\"Destination\":\"/var/lib/postgresql\",\"Driver\":\"local\",\"Mode\":\"\",\"RW\":true,\"Propagation\":\"\"}]\n",
       "stderr": ""
     },
     {
-      "command": "docker exec localqa-t05-pg-5b6fc669 pg_isready -U localqa -d localqa",
+      "command": "docker exec localqa-t05-pg-eeca4c6c pg_isready -U localqa -d localqa",
       "exitCode": 2,
       "signal": null,
-      "stdout": "localqa-t05-pg-5b6fc669:5432 - no response\n",
+      "stdout": "localqa-t05-pg-eeca4c6c:5432 - no response\n",
       "stderr": ""
     },
     {
-      "command": "docker exec localqa-t05-pg-5b6fc669 pg_isready -U localqa -d localqa",
+      "command": "docker exec localqa-t05-pg-eeca4c6c pg_isready -U localqa -d localqa",
       "exitCode": 2,
       "signal": null,
-      "stdout": "localqa-t05-pg-5b6fc669:5432 - no response\n",
+      "stdout": "localqa-t05-pg-eeca4c6c:5432 - no response\n",
       "stderr": ""
     },
     {
-      "command": "docker exec localqa-t05-pg-5b6fc669 pg_isready -U localqa -d localqa",
+      "command": "docker exec localqa-t05-pg-eeca4c6c pg_isready -U localqa -d localqa",
       "exitCode": 2,
       "signal": null,
-      "stdout": "localqa-t05-pg-5b6fc669:5432 - no response\n",
+      "stdout": "localqa-t05-pg-eeca4c6c:5432 - no response\n",
       "stderr": ""
     },
     {
-      "command": "docker exec localqa-t05-pg-5b6fc669 pg_isready -U localqa -d localqa",
+      "command": "docker exec localqa-t05-pg-eeca4c6c pg_isready -U localqa -d localqa",
       "exitCode": 2,
       "signal": null,
-      "stdout": "localqa-t05-pg-5b6fc669:5432 - no response\n",
+      "stdout": "localqa-t05-pg-eeca4c6c:5432 - no response\n",
       "stderr": ""
     },
     {
-      "command": "docker exec localqa-t05-pg-5b6fc669 pg_isready -U localqa -d localqa",
+      "command": "docker exec localqa-t05-pg-eeca4c6c pg_isready -U localqa -d localqa",
       "exitCode": 0,
       "signal": null,
-      "stdout": "localqa-t05-pg-5b6fc669:5432 - accepting connections\n",
+      "stdout": "localqa-t05-pg-eeca4c6c:5432 - accepting connections\n",
       "stderr": ""
     },
     {
-      "command": "docker run --name localqa-t05-browser-5b6fc669 --network localqa-t05-5b6fc669 --user 501:20 --cap-add=SYS_ADMIN --shm-size=256m --memory=2g --cpus=2 --pids-limit=512 --volume /Users/dcp/Documents/公司/momentic/:/work:ro --volume /Users/dcp/Documents/公司/momentic/apps/worker/.evidence:/work/apps/worker/.evidence:rw --volume /Users/dcp/Documents/公司/momentic/packages/orchestrator/.artifacts:/work/packages/orchestrator/.artifacts:rw --env HOME=/work/apps/worker/.evidence/home --env TMPDIR=/work/apps/worker/.evidence/tmp --env XDG_CACHE_HOME=/work/apps/worker/.evidence/cache --env PLAYWRIGHT_BROWSERS_PATH=/ms-playwright --workdir /work mcr.microsoft.com/playwright:v1.63.0-noble node --test --test-timeout=120000 apps/worker/test/integration.test.mjs",
+      "command": "docker run --name localqa-t05-browser-eeca4c6c --network localqa-t05-eeca4c6c --user 501:20 --cap-add=SYS_ADMIN --shm-size=256m --memory=2g --cpus=2 --pids-limit=512 --volume /Users/dcp/Documents/公司/momentic/:/work:ro --volume /Users/dcp/Documents/公司/momentic/apps/worker/.evidence:/work/apps/worker/.evidence:rw --volume /Users/dcp/Documents/公司/momentic/packages/orchestrator/.artifacts:/work/packages/orchestrator/.artifacts:rw --env HOME=/work/apps/worker/.evidence/home --env TMPDIR=/work/apps/worker/.evidence/tmp --env XDG_CACHE_HOME=/work/apps/worker/.evidence/cache --env PLAYWRIGHT_BROWSERS_PATH=/ms-playwright --workdir /work mcr.microsoft.com/playwright:v1.63.0-noble node --test --test-timeout=120000 apps/worker/test/integration.test.mjs",
       "exitCode": 0,
       "signal": null,
-      "stdout": "{\"verticalSlice\":\"real_browser_passed\",\"runId\":\"51857042-24b0-43a0-8268-5a7ff30d1202\",\"summary\":{\"passed\":1,\"issueFound\":0,\"blocked\":0,\"inconclusive\":0,\"notRun\":0,\"planned\":1,\"evaluated\":1,\"attempted\":1,\"passRate\":1,\"attemptRate\":1},\"eventCount\":50,\"evidenceSha256\":\"b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb\"}\n✔ first vertical slice: Run+Job+event -> leased Worker -> real browser -> evidence/verdict -> sequential events (1305.23329ms)\n✔ create idempotency, duplicate job key and transaction rollback leave no second dispatch (18.883585ms)\n✔ atomic reservations: competing final call slot, settlements/idempotency and missing usage estimation (66.189343ms)\n✔ cancel <=2s: signal closes active real browser and no later intent/model dispatch (521.581118ms)\n✔ expired lease and old fencing denied; actionless preparation can safely requeue (1171.3937ms)\n✔ crash after persisted intent: unknown action never replayed; original interrupted and recovery verdict preserves facts (1375.284369ms)\n✔ budget exhaustion prevents extra provider requests and false completion (443.315761ms)\n✔ NOTIFY discarded: polling alone recovers all stages without listener (457.787999ms)\n✔ awaiting_input only with no other runnable task; deadline expires to partial/blocked result (130.826797ms)\n✔ runtime binding rejects forged run/task/lease IDs, forbidden roles/tools and foreign project proof (21.393579ms)\n✔ independent reproduction: original suspected, fresh context/same criteria/real new evidence required for confirmed (398.966801ms)\n✔ interrupted case is not replayed; another independent case runs in a fresh real context (1638.641007ms)\n✔ platform/project/run slots reserve atomically and rollback quota-denied claims (42.11051ms)\n✔ SIGKILL after real browser action before outcome: unknown intent retained and never replayed (1777.849027ms)\n✔ expired model reservation is charged conservatively; late reported usage is audit-only and old result rejected (1180.411ms)\n✔ clarification CAS resumes saved phase without changing fixed criteria or replaying actions (28.34925ms)\n✔ budget stop after plan preserves original tried result and independent not_run projection (280.930758ms)\n✔ one case input deadline blocks only that case; another queued independent case completes with real evidence (532.919287ms)\nℹ tests 18\nℹ suites 0\nℹ pass 18\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 11730.535795\n",
+      "stdout": "{\"verticalSlice\":\"real_browser_passed\",\"runId\":\"c1ba27ad-d781-4113-84ab-650102223aa4\",\"summary\":{\"passed\":1,\"issueFound\":0,\"blocked\":0,\"inconclusive\":0,\"notRun\":0,\"planned\":1,\"evaluated\":1,\"attempted\":1,\"passRate\":1,\"attemptRate\":1},\"eventCount\":50,\"evidenceSha256\":\"b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb\"}\n✔ first vertical slice: Run+Job+event -> leased Worker -> real browser -> evidence/verdict -> sequential events (1511.081988ms)\n✔ create idempotency, duplicate job key and transaction rollback leave no second dispatch (19.959439ms)\n✔ atomic reservations: competing final call slot, settlements/idempotency and missing usage estimation (87.144793ms)\n✔ cancel <=2s: signal closes active real browser and no later intent/model dispatch (513.613535ms)\n✔ expired lease and old fencing denied; actionless preparation can safely requeue (1149.978613ms)\n✔ crash after persisted intent: unknown action never replayed; original interrupted and recovery verdict preserves facts (1376.836713ms)\n✔ budget exhaustion prevents extra provider requests and false completion (539.242624ms)\n✔ NOTIFY discarded: polling alone recovers all stages without listener (503.090979ms)\n✔ awaiting_input only with no other runnable task; deadline expires to partial/blocked result (128.8993ms)\n✔ runtime binding rejects forged run/task/lease IDs, forbidden roles/tools and foreign project proof (22.145707ms)\n✔ independent reproduction: original suspected, fresh context/same criteria/real new evidence required for confirmed (455.007994ms)\n✔ interrupted case is not replayed; another independent case runs in a fresh real context (1778.281166ms)\n✔ platform/project/run slots reserve atomically and rollback quota-denied claims (56.7771ms)\n✔ SIGKILL after real browser action before outcome: unknown intent retained and never replayed (1921.102501ms)\n✔ expired model reservation is charged conservatively; late reported usage is audit-only and old result rejected (1147.674657ms)\n✔ clarification CAS resumes saved phase without changing fixed criteria or replaying actions (31.640558ms)\n✔ budget stop after plan preserves original tried result and independent not_run projection (326.696616ms)\n✔ one case input deadline blocks only that case; another queued independent case completes with real evidence (617.644474ms)\nℹ tests 18\nℹ suites 0\nℹ pass 18\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 12578.863822\n",
       "stderr": ""
     },
     {
-      "command": "docker logs localqa-t05-pg-5b6fc669",
+      "command": "docker logs localqa-t05-pg-eeca4c6c",
       "exitCode": 0,
       "signal": null,
-      "stdout": "The files belonging to this database system will be owned by user \"postgres\".\nThis user must also own the server process.\n\nThe database cluster will be initialized with locale \"en_US.utf8\".\nThe default database encoding has accordingly been set to \"UTF8\".\nThe default text search configuration will be set to \"english\".\n\nData page checksums are enabled.\n\nfixing permissions on existing directory /var/lib/postgresql/18/docker ... ok\ncreating subdirectories ... ok\nselecting dynamic shared memory implementation ... posix\nselecting default \"max_connections\" ... 100\nselecting default \"shared_buffers\" ... 128MB\nselecting default time zone ... UTC\ncreating configuration files ... ok\nrunning bootstrap script ... ok\nperforming post-bootstrap initialization ... ok\nsyncing data to disk ... ok\n\n\nSuccess. You can now start the database server using:\n\n    pg_ctl -D /var/lib/postgresql/18/docker -l logfile start\n\nwaiting for server to start....2026-10-02 12:09:17.075 UTC [62] LOG:  starting PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit\n2026-10-02 12:09:17.075 UTC [62] LOG:  listening on Unix socket \"/var/run/postgresql/.s.PGSQL.5432\"\n2026-10-02 12:09:17.078 UTC [68] LOG:  database system was shut down at 2026-10-02 12:09:17 UTC\n2026-10-02 12:09:17.079 UTC [62] LOG:  database system is ready to accept connections\n done\nserver started\nCREATE DATABASE\n\n\n/usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*\n\nwaiting for server to shut down....2026-10-02 12:09:17.210 UTC [62] LOG:  received fast shutdown request\n2026-10-02 12:09:17.213 UTC [62] LOG:  aborting any active transactions\n2026-10-02 12:09:17.214 UTC [62] LOG:  background worker \"logical replication launcher\" (PID 71) exited with exit code 1\n2026-10-02 12:09:17.215 UTC [66] LOG:  shutting down\n2026-10-02 12:09:17.215 UTC [66] LOG:  checkpoint starting: shutdown immediate\n2026-10-02 12:09:17.231 UTC [66] LOG:  checkpoint complete: wrote 943 buffers (5.8%), wrote 3 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.008 s, sync=0.008 s, total=0.016 s; sync files=303, longest=0.003 s, average=0.001 s; distance=4362 kB, estimate=4362 kB; lsn=0/1BA8880, redo lsn=0/1BA8880\n2026-10-02 12:09:17.240 UTC [62] LOG:  database system is shut down\n done\nserver stopped\n\nPostgreSQL init process complete; ready for start up.\n\n",
-      "stderr": "sh: locale: not found\n2026-10-02 12:09:16.864 UTC [45] WARNING:  no usable system locales were found\ninitdb: warning: enabling \"trust\" authentication for local connections\ninitdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.\n2026-10-02 12:09:17.322 UTC [1] LOG:  starting PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit\n2026-10-02 12:09:17.322 UTC [1] LOG:  listening on IPv4 address \"0.0.0.0\", port 5432\n2026-10-02 12:09:17.322 UTC [1] LOG:  listening on IPv6 address \"::\", port 5432\n2026-10-02 12:09:17.323 UTC [1] LOG:  listening on Unix socket \"/var/run/postgresql/.s.PGSQL.5432\"\n2026-10-02 12:09:17.325 UTC [90] LOG:  database system was shut down at 2026-10-02 12:09:17 UTC\n2026-10-02 12:09:17.327 UTC [1] LOG:  database system is ready to accept connections\n2026-10-02 12:09:19.133 UTC [100] ERROR:  duplicate key value violates unique constraint \"jobs_unique_key_key\"\n2026-10-02 12:09:19.133 UTC [100] DETAIL:  Key (unique_key)=(d742c57c-6737-432f-8a76-ebfb61641b4a:coordinator:preflight:prepare:v1:1) already exists.\n2026-10-02 12:09:19.133 UTC [100] STATEMENT:  INSERT INTO jobs(id,project_id,run_id,unique_key,role,document) VALUES($1,$2,$3,$4,$5,$6)\n2026-10-02 12:09:19.140 UTC [103] ERROR:  new row for relation \"runs\" violates check constraint \"runs_check\"\n2026-10-02 12:09:19.140 UTC [103] STATEMENT:  INSERT INTO runs(id,project_id,creator_id,display_url,raw_url_secret_id,raw_url_secret_version,status,phase,completion,termination_reason,effective_config,budget_used,environment_id,environment_version,auth_profile_id,auth_profile_version,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,'queued','preflight','none',NULL,$7,$8,$9,$10,$11,$12,$13,$13)\n"
+      "stdout": "The files belonging to this database system will be owned by user \"postgres\".\nThis user must also own the server process.\n\nThe database cluster will be initialized with locale \"en_US.utf8\".\nThe default database encoding has accordingly been set to \"UTF8\".\nThe default text search configuration will be set to \"english\".\n\nData page checksums are enabled.\n\nfixing permissions on existing directory /var/lib/postgresql/18/docker ... ok\ncreating subdirectories ... ok\nselecting dynamic shared memory implementation ... posix\nselecting default \"max_connections\" ... 100\nselecting default \"shared_buffers\" ... 128MB\nselecting default time zone ... UTC\ncreating configuration files ... ok\nrunning bootstrap script ... ok\nperforming post-bootstrap initialization ... ok\nsyncing data to disk ... ok\n\n\nSuccess. You can now start the database server using:\n\n    pg_ctl -D /var/lib/postgresql/18/docker -l logfile start\n\nwaiting for server to start....2026-10-02 12:14:28.494 UTC [63] LOG:  starting PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit\n2026-10-02 12:14:28.495 UTC [63] LOG:  listening on Unix socket \"/var/run/postgresql/.s.PGSQL.5432\"\n2026-10-02 12:14:28.498 UTC [69] LOG:  database system was shut down at 2026-10-02 12:14:28 UTC\n2026-10-02 12:14:28.499 UTC [63] LOG:  database system is ready to accept connections\n done\nserver started\nCREATE DATABASE\n\n\n/usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*\n\nwaiting for server to shut down....2026-10-02 12:14:28.641 UTC [63] LOG:  received fast shutdown request\n2026-10-02 12:14:28.642 UTC [63] LOG:  aborting any active transactions\n2026-10-02 12:14:28.644 UTC [63] LOG:  background worker \"logical replication launcher\" (PID 72) exited with exit code 1\n2026-10-02 12:14:28.645 UTC [67] LOG:  shutting down\n2026-10-02 12:14:28.646 UTC [67] LOG:  checkpoint starting: shutdown immediate\n2026-10-02 12:14:28.673 UTC [67] LOG:  checkpoint complete: wrote 943 buffers (5.8%), wrote 3 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.019 s, sync=0.008 s, total=0.028 s; sync files=303, longest=0.003 s, average=0.001 s; distance=4362 kB, estimate=4362 kB; lsn=0/1BA8880, redo lsn=0/1BA8880\n2026-10-02 12:14:28.680 UTC [63] LOG:  database system is shut down\n done\nserver stopped\n\nPostgreSQL init process complete; ready for start up.\n\n",
+      "stderr": "sh: locale: not found\n2026-10-02 12:14:28.180 UTC [45] WARNING:  no usable system locales were found\ninitdb: warning: enabling \"trust\" authentication for local connections\ninitdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.\n2026-10-02 12:14:28.756 UTC [1] LOG:  starting PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit\n2026-10-02 12:14:28.756 UTC [1] LOG:  listening on IPv4 address \"0.0.0.0\", port 5432\n2026-10-02 12:14:28.757 UTC [1] LOG:  listening on IPv6 address \"::\", port 5432\n2026-10-02 12:14:28.759 UTC [1] LOG:  listening on Unix socket \"/var/run/postgresql/.s.PGSQL.5432\"\n2026-10-02 12:14:28.763 UTC [91] LOG:  database system was shut down at 2026-10-02 12:14:28 UTC\n2026-10-02 12:14:28.765 UTC [1] LOG:  database system is ready to accept connections\n2026-10-02 12:14:30.804 UTC [102] ERROR:  duplicate key value violates unique constraint \"jobs_unique_key_key\"\n2026-10-02 12:14:30.804 UTC [102] DETAIL:  Key (unique_key)=(fca36797-9b0f-4feb-b2cb-1fcc409e0e71:coordinator:preflight:prepare:v1:1) already exists.\n2026-10-02 12:14:30.804 UTC [102] STATEMENT:  INSERT INTO jobs(id,project_id,run_id,unique_key,role,document) VALUES($1,$2,$3,$4,$5,$6)\n2026-10-02 12:14:30.810 UTC [105] ERROR:  new row for relation \"runs\" violates check constraint \"runs_check\"\n2026-10-02 12:14:30.810 UTC [105] STATEMENT:  INSERT INTO runs(id,project_id,creator_id,display_url,raw_url_secret_id,raw_url_secret_version,status,phase,completion,termination_reason,effective_config,budget_used,environment_id,environment_version,auth_profile_id,auth_profile_version,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,'queued','preflight','none',NULL,$7,$8,$9,$10,$11,$12,$13,$13)\n"
     },
     {
-      "command": "docker rm --force --volumes localqa-t05-pg-5b6fc669",
+      "command": "docker rm --force --volumes localqa-t05-pg-eeca4c6c",
       "exitCode": 0,
       "signal": null,
-      "stdout": "localqa-t05-pg-5b6fc669\n",
+      "stdout": "localqa-t05-pg-eeca4c6c\n",
       "stderr": ""
     },
     {
-      "command": "docker inspect localqa-t05-pg-5b6fc669",
+      "command": "docker inspect localqa-t05-pg-eeca4c6c",
       "exitCode": 1,
       "signal": null,
       "stdout": "[]\n",
-      "stderr": "error: no such object: localqa-t05-pg-5b6fc669\n"
+      "stderr": "error: no such object: localqa-t05-pg-eeca4c6c\n"
     },
     {
-      "command": "docker logs localqa-t05-browser-5b6fc669",
+      "command": "docker logs localqa-t05-browser-eeca4c6c",
       "exitCode": 0,
       "signal": null,
-      "stdout": "{\"verticalSlice\":\"real_browser_passed\",\"runId\":\"51857042-24b0-43a0-8268-5a7ff30d1202\",\"summary\":{\"passed\":1,\"issueFound\":0,\"blocked\":0,\"inconclusive\":0,\"notRun\":0,\"planned\":1,\"evaluated\":1,\"attempted\":1,\"passRate\":1,\"attemptRate\":1},\"eventCount\":50,\"evidenceSha256\":\"b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb\"}\n✔ first vertical slice: Run+Job+event -> leased Worker -> real browser -> evidence/verdict -> sequential events (1305.23329ms)\n✔ create idempotency, duplicate job key and transaction rollback leave no second dispatch (18.883585ms)\n✔ atomic reservations: competing final call slot, settlements/idempotency and missing usage estimation (66.189343ms)\n✔ cancel <=2s: signal closes active real browser and no later intent/model dispatch (521.581118ms)\n✔ expired lease and old fencing denied; actionless preparation can safely requeue (1171.3937ms)\n✔ crash after persisted intent: unknown action never replayed; original interrupted and recovery verdict preserves facts (1375.284369ms)\n✔ budget exhaustion prevents extra provider requests and false completion (443.315761ms)\n✔ NOTIFY discarded: polling alone recovers all stages without listener (457.787999ms)\n✔ awaiting_input only with no other runnable task; deadline expires to partial/blocked result (130.826797ms)\n✔ runtime binding rejects forged run/task/lease IDs, forbidden roles/tools and foreign project proof (21.393579ms)\n✔ independent reproduction: original suspected, fresh context/same criteria/real new evidence required for confirmed (398.966801ms)\n✔ interrupted case is not replayed; another independent case runs in a fresh real context (1638.641007ms)\n✔ platform/project/run slots reserve atomically and rollback quota-denied claims (42.11051ms)\n✔ SIGKILL after real browser action before outcome: unknown intent retained and never replayed (1777.849027ms)\n✔ expired model reservation is charged conservatively; late reported usage is audit-only and old result rejected (1180.411ms)\n✔ clarification CAS resumes saved phase without changing fixed criteria or replaying actions (28.34925ms)\n✔ budget stop after plan preserves original tried result and independent not_run projection (280.930758ms)\n✔ one case input deadline blocks only that case; another queued independent case completes with real evidence (532.919287ms)\nℹ tests 18\nℹ suites 0\nℹ pass 18\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 11730.535795\n",
+      "stdout": "{\"verticalSlice\":\"real_browser_passed\",\"runId\":\"c1ba27ad-d781-4113-84ab-650102223aa4\",\"summary\":{\"passed\":1,\"issueFound\":0,\"blocked\":0,\"inconclusive\":0,\"notRun\":0,\"planned\":1,\"evaluated\":1,\"attempted\":1,\"passRate\":1,\"attemptRate\":1},\"eventCount\":50,\"evidenceSha256\":\"b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb\"}\n✔ first vertical slice: Run+Job+event -> leased Worker -> real browser -> evidence/verdict -> sequential events (1511.081988ms)\n✔ create idempotency, duplicate job key and transaction rollback leave no second dispatch (19.959439ms)\n✔ atomic reservations: competing final call slot, settlements/idempotency and missing usage estimation (87.144793ms)\n✔ cancel <=2s: signal closes active real browser and no later intent/model dispatch (513.613535ms)\n✔ expired lease and old fencing denied; actionless preparation can safely requeue (1149.978613ms)\n✔ crash after persisted intent: unknown action never replayed; original interrupted and recovery verdict preserves facts (1376.836713ms)\n✔ budget exhaustion prevents extra provider requests and false completion (539.242624ms)\n✔ NOTIFY discarded: polling alone recovers all stages without listener (503.090979ms)\n✔ awaiting_input only with no other runnable task; deadline expires to partial/blocked result (128.8993ms)\n✔ runtime binding rejects forged run/task/lease IDs, forbidden roles/tools and foreign project proof (22.145707ms)\n✔ independent reproduction: original suspected, fresh context/same criteria/real new evidence required for confirmed (455.007994ms)\n✔ interrupted case is not replayed; another independent case runs in a fresh real context (1778.281166ms)\n✔ platform/project/run slots reserve atomically and rollback quota-denied claims (56.7771ms)\n✔ SIGKILL after real browser action before outcome: unknown intent retained and never replayed (1921.102501ms)\n✔ expired model reservation is charged conservatively; late reported usage is audit-only and old result rejected (1147.674657ms)\n✔ clarification CAS resumes saved phase without changing fixed criteria or replaying actions (31.640558ms)\n✔ budget stop after plan preserves original tried result and independent not_run projection (326.696616ms)\n✔ one case input deadline blocks only that case; another queued independent case completes with real evidence (617.644474ms)\nℹ tests 18\nℹ suites 0\nℹ pass 18\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 12578.863822\n",
       "stderr": ""
     },
     {
-      "command": "docker rm --force --volumes localqa-t05-browser-5b6fc669",
+      "command": "docker rm --force --volumes localqa-t05-browser-eeca4c6c",
       "exitCode": 0,
       "signal": null,
-      "stdout": "localqa-t05-browser-5b6fc669\n",
+      "stdout": "localqa-t05-browser-eeca4c6c\n",
       "stderr": ""
     },
     {
-      "command": "docker inspect localqa-t05-browser-5b6fc669",
+      "command": "docker inspect localqa-t05-browser-eeca4c6c",
       "exitCode": 1,
       "signal": null,
       "stdout": "[]\n",
-      "stderr": "error: no such object: localqa-t05-browser-5b6fc669\n"
+      "stderr": "error: no such object: localqa-t05-browser-eeca4c6c\n"
     },
     {
-      "command": "docker volume inspect ccdd1bdc82a30310fab1d7a4895eebca4a90e1e6b684aefb0427af2f6140af94",
+      "command": "docker volume inspect b36c428f3283002a7997b9d5c314a10a4bf8aa905f0425a24db1acd6bd5b652c",
       "exitCode": 1,
       "signal": null,
       "stdout": "[]\n",
-      "stderr": "Error response from daemon: get ccdd1bdc82a30310fab1d7a4895eebca4a90e1e6b684aefb0427af2f6140af94: no such volume\n"
+      "stderr": "Error response from daemon: get b36c428f3283002a7997b9d5c314a10a4bf8aa905f0425a24db1acd6bd5b652c: no such volume\n"
     },
     {
-      "command": "docker network rm localqa-t05-5b6fc669",
+      "command": "docker network rm localqa-t05-eeca4c6c",
       "exitCode": 0,
       "signal": null,
-      "stdout": "localqa-t05-5b6fc669\n",
+      "stdout": "localqa-t05-eeca4c6c\n",
       "stderr": ""
     },
     {
-      "command": "docker network inspect localqa-t05-5b6fc669",
+      "command": "docker network inspect localqa-t05-eeca4c6c",
       "exitCode": 1,
       "signal": null,
       "stdout": "[]\n",
-      "stderr": "Error response from daemon: network localqa-t05-5b6fc669 not found\n"
+      "stderr": "Error response from daemon: network localqa-t05-eeca4c6c not found\n"
     }
   ],
   "installation": {
@@ -297,7 +297,7 @@
     "tests": [
       {
         "name": "cancel",
-        "elapsedMs": 276.6524459999998,
+        "elapsedMs": 273.2302930000001,
         "status": "cancelled"
       },
       {
@@ -307,7 +307,7 @@
       },
       {
         "name": "crash-recovery",
-        "originalAttempt": "75a496b9-c8cd-4a9e-af74-6ae91b98d2ce",
+        "originalAttempt": "b75ee7a8-35c2-449d-a40c-195b7faae421",
         "replayed": false
       },
       {
@@ -323,14 +323,14 @@
       {
         "name": "independent-reproduction",
         "finding": {
-          "id": "15a69a16-066d-434e-9d22-5b74fb824d27",
+          "id": "56d4ca99-e5e5-4203-9989-e30d411df591",
           "kind": "functional",
-          "runId": "acf96d36-59f1-4f1d-8ac1-198db8bd53fd",
+          "runId": "11501d51-ecc5-48d6-b81b-05185790ee88",
           "title": "Expected main",
           "actual": "Fixed sourced criterion failed",
           "status": "confirmed",
           "caseIds": [
-            "541add5b-26d4-4ab3-9e6b-c7d2d25b54b6"
+            "22809372-5c2a-4851-8a91-4133ddc90457"
           ],
           "version": 2,
           "expected": "Expected main",
@@ -340,37 +340,37 @@
             "Observe visible primary content"
           ],
           "evidenceRefs": [
-            "4ecdfe09-d2c8-428e-a5ce-18b4cdab6a4d"
+            "58ef6f93-e53c-4bc5-8a5e-7d298a4c35a1"
           ],
           "expectedSource": "user_spec",
-          "reproductionRef": "9dfc1cf4-449f-4312-a770-f93c158c3dc3",
+          "reproductionRef": "a8994f24-6c42-47b8-aa92-29d44a8ad5bb",
           "triageDisposition": "open"
         },
         "reproduction": {
-          "id": "9dfc1cf4-449f-4312-a770-f93c158c3dc3",
-          "taskId": "d45ab456-32b9-405c-9299-6adb8a241fcc",
+          "id": "a8994f24-6c42-47b8-aa92-29d44a8ad5bb",
+          "taskId": "14c74a5f-621d-45e2-91a8-5c730672c1d2",
           "outcome": "reproduced",
           "summary": "Independent reproduction: reproduced",
-          "createdAt": "2026-10-02T12:09:23.701Z",
-          "findingId": "15a69a16-066d-434e-9d22-5b74fb824d27",
+          "createdAt": "2026-10-02T12:14:35.555Z",
+          "findingId": "56d4ca99-e5e5-4203-9989-e30d411df591",
           "evidenceRefs": [
-            "985c0f5c-1f3e-4ec2-809e-83512fc85a90"
+            "57765fb7-7a16-4b43-830d-c5c569438b8a"
           ],
           "freshContext": true
         },
         "contexts": [
           {
-            "context_id": "49f06527-a087-4ee9-a11c-9aeb7da5a0ce"
+            "context_id": "8b5e13cf-fa28-445f-9006-7d044f909c24"
           },
           {
-            "context_id": "b9b04e38-1e9c-4706-a1e7-e1e66b2827b0"
+            "context_id": "639cc897-4ef0-4af4-845e-b6276e459ee7"
           }
         ],
         "sameCriteria": true
       },
       {
         "name": "independent-after-crash",
-        "interrupted": "00eb2525-3a95-4da5-b18e-9400984cda70",
+        "interrupted": "864eb58d-476a-4c03-bd1b-83f1c75812ae",
         "summary": {
           "passed": 1,
           "issueFound": 0,
@@ -385,15 +385,15 @@
         },
         "contexts": [
           {
-            "context_id": "df3e1935-dfc4-48d4-b05a-7cbe898a9281",
+            "context_id": "4757de87-77b2-48e0-af53-520590299206",
             "status": "interrupted"
           },
           {
-            "context_id": "818bf096-9fab-4b76-b95f-d6c7e745a50d",
+            "context_id": "5dba56c6-43bc-45f4-ac49-f0bdc9f9492c",
             "status": "completed"
           },
           {
-            "context_id": "107a43b6-8ca3-4c83-a8bc-f2c4574cbd9d",
+            "context_id": "47723fc5-3c2e-4c45-b316-04a6ae87347c",
             "status": "completed"
           }
         ]
@@ -415,8 +415,8 @@
           "event": "browserActionExecuted",
           "kind": "navigate",
           "responseStatus": 200,
-          "snapshotId": "a69333f1-e1be-459f-a129-0da76c105c7f",
-          "pid": 239
+          "snapshotId": "5474ca8e-329a-4830-9cd0-0cc2dfa9f0f0",
+          "pid": 242
         },
         "logs": "",
         "replayed": false
@@ -432,7 +432,7 @@
         },
         "lateAudit": {
           "role": "coordinator",
-          "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe",
+          "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375",
           "inputTokens": 11,
           "usageSource": "unknown",
           "outputTokens": 7,
@@ -477,15 +477,15 @@
     ],
     "verticalSlice": {
       "run": {
-        "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+        "id": "c1ba27ad-d781-4113-84ab-650102223aa4",
         "phase": "finalize",
         "status": "completed",
         "version": 8,
-        "createdAt": "2026-10-02T12:09:18.404Z",
-        "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
-        "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+        "createdAt": "2026-10-02T12:14:29.973Z",
+        "creatorId": "d4b8c4b8-e17d-4830-b89b-29374d9c5078",
+        "projectId": "64546c07-5e24-4930-b4ca-6d1d12bc9459",
         "targetUrl": "http://localhost:8080/",
-        "updatedAt": "2026-10-02T12:09:19.110Z",
+        "updatedAt": "2026-10-02T12:14:30.780Z",
         "budgetUsed": {
           "actions": 5,
           "modelCalls": 7,
@@ -511,23 +511,23 @@
           "models": {
             "executor": {
               "version": 1,
-              "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+              "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
             },
             "explorer": {
               "version": 1,
-              "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+              "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
             },
             "assertion": {
               "version": 1,
-              "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+              "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
             },
             "reproducer": {
               "version": 1,
-              "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+              "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
             },
             "coordinator": {
               "version": 1,
-              "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+              "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
             }
           },
           "actionPolicy": "non_submitting",
@@ -553,13 +553,13 @@
         "attemptRate": 1
       },
       "verdict": {
-        "id": "a3549d25-bc59-4d34-b1af-c86039deb3bd",
+        "id": "da68c771-1aee-48fc-b097-92540df5bf08",
         "gaps": [],
-        "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+        "caseId": "dca44fb3-4aac-4705-856a-a52ecaa29680",
         "status": "passed",
         "summary": "Fixed criteria evaluated against owned observations",
-        "attemptId": "c2d5d6a3-937c-4daa-8652-d0763d06b2f9",
-        "createdAt": "2026-10-02T12:09:19.078Z",
+        "attemptId": "e2cd2aaf-f777-4178-a0e8-7da2a6572f2f",
+        "createdAt": "2026-10-02T12:14:30.746Z",
         "reasonCode": "OBSERVED",
         "criterionResults": [
           {
@@ -567,7 +567,7 @@
             "result": "passed",
             "criterionId": "smoke.http",
             "evidenceRefs": [
-              "cd6a4a5b-25ac-4a14-8f62-384ab9b28f70"
+              "abe64c61-a7e7-47b3-862a-bfb1c9c0e229"
             ]
           },
           {
@@ -575,46 +575,46 @@
             "result": "passed",
             "criterionId": "smoke.visible",
             "evidenceRefs": [
-              "cd6a4a5b-25ac-4a14-8f62-384ab9b28f70"
+              "abe64c61-a7e7-47b3-862a-bfb1c9c0e229"
             ]
           }
         ]
       },
       "material": {
-        "id": "cd6a4a5b-25ac-4a14-8f62-384ab9b28f70",
+        "id": "abe64c61-a7e7-47b3-862a-bfb1c9c0e229",
         "kind": "screenshot",
         "bytes": 265850,
         "error": null,
-        "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
-        "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+        "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
+        "caseId": "dca44fb3-4aac-4705-856a-a52ecaa29680",
         "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
         "status": "available",
-        "stepId": "955f2b18-2773-48c4-8293-dfea4deb79e2",
-        "taskId": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
-        "createdAt": "2026-10-02T12:09:19.046Z",
-        "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+        "stepId": "f2fdf82b-fa47-4176-b849-94a424d8a9c5",
+        "taskId": "e6f65ea6-7c1f-4b9a-a584-a38ff108fc65",
+        "createdAt": "2026-10-02T12:14:30.712Z",
+        "projectId": "64546c07-5e24-4930-b4ca-6d1d12bc9459",
         "redaction": "not_needed",
-        "contentUrl": "/api/v1/projects/808285aa-c17a-4374-a917-da40196d832a/runs/51857042-24b0-43a0-8268-5a7ff30d1202/artifacts/cd6a4a5b-25ac-4a14-8f62-384ab9b28f70/content",
+        "contentUrl": "/api/v1/projects/64546c07-5e24-4930-b4ca-6d1d12bc9459/runs/c1ba27ad-d781-4113-84ab-650102223aa4/artifacts/abe64c61-a7e7-47b3-862a-bfb1c9c0e229/content",
         "snapshotId": null
       },
       "events": [
         {
           "schemaVersion": 1,
           "id": "1",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 1,
           "type": "run.updated",
-          "at": "2026-10-02T12:09:18.402Z",
+          "at": "2026-10-02T12:14:29.972Z",
           "payload": {
-            "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "id": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "phase": "preflight",
             "status": "queued",
             "version": 1,
-            "createdAt": "2026-10-02T12:09:18.404Z",
-            "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
-            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "createdAt": "2026-10-02T12:14:29.973Z",
+            "creatorId": "d4b8c4b8-e17d-4830-b89b-29374d9c5078",
+            "projectId": "64546c07-5e24-4930-b4ca-6d1d12bc9459",
             "targetUrl": "http://localhost:8080/",
-            "updatedAt": "2026-10-02T12:09:18.404Z",
+            "updatedAt": "2026-10-02T12:14:29.973Z",
             "budgetUsed": {
               "actions": 0,
               "modelCalls": 0,
@@ -640,23 +640,23 @@
               "models": {
                 "executor": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "explorer": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "assertion": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "reproducer": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "coordinator": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 }
               },
               "actionPolicy": "non_submitting",
@@ -673,14 +673,14 @@
         {
           "schemaVersion": 1,
           "id": "2",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 2,
           "type": "task.updated",
-          "at": "2026-10-02T12:09:18.402Z",
+          "at": "2026-10-02T12:14:29.972Z",
           "payload": {
-            "id": "60d0d6ba-7e2e-4c61-99aa-a540424614c5",
+            "id": "f837411b-3c6f-4d36-8d4d-80003d1d884c",
             "role": "coordinator",
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "caseId": null,
             "status": "queued",
             "attempt": 1,
@@ -691,20 +691,20 @@
         {
           "schemaVersion": 1,
           "id": "3",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 3,
           "type": "run.updated",
-          "at": "2026-10-02T12:09:18.450Z",
+          "at": "2026-10-02T12:14:30.034Z",
           "payload": {
-            "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "id": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "phase": "preflight",
             "status": "running",
             "version": 2,
-            "createdAt": "2026-10-02T12:09:18.404Z",
-            "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
-            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "createdAt": "2026-10-02T12:14:29.973Z",
+            "creatorId": "d4b8c4b8-e17d-4830-b89b-29374d9c5078",
+            "projectId": "64546c07-5e24-4930-b4ca-6d1d12bc9459",
             "targetUrl": "http://localhost:8080/",
-            "updatedAt": "2026-10-02T12:09:18.455Z",
+            "updatedAt": "2026-10-02T12:14:30.040Z",
             "budgetUsed": {
               "actions": 0,
               "modelCalls": 0,
@@ -730,23 +730,23 @@
               "models": {
                 "executor": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "explorer": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "assertion": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "reproducer": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "coordinator": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 }
               },
               "actionPolicy": "non_submitting",
@@ -763,10 +763,10 @@
         {
           "schemaVersion": 1,
           "id": "4",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 4,
           "type": "budget.updated",
-          "at": "2026-10-02T12:09:18.474Z",
+          "at": "2026-10-02T12:14:30.074Z",
           "payload": {
             "used": {
               "actions": 0,
@@ -792,14 +792,14 @@
         {
           "schemaVersion": 1,
           "id": "5",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 5,
           "type": "task.updated",
-          "at": "2026-10-02T12:09:18.478Z",
+          "at": "2026-10-02T12:14:30.080Z",
           "payload": {
-            "id": "60d0d6ba-7e2e-4c61-99aa-a540424614c5",
+            "id": "f837411b-3c6f-4d36-8d4d-80003d1d884c",
             "role": "coordinator",
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "caseId": null,
             "status": "succeeded",
             "attempt": 1,
@@ -810,10 +810,10 @@
         {
           "schemaVersion": 1,
           "id": "6",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 6,
           "type": "phase.changed",
-          "at": "2026-10-02T12:09:18.483Z",
+          "at": "2026-10-02T12:14:30.087Z",
           "payload": {
             "phase": "auth",
             "contextVersion": 1
@@ -822,20 +822,20 @@
         {
           "schemaVersion": 1,
           "id": "7",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 7,
           "type": "run.updated",
-          "at": "2026-10-02T12:09:18.483Z",
+          "at": "2026-10-02T12:14:30.087Z",
           "payload": {
-            "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "id": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "phase": "auth",
             "status": "running",
             "version": 3,
-            "createdAt": "2026-10-02T12:09:18.404Z",
-            "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
-            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "createdAt": "2026-10-02T12:14:29.973Z",
+            "creatorId": "d4b8c4b8-e17d-4830-b89b-29374d9c5078",
+            "projectId": "64546c07-5e24-4930-b4ca-6d1d12bc9459",
             "targetUrl": "http://localhost:8080/",
-            "updatedAt": "2026-10-02T12:09:18.485Z",
+            "updatedAt": "2026-10-02T12:14:30.089Z",
             "budgetUsed": {
               "actions": 0,
               "modelCalls": 1,
@@ -861,23 +861,23 @@
               "models": {
                 "executor": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "explorer": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "assertion": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "reproducer": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "coordinator": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 }
               },
               "actionPolicy": "non_submitting",
@@ -894,10 +894,10 @@
         {
           "schemaVersion": 1,
           "id": "8",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 8,
           "type": "phase.changed",
-          "at": "2026-10-02T12:09:18.483Z",
+          "at": "2026-10-02T12:14:30.087Z",
           "payload": {
             "phase": "explore",
             "contextVersion": 1
@@ -906,20 +906,20 @@
         {
           "schemaVersion": 1,
           "id": "9",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 9,
           "type": "run.updated",
-          "at": "2026-10-02T12:09:18.483Z",
+          "at": "2026-10-02T12:14:30.087Z",
           "payload": {
-            "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "id": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "phase": "explore",
             "status": "running",
             "version": 4,
-            "createdAt": "2026-10-02T12:09:18.404Z",
-            "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
-            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "createdAt": "2026-10-02T12:14:29.973Z",
+            "creatorId": "d4b8c4b8-e17d-4830-b89b-29374d9c5078",
+            "projectId": "64546c07-5e24-4930-b4ca-6d1d12bc9459",
             "targetUrl": "http://localhost:8080/",
-            "updatedAt": "2026-10-02T12:09:18.487Z",
+            "updatedAt": "2026-10-02T12:14:30.092Z",
             "budgetUsed": {
               "actions": 0,
               "modelCalls": 1,
@@ -945,23 +945,23 @@
               "models": {
                 "executor": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "explorer": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "assertion": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "reproducer": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "coordinator": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 }
               },
               "actionPolicy": "non_submitting",
@@ -978,14 +978,14 @@
         {
           "schemaVersion": 1,
           "id": "10",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 10,
           "type": "task.updated",
-          "at": "2026-10-02T12:09:18.483Z",
+          "at": "2026-10-02T12:14:30.087Z",
           "payload": {
-            "id": "e02be45b-8ef7-4074-b574-f17a6eb106a4",
+            "id": "3470c0e8-b7b3-49f3-8d74-7905418d80f3",
             "role": "explorer",
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "caseId": null,
             "status": "queued",
             "attempt": 1,
@@ -996,20 +996,20 @@
         {
           "schemaVersion": 1,
           "id": "11",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 11,
           "type": "step.recorded",
-          "at": "2026-10-02T12:09:18.607Z",
+          "at": "2026-10-02T12:14:30.218Z",
           "payload": {
-            "id": "a886e3ee-7548-44c8-acec-5c8d4f38455e",
+            "id": "dc168789-b63b-4ee7-afa1-29c633bfa44d",
             "seq": 1,
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "caseId": null,
             "status": "running",
-            "taskId": "e02be45b-8ef7-4074-b574-f17a6eb106a4",
+            "taskId": "3470c0e8-b7b3-49f3-8d74-7905418d80f3",
             "summary": "Action intent persisted before execution",
             "toolName": "navigate",
-            "createdAt": "2026-10-02T12:09:18.614Z",
+            "createdAt": "2026-10-02T12:14:30.227Z",
             "finishedAt": null,
             "evidenceRefs": [],
             "targetDescription": "navigate"
@@ -1018,10 +1018,10 @@
         {
           "schemaVersion": 1,
           "id": "12",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 12,
           "type": "budget.updated",
-          "at": "2026-10-02T12:09:18.701Z",
+          "at": "2026-10-02T12:14:30.333Z",
           "payload": {
             "used": {
               "actions": 1,
@@ -1047,21 +1047,21 @@
         {
           "schemaVersion": 1,
           "id": "13",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 13,
           "type": "step.recorded",
-          "at": "2026-10-02T12:09:18.701Z",
+          "at": "2026-10-02T12:14:30.333Z",
           "payload": {
-            "id": "a886e3ee-7548-44c8-acec-5c8d4f38455e",
+            "id": "dc168789-b63b-4ee7-afa1-29c633bfa44d",
             "seq": 1,
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "caseId": null,
             "status": "succeeded",
-            "taskId": "e02be45b-8ef7-4074-b574-f17a6eb106a4",
+            "taskId": "3470c0e8-b7b3-49f3-8d74-7905418d80f3",
             "summary": "Browser succeeded",
             "toolName": "navigate",
-            "createdAt": "2026-10-02T12:09:18.614Z",
-            "finishedAt": "2026-10-02T12:09:18.713Z",
+            "createdAt": "2026-10-02T12:14:30.227Z",
+            "finishedAt": "2026-10-02T12:14:30.347Z",
             "evidenceRefs": [],
             "targetDescription": "navigate"
           }
@@ -1069,10 +1069,10 @@
         {
           "schemaVersion": 1,
           "id": "14",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 14,
           "type": "budget.updated",
-          "at": "2026-10-02T12:09:18.732Z",
+          "at": "2026-10-02T12:14:30.358Z",
           "payload": {
             "used": {
               "actions": 1,
@@ -1098,20 +1098,20 @@
         {
           "schemaVersion": 1,
           "id": "15",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 15,
           "type": "step.recorded",
-          "at": "2026-10-02T12:09:18.736Z",
+          "at": "2026-10-02T12:14:30.363Z",
           "payload": {
-            "id": "8b57875b-9595-46be-9de7-c70fca18d9d7",
+            "id": "f7ccf920-e872-4c24-aa5b-54021a56afe0",
             "seq": 2,
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "caseId": null,
             "status": "running",
-            "taskId": "e02be45b-8ef7-4074-b574-f17a6eb106a4",
+            "taskId": "3470c0e8-b7b3-49f3-8d74-7905418d80f3",
             "summary": "Action intent persisted before execution",
             "toolName": "observe",
-            "createdAt": "2026-10-02T12:09:18.739Z",
+            "createdAt": "2026-10-02T12:14:30.365Z",
             "finishedAt": null,
             "evidenceRefs": [],
             "targetDescription": "observe"
@@ -1120,10 +1120,10 @@
         {
           "schemaVersion": 1,
           "id": "16",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 16,
           "type": "budget.updated",
-          "at": "2026-10-02T12:09:18.747Z",
+          "at": "2026-10-02T12:14:30.377Z",
           "payload": {
             "used": {
               "actions": 2,
@@ -1149,21 +1149,21 @@
         {
           "schemaVersion": 1,
           "id": "17",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 17,
           "type": "step.recorded",
-          "at": "2026-10-02T12:09:18.747Z",
+          "at": "2026-10-02T12:14:30.377Z",
           "payload": {
-            "id": "8b57875b-9595-46be-9de7-c70fca18d9d7",
+            "id": "f7ccf920-e872-4c24-aa5b-54021a56afe0",
             "seq": 2,
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "caseId": null,
             "status": "succeeded",
-            "taskId": "e02be45b-8ef7-4074-b574-f17a6eb106a4",
+            "taskId": "3470c0e8-b7b3-49f3-8d74-7905418d80f3",
             "summary": "Browser succeeded",
             "toolName": "observe",
-            "createdAt": "2026-10-02T12:09:18.739Z",
-            "finishedAt": "2026-10-02T12:09:18.752Z",
+            "createdAt": "2026-10-02T12:14:30.365Z",
+            "finishedAt": "2026-10-02T12:14:30.383Z",
             "evidenceRefs": [],
             "targetDescription": "observe"
           }
@@ -1171,10 +1171,10 @@
         {
           "schemaVersion": 1,
           "id": "18",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 18,
           "type": "budget.updated",
-          "at": "2026-10-02T12:09:18.758Z",
+          "at": "2026-10-02T12:14:30.391Z",
           "payload": {
             "used": {
               "actions": 2,
@@ -1200,14 +1200,14 @@
         {
           "schemaVersion": 1,
           "id": "19",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 19,
           "type": "task.updated",
-          "at": "2026-10-02T12:09:18.762Z",
+          "at": "2026-10-02T12:14:30.396Z",
           "payload": {
-            "id": "e02be45b-8ef7-4074-b574-f17a6eb106a4",
+            "id": "3470c0e8-b7b3-49f3-8d74-7905418d80f3",
             "role": "explorer",
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "caseId": null,
             "status": "succeeded",
             "attempt": 1,
@@ -1218,10 +1218,10 @@
         {
           "schemaVersion": 1,
           "id": "20",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 20,
           "type": "phase.changed",
-          "at": "2026-10-02T12:09:18.771Z",
+          "at": "2026-10-02T12:14:30.406Z",
           "payload": {
             "phase": "plan",
             "contextVersion": 1
@@ -1230,20 +1230,20 @@
         {
           "schemaVersion": 1,
           "id": "21",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 21,
           "type": "run.updated",
-          "at": "2026-10-02T12:09:18.771Z",
+          "at": "2026-10-02T12:14:30.406Z",
           "payload": {
-            "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "id": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "phase": "plan",
             "status": "running",
             "version": 5,
-            "createdAt": "2026-10-02T12:09:18.404Z",
-            "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
-            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "createdAt": "2026-10-02T12:14:29.973Z",
+            "creatorId": "d4b8c4b8-e17d-4830-b89b-29374d9c5078",
+            "projectId": "64546c07-5e24-4930-b4ca-6d1d12bc9459",
             "targetUrl": "http://localhost:8080/",
-            "updatedAt": "2026-10-02T12:09:18.774Z",
+            "updatedAt": "2026-10-02T12:14:30.409Z",
             "budgetUsed": {
               "actions": 2,
               "modelCalls": 3,
@@ -1269,23 +1269,23 @@
               "models": {
                 "executor": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "explorer": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "assertion": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "reproducer": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "coordinator": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 }
               },
               "actionPolicy": "non_submitting",
@@ -1302,14 +1302,14 @@
         {
           "schemaVersion": 1,
           "id": "22",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 22,
           "type": "task.updated",
-          "at": "2026-10-02T12:09:18.771Z",
+          "at": "2026-10-02T12:14:30.406Z",
           "payload": {
-            "id": "8954dfd4-4467-40b2-b24a-605b76c8ab6f",
+            "id": "c047a832-8dad-4cf3-a803-f0e4c6cbbb32",
             "role": "coordinator",
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "caseId": null,
             "status": "queued",
             "attempt": 1,
@@ -1320,10 +1320,10 @@
         {
           "schemaVersion": 1,
           "id": "23",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 23,
           "type": "budget.updated",
-          "at": "2026-10-02T12:09:18.783Z",
+          "at": "2026-10-02T12:14:30.419Z",
           "payload": {
             "used": {
               "actions": 2,
@@ -1349,14 +1349,14 @@
         {
           "schemaVersion": 1,
           "id": "24",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 24,
           "type": "task.updated",
-          "at": "2026-10-02T12:09:18.785Z",
+          "at": "2026-10-02T12:14:30.422Z",
           "payload": {
-            "id": "8954dfd4-4467-40b2-b24a-605b76c8ab6f",
+            "id": "c047a832-8dad-4cf3-a803-f0e4c6cbbb32",
             "role": "coordinator",
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "caseId": null,
             "status": "succeeded",
             "attempt": 1,
@@ -1367,13 +1367,13 @@
         {
           "schemaVersion": 1,
           "id": "25",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 25,
           "type": "case.created",
-          "at": "2026-10-02T12:09:18.789Z",
+          "at": "2026-10-02T12:14:30.426Z",
           "payload": {
-            "id": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "id": "dca44fb3-4aac-4705-856a-a52ecaa29680",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "title": "Entry smoke 1",
             "outline": [
               "Navigate http://localhost:8080/",
@@ -1405,7 +1405,7 @@
                 "description": "Visible primary content"
               }
             ],
-            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "projectId": "64546c07-5e24-4930-b4ca-6d1d12bc9459",
             "preconditions": [
               "Fresh context; approved authentication only"
             ]
@@ -1414,10 +1414,10 @@
         {
           "schemaVersion": 1,
           "id": "26",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 26,
           "type": "phase.changed",
-          "at": "2026-10-02T12:09:18.789Z",
+          "at": "2026-10-02T12:14:30.426Z",
           "payload": {
             "phase": "execute",
             "contextVersion": 1
@@ -1426,20 +1426,20 @@
         {
           "schemaVersion": 1,
           "id": "27",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 27,
           "type": "run.updated",
-          "at": "2026-10-02T12:09:18.789Z",
+          "at": "2026-10-02T12:14:30.426Z",
           "payload": {
-            "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "id": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "phase": "execute",
             "status": "running",
             "version": 6,
-            "createdAt": "2026-10-02T12:09:18.404Z",
-            "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
-            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "createdAt": "2026-10-02T12:14:29.973Z",
+            "creatorId": "d4b8c4b8-e17d-4830-b89b-29374d9c5078",
+            "projectId": "64546c07-5e24-4930-b4ca-6d1d12bc9459",
             "targetUrl": "http://localhost:8080/",
-            "updatedAt": "2026-10-02T12:09:18.795Z",
+            "updatedAt": "2026-10-02T12:14:30.431Z",
             "budgetUsed": {
               "actions": 2,
               "modelCalls": 4,
@@ -1465,23 +1465,23 @@
               "models": {
                 "executor": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "explorer": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "assertion": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "reproducer": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "coordinator": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 }
               },
               "actionPolicy": "non_submitting",
@@ -1498,15 +1498,15 @@
         {
           "schemaVersion": 1,
           "id": "28",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 28,
           "type": "task.updated",
-          "at": "2026-10-02T12:09:18.789Z",
+          "at": "2026-10-02T12:14:30.426Z",
           "payload": {
-            "id": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+            "id": "e6f65ea6-7c1f-4b9a-a584-a38ff108fc65",
             "role": "executor",
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
-            "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
+            "caseId": "dca44fb3-4aac-4705-856a-a52ecaa29680",
             "status": "queued",
             "attempt": 1,
             "summary": "execute",
@@ -1516,20 +1516,20 @@
         {
           "schemaVersion": 1,
           "id": "29",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 29,
           "type": "step.recorded",
-          "at": "2026-10-02T12:09:18.822Z",
+          "at": "2026-10-02T12:14:30.460Z",
           "payload": {
-            "id": "b3bfb55f-5ea8-4efd-8ab5-de2d877d243f",
+            "id": "937fba43-c70b-4c23-a2a8-6f659f00fc9c",
             "seq": 1,
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
-            "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
+            "caseId": "dca44fb3-4aac-4705-856a-a52ecaa29680",
             "status": "running",
-            "taskId": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+            "taskId": "e6f65ea6-7c1f-4b9a-a584-a38ff108fc65",
             "summary": "Action intent persisted before execution",
             "toolName": "navigate",
-            "createdAt": "2026-10-02T12:09:18.825Z",
+            "createdAt": "2026-10-02T12:14:30.464Z",
             "finishedAt": null,
             "evidenceRefs": [],
             "targetDescription": "navigate"
@@ -1538,10 +1538,10 @@
         {
           "schemaVersion": 1,
           "id": "30",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 30,
           "type": "budget.updated",
-          "at": "2026-10-02T12:09:18.869Z",
+          "at": "2026-10-02T12:14:30.514Z",
           "payload": {
             "used": {
               "actions": 3,
@@ -1567,21 +1567,21 @@
         {
           "schemaVersion": 1,
           "id": "31",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 31,
           "type": "step.recorded",
-          "at": "2026-10-02T12:09:18.869Z",
+          "at": "2026-10-02T12:14:30.514Z",
           "payload": {
-            "id": "b3bfb55f-5ea8-4efd-8ab5-de2d877d243f",
+            "id": "937fba43-c70b-4c23-a2a8-6f659f00fc9c",
             "seq": 1,
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
-            "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
+            "caseId": "dca44fb3-4aac-4705-856a-a52ecaa29680",
             "status": "succeeded",
-            "taskId": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+            "taskId": "e6f65ea6-7c1f-4b9a-a584-a38ff108fc65",
             "summary": "Browser succeeded",
             "toolName": "navigate",
-            "createdAt": "2026-10-02T12:09:18.825Z",
-            "finishedAt": "2026-10-02T12:09:18.875Z",
+            "createdAt": "2026-10-02T12:14:30.464Z",
+            "finishedAt": "2026-10-02T12:14:30.523Z",
             "evidenceRefs": [],
             "targetDescription": "navigate"
           }
@@ -1589,10 +1589,10 @@
         {
           "schemaVersion": 1,
           "id": "32",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 32,
           "type": "budget.updated",
-          "at": "2026-10-02T12:09:18.881Z",
+          "at": "2026-10-02T12:14:30.531Z",
           "payload": {
             "used": {
               "actions": 3,
@@ -1618,20 +1618,20 @@
         {
           "schemaVersion": 1,
           "id": "33",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 33,
           "type": "step.recorded",
-          "at": "2026-10-02T12:09:18.885Z",
+          "at": "2026-10-02T12:14:30.537Z",
           "payload": {
-            "id": "d8dfcee0-1e12-42e1-ab1c-149b64a83e7f",
+            "id": "f1c1e2f9-da56-40ad-a32a-2e3005d4645c",
             "seq": 2,
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
-            "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
+            "caseId": "dca44fb3-4aac-4705-856a-a52ecaa29680",
             "status": "running",
-            "taskId": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+            "taskId": "e6f65ea6-7c1f-4b9a-a584-a38ff108fc65",
             "summary": "Action intent persisted before execution",
             "toolName": "observe",
-            "createdAt": "2026-10-02T12:09:18.888Z",
+            "createdAt": "2026-10-02T12:14:30.540Z",
             "finishedAt": null,
             "evidenceRefs": [],
             "targetDescription": "observe"
@@ -1640,10 +1640,10 @@
         {
           "schemaVersion": 1,
           "id": "34",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 34,
           "type": "budget.updated",
-          "at": "2026-10-02T12:09:18.900Z",
+          "at": "2026-10-02T12:14:30.554Z",
           "payload": {
             "used": {
               "actions": 4,
@@ -1669,21 +1669,21 @@
         {
           "schemaVersion": 1,
           "id": "35",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 35,
           "type": "step.recorded",
-          "at": "2026-10-02T12:09:18.900Z",
+          "at": "2026-10-02T12:14:30.554Z",
           "payload": {
-            "id": "d8dfcee0-1e12-42e1-ab1c-149b64a83e7f",
+            "id": "f1c1e2f9-da56-40ad-a32a-2e3005d4645c",
             "seq": 2,
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
-            "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
+            "caseId": "dca44fb3-4aac-4705-856a-a52ecaa29680",
             "status": "succeeded",
-            "taskId": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+            "taskId": "e6f65ea6-7c1f-4b9a-a584-a38ff108fc65",
             "summary": "Browser succeeded",
             "toolName": "observe",
-            "createdAt": "2026-10-02T12:09:18.888Z",
-            "finishedAt": "2026-10-02T12:09:18.904Z",
+            "createdAt": "2026-10-02T12:14:30.540Z",
+            "finishedAt": "2026-10-02T12:14:30.559Z",
             "evidenceRefs": [],
             "targetDescription": "observe"
           }
@@ -1691,10 +1691,10 @@
         {
           "schemaVersion": 1,
           "id": "36",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 36,
           "type": "budget.updated",
-          "at": "2026-10-02T12:09:18.910Z",
+          "at": "2026-10-02T12:14:30.567Z",
           "payload": {
             "used": {
               "actions": 4,
@@ -1720,20 +1720,20 @@
         {
           "schemaVersion": 1,
           "id": "37",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 37,
           "type": "step.recorded",
-          "at": "2026-10-02T12:09:18.913Z",
+          "at": "2026-10-02T12:14:30.571Z",
           "payload": {
-            "id": "955f2b18-2773-48c4-8293-dfea4deb79e2",
+            "id": "f2fdf82b-fa47-4176-b849-94a424d8a9c5",
             "seq": 3,
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
-            "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
+            "caseId": "dca44fb3-4aac-4705-856a-a52ecaa29680",
             "status": "running",
-            "taskId": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+            "taskId": "e6f65ea6-7c1f-4b9a-a584-a38ff108fc65",
             "summary": "Action intent persisted before execution",
             "toolName": "capture",
-            "createdAt": "2026-10-02T12:09:18.916Z",
+            "createdAt": "2026-10-02T12:14:30.572Z",
             "finishedAt": null,
             "evidenceRefs": [],
             "targetDescription": "capture"
@@ -1742,35 +1742,35 @@
         {
           "schemaVersion": 1,
           "id": "38",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 38,
           "type": "artifact.updated",
-          "at": "2026-10-02T12:09:19.064Z",
+          "at": "2026-10-02T12:14:30.730Z",
           "payload": {
-            "id": "cd6a4a5b-25ac-4a14-8f62-384ab9b28f70",
+            "id": "abe64c61-a7e7-47b3-862a-bfb1c9c0e229",
             "kind": "screenshot",
             "bytes": 265850,
             "error": null,
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
-            "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
+            "caseId": "dca44fb3-4aac-4705-856a-a52ecaa29680",
             "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
             "status": "available",
-            "stepId": "955f2b18-2773-48c4-8293-dfea4deb79e2",
-            "taskId": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
-            "createdAt": "2026-10-02T12:09:19.046Z",
-            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "stepId": "f2fdf82b-fa47-4176-b849-94a424d8a9c5",
+            "taskId": "e6f65ea6-7c1f-4b9a-a584-a38ff108fc65",
+            "createdAt": "2026-10-02T12:14:30.712Z",
+            "projectId": "64546c07-5e24-4930-b4ca-6d1d12bc9459",
             "redaction": "not_needed",
-            "contentUrl": "/api/v1/projects/808285aa-c17a-4374-a917-da40196d832a/runs/51857042-24b0-43a0-8268-5a7ff30d1202/artifacts/cd6a4a5b-25ac-4a14-8f62-384ab9b28f70/content",
+            "contentUrl": "/api/v1/projects/64546c07-5e24-4930-b4ca-6d1d12bc9459/runs/c1ba27ad-d781-4113-84ab-650102223aa4/artifacts/abe64c61-a7e7-47b3-862a-bfb1c9c0e229/content",
             "snapshotId": null
           }
         },
         {
           "schemaVersion": 1,
           "id": "39",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 39,
           "type": "budget.updated",
-          "at": "2026-10-02T12:09:19.066Z",
+          "at": "2026-10-02T12:14:30.732Z",
           "payload": {
             "used": {
               "actions": 5,
@@ -1796,23 +1796,23 @@
         {
           "schemaVersion": 1,
           "id": "40",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 40,
           "type": "step.recorded",
-          "at": "2026-10-02T12:09:19.066Z",
+          "at": "2026-10-02T12:14:30.732Z",
           "payload": {
-            "id": "955f2b18-2773-48c4-8293-dfea4deb79e2",
+            "id": "f2fdf82b-fa47-4176-b849-94a424d8a9c5",
             "seq": 3,
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
-            "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
+            "caseId": "dca44fb3-4aac-4705-856a-a52ecaa29680",
             "status": "succeeded",
-            "taskId": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+            "taskId": "e6f65ea6-7c1f-4b9a-a584-a38ff108fc65",
             "summary": "Browser succeeded",
             "toolName": "capture",
-            "createdAt": "2026-10-02T12:09:18.916Z",
-            "finishedAt": "2026-10-02T12:09:19.068Z",
+            "createdAt": "2026-10-02T12:14:30.572Z",
+            "finishedAt": "2026-10-02T12:14:30.734Z",
             "evidenceRefs": [
-              "cd6a4a5b-25ac-4a14-8f62-384ab9b28f70"
+              "abe64c61-a7e7-47b3-862a-bfb1c9c0e229"
             ],
             "targetDescription": "capture"
           }
@@ -1820,10 +1820,10 @@
         {
           "schemaVersion": 1,
           "id": "41",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 41,
           "type": "budget.updated",
-          "at": "2026-10-02T12:09:19.074Z",
+          "at": "2026-10-02T12:14:30.741Z",
           "payload": {
             "used": {
               "actions": 5,
@@ -1849,20 +1849,20 @@
         {
           "schemaVersion": 1,
           "id": "42",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 42,
           "type": "case.result",
-          "at": "2026-10-02T12:09:19.077Z",
+          "at": "2026-10-02T12:14:30.745Z",
           "payload": {
             "outcome": "passed",
             "verdict": {
-              "id": "a3549d25-bc59-4d34-b1af-c86039deb3bd",
+              "id": "da68c771-1aee-48fc-b097-92540df5bf08",
               "gaps": [],
-              "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+              "caseId": "dca44fb3-4aac-4705-856a-a52ecaa29680",
               "status": "passed",
               "summary": "Fixed criteria evaluated against owned observations",
-              "attemptId": "c2d5d6a3-937c-4daa-8652-d0763d06b2f9",
-              "createdAt": "2026-10-02T12:09:19.078Z",
+              "attemptId": "e2cd2aaf-f777-4178-a0e8-7da2a6572f2f",
+              "createdAt": "2026-10-02T12:14:30.746Z",
               "reasonCode": "OBSERVED",
               "criterionResults": [
                 {
@@ -1870,7 +1870,7 @@
                   "result": "passed",
                   "criterionId": "smoke.http",
                   "evidenceRefs": [
-                    "cd6a4a5b-25ac-4a14-8f62-384ab9b28f70"
+                    "abe64c61-a7e7-47b3-862a-bfb1c9c0e229"
                   ]
                 },
                 {
@@ -1878,14 +1878,14 @@
                   "result": "passed",
                   "criterionId": "smoke.visible",
                   "evidenceRefs": [
-                    "cd6a4a5b-25ac-4a14-8f62-384ab9b28f70"
+                    "abe64c61-a7e7-47b3-862a-bfb1c9c0e229"
                   ]
                 }
               ]
             },
             "definition": {
-              "id": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
-              "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+              "id": "dca44fb3-4aac-4705-856a-a52ecaa29680",
+              "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
               "title": "Entry smoke 1",
               "outline": [
                 "Navigate http://localhost:8080/",
@@ -1917,7 +1917,7 @@
                   "description": "Visible primary content"
                 }
               ],
-              "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+              "projectId": "64546c07-5e24-4930-b4ca-6d1d12bc9459",
               "preconditions": [
                 "Fresh context; approved authentication only"
               ]
@@ -1927,15 +1927,15 @@
         {
           "schemaVersion": 1,
           "id": "43",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 43,
           "type": "task.updated",
-          "at": "2026-10-02T12:09:19.077Z",
+          "at": "2026-10-02T12:14:30.745Z",
           "payload": {
-            "id": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
+            "id": "e6f65ea6-7c1f-4b9a-a584-a38ff108fc65",
             "role": "executor",
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
-            "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
+            "caseId": "dca44fb3-4aac-4705-856a-a52ecaa29680",
             "status": "succeeded",
             "attempt": 1,
             "summary": "execute",
@@ -1945,10 +1945,10 @@
         {
           "schemaVersion": 1,
           "id": "44",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 44,
           "type": "phase.changed",
-          "at": "2026-10-02T12:09:19.089Z",
+          "at": "2026-10-02T12:14:30.760Z",
           "payload": {
             "phase": "finalize",
             "contextVersion": 1
@@ -1957,20 +1957,20 @@
         {
           "schemaVersion": 1,
           "id": "45",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 45,
           "type": "run.updated",
-          "at": "2026-10-02T12:09:19.089Z",
+          "at": "2026-10-02T12:14:30.760Z",
           "payload": {
-            "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "id": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "phase": "finalize",
             "status": "running",
             "version": 7,
-            "createdAt": "2026-10-02T12:09:18.404Z",
-            "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
-            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "createdAt": "2026-10-02T12:14:29.973Z",
+            "creatorId": "d4b8c4b8-e17d-4830-b89b-29374d9c5078",
+            "projectId": "64546c07-5e24-4930-b4ca-6d1d12bc9459",
             "targetUrl": "http://localhost:8080/",
-            "updatedAt": "2026-10-02T12:09:19.093Z",
+            "updatedAt": "2026-10-02T12:14:30.764Z",
             "budgetUsed": {
               "actions": 5,
               "modelCalls": 7,
@@ -1996,23 +1996,23 @@
               "models": {
                 "executor": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "explorer": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "assertion": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "reproducer": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "coordinator": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 }
               },
               "actionPolicy": "non_submitting",
@@ -2029,14 +2029,14 @@
         {
           "schemaVersion": 1,
           "id": "46",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 46,
           "type": "task.updated",
-          "at": "2026-10-02T12:09:19.089Z",
+          "at": "2026-10-02T12:14:30.760Z",
           "payload": {
-            "id": "e7a49a01-6cf4-4f2a-bc5d-ee42c3b7affb",
+            "id": "f8a4d63a-831c-4bfd-a301-74714224f37f",
             "role": "finalizer",
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "caseId": null,
             "status": "queued",
             "attempt": 1,
@@ -2047,14 +2047,14 @@
         {
           "schemaVersion": 1,
           "id": "47",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 47,
           "type": "task.updated",
-          "at": "2026-10-02T12:09:19.102Z",
+          "at": "2026-10-02T12:14:30.771Z",
           "payload": {
-            "id": "e7a49a01-6cf4-4f2a-bc5d-ee42c3b7affb",
+            "id": "f8a4d63a-831c-4bfd-a301-74714224f37f",
             "role": "finalizer",
-            "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "caseId": null,
             "status": "succeeded",
             "attempt": 1,
@@ -2065,20 +2065,20 @@
         {
           "schemaVersion": 1,
           "id": "48",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 48,
           "type": "run.updated",
-          "at": "2026-10-02T12:09:19.105Z",
+          "at": "2026-10-02T12:14:30.775Z",
           "payload": {
-            "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "id": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "phase": "finalize",
             "status": "completed",
             "version": 8,
-            "createdAt": "2026-10-02T12:09:18.404Z",
-            "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
-            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "createdAt": "2026-10-02T12:14:29.973Z",
+            "creatorId": "d4b8c4b8-e17d-4830-b89b-29374d9c5078",
+            "projectId": "64546c07-5e24-4930-b4ca-6d1d12bc9459",
             "targetUrl": "http://localhost:8080/",
-            "updatedAt": "2026-10-02T12:09:19.110Z",
+            "updatedAt": "2026-10-02T12:14:30.780Z",
             "budgetUsed": {
               "actions": 5,
               "modelCalls": 7,
@@ -2104,23 +2104,23 @@
               "models": {
                 "executor": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "explorer": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "assertion": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "reproducer": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "coordinator": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 }
               },
               "actionPolicy": "non_submitting",
@@ -2137,12 +2137,12 @@
         {
           "schemaVersion": 1,
           "id": "49",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 49,
           "type": "report.ready",
-          "at": "2026-10-02T12:09:19.105Z",
+          "at": "2026-10-02T12:14:30.775Z",
           "payload": {
-            "generatedAt": "2026-10-02T12:09:19.112Z",
+            "generatedAt": "2026-10-02T12:14:30.781Z",
             "reportVersion": 8,
             "schemaVersion": 1
           }
@@ -2150,20 +2150,20 @@
         {
           "schemaVersion": 1,
           "id": "50",
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
           "seq": 50,
           "type": "run.finished",
-          "at": "2026-10-02T12:09:19.105Z",
+          "at": "2026-10-02T12:14:30.775Z",
           "payload": {
-            "id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+            "id": "c1ba27ad-d781-4113-84ab-650102223aa4",
             "phase": "finalize",
             "status": "completed",
             "version": 8,
-            "createdAt": "2026-10-02T12:09:18.404Z",
-            "creatorId": "73be27ae-a5c1-4350-89b0-f9c6369b19c5",
-            "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+            "createdAt": "2026-10-02T12:14:29.973Z",
+            "creatorId": "d4b8c4b8-e17d-4830-b89b-29374d9c5078",
+            "projectId": "64546c07-5e24-4930-b4ca-6d1d12bc9459",
             "targetUrl": "http://localhost:8080/",
-            "updatedAt": "2026-10-02T12:09:19.110Z",
+            "updatedAt": "2026-10-02T12:14:30.780Z",
             "budgetUsed": {
               "actions": 5,
               "modelCalls": 7,
@@ -2189,23 +2189,23 @@
               "models": {
                 "executor": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "explorer": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "assertion": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "reproducer": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 },
                 "coordinator": {
                   "version": 1,
-                  "profileId": "9aa1ca97-9b5d-4ba6-95b3-f00e009a1afe"
+                  "profileId": "77ca068e-f6fb-4568-af7e-56b59c6c1375"
                 }
               },
               "actionPolicy": "non_submitting",
@@ -2222,7 +2222,7 @@
       ],
       "browserContextIds": [
         {
-          "context_id": "9312ae92-f4d5-4961-ae50-94033117311f"
+          "context_id": "aac7ba90-4491-495a-9132-38d51bc2ebac"
         }
       ],
       "stubAssertionRejected": {
@@ -2293,7 +2293,7 @@
             "--hide-scrollbars",
             "--mute-audio",
             "--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4",
-            "--user-data-dir=/work/apps/worker/.evidence/tmp/playwright_chromiumdev_profile-3pMpNa",
+            "--user-data-dir=/work/apps/worker/.evidence/tmp/playwright_chromiumdev_profile-1H8GIY",
             "--remote-debugging-pipe",
             "--no-startup-window"
           ],
@@ -2307,134 +2307,134 @@
     "stubProviderCalls": 60,
     "allMaterialHashes": [
       {
-        "id": "17a6f79e-e670-4379-9c83-80568a150e1c",
-        "project_id": "f10a5f27-5579-4c55-9856-90e7ce0a02e3",
-        "run_id": "0238bc48-1e5d-4acf-8219-934a1d3df7ec",
+        "id": "043e4691-c7ca-4729-a606-456f041e3c05",
+        "project_id": "898d79a2-297d-42c5-84bc-6d4fb9a77675",
+        "run_id": "8423a147-0939-4049-8e66-25ce77727540",
         "document": {
-          "id": "17a6f79e-e670-4379-9c83-80568a150e1c",
+          "id": "043e4691-c7ca-4729-a606-456f041e3c05",
           "kind": "screenshot",
           "bytes": 265850,
           "error": null,
-          "runId": "0238bc48-1e5d-4acf-8219-934a1d3df7ec",
-          "caseId": "acc61a68-c001-4a13-920d-5ebc603be3c5",
+          "runId": "8423a147-0939-4049-8e66-25ce77727540",
+          "caseId": "2ee36623-cc42-4459-aa8c-ebc7271a7636",
           "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
           "status": "available",
-          "stepId": "9552f0ba-62cf-4405-bb93-5224bea898a5",
-          "taskId": "54127407-33eb-410a-bcef-faffcfe863a2",
-          "createdAt": "2026-10-02T12:09:23.128Z",
-          "projectId": "f10a5f27-5579-4c55-9856-90e7ce0a02e3",
+          "stepId": "3f2278b3-f3df-4a32-ad3f-8038864acbef",
+          "taskId": "61eb02c5-4278-4c24-9682-95b457937a47",
+          "createdAt": "2026-10-02T12:14:41.389Z",
+          "projectId": "898d79a2-297d-42c5-84bc-6d4fb9a77675",
           "redaction": "not_needed",
-          "contentUrl": "/api/v1/projects/f10a5f27-5579-4c55-9856-90e7ce0a02e3/runs/0238bc48-1e5d-4acf-8219-934a1d3df7ec/artifacts/17a6f79e-e670-4379-9c83-80568a150e1c/content",
+          "contentUrl": "/api/v1/projects/898d79a2-297d-42c5-84bc-6d4fb9a77675/runs/8423a147-0939-4049-8e66-25ce77727540/artifacts/043e4691-c7ca-4729-a606-456f041e3c05/content",
           "snapshotId": null
         }
       },
       {
-        "id": "1900e653-23c8-475e-94a8-53a2a0103253",
-        "project_id": "fb2c0eec-9fa4-4ef3-aa13-1ef14e94eab3",
-        "run_id": "d7e7e702-6544-476f-9422-8b16ded658ab",
+        "id": "57765fb7-7a16-4b43-830d-c5c569438b8a",
+        "project_id": "af07eaea-ce69-4d2b-a6f7-860c9e9eafaa",
+        "run_id": "11501d51-ecc5-48d6-b81b-05185790ee88",
         "document": {
-          "id": "1900e653-23c8-475e-94a8-53a2a0103253",
-          "kind": "screenshot",
-          "bytes": 265850,
-          "error": null,
-          "runId": "d7e7e702-6544-476f-9422-8b16ded658ab",
-          "caseId": "e9cc2421-6cfb-4d20-873d-7ddaf3217fca",
-          "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
-          "status": "available",
-          "stepId": "9b0079ec-406a-4b8b-8658-670e58ae005d",
-          "taskId": "6e904d0d-3812-4270-a237-76c8c7cf0844",
-          "createdAt": "2026-10-02T12:09:25.306Z",
-          "projectId": "fb2c0eec-9fa4-4ef3-aa13-1ef14e94eab3",
-          "redaction": "not_needed",
-          "contentUrl": "/api/v1/projects/fb2c0eec-9fa4-4ef3-aa13-1ef14e94eab3/runs/d7e7e702-6544-476f-9422-8b16ded658ab/artifacts/1900e653-23c8-475e-94a8-53a2a0103253/content",
-          "snapshotId": null
-        }
-      },
-      {
-        "id": "4ecdfe09-d2c8-428e-a5ce-18b4cdab6a4d",
-        "project_id": "beab29a8-26a5-4528-a9f3-7c982c273bb3",
-        "run_id": "acf96d36-59f1-4f1d-8ac1-198db8bd53fd",
-        "document": {
-          "id": "4ecdfe09-d2c8-428e-a5ce-18b4cdab6a4d",
+          "id": "57765fb7-7a16-4b43-830d-c5c569438b8a",
           "kind": "screenshot",
           "bytes": 4254,
           "error": null,
-          "runId": "acf96d36-59f1-4f1d-8ac1-198db8bd53fd",
-          "caseId": "541add5b-26d4-4ab3-9e6b-c7d2d25b54b6",
+          "runId": "11501d51-ecc5-48d6-b81b-05185790ee88",
+          "caseId": "22809372-5c2a-4851-8a91-4133ddc90457",
           "sha256": "3878570f4a62a0d65f57cf1754e0269e56ec797f4e36e26b44c172eb6e800401",
           "status": "available",
-          "stepId": "9345b7ff-f213-4fe1-ba26-0b0732c95418",
-          "taskId": "111bf1ff-43ac-42fb-8391-6c6f6a3588ad",
-          "createdAt": "2026-10-02T12:09:23.549Z",
-          "projectId": "beab29a8-26a5-4528-a9f3-7c982c273bb3",
+          "stepId": "707a4bcb-76b1-4993-9e8d-af67745e2a43",
+          "taskId": "14c74a5f-621d-45e2-91a8-5c730672c1d2",
+          "createdAt": "2026-10-02T12:14:35.535Z",
+          "projectId": "af07eaea-ce69-4d2b-a6f7-860c9e9eafaa",
           "redaction": "not_needed",
-          "contentUrl": "/api/v1/projects/beab29a8-26a5-4528-a9f3-7c982c273bb3/runs/acf96d36-59f1-4f1d-8ac1-198db8bd53fd/artifacts/4ecdfe09-d2c8-428e-a5ce-18b4cdab6a4d/content",
+          "contentUrl": "/api/v1/projects/af07eaea-ce69-4d2b-a6f7-860c9e9eafaa/runs/11501d51-ecc5-48d6-b81b-05185790ee88/artifacts/57765fb7-7a16-4b43-830d-c5c569438b8a/content",
           "snapshotId": null
         }
       },
       {
-        "id": "985c0f5c-1f3e-4ec2-809e-83512fc85a90",
-        "project_id": "beab29a8-26a5-4528-a9f3-7c982c273bb3",
-        "run_id": "acf96d36-59f1-4f1d-8ac1-198db8bd53fd",
+        "id": "58ef6f93-e53c-4bc5-8a5e-7d298a4c35a1",
+        "project_id": "af07eaea-ce69-4d2b-a6f7-860c9e9eafaa",
+        "run_id": "11501d51-ecc5-48d6-b81b-05185790ee88",
         "document": {
-          "id": "985c0f5c-1f3e-4ec2-809e-83512fc85a90",
+          "id": "58ef6f93-e53c-4bc5-8a5e-7d298a4c35a1",
           "kind": "screenshot",
           "bytes": 4254,
           "error": null,
-          "runId": "acf96d36-59f1-4f1d-8ac1-198db8bd53fd",
-          "caseId": "541add5b-26d4-4ab3-9e6b-c7d2d25b54b6",
+          "runId": "11501d51-ecc5-48d6-b81b-05185790ee88",
+          "caseId": "22809372-5c2a-4851-8a91-4133ddc90457",
           "sha256": "3878570f4a62a0d65f57cf1754e0269e56ec797f4e36e26b44c172eb6e800401",
           "status": "available",
-          "stepId": "90446453-9c0d-48cc-9fa1-3fe8cf2c96e0",
-          "taskId": "d45ab456-32b9-405c-9299-6adb8a241fcc",
-          "createdAt": "2026-10-02T12:09:23.685Z",
-          "projectId": "beab29a8-26a5-4528-a9f3-7c982c273bb3",
+          "stepId": "ec0285a0-ebe3-45a4-a1fc-04a9391f5837",
+          "taskId": "cfd535ea-2aee-4b09-b846-7890ef44df84",
+          "createdAt": "2026-10-02T12:14:35.389Z",
+          "projectId": "af07eaea-ce69-4d2b-a6f7-860c9e9eafaa",
           "redaction": "not_needed",
-          "contentUrl": "/api/v1/projects/beab29a8-26a5-4528-a9f3-7c982c273bb3/runs/acf96d36-59f1-4f1d-8ac1-198db8bd53fd/artifacts/985c0f5c-1f3e-4ec2-809e-83512fc85a90/content",
+          "contentUrl": "/api/v1/projects/af07eaea-ce69-4d2b-a6f7-860c9e9eafaa/runs/11501d51-ecc5-48d6-b81b-05185790ee88/artifacts/58ef6f93-e53c-4bc5-8a5e-7d298a4c35a1/content",
           "snapshotId": null
         }
       },
       {
-        "id": "cd6a4a5b-25ac-4a14-8f62-384ab9b28f70",
-        "project_id": "808285aa-c17a-4374-a917-da40196d832a",
-        "run_id": "51857042-24b0-43a0-8268-5a7ff30d1202",
+        "id": "715185df-bc48-4e6a-b8a1-b098a04e60a9",
+        "project_id": "0acf7042-1f6d-4f37-8f22-7c8319dc8cc6",
+        "run_id": "be02e68c-d5b4-48c7-a802-813ccf47e39a",
         "document": {
-          "id": "cd6a4a5b-25ac-4a14-8f62-384ab9b28f70",
+          "id": "715185df-bc48-4e6a-b8a1-b098a04e60a9",
           "kind": "screenshot",
           "bytes": 265850,
           "error": null,
-          "runId": "51857042-24b0-43a0-8268-5a7ff30d1202",
-          "caseId": "795e8f8f-ad75-4b62-88a9-7d922a0cc857",
+          "runId": "be02e68c-d5b4-48c7-a802-813ccf47e39a",
+          "caseId": "4accc97d-b0dc-48b7-885d-3835bddacf8b",
           "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
           "status": "available",
-          "stepId": "955f2b18-2773-48c4-8293-dfea4deb79e2",
-          "taskId": "c209523c-a1c0-4aef-98a4-7dd1debf310d",
-          "createdAt": "2026-10-02T12:09:19.046Z",
-          "projectId": "808285aa-c17a-4374-a917-da40196d832a",
+          "stepId": "c4ac99d8-b933-4e50-8d73-61ffa63b4867",
+          "taskId": "238b2656-4aec-475b-be65-e59c9428901d",
+          "createdAt": "2026-10-02T12:14:34.930Z",
+          "projectId": "0acf7042-1f6d-4f37-8f22-7c8319dc8cc6",
           "redaction": "not_needed",
-          "contentUrl": "/api/v1/projects/808285aa-c17a-4374-a917-da40196d832a/runs/51857042-24b0-43a0-8268-5a7ff30d1202/artifacts/cd6a4a5b-25ac-4a14-8f62-384ab9b28f70/content",
+          "contentUrl": "/api/v1/projects/0acf7042-1f6d-4f37-8f22-7c8319dc8cc6/runs/be02e68c-d5b4-48c7-a802-813ccf47e39a/artifacts/715185df-bc48-4e6a-b8a1-b098a04e60a9/content",
           "snapshotId": null
         }
       },
       {
-        "id": "d2dd1af8-5f40-44fe-9201-5983a1d59e7a",
-        "project_id": "1d33eade-c6d9-4582-bf4b-b9c0b7ec25d9",
-        "run_id": "04667a48-8344-4066-a8f2-7be87b3b43a7",
+        "id": "abe64c61-a7e7-47b3-862a-bfb1c9c0e229",
+        "project_id": "64546c07-5e24-4930-b4ca-6d1d12bc9459",
+        "run_id": "c1ba27ad-d781-4113-84ab-650102223aa4",
         "document": {
-          "id": "d2dd1af8-5f40-44fe-9201-5983a1d59e7a",
+          "id": "abe64c61-a7e7-47b3-862a-bfb1c9c0e229",
           "kind": "screenshot",
           "bytes": 265850,
           "error": null,
-          "runId": "04667a48-8344-4066-a8f2-7be87b3b43a7",
-          "caseId": "e571e072-d4e0-4b39-8ff6-e18990423ba7",
+          "runId": "c1ba27ad-d781-4113-84ab-650102223aa4",
+          "caseId": "dca44fb3-4aac-4705-856a-a52ecaa29680",
           "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
           "status": "available",
-          "stepId": "fafc8d9c-bfc9-493f-874d-84c489b874fb",
-          "taskId": "22c0b7d3-1a11-4031-8525-10df7ac1af7f",
-          "createdAt": "2026-10-02T12:09:29.162Z",
-          "projectId": "1d33eade-c6d9-4582-bf4b-b9c0b7ec25d9",
+          "stepId": "f2fdf82b-fa47-4176-b849-94a424d8a9c5",
+          "taskId": "e6f65ea6-7c1f-4b9a-a584-a38ff108fc65",
+          "createdAt": "2026-10-02T12:14:30.712Z",
+          "projectId": "64546c07-5e24-4930-b4ca-6d1d12bc9459",
           "redaction": "not_needed",
-          "contentUrl": "/api/v1/projects/1d33eade-c6d9-4582-bf4b-b9c0b7ec25d9/runs/04667a48-8344-4066-a8f2-7be87b3b43a7/artifacts/d2dd1af8-5f40-44fe-9201-5983a1d59e7a/content",
+          "contentUrl": "/api/v1/projects/64546c07-5e24-4930-b4ca-6d1d12bc9459/runs/c1ba27ad-d781-4113-84ab-650102223aa4/artifacts/abe64c61-a7e7-47b3-862a-bfb1c9c0e229/content",
+          "snapshotId": null
+        }
+      },
+      {
+        "id": "dad4a920-046a-4426-be71-f6eca4011f5b",
+        "project_id": "b4eb084a-ebd3-4054-8da7-18e43d72c071",
+        "run_id": "fe3655fe-2010-492f-b3c2-0defc72f98d6",
+        "document": {
+          "id": "dad4a920-046a-4426-be71-f6eca4011f5b",
+          "kind": "screenshot",
+          "bytes": 265850,
+          "error": null,
+          "runId": "fe3655fe-2010-492f-b3c2-0defc72f98d6",
+          "caseId": "91af402c-3d4a-4af5-bcd3-7ad6be63f001",
+          "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
+          "status": "available",
+          "stepId": "459d5d2e-f998-4696-9dac-b2e6d0793bf9",
+          "taskId": "d812cc47-cff8-4f76-b72d-6ba099966722",
+          "createdAt": "2026-10-02T12:14:37.291Z",
+          "projectId": "b4eb084a-ebd3-4054-8da7-18e43d72c071",
+          "redaction": "not_needed",
+          "contentUrl": "/api/v1/projects/b4eb084a-ebd3-4054-8da7-18e43d72c071/runs/fe3655fe-2010-492f-b3c2-0defc72f98d6/artifacts/dad4a920-046a-4426-be71-f6eca4011f5b/content",
           "snapshotId": null
         }
       }
@@ -3248,22 +3248,22 @@
   "cleanup": {
     "containers": [
       {
-        "name": "localqa-t05-pg-5b6fc669",
+        "name": "localqa-t05-pg-eeca4c6c",
         "absent": true
       },
       {
-        "name": "localqa-t05-browser-5b6fc669",
+        "name": "localqa-t05-browser-eeca4c6c",
         "absent": true
       }
     ],
     "volumes": [
       {
-        "name": "ccdd1bdc82a30310fab1d7a4895eebca4a90e1e6b684aefb0427af2f6140af94",
+        "name": "b36c428f3283002a7997b9d5c314a10a4bf8aa905f0425a24db1acd6bd5b652c",
         "absent": true
       }
     ],
     "network": {
-      "name": "localqa-t05-5b6fc669",
+      "name": "localqa-t05-eeca4c6c",
       "absent": true
     },
     "credentialsAbsent": true
