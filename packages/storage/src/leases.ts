@@ -1,0 +1,405 @@
+import { randomUUID } from 'node:crypto';
+import type { PoolClient } from 'pg';
+import { parseContract } from '@localqa/contracts';
+import type {
+  Lease,
+  Task,
+  HeartbeatResult,
+  TaskComplete,
+  Verdict,
+  CredentialMaterial,
+} from '@localqa/contracts';
+import { Database, StorageError } from './database.js';
+import type { WorkerScope } from './database.js';
+import { newToken, hashToken, hashPayload, SecretVault } from './crypto.js';
+import { appendEvent } from './repositories.js';
+
+export type LeaseProof = {
+  taskId: string;
+  fencingToken: number;
+  leaseToken: string;
+  contextVersion: number;
+};
+type JobRow = {
+  id: string;
+  project_id: string;
+  run_id: string;
+  worker_id: string | null;
+  lease_until: Date | null;
+  fencing_token: string;
+  status: Task['status'];
+  document: Task;
+  context_version: number;
+  run_status: string;
+};
+const dto = (row: JobRow): Task =>
+  parseContract('Task', { ...row.document, status: row.status });
+function duration(seconds: number): void {
+  if (!Number.isSafeInteger(seconds) || seconds < 1 || seconds > 45)
+    throw new StorageError('VALIDATION_ERROR');
+}
+export async function claimTask(
+  client: PoolClient,
+  scope: WorkerScope,
+  leaseSeconds = 45,
+): Promise<Lease | null> {
+  duration(leaseSeconds);
+  // Run lock serializes a claim with cancellation/archive transitions, while two
+  // claimants retain compatible share locks and SKIP LOCKED the same task row.
+  const row = (
+    await client.query<JobRow>(
+      `SELECT j.*,r.context_version,r.status run_status FROM jobs j JOIN runs r ON r.id=j.run_id WHERE j.project_id=$1 AND j.status='queued' AND j.available_at<=clock_timestamp() AND r.status IN ('queued','running') ORDER BY j.available_at,j.id FOR UPDATE OF j SKIP LOCKED LIMIT 1`,
+      [scope.projectId],
+    )
+  ).rows[0];
+  if (!row) return null;
+  const run = (
+    await client.query<{ context_version: number; status: string }>(
+      'SELECT context_version,status FROM runs WHERE project_id=$1 AND id=$2 FOR SHARE',
+      [scope.projectId, row.run_id],
+    )
+  ).rows[0];
+  if (!run || !['queued', 'running'].includes(run.status)) return null;
+  const updated = (
+    await client.query<JobRow>(
+      `UPDATE jobs SET status='running',worker_id=$2,lease_until=clock_timestamp()+$3::integer*interval '1 second',fencing_token=fencing_token+1 WHERE id=$1 AND status='queued' RETURNING *`,
+      [row.id, scope.workerId, leaseSeconds],
+    )
+  ).rows[0]!;
+  const token = newToken();
+  await client.query(
+    'INSERT INTO task_leases(id,project_id,task_id,worker_id,fencing_token,token_hash,lease_until) VALUES($1,$2,$3,$4,$5,$6,$7)',
+    [
+      randomUUID(),
+      scope.projectId,
+      row.id,
+      scope.workerId,
+      updated.fencing_token,
+      hashToken(token),
+      updated.lease_until,
+    ],
+  );
+  return parseContract('Lease', {
+    task: dto(updated),
+    fencingToken: Number(updated.fencing_token),
+    leaseToken: token,
+    leaseUntil: updated.lease_until!.toISOString(),
+    contextVersion: run.context_version,
+  });
+}
+async function currentLease(
+  client: PoolClient,
+  scope: WorkerScope,
+  proof: LeaseProof,
+  heartbeat = false,
+): Promise<JobRow> {
+  const row = (
+    await client.query<JobRow>(
+      `SELECT j.*,r.context_version,r.status run_status FROM jobs j JOIN runs r ON r.id=j.run_id JOIN task_leases l ON l.task_id=j.id AND l.fencing_token=j.fencing_token WHERE j.project_id=$1 AND j.id=$2 AND j.worker_id=$3 AND j.fencing_token=$4 AND j.status='running' AND j.lease_until>clock_timestamp() AND l.lease_until>clock_timestamp() AND l.released_at IS NULL AND l.token_hash=$5 FOR UPDATE OF j,l`,
+      [
+        scope.projectId,
+        proof.taskId,
+        scope.workerId,
+        proof.fencingToken,
+        hashToken(proof.leaseToken),
+      ],
+    )
+  ).rows[0];
+  if (!row) throw new StorageError('LEASE_EXPIRED');
+  const run = (
+    await client.query<{ context_version: number; status: string }>(
+      'SELECT context_version,status FROM runs WHERE project_id=$1 AND id=$2 FOR UPDATE',
+      [scope.projectId, row.run_id],
+    )
+  ).rows[0];
+  if (!run) throw new StorageError('LEASE_EXPIRED');
+  row.context_version = run.context_version;
+  row.run_status = run.status;
+  if (
+    !heartbeat &&
+    (row.context_version !== proof.contextVersion ||
+      row.run_status !== 'running')
+  )
+    throw new StorageError('LEASE_EXPIRED');
+  return row;
+}
+export class LeaseRepository {
+  constructor(private db: Database) {}
+  claim(scope: WorkerScope, seconds = 45): Promise<Lease | null> {
+    return this.db.worker(scope, (client) => claimTask(client, scope, seconds));
+  }
+  heartbeat(
+    scope: WorkerScope,
+    proof: LeaseProof,
+    seconds = 45,
+  ): Promise<HeartbeatResult> {
+    duration(seconds);
+    return this.db.worker(scope, async (client) => {
+      const job = await currentLease(client, scope, proof, true);
+      const result = await client.query<{ lease_until: Date }>(
+        `UPDATE jobs SET lease_until=clock_timestamp()+$2::integer*interval '1 second' WHERE id=$1 RETURNING lease_until`,
+        [job.id, seconds],
+      );
+      await client.query(
+        'UPDATE task_leases SET lease_until=$3 WHERE task_id=$1 AND fencing_token=$2 AND released_at IS NULL',
+        [job.id, proof.fencingToken, result.rows[0]!.lease_until],
+      );
+      return parseContract('HeartbeatResult', {
+        leaseUntil: result.rows[0]!.lease_until.toISOString(),
+        cancelRequested: !['queued', 'running'].includes(job.run_status),
+        contextVersion: job.context_version,
+      });
+    });
+  }
+  complete(
+    scope: WorkerScope,
+    proof: LeaseProof,
+    input: TaskComplete,
+  ): Promise<Task> {
+    const data = parseContract('TaskComplete', input);
+    if (data.fencingToken !== proof.fencingToken)
+      throw new StorageError('LEASE_EXPIRED');
+    return this.db.worker(scope, async (client) => {
+      const candidate = (
+        await client.query<JobRow & { result_hash: string }>(
+          'SELECT j.*,r.context_version,r.status run_status FROM jobs j JOIN runs r ON r.id=j.run_id JOIN task_leases l ON l.task_id=j.id AND l.fencing_token=j.fencing_token WHERE j.id=$1 AND j.project_id=$2 AND j.worker_id=$3 AND j.fencing_token=$4 AND l.token_hash=$5 FOR UPDATE OF j',
+          [
+            proof.taskId,
+            scope.projectId,
+            scope.workerId,
+            proof.fencingToken,
+            hashToken(proof.leaseToken),
+          ],
+        )
+      ).rows[0];
+      if (!candidate) throw new StorageError('LEASE_EXPIRED');
+      if (
+        ['succeeded', 'failed', 'cancelled', 'interrupted'].includes(
+          candidate.status,
+        )
+      ) {
+        if (
+          candidate.status !== data.status ||
+          candidate.result_hash !== data.resultHash ||
+          hashPayload(data.result) !== data.resultHash
+        )
+          throw new StorageError('IDEMPOTENCY_CONFLICT');
+        return dto(candidate);
+      }
+      const job = await currentLease(client, scope, proof);
+      if (hashPayload(data.result) !== data.resultHash)
+        throw new StorageError('VALIDATION_ERROR');
+      // Structured role-specific result validation/atomic verdict submission is T05.
+      const updated = (
+        await client.query<JobRow>(
+          'UPDATE jobs SET status=$2,result_hash=$3,result=$4 WHERE id=$1 RETURNING *',
+          [job.id, data.status, data.resultHash, data.result],
+        )
+      ).rows[0]!;
+      await client.query(
+        'UPDATE task_leases SET released_at=clock_timestamp() WHERE task_id=$1 AND fencing_token=$2',
+        [job.id, proof.fencingToken],
+      );
+      await appendEvent(
+        client,
+        scope.projectId,
+        job.run_id,
+        'task.updated',
+        dto(updated),
+      );
+      return dto(updated);
+    });
+  }
+  submitVerdict(
+    scope: WorkerScope,
+    proof: LeaseProof,
+    input: Verdict,
+    payloadHash = hashPayload(input),
+  ): Promise<Verdict> {
+    const verdict = parseContract('Verdict', input);
+    return this.db.worker(scope, async (client) => {
+      const job = await currentLease(client, scope, proof);
+      const attempt = (
+        await client.query<{ task_id: string; case_id: string }>(
+          'SELECT task_id,case_id FROM case_attempts WHERE project_id=$1 AND id=$2',
+          [scope.projectId, verdict.attemptId],
+        )
+      ).rows[0];
+      if (
+        !attempt ||
+        attempt.task_id !== job.id ||
+        attempt.case_id !== verdict.caseId
+      )
+        throw new StorageError('NOT_FOUND');
+      const previous = (
+        await client.query<{ document: Verdict; payload_hash: string }>(
+          'SELECT document,payload_hash FROM verdicts WHERE project_id=$1 AND attempt_id=$2',
+          [scope.projectId, verdict.attemptId],
+        )
+      ).rows[0];
+      if (previous) {
+        if (
+          previous.payload_hash !== payloadHash ||
+          hashPayload(verdict) !== payloadHash
+        )
+          throw new StorageError('IDEMPOTENCY_CONFLICT');
+        return parseContract('Verdict', previous.document);
+      }
+      if (hashPayload(verdict) !== payloadHash)
+        throw new StorageError('VALIDATION_ERROR');
+      await client.query(
+        'INSERT INTO verdicts(id,project_id,case_id,attempt_id,document,payload_hash,fencing_token) VALUES($1,$2,$3,$4,$5,$6,$7)',
+        [
+          verdict.id,
+          scope.projectId,
+          verdict.caseId,
+          verdict.attemptId,
+          verdict,
+          payloadHash,
+          proof.fencingToken,
+        ],
+      );
+      return verdict;
+    });
+  }
+  recoverExpired(
+    scope: WorkerScope,
+  ): Promise<{ requeued: number; interrupted: number }> {
+    return this.db.worker(scope, async (client) => {
+      const rows = await client.query<JobRow>(
+        "SELECT j.*,r.context_version,r.status run_status FROM jobs j JOIN runs r ON r.id=j.run_id WHERE j.project_id=$1 AND j.status='running' AND j.lease_until<=clock_timestamp() FOR UPDATE OF j SKIP LOCKED",
+        [scope.projectId],
+      );
+      let requeued = 0,
+        interrupted = 0;
+      for (const job of rows.rows) {
+        const acted = Boolean(
+          (
+            await client.query(
+              'SELECT 1 FROM action_intents WHERE project_id=$1 AND task_id=$2 LIMIT 1',
+              [scope.projectId, job.id],
+            )
+          ).rowCount,
+        );
+        const canRetry =
+          !acted && ['queued', 'running'].includes(job.run_status);
+        await client.query(
+          'UPDATE jobs SET status=$2,worker_id=NULL,lease_until=NULL WHERE id=$1',
+          [job.id, canRetry ? 'queued' : 'interrupted'],
+        );
+        await client.query(
+          "UPDATE action_intents SET outcome='unknown' WHERE task_id=$1 AND project_id=$2 AND outcome='pending'",
+          [job.id, scope.projectId],
+        );
+        await client.query(
+          "UPDATE case_attempts SET status='interrupted',finished_at=clock_timestamp() WHERE project_id=$1 AND task_id=$2 AND status IN ('queued','running')",
+          [scope.projectId, job.id],
+        );
+        // Unknown model/action reservations are charged conservatively, not released as zero.
+        const reservations = await client.query<{
+          id: string;
+          run_id: string;
+          reserved: Record<string, number>;
+        }>(
+          "SELECT id,run_id,reserved FROM budget_reservations WHERE project_id=$1 AND task_id=$2 AND status='reserved' FOR UPDATE",
+          [scope.projectId, job.id],
+        );
+        for (const reservation of reservations.rows) {
+          const budget = (
+            await client.query<{
+              used: Record<string, number>;
+              reserved: Record<string, number>;
+            }>(
+              'SELECT used,reserved FROM run_budgets WHERE run_id=$1 FOR UPDATE',
+              [reservation.run_id],
+            )
+          ).rows[0]!;
+          for (const [key, value] of Object.entries(reservation.reserved)) {
+            budget.used[key] = (budget.used[key] ?? 0) + value;
+            budget.reserved[key] = Math.max(
+              0,
+              (budget.reserved[key] ?? 0) - value,
+            );
+          }
+          await client.query(
+            'UPDATE run_budgets SET used=$2,reserved=$3 WHERE run_id=$1',
+            [reservation.run_id, budget.used, budget.reserved],
+          );
+          await client.query(
+            "UPDATE budget_reservations SET status='unknown',charged=reserved WHERE id=$1",
+            [reservation.id],
+          );
+        }
+        await client.query(
+          'UPDATE task_leases SET released_at=clock_timestamp() WHERE task_id=$1 AND fencing_token=$2',
+          [job.id, job.fencing_token],
+        );
+        await client.query(
+          "INSERT INTO audit_log(project_id,action,object_id,result) VALUES($1,'lease.expired',$2,$3)",
+          [scope.projectId, job.id, canRetry ? 'requeued' : 'interrupted'],
+        );
+        if (canRetry) requeued++;
+        else interrupted++;
+      }
+      return { requeued, interrupted };
+    });
+  }
+  async resolveAuth(
+    scope: WorkerScope,
+    proof: LeaseProof,
+    authProfileId: string,
+    authProfileVersion: number,
+    vault: SecretVault,
+  ): Promise<CredentialMaterial> {
+    return this.db.worker(scope, async (client) => {
+      const job = await currentLease(client, scope, proof);
+      const row = (
+        await client.query<{
+          document: { mode: CredentialMaterial['mode'] };
+          secret_id: string | null;
+          secret_version: number | null;
+        }>(
+          'SELECT v.document,v.secret_id,v.secret_version FROM auth_profiles p JOIN auth_profile_versions v ON v.auth_profile_id=p.id AND v.project_id=p.project_id JOIN runs r ON r.auth_profile_id=p.id AND r.auth_profile_version=v.version WHERE p.project_id=$1 AND p.id=$2 AND v.version=$3 AND r.id=$4 AND NOT p.revoked',
+          [scope.projectId, authProfileId, authProfileVersion, job.run_id],
+        )
+      ).rows[0];
+      if (!row) throw new StorageError('NOT_FOUND');
+      let material = {};
+      if (row.secret_id) {
+        const secret = (
+          await client.query<{
+            ciphertext: Buffer;
+            nonce: Buffer;
+            auth_tag: Buffer;
+            key_version: number;
+            purpose: string;
+          }>(
+            'SELECT v.ciphertext,v.nonce,v.auth_tag,v.key_version,s.purpose FROM secret_versions v JOIN secrets s ON s.id=v.secret_id AND s.project_id=v.project_id WHERE v.project_id=$1 AND v.secret_id=$2 AND v.version=$3 AND NOT s.revoked',
+            [scope.projectId, row.secret_id, row.secret_version],
+          )
+        ).rows[0];
+        if (!secret) throw new StorageError('AUTH_FAILED');
+        material = JSON.parse(
+          vault.decrypt(
+            {
+              ciphertext: secret.ciphertext,
+              nonce: secret.nonce,
+              authTag: secret.auth_tag,
+              keyVersion: secret.key_version,
+            },
+            {
+              projectId: scope.projectId,
+              secretId: row.secret_id,
+              purpose: secret.purpose,
+            },
+          ),
+        );
+      }
+      return parseContract('CredentialMaterial', {
+        mode: row.document.mode,
+        material,
+        expiresAt: job.lease_until!.toISOString(),
+      });
+    });
+  }
+}
