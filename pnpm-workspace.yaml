@@ -1,8 +1,6 @@
 packages:
   - 'apps/*'
   - 'packages/*'
-  # T01 isolation: integration owner removes this after the fixture agent finishes.
-  - '!packages/test-fixture'
 storeDir: .cache/pnpm/store
 cacheDir: .cache/pnpm/cache
 stateDir: .cache/pnpm/state
