@@ -42,15 +42,11 @@ chmod +x run-curl-tests.sh
 ./run-curl-tests.sh
 ```
 
-### 1.6 Playwright 版本与浏览器缓存说明 (Version Deviation Record)
+### 1.6 Playwright 版本与浏览器缓存说明
 - **文档基线**：`docs/02-technical-design.md` 第 1 节规划基线为 Playwright `1.63.0`。
-- **当前实测版本**：固定精确版本 `@playwright/test@1.49.1`。
-- **版本偏差原因**：
-  1. 曾将依赖升级至 `@playwright/test@1.63.0` 并尝试执行 `npx playwright install chromium`。
-  2. 1.63.0 对应 Chromium revision 为 `1243`（大小约 182 MiB + 95 MiB headless shell）。受限于本地代理网络下载速率与稳定性，大文件下载多次超时/中断。
-  3. 为避免卡死阻塞测试流程，依据验收策略规范回退至精确版本 `1.49.1`，直接对齐并复用全局缓存目录 `~/Library/Caches/ms-playwright/chromium-1148`。
-  4. 旧缓存 `chromium-1148` 完整保留未删除，不影响其他并行任务。
-  5. 11 项浏览器级端到端测试在 1.49.1 下全部 100% PASS。
+- **当前版本**：精确固定 `@playwright/test@1.63.0`，Chromium revision `1243`，与基线一致。
+- 浏览器二进制来自全局缓存 `~/Library/Caches/ms-playwright/chromium-1243`；旧缓存 `chromium-1148` 保留未删除，不影响其他项目。
+- 历史：曾因代理下载中断临时回退到 1.49.1；T00 spike 成功下载 rev 1243 后，本包已重新对齐基线。
 
 ---
 
