@@ -1,0 +1,195 @@
+{
+  "task": "T09-B-preflight",
+  "recordedAt": "2026-10-02T17:05:17Z",
+  "P0Passed": false,
+  "purpose": "六服务成堆的最小预演。不是 P0 放行结论。",
+  "host": {
+    "dockerServer": "29.5.2",
+    "vm": "Ubuntu 24.04.4 LTS",
+    "memBytes": 2054766592,
+    "cpus": 2,
+    "hostNode": "v26.3.0",
+    "apiNode": "v24.21.0",
+    "workerNode": "v24.20.0"
+  },
+  "images": {
+    "localqa-api:t09b1-current": "sha256:577889dfbba7fdbc8175aa6abc300135c0242be2294b60d0c6cfc7891f6786f9",
+    "localqa-web:t09b1-current": "sha256:886775914c59454961b18b501c77f0e9ec7271e65ba39730c1c07c335efd18a5",
+    "localqa-orchestrator:t09b1-current": "sha256:9136324d264140b9f6840eb3cd4a15bcfffc4441433c6d04e4821fc16375c061",
+    "localqa-worker:t09b1-current": "sha256:5a0adf477f4db5124bffc4f591bce66d486b30718725bdf600de61ef14c3e1fe",
+    "nginx:1.27-alpine": "sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10",
+    "postgres:18-alpine": "sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873"
+  },
+  "startup": {
+    "env": "deploy/.env 从 .env.example 生成，BROWSER_SLOTS=2，PUBLIC_ORIGIN=https://localqa.internal。口令未写入本文件。",
+    "tls": "预演自签证书，CN=localqa.internal，客户端未校验 CA。",
+    "migrate": {
+      "status": "通过",
+      "command": "docker compose run --rm --no-deps --entrypoint node api /app/deploy/scripts/migrate.mjs",
+      "output": "[LocalQA Migrate] Successfully applied 4 migration(s): 001_core.sql, 002_invariants.sql, 003_access.sql, 004_hardening.sql"
+    },
+    "bootstrap": {
+      "status": "通过",
+      "output": "Successfully bootstrapped admin account. ID: 76563529-6c0a-4456-b599-505cd56e2c2a, Global Role: admin"
+    },
+    "readmeRunCommand": {
+      "status": "未执行",
+      "cause": "四个应用镜像的 Entrypoint 已是 node <entry>.mjs，没有 Cmd。README 的 compose run api node script 会变成 entrypoint 再加参数，不会执行 migrate.mjs。本轮改用 --entrypoint node。这是镜像配置事实，不是把 README 命令跑成通过。"
+    },
+    "kekMode": {
+      "first": "失败",
+      "raw": "SecretVault.fromProtectedFile 抛 StorageError SERVICE_UNAVAILABLE，api 退出码 1，gateway/worker/orchestrator 因依赖未启动。当时 kek.json 是 0644。",
+      "second": "改为 0600 后 api 日志出现 API listening，随后六服务 --wait 退出码 0，全部 healthy。"
+    },
+    "dataVolume": "启动前用 root chown 1001:1001 /var/localqa/data。未观察不 chown 时的失败。"
+  },
+  "checks": [
+    {
+      "id": "health.six-services",
+      "status": "通过",
+      "summary": "chmod 600 之后，gateway/web/api/orchestrator/worker/postgres 都是 running 且 healthy。",
+      "raw": {
+        "composeWaitExit": 0,
+        "gatewayHttpHealthz": "200 healthy",
+        "gatewayHttpOther": "301 到 https://127.0.0.1/...（Host 是 127.0.0.1）",
+        "gatewayHttpsHealthz": "200 healthy，首字节 13ms",
+        "gatewayHttpsReadyz": "200 ready，首字节 5ms",
+        "apiLiveViaGateway": "200 {\"status\":\"ok\",\"version\":\"1.0.0\"}",
+        "apiReadyViaGateway": "200 {\"status\":\"ok\",\"version\":\"1.0.0\"}",
+        "webRootViaGateway": "200 text/html，title 含 LocalQA",
+        "localChecksExit": "api/web/orchestrator/worker check 退出码都是 0；pg_isready accepting connections"
+      },
+      "cause": "gateway 的 /healthz 由 nginx 自己返回，不证明后端。/readyz 才转到 API。worker 的 ready 只看浏览器容量标记。"
+    },
+    {
+      "id": "rbac.owner-viewer",
+      "status": "通过",
+      "summary": "owner 与 viewer 登录同一项目；viewer 发起运行被拒；跨项目 NOT_FOUND。",
+      "raw": {
+        "adminLogin": "200 globalRole=admin，Set-Cookie 存在",
+        "createUsers": "owner 201，viewer 201",
+        "createProjects": "shared 201，other 201",
+        "replaceMembers": "200，shared version 2，defaultModelProfileId null",
+        "ownerShared": 200,
+        "ownerOther": "404 NOT_FOUND",
+        "viewerShared": 200,
+        "viewerOther": "404 NOT_FOUND",
+        "viewerRun": "403 {\"code\":\"FORBIDDEN\",\"message\":\"FORBIDDEN\"}"
+      },
+      "cause": "经 nginx HTTPS，Origin 为 https://localqa.internal。管理员创建项目后被成员替换移出该项目。"
+    },
+    {
+      "id": "slots.fr020",
+      "status": "未验证",
+      "summary": "BROWSER_SLOTS=2 已进入三个进程环境，但三次创建运行都在入队前被拒绝，没有观察到排队或槽位拒绝。",
+      "raw": {
+        "printenv": { "api": "2", "orchestrator": "2", "worker": "2" },
+        "modelProfile": "201，status=untested，未授权到项目",
+        "threeRuns": [
+          "409 MODEL_NOT_CONFIGURED",
+          "409 MODEL_NOT_CONFIGURED",
+          "409 MODEL_NOT_CONFIGURED"
+        ],
+        "db": "runs 0 行；jobs 0 行；budget_reservations 0 行"
+      },
+      "cause": "运行创建先找项目默认模型或 model_profile_grants。公开路由能创建模型档案，没有把档案授权给项目的路由；项目更新默认模型又要求授权已存在。所以请求停在 MODEL_NOT_CONFIGURED，到不了 claim。源码判断（本轮未在运行中观察到）：api-entry 与 orchestrator-entry 构造 Coordinator 时没有传入 platformSlots，默认仍是 4；claim 在超限时把 RATE_LIMITED 变成 return null，不把运行创建打成 429。"
+    },
+    {
+      "id": "sse.nginx",
+      "status": "未验证",
+      "summary": "没有运行，就没有长连接事件流，不能判断 nginx 是否缓冲 SSE。",
+      "raw": {
+        "request": "GET https://localqa.internal/api/v1/runs/00000000-0000-4000-8000-000000000099/events",
+        "status": 404,
+        "contentType": "application/json; charset=utf-8",
+        "firstByteMs": 3,
+        "body": "{\"code\":\"NOT_FOUND\",\"message\":\"NOT_FOUND\"}",
+        "xAccelBuffering": null
+      },
+      "cause": "短 JSON 响应结束，proxy_buffering 看不出来。配置里该 location 已有 proxy_buffering off，这只是配置，不是这次的实测。"
+    },
+    {
+      "id": "e2e.worker",
+      "status": "失败",
+      "summary": "API 没有创建出运行；worker 进程是容量循环，不领取任务。",
+      "raw": {
+        "runId": null,
+        "pid1": "node /app/deploy/images/worker-entry.mjs",
+        "workerLogs": "",
+        "orchestratorLogs": "",
+        "sandboxMarker": {
+          "node": "v24.20.0",
+          "uid": 1001,
+          "action": "button.click",
+          "browserVersion": "153.0.8010.12",
+          "playwright": "1.63.0",
+          "processes": "7 个 Chromium，uid 1001，seccomp 2，noSandbox false",
+          "browserReady": "2026-10-02T17:03:31.227Z"
+        },
+        "jobs": "0 行"
+      },
+      "cause": "断点有两环。第一环：模型档案没有项目授权，POST /api/v1/runs 返回 409，库里没有 runs/jobs。第二环：worker-entry.mjs 只循环启动 Chromium 做容量检查，文件末尾写明 task-claim transport/identity 未接入。健康是绿色，因为 browser-ready 被写上了。orchestrator 健康只说明 tick 标记新鲜，没有任务可推进。"
+    }
+  ],
+  "fixList": [
+    {
+      "priority": 1,
+      "item": "给模型档案加项目授权，并让运行创建用得上。",
+      "why": "POST /api/v1/model-profiles 能建档案，但没有授权路由。runs.ts 只读 default_model_profile_id 或 model_profile_grants。项目更新默认模型又要求授权已存在。结果是三次运行全是 409 MODEL_NOT_CONFIGURED。槽位、SSE 和 worker 都因此无输入。"
+    },
+    {
+      "priority": 2,
+      "item": "让 worker 入口领取并执行租约任务，而不是只做浏览器容量循环。",
+      "why": "pid 1 是 node /app/deploy/images/worker-entry.mjs。它写出 sandbox-result.json 和 browser-ready，健康检查因此通过。入口不调用 claim。即使运行能创建，这一环仍不会执行。"
+    },
+    {
+      "priority": 3,
+      "item": "把平台/项目槽位从部署环境接进 API 与 orchestrator 的 Coordinator。",
+      "why": "BROWSER_SLOTS=2 三个容器都能 printenv 到，但 api-entry.mjs 与 orchestrator-entry.mjs 都没把 platformSlots/projectSlots 传进去，构造默认是 4。claim 超限时返回 null，运行创建本身不返回 429。本轮没有运行，排队还是拒绝尚未实测。修完后要用 2 槽位并发 3 个运行再看。"
+    },
+    {
+      "priority": 4,
+      "item": "让 README 的 migrate/bootstrap 命令真能跑到脚本。",
+      "why": "镜像 Entrypoint 是 node 入口脚本。compose run api node /app/deploy/scripts/migrate.mjs 不会替换入口。本轮用 --entrypoint node 才完成 4 个迁移和管理员初始化。"
+    },
+    {
+      "priority": 5,
+      "item": "KEK 权限失败时给出原因。",
+      "why": "0644 的 kek.json 让 fromProtectedFile 抛 SERVICE_UNAVAILABLE，日志没有说明是 mode 或 uid。改成 0600 后 API 才监听。代码要求普通文件、mode 不含 group/other、uid 等于进程 uid。"
+    },
+    {
+      "priority": 6,
+      "item": "有真实运行后再测 nginx SSE。",
+      "why": "用 Last-Event-ID 跳过已有事件，计时 15 秒心跳 : ping。约 15 秒到达说明没有按缓冲攒包；一直不出字节才说明被缓冲。本轮只有 3ms 的 JSON 404，不能下结论。不要改配置来凑这一步。"
+    }
+  ],
+  "notClaimed": [
+    "P0 放行",
+    "FR-020 排队/拒绝行为",
+    "nginx 对 SSE 不缓冲",
+    "公司 CA、正式域名证书",
+    "10 用户、性能 P95、故障注入、UI 断线重连"
+  ],
+  "cleanup": {
+    "composeDownExit": 0,
+    "removed": [
+      "localqa-gateway",
+      "localqa-web",
+      "localqa-api",
+      "localqa-orchestrator",
+      "localqa-worker",
+      "localqa-postgres",
+      "volume localqa-pgdata",
+      "volume localqa-data",
+      "network localqa-frontend",
+      "network localqa-backend",
+      "deploy/.env",
+      "deploy/secrets",
+      "deploy/certs",
+      "deploy/ca",
+      "deploy/tests 预演脚本与原始输出"
+    ],
+    "recheck": "上述容器、卷、网络再次查询均为不存在。localqa-t07-pg-59446607 与 localqa-t07-pg-9cc88d79 仍在运行，未动。nginx:1.27-alpine 与 postgres:18-alpine 镜像保留。",
+    "secretsInEvidence": false
+  }
+}
