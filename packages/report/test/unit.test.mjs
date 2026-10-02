@@ -10,6 +10,7 @@ import {
   MAX_SINGLE_ARTIFACT_BYTES,
   assessReplayDegradation,
   validateEvidenceReferences,
+  resolveCleanupStatus,
   renderMarkdownReport,
   packZip,
   unpackZip,
@@ -408,23 +409,54 @@ test('Reference validation: detects foreign or non-existent artifacts', async ()
   const runId = randomUUID();
   const projectId = randomUUID();
 
+  const createdAt = new Date().toISOString();
+  const base = {
+    projectId,
+    runId,
+    kind: 'screenshot',
+    sha256: 'b'.repeat(64),
+    contentUrl: null,
+    createdAt,
+    taskId: null,
+    stepId: null,
+    caseId: null,
+    snapshotId: null,
+  };
+  const degradedId = randomUUID();
+  const oversizedId = randomUUID();
+  const redactionFailedId = randomUUID();
   const artifacts = [
     {
+      ...base,
       id: validArtifactId,
-      projectId,
-      runId,
-      kind: 'screenshot',
       status: 'available',
       bytes: 100,
-      sha256: 'b'.repeat(64),
-      contentUrl: null,
       redaction: 'not_needed',
       error: null,
-      createdAt: new Date().toISOString(),
-      taskId: null,
-      stepId: null,
-      caseId: null,
-      snapshotId: null,
+    },
+    {
+      ...base,
+      id: degradedId,
+      status: 'degraded',
+      bytes: 100,
+      redaction: 'not_needed',
+      error: null,
+    },
+    {
+      ...base,
+      id: oversizedId,
+      status: 'available',
+      bytes: 25 * 1024 * 1024 + 1,
+      redaction: 'not_needed',
+      error: null,
+    },
+    {
+      ...base,
+      id: redactionFailedId,
+      status: 'available',
+      bytes: 100,
+      redaction: 'failed',
+      error: null,
     },
   ];
 
@@ -457,7 +489,32 @@ test('Reference validation: detects foreign or non-existent artifacts', async ()
   );
 
   assert.equal(res.manifest.get(validArtifactId).status, 'available');
+  assert.ok(res.manifest.get(validArtifactId).relativePath);
+  const degraded = res.manifest.get(degradedId);
+  assert.equal(degraded.status, 'degraded');
+  assert.equal(degraded.relativePath, null);
+  const oversized = res.manifest.get(oversizedId);
+  assert.equal(oversized.status, 'failed');
+  assert.match(oversized.error, /25MiB/);
+  assert.equal(oversized.relativePath, null);
+  const redactionFailed = res.manifest.get(redactionFailedId);
+  assert.equal(redactionFailed.status, 'failed');
+  assert.match(redactionFailed.error, /redaction failed/);
+  assert.equal(redactionFailed.relativePath, null);
   assert.equal(res.invalidReferences.length, 1);
+
+  const failedCleanup = resolveCleanupStatus('completed', ['failed']);
+  assert.equal(failedCleanup.status, 'failed');
+  assert.notEqual(failedCleanup.status, 'succeeded');
+  const unknownCleanup = resolveCleanupStatus('completed', ['unknown']);
+  assert.equal(unknownCleanup.status, 'manual_required');
+  assert.deepEqual(unknownCleanup.unrecognized, ['unknown']);
+  assert.equal(resolveCleanupStatus('failed', []).status, 'not_required');
+  assert.equal(resolveCleanupStatus('running', []).status, 'pending');
+  assert.equal(
+    resolveCleanupStatus('completed', ['succeeded']).status,
+    'succeeded',
+  );
   assert.equal(res.invalidReferences[0].refId, foreignArtifactId);
   assert.ok(res.warnings.some((w) => w.includes(foreignArtifactId)));
 });

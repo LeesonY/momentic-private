@@ -342,6 +342,9 @@ test('1. Real vertical slice execution -> deterministic report constructed and p
   assert.equal(report.summary.issueFound, 0);
   assert.equal(report.summary.passRate, 1);
   assert.equal(report.summary.attemptRate, 1);
+  assert.equal(report.cleanupStatus, 'manual_required');
+  assert.notEqual(report.cleanupStatus, 'succeeded');
+  assert.ok(report.warnings.some((warning) => warning.includes('"unknown"')));
 
   // Verify coverage gaps and artifacts
   assert.ok(report.coverageGaps.length >= 1);
@@ -603,7 +606,20 @@ test('2. Deterministic summary: tested with real verdict combinations, zero deno
 
       // Case 4: NO attempt at all -> projected as not_run
 
-      // Finalize jobs and run
+      // Finalize jobs and run. Record a real cleanup failure on the finalizer
+      // job result. Do not put that value in runs.status or jobs.status.
+      const finalizerId = randomUUID();
+      await clientDb.query(
+        `INSERT INTO jobs(id, project_id, run_id, unique_key, role, document, status, fencing_token, result)
+         VALUES($1, $2, $3, $4, 'finalizer', '{}', 'succeeded', 1, $5)`,
+        [
+          finalizerId,
+          project.id,
+          runId,
+          `finalize:${finalizerId}`,
+          { stage: 'finalize', cleanupStatus: 'failed' },
+        ],
+      );
       await clientDb.query(
         "UPDATE jobs SET status = 'succeeded' WHERE run_id = $1 AND status = 'running'",
         [runId],
@@ -628,6 +644,8 @@ test('2. Deterministic summary: tested with real verdict combinations, zero deno
       assert.equal(report.summary.evaluated, 2); // passed + issueFound
       assert.equal(report.summary.passRate, 0.5); // 1 / 2
       assert.equal(report.summary.attemptRate, 0.8); // 4 / 5
+      assert.equal(report.cleanupStatus, 'failed');
+      assert.notEqual(report.cleanupStatus, 'succeeded');
 
       // Invalidation test: invalidate verdict 0 and check final_valid_verdicts
       await clientDb.query(

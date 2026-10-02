@@ -59,26 +59,37 @@ export async function validateEvidenceReferences(
     [];
   const warnings: string[] = [];
 
-  // Build baseline manifest for all known run artifacts
+  // Manifest status stays on the Artifact.status enum and is not written
+  // back onto artifacts.document. The export projection only decides whether
+  // a binary is linked.
   for (const a of artifacts) {
-    let status: ArtifactManifestEntry['status'] = 'available';
+    let status: ArtifactManifestEntry['status'] = a.status;
     let error: string | null = a.error ?? null;
     let relativePath: string | null = null;
 
     if (a.redaction === 'failed') {
-      status = 'redacted';
+      status = 'failed';
       error = error ?? 'Artifact redaction failed; binary omitted from export';
     } else if (a.bytes !== null && a.bytes > 25 * 1024 * 1024) {
-      status = 'too_large';
+      status = 'failed';
       error = error ?? 'Artifact exceeds 25MiB limit';
-    } else if (a.status === 'missing' || a.status === 'failed') {
+    } else if (a.status === 'missing') {
       status = 'missing';
-      error = error ?? 'Artifact marked missing or failed';
+      error = error ?? 'Artifact marked missing';
+    } else if (a.status === 'failed') {
+      status = 'failed';
+      error = error ?? 'Artifact marked failed';
+    } else if (a.status === 'degraded') {
+      status = 'degraded';
+      error =
+        error ?? 'Artifact content is degraded; binary omitted from export';
     } else if (artifactStore) {
       const existsOnDisk = await artifactStore.exists(projectId, runId, a.id);
       if (!existsOnDisk) {
         status = 'missing';
         error = 'Binary file missing from artifact storage';
+      } else {
+        status = 'available';
       }
     }
 

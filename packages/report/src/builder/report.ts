@@ -16,6 +16,59 @@ import { validateEvidenceReferences } from '../validation/references.js';
 import { assessReplayDegradation } from '../replay/degrade.js';
 import type { ArtifactStorageBackend } from '../artifacts/types.js';
 
+const CLEANUP_STATUS = [
+  'not_required',
+  'pending',
+  'running',
+  'succeeded',
+  'failed',
+  'manual_required',
+] as const;
+
+type CleanupStatus = (typeof CLEANUP_STATUS)[number];
+
+const CLEANUP_RANK: Record<CleanupStatus, number> = {
+  not_required: 0,
+  succeeded: 1,
+  pending: 2,
+  running: 3,
+  manual_required: 4,
+  failed: 5,
+};
+
+function isCleanupStatus(value: string): value is CleanupStatus {
+  return (CLEANUP_STATUS as readonly string[]).includes(value);
+}
+
+// Reads finalizer job results only. Do not write this value onto runs.status
+// or jobs.status: those CHECK lists do not contain the report enum.
+export function resolveCleanupStatus(
+  runStatus: string,
+  recorded: readonly (string | null | undefined)[],
+): { status: CleanupStatus; unrecognized: string[] } {
+  const unrecognized: string[] = [];
+  let status: CleanupStatus | null = null;
+
+  for (const value of recorded) {
+    if (value == null || value === '') continue;
+    const mapped: CleanupStatus = isCleanupStatus(value)
+      ? value
+      : 'manual_required';
+    if (!isCleanupStatus(value)) unrecognized.push(value.slice(0, 80));
+    if (status === null || CLEANUP_RANK[mapped] > CLEANUP_RANK[status]) {
+      status = mapped;
+    }
+  }
+
+  if (status === null) {
+    status = ['running', 'awaiting_input', 'cancelling'].includes(runStatus)
+      ? 'pending'
+      : 'not_required';
+  }
+
+  return { status, unrecognized };
+}
+
 export interface ReportBuildOptions {
   artifactStore?: ArtifactStorageBackend;
   example?: boolean;
@@ -288,14 +341,30 @@ export class ReportBuilder {
       );
     }
 
-    // 16. Cleanup status
-    let cleanupStatus: Report['cleanupStatus'] = 'not_required';
-    if (['completed', 'cancelled', 'failed'].includes(run.status)) {
-      cleanupStatus = 'succeeded';
-    } else if (
-      ['running', 'awaiting_input', 'cancelling'].includes(run.status)
-    ) {
-      cleanupStatus = 'pending';
+    // 16. Cleanup status from finalizer job results. A terminal run with no
+    // recorded cleanup is not_required, never succeeded.
+    const cleanupRows = (
+      await client.query<{ cleanup_status: string | null }>(
+        `SELECT result->>'cleanupStatus' AS cleanup_status
+         FROM jobs
+         WHERE project_id = $1 AND run_id = $2 AND role = 'finalizer'`,
+        [projectId, runId],
+      )
+    ).rows;
+    const resolvedCleanup = resolveCleanupStatus(
+      run.status,
+      cleanupRows.map((row) => row.cleanup_status),
+    );
+    const cleanupStatus = resolvedCleanup.status;
+    for (const value of resolvedCleanup.unrecognized) {
+      warnings.push(
+        `Finalizer cleanup status "${value}" is not a report cleanup status; recorded as manual_required`,
+      );
+    }
+    if (cleanupStatus === 'failed') {
+      warnings.push(
+        'Cleanup failed and is recorded on cleanupStatus; it is not success',
+      );
     }
 
     const reportData: Report = {

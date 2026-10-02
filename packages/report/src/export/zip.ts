@@ -184,8 +184,8 @@ export interface ManifestDocument {
   totalArtifacts: number;
   availableArtifacts: number;
   missingArtifacts: number;
-  redactedArtifacts: number;
-  tooLargeArtifacts: number;
+  degradedArtifacts: number;
+  failedArtifacts: number;
   artifacts: ArtifactManifestEntry[];
 }
 
@@ -210,9 +210,9 @@ export async function createOfflineZipArchive(
       .length,
     missingArtifacts: manifestEntries.filter((e) => e.status === 'missing')
       .length,
-    redactedArtifacts: manifestEntries.filter((e) => e.status === 'redacted')
+    degradedArtifacts: manifestEntries.filter((e) => e.status === 'degraded')
       .length,
-    tooLargeArtifacts: manifestEntries.filter((e) => e.status === 'too_large')
+    failedArtifacts: manifestEntries.filter((e) => e.status === 'failed')
       .length,
     artifacts: manifestEntries,
   };

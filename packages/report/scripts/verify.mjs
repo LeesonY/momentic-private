@@ -425,6 +425,15 @@ try {
         process.version,
       'PostgreSQL 18 on aarch64 container with full migrations 001-004 applied.',
     ],
+    contractFollowUp: {
+      recordedAt: new Date().toISOString(),
+      cleanupStatus:
+        'Report cleanupStatus is taken from jobs.result.cleanupStatus on finalizer rows and is not written back to runs.status or jobs.status.',
+      manifestStatus:
+        'Export manifest status uses Artifact.status (available|degraded|missing|failed). Oversized and redaction-failed entries are failed with a specific error and no relativePath. degraded stays degraded.',
+      whyPreviousWriteWasRejected:
+        'mapDatabaseError turns SQLSTATE 23514 into VALIDATION_ERROR. runs.status only allows draft|queued|running|awaiting_input|cancelling|completed|cancelled|failed, so writing cleanup succeeded|pending|not_required|manual_required onto runs.status fails the CHECK. jobs.status rejects pending|not_required|manual_required. artifacts.document is checked by guard_artifact_document (id/project/run/task/step/case/snapshot must match the columns) and reject_secret_keys; replacing that document with a manifest entry, or using status too_large|redacted, is not a valid artifact write. This fix keeps the new values on the in-memory Report and manifest only. exports.report_snapshot is not under reject_secret_keys, and the Export document does not carry the manifest status.',
+    },
     unverified: [
       'No public/internal HTTP API routes or SSE endpoints implemented in T08; T06 owns fastify routing integration.',
       'S3CompatibleArtifactStore is designed with standard interfaces; remote cloud S3/R2 live credentials not tested in offline harness.',

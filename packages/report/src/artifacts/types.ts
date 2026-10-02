@@ -7,8 +7,8 @@ export type ArtifactRedaction = 'applied' | 'not_needed' | 'failed';
 
 export type ArtifactStatus = 'available' | 'degraded' | 'missing' | 'failed';
 
-export type ManifestArtifactStatus =
-  'available' | 'missing' | 'too_large' | 'redacted';
+// Same enum as Artifact.status. too_large and redacted are not contract values.
+export type ManifestArtifactStatus = ArtifactStatus;
 
 export interface ArtifactPutInput {
   id: string;
