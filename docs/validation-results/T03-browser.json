@@ -1,0 +1,156 @@
+{
+  "task": "T03",
+  "recordedAt": "2026-10-02T09:38:00.000Z",
+  "result": "browser execution layer verified",
+  "P0Passed": false,
+  "GateG2Passed": false,
+  "environment": {
+    "node": "v26.3.0",
+    "platform": "darwin/arm64",
+    "pnpm": "10.34.0",
+    "playwright": "1.63.0",
+    "browser": "Chromium 153.0.8010.12 (revision 1243)",
+    "container": {
+      "image": "mcr.microsoft.com/playwright:v1.63.0-noble",
+      "arch": "aarch64",
+      "os": "Ubuntu 24.04 LTS (Noble)",
+      "user": "pwuser (uid 1001, gid 1001)",
+      "requiredCap": "SYS_ADMIN (due to Ubuntu 24.04 kernel.apparmor_restrict_unprivileged_userns = 1)"
+    }
+  },
+  "modules": [
+    "packages/browser/src/types.ts",
+    "packages/browser/src/port.ts",
+    "packages/browser/src/redaction.ts",
+    "packages/browser/src/policy.ts",
+    "packages/browser/src/recorder.ts",
+    "packages/browser/src/snapshot.ts",
+    "packages/browser/src/resolver.ts",
+    "packages/browser/src/waiter.ts",
+    "packages/browser/src/executor.ts",
+    "packages/browser/src/session.ts",
+    "packages/browser/src/index.ts"
+  ],
+  "commands": [
+    {
+      "name": "build",
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/browser build",
+      "exitCode": 0,
+      "stdout": "\n> @localqa/browser@1.0.0 build /Users/dcp/Documents/公司/momentic/packages/browser\n> tsc -p tsconfig.build.json\n\n",
+      "stderr": ""
+    },
+    {
+      "name": "typecheck",
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/browser typecheck",
+      "exitCode": 0,
+      "stdout": "\n> @localqa/browser@1.0.0 typecheck /Users/dcp/Documents/公司/momentic/packages/browser\n> tsc --noEmit -p tsconfig.json\n\n",
+      "stderr": ""
+    },
+    {
+      "name": "test_macos",
+      "command": "node --test packages/browser/test/browser.test.mjs",
+      "exitCode": 0,
+      "stdout": "▶ T03 Browser Execution Layer Verification\n  ▶ 1. Task Isolation & Port Cleanliness\n    ✔ isolates cookies and auth state between separate sessions (518.829833ms)\n  ✔ 1. Task Isolation & Port Cleanliness (519.217375ms)\n  ▶ 2. FIX-01: Homepage, Tab Switching, Details, Pagination\n    ✔ interacts with tabs, details, and pagination while validating snapshots (556.271333ms)\n  ✔ 2. FIX-01: Homepage, Tab Switching, Details, Pagination (556.681417ms)\n  ▶ 3. FIX-02: Delayed Rendering with Spinner (State-based wait, NO networkidle)\n    ✔ waits for delayed element to appear despite active background SSE stream (1373.876541ms)\n  ✔ 3. FIX-02: Delayed Rendering with Spinner (State-based wait, NO networkidle) (1374.366958ms)\n  ▶ 4. FIX-05: Target Ambiguity, Hidden Elements, and TestID Priority\n    ✔ rejects ambiguous targets and hidden buttons, succeeds with explicit testId (208.121958ms)\n  ✔ 4. FIX-05: Target Ambiguity, Hidden Elements, and TestID Priority (208.308375ms)\n  ▶ 5. FIX-06: Same-Origin Iframe & Popup Tab Navigation\n    ✔ captures iframe contents and detects popup pages (630.721292ms)\n  ✔ 5. FIX-06: Same-Origin Iframe & Popup Tab Navigation (631.086916ms)\n  ▶ 6. FIX-07: P0 non_submitting Policy Check & Audit Proof\n    ✔ blocks dangerous mutations in non_submitting mode with audit count == 0 (74.711709ms)\n  ✔ 6. FIX-07: P0 non_submitting Policy Check & Audit Proof (74.919625ms)\n  ▶ 7. FIX-12: Sensitive Data Redaction & Contracts Schema Validation\n    ✔ redacts sensitive query tokens and passwords from snapshot and logs (63.893625ms)\n  ✔ 7. FIX-12: Sensitive Data Redaction & Contracts Schema Validation (64.006833ms)\n  ▶ 8. Prohibited Tools, Repetition Failsafes & Cancellation\n    ✔ rejects prohibited tools like evaluate or shell (34.911208ms)\n    ✔ rejects invalid schema arguments with INVALID_TOOL_ARGUMENTS (35.161292ms)\n    ✔ detects action repetition loop after repeated identical actions (124.028333ms)\n    ✔ handles cancellation via AbortSignal (42.55925ms)\n  ✔ 8. Prohibited Tools, Repetition Failsafes & Cancellation (236.90075ms)\n✔ T03 Browser Execution Layer Verification (3881.715042ms)\nℹ tests 11\nℹ suites 9\nℹ pass 11\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 4222.475834\n",
+      "stderr": ""
+    },
+    {
+      "name": "test_linux_container",
+      "command": "docker run --rm --user pwuser --cap-add=SYS_ADMIN -v \"/Users/dcp/Documents/公司/momentic:/work\" -w /work -e PLAYWRIGHT_BROWSERS_PATH=/ms-playwright -e HOME=/home/pwuser mcr.microsoft.com/playwright:v1.63.0-noble node --test packages/browser/test/browser.test.mjs",
+      "exitCode": 0,
+      "stdout": "▶ T03 Browser Execution Layer Verification\n  ▶ 1. Task Isolation & Port Cleanliness\n    ✔ isolates cookies and auth state between separate sessions (345.887766ms)\n  ✔ 1. Task Isolation & Port Cleanliness (346.398641ms)\n  ▶ 2. FIX-01: Homepage, Tab Switching, Details, Pagination\n    ✔ interacts with tabs, details, and pagination while validating snapshots (569.993459ms)\n  ✔ 2. FIX-01: Homepage, Tab Switching, Details, Pagination (570.283542ms)\n  ▶ 3. FIX-02: Delayed Rendering with Spinner (State-based wait, NO networkidle)\n    ✔ waits for delayed element to appear despite active background SSE stream (1386.177154ms)\n  ✔ 3. FIX-02: Delayed Rendering with Spinner (State-based wait, NO networkidle) (1388.924194ms)\n  ▶ 4. FIX-05: Target Ambiguity, Hidden Elements, and TestID Priority\n    ✔ rejects ambiguous targets and hidden buttons, succeeds with explicit testId (130.746099ms)\n  ✔ 4. FIX-05: Target Ambiguity, Hidden Elements, and TestID Priority (130.933057ms)\n  ▶ 5. FIX-06: Same-Origin Iframe & Popup Tab Navigation\n    ✔ captures iframe contents and detects popup pages (674.325558ms)\n  ✔ 5. FIX-06: Same-Origin Iframe & Popup Tab Navigation (674.797765ms)\n  ▶ 6. FIX-07: P0 non_submitting Policy Check & Audit Proof\n    ✔ blocks dangerous mutations in non_submitting mode with audit count == 0 (79.798622ms)\n  ✔ 6. FIX-07: P0 non_submitting Policy Check & Audit Proof (79.954622ms)\n  ▶ 7. FIX-12: Sensitive Data Redaction & Contracts Schema Validation\n    ✔ redacts sensitive query tokens and passwords from snapshot and logs (59.120716ms)\n  ✔ 7. FIX-12: Sensitive Data Redaction & Contracts Schema Validation (59.254717ms)\n  ▶ 8. Prohibited Tools, Repetition Failsafes & Cancellation\n    ✔ rejects prohibited tools like evaluate or shell (31.801398ms)\n    ✔ rejects invalid schema arguments with INVALID_TOOL_ARGUMENTS (24.908277ms)\n    ✔ detects action repetition loop after repeated identical actions (169.943779ms)\n    ✔ handles cancellation via AbortSignal (34.82873ms)\n  ✔ 8. Prohibited Tools, Repetition Failsafes & Cancellation (262.077185ms)\n✔ T03 Browser Execution Layer Verification (3735.697798ms)\nℹ tests 11\nℹ suites 9\nℹ pass 11\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 4014.105015\n",
+      "stderr": ""
+    }
+  ],
+  "verificationMatrix": [
+    {
+      "scenario": "Task Isolation & Port Cleanliness",
+      "target": "BrowserManager & BrowserSession",
+      "oracle": "Session B does not inherit or leak cookies from Session A",
+      "macOS": "PASSED",
+      "linuxContainer": "PASSED"
+    },
+    {
+      "scenario": "FIX-01: Homepage, Tab, Details, Pagination",
+      "target": "navigate, click, getSnapshot",
+      "oracle": "Tab switches without page reload; accordion opens; LQA_ unique pagination items render; snapshot conforms to contract",
+      "macOS": "PASSED",
+      "linuxContainer": "PASSED"
+    },
+    {
+      "scenario": "FIX-02: Delayed Rendering with Spinner",
+      "target": "wait_for (element_visible)",
+      "oracle": "State-based wait finishes in ~1.4s without hanging on infinite SSE stream (networkidle prohibited)",
+      "macOS": "PASSED",
+      "linuxContainer": "PASSED"
+    },
+    {
+      "scenario": "FIX-05: Target Ambiguity & Hidden Elements",
+      "target": "resolveTarget (stability priority)",
+      "oracle": "Ambiguous 9-match text rejected (TARGET_AMBIGUOUS, matchCount: 9); hidden button rejected (TARGET_HIDDEN); test_id succeeds",
+      "macOS": "PASSED",
+      "linuxContainer": "PASSED"
+    },
+    {
+      "scenario": "FIX-06: Frame & Popup Handling",
+      "target": "snapshot.ts & session.context",
+      "oracle": "Tracks frameIds, extracts same-origin frame nodes, tracks new tab page upon popup trigger",
+      "macOS": "PASSED",
+      "linuxContainer": "PASSED"
+    },
+    {
+      "scenario": "FIX-07: P0 non_submitting Policy Check",
+      "target": "PolicyInterceptor & audit proof",
+      "oracle": "Dangerous delete and send actions denied (POLICY_DENIED / MUTATION_FORBIDDEN); fixture GET /api/audit count strictly remains 0",
+      "macOS": "PASSED",
+      "linuxContainer": "PASSED"
+    },
+    {
+      "scenario": "FIX-12: Sensitive Data Redaction & Contracts",
+      "target": "redaction.ts & snapshot.ts",
+      "oracle": "URL query tokens masked with [redacted]; password input masked; validateContract('BrowserSnapshot') returns success: true",
+      "macOS": "PASSED",
+      "linuxContainer": "PASSED"
+    },
+    {
+      "scenario": "Prohibited Tools Rejection",
+      "target": "ToolExecutor",
+      "oracle": "Attempt to call evaluate/shell rejected with PROHIBITED_TOOL",
+      "macOS": "PASSED",
+      "linuxContainer": "PASSED"
+    },
+    {
+      "scenario": "Schema Validation",
+      "target": "ToolExecutor",
+      "oracle": "Malformed tool arguments rejected with INVALID_TOOL_ARGUMENTS",
+      "macOS": "PASSED",
+      "linuxContainer": "PASSED"
+    },
+    {
+      "scenario": "Action Repetition Failsafe",
+      "target": "WaitAndRecoveryManager",
+      "oracle": "4 consecutive identical actions without DOM changes rejected with REPEATED_ACTION_LIMIT",
+      "macOS": "PASSED",
+      "linuxContainer": "PASSED"
+    },
+    {
+      "scenario": "Action Cancellation",
+      "target": "AbortSignal & session.cancel",
+      "oracle": "Aborted signal cancels execution immediately with ACTION_CANCELLED",
+      "macOS": "PASSED",
+      "linuxContainer": "PASSED"
+    }
+  ],
+  "unverified": [
+    "End-to-end multi-turn AI exploration loop and triage state machine (owned by T04/T05).",
+    "Production Gate G2 acceptance cannot be claimed by execution layer alone; requires orchestrator and domain coordinator integration.",
+    "Full-fidelity rrweb visual DOM playback injection (currently marked degraded: true; requires dedicated injector plugin in T06).",
+    "Out-of-band proxy certificate installation for arbitrary third-party TLS payload decryption.",
+    "Exhaustive validation of all obscure HTML5 edge widgets beyond tested fixtures."
+  ],
+  "nextInputs": [
+    "@localqa/browser implements BrowserPort interface (draft in README labeled 待集成负责人冻结).",
+    "Orchestration layer (T04/T05) should invoke BrowserManager.createSession() with explicit taskId and approvedAuthState.",
+    "Tools must be invoked via session.executeTool(toolCall) using schema-compliant ToolCall objects.",
+    "Snapshots are guaranteed to adhere to @localqa/contracts BrowserSnapshot schema with automatic secret redaction."
+  ]
+}
