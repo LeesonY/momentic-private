@@ -17,7 +17,11 @@ export const FIXTURE = Object.freeze({
 export type ProviderErrorCode =
   | 'RATE_LIMITED'
   | 'TIMEOUT'
+  | 'MODEL_TIMEOUT'
   | 'IMAGE_UNSUPPORTED'
+  | 'MODEL_NOT_CONFIGURED'
+  | 'VALIDATION_ERROR'
+  | 'SERVICE_UNAVAILABLE'
   | null;
 
 export interface ProviderUsage {

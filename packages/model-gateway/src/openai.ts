@@ -63,6 +63,15 @@ export function assertHttpsEndpoint(endpoint: string): void {
   }
 }
 
+/** Map an HTTP status onto a §7 code. 2xx is a completion and returns null. */
+export function httpStatusError(status: number): ProviderResponse['errorCode'] {
+  if (status >= 200 && status < 300) return null;
+  if (status === 429) return 'RATE_LIMITED';
+  if (status === 401 || status === 403) return 'MODEL_NOT_CONFIGURED';
+  if (status >= 400 && status < 500) return 'VALIDATION_ERROR';
+  return 'SERVICE_UNAVAILABLE';
+}
+
 export function createOpenAIAdapter(fetchImpl: typeof fetch): ProviderAdapter {
   return {
     kind: 'openai_compatible',
@@ -89,13 +98,14 @@ export function createOpenAIAdapter(fetchImpl: typeof fetch): ProviderAdapter {
         });
       } catch (error) {
         const aborted = signal.aborted || (error instanceof Error && error.name === 'AbortError');
-        throw Object.assign(new Error(aborted ? 'MODEL_TIMEOUT' : 'PROVIDER_ERROR'), {
-          code: aborted ? 'TIMEOUT' : 'PROVIDER_ERROR',
+        throw Object.assign(new Error(aborted ? 'MODEL_TIMEOUT' : 'SERVICE_UNAVAILABLE'), {
+          code: aborted ? 'MODEL_TIMEOUT' : 'SERVICE_UNAVAILABLE',
         });
       }
       const raw = (await response.text()).slice(0, 2000);
-      if (response.status === 429) {
-        return { raw, httpStatus: 429, reportedModelId: null, usage: null, errorCode: 'RATE_LIMITED' };
+      const errorCode = httpStatusError(response.status);
+      if (errorCode) {
+        return { raw, httpStatus: response.status, reportedModelId: null, usage: null, errorCode };
       }
       let reportedModelId: string | null = null;
       let usage: ProviderResponse['usage'] = null;

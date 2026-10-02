@@ -10,7 +10,7 @@
     "productImplemented": false
   },
   "counts": {
-    "passed": 23,
+    "passed": 29,
     "blocked": 1,
     "unverified": 4
   },
@@ -82,6 +82,24 @@
       "id": "roles.prompts"
     },
     {
+      "id": "provider.401"
+    },
+    {
+      "id": "provider.403"
+    },
+    {
+      "id": "provider.4xx"
+    },
+    {
+      "id": "provider.5xx"
+    },
+    {
+      "id": "provider.transport"
+    },
+    {
+      "id": "provider.timeout"
+    },
+    {
       "id": "live-model.blocked"
     }
   ],
@@ -105,7 +123,8 @@
       "用量区分 reported / estimated / mixed；没有 provider usage 时本地估算，空输出保持 null，不填 0。",
       "请求前脱敏；密钥只在调用前解密，日志不留原值；未批准或不存在的 fallback 不会被调用。",
       "六个角色的 t04.1 prompt 与契约工具范围。planner 无来源则拒绝。assertion 无引用或假 ID 为 inconclusive。",
-      "工具循环走 Dispatcher。源码没有 import playwright。"
+      "工具循环走 Dispatcher。源码没有 import playwright。",
+      "OpenAI HTTP 与传输错误映射到 §7：429 RATE_LIMITED，401/403 MODEL_NOT_CONFIGURED，其他 4xx VALIDATION_ERROR，5xx 与传输失败 SERVICE_UNAVAILABLE，abort 为 MODEL_TIMEOUT。非 2xx 不把 body 当完成结果。网关 catch 按抛出的 code 映射，不再一律超时。"
     ],
     "notDone": [
       "真模型调用。",
@@ -748,6 +767,114 @@
       }
     },
     {
+      "id": "provider.401",
+      "requestResult": "not_configured",
+      "errorCode": "MODEL_NOT_CONFIGURED",
+      "usageSource": "estimated",
+      "inputTokens": 18,
+      "outputTokens": 5,
+      "requests": 1,
+      "repairCount": 0,
+      "providerCalls": 1,
+      "fallbackUsed": false,
+      "fallbackDenied": false,
+      "authorization": "set",
+      "rawOutput": "{\"error\":\"bad key\"}",
+      "outboundRedacted": "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"观察：页面上有一个保存按钮。\"}]}],\"max_completion_tokens\":400,\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"name\":\"localqa_output\",\"strict\":true,\"schema\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"toolCalls\",\"done\"],\"properties\":{\"done\":{\"type\":\"boolean\"},\"toolCalls\":{\"type\":\"array\",\"items\":{\"type\":\"object\"}}}}}},\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"observe\",\"parameters\":{\"type\":\"object\"}}}]}",
+      "assessment": null,
+      "data": null
+    },
+    {
+      "id": "provider.403",
+      "requestResult": "not_configured",
+      "errorCode": "MODEL_NOT_CONFIGURED",
+      "usageSource": "estimated",
+      "inputTokens": 18,
+      "outputTokens": 6,
+      "requests": 1,
+      "repairCount": 0,
+      "providerCalls": 1,
+      "fallbackUsed": false,
+      "fallbackDenied": false,
+      "authorization": "set",
+      "rawOutput": "{\"error\":\"forbidden\"}",
+      "outboundRedacted": "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"观察：页面上有一个保存按钮。\"}]}],\"max_completion_tokens\":400,\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"name\":\"localqa_output\",\"strict\":true,\"schema\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"toolCalls\",\"done\"],\"properties\":{\"done\":{\"type\":\"boolean\"},\"toolCalls\":{\"type\":\"array\",\"items\":{\"type\":\"object\"}}}}}},\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"observe\",\"parameters\":{\"type\":\"object\"}}}]}",
+      "assessment": null,
+      "data": null
+    },
+    {
+      "id": "provider.4xx",
+      "requestResult": "malformed",
+      "errorCode": "VALIDATION_ERROR",
+      "usageSource": "estimated",
+      "inputTokens": 18,
+      "outputTokens": 7,
+      "requests": 1,
+      "repairCount": 0,
+      "providerCalls": 1,
+      "fallbackUsed": false,
+      "fallbackDenied": false,
+      "authorization": "set",
+      "rawOutput": "{\"done\":true,\"toolCalls\":[]}",
+      "outboundRedacted": "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"观察：页面上有一个保存按钮。\"}]}],\"max_completion_tokens\":400,\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"name\":\"localqa_output\",\"strict\":true,\"schema\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"toolCalls\",\"done\"],\"properties\":{\"done\":{\"type\":\"boolean\"},\"toolCalls\":{\"type\":\"array\",\"items\":{\"type\":\"object\"}}}}}},\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"observe\",\"parameters\":{\"type\":\"object\"}}}]}",
+      "assessment": null,
+      "data": null
+    },
+    {
+      "id": "provider.5xx",
+      "requestResult": "unavailable",
+      "errorCode": "SERVICE_UNAVAILABLE",
+      "usageSource": "estimated",
+      "inputTokens": 18,
+      "outputTokens": 7,
+      "requests": 1,
+      "repairCount": 0,
+      "providerCalls": 1,
+      "fallbackUsed": false,
+      "fallbackDenied": false,
+      "authorization": "set",
+      "rawOutput": "{\"done\":true,\"toolCalls\":[]}",
+      "outboundRedacted": "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"观察：页面上有一个保存按钮。\"}]}],\"max_completion_tokens\":400,\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"name\":\"localqa_output\",\"strict\":true,\"schema\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"toolCalls\",\"done\"],\"properties\":{\"done\":{\"type\":\"boolean\"},\"toolCalls\":{\"type\":\"array\",\"items\":{\"type\":\"object\"}}}}}},\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"observe\",\"parameters\":{\"type\":\"object\"}}}]}",
+      "assessment": null,
+      "data": null
+    },
+    {
+      "id": "provider.transport",
+      "requestResult": "unavailable",
+      "errorCode": "SERVICE_UNAVAILABLE",
+      "usageSource": "estimated",
+      "inputTokens": 18,
+      "outputTokens": null,
+      "requests": 1,
+      "repairCount": 0,
+      "providerCalls": 1,
+      "fallbackUsed": false,
+      "fallbackDenied": false,
+      "authorization": "set",
+      "rawOutput": "",
+      "outboundRedacted": "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"观察：页面上有一个保存按钮。\"}]}],\"max_completion_tokens\":400,\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"name\":\"localqa_output\",\"strict\":true,\"schema\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"toolCalls\",\"done\"],\"properties\":{\"done\":{\"type\":\"boolean\"},\"toolCalls\":{\"type\":\"array\",\"items\":{\"type\":\"object\"}}}}}},\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"observe\",\"parameters\":{\"type\":\"object\"}}}]}",
+      "assessment": null,
+      "data": null
+    },
+    {
+      "id": "provider.timeout",
+      "requestResult": "timeout",
+      "errorCode": "MODEL_TIMEOUT",
+      "usageSource": "estimated",
+      "inputTokens": 18,
+      "outputTokens": null,
+      "requests": 1,
+      "repairCount": 0,
+      "providerCalls": 1,
+      "fallbackUsed": false,
+      "fallbackDenied": false,
+      "authorization": "set",
+      "rawOutput": "",
+      "outboundRedacted": "{\"model\":\"gpt-test\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"观察：页面上有一个保存按钮。\"}]}],\"max_completion_tokens\":400,\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"name\":\"localqa_output\",\"strict\":true,\"schema\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"toolCalls\",\"done\"],\"properties\":{\"done\":{\"type\":\"boolean\"},\"toolCalls\":{\"type\":\"array\",\"items\":{\"type\":\"object\"}}}}}},\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"observe\",\"parameters\":{\"type\":\"object\"}}}]}",
+      "assessment": null,
+      "data": null
+    },
+    {
       "id": "live-model.blocked",
       "requestResult": "blocked",
       "errorCode": null,
@@ -776,5 +903,5 @@
       }
     }
   ],
-  "evidenceSha256": "77033e4893e5bf0bc3fc1942c5428d9deec82071599edb16582e70b300f59120"
+  "evidenceSha256": "349433557afc7d7dc42fcd3ea7acaf28bf7780f3865a5d31dd8015418ec5425c"
 }

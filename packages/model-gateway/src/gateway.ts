@@ -21,6 +21,23 @@ import { combineUsage, estimateTokens, type UsageAttempt } from './usage.js';
 
 const ajv = new Ajv({ allErrors: true, strict: false });
 
+/** Thrown and returned provider codes stay on the §7 vocabulary. Unknown failures are unavailable, not timeouts. */
+function mapProviderCode(code: string): { requestResult: string; errorCode: string } {
+  switch (code) {
+    case 'TIMEOUT':
+    case 'MODEL_TIMEOUT':
+      return { requestResult: 'timeout', errorCode: 'MODEL_TIMEOUT' };
+    case 'RATE_LIMITED':
+      return { requestResult: 'rate_limited', errorCode: 'RATE_LIMITED' };
+    case 'MODEL_NOT_CONFIGURED':
+      return { requestResult: 'not_configured', errorCode: 'MODEL_NOT_CONFIGURED' };
+    case 'VALIDATION_ERROR':
+      return { requestResult: 'malformed', errorCode: 'VALIDATION_ERROR' };
+    default:
+      return { requestResult: 'unavailable', errorCode: 'SERVICE_UNAVAILABLE' };
+  }
+}
+
 export type AgentRoleName =
   | 'coordinator'
   | 'explorer'
@@ -454,12 +471,7 @@ export function createGateway(options: {
       });
     };
 
-    try {
-      let response = await sendOnce(messages);
-      noteUsage(response, JSON.stringify(messages));
-      if (response.errorCode === 'RATE_LIMITED') {
-        return finish('rate_limited', 'RATE_LIMITED', null, null);
-      }
+    const stopForProvider = (response: ProviderResponse): CallRecord | null => {
       if (response.errorCode === 'IMAGE_UNSUPPORTED') {
         const assessment =
           input.purpose === 'assert'
@@ -473,6 +485,16 @@ export function createGateway(options: {
             : null;
         return finish('capability_missing', 'MODEL_CAPABILITY_MISSING', null, assessment);
       }
+      if (!response.errorCode) return null;
+      const outcome = mapProviderCode(response.errorCode);
+      return finish(outcome.requestResult, outcome.errorCode, null, null);
+    };
+
+    try {
+      let response = await sendOnce(messages);
+      noteUsage(response, JSON.stringify(messages));
+      const stopped = stopForProvider(response);
+      if (stopped) return stopped;
       if (input.purpose === 'probe') {
         const parsed = parseJson(response.raw);
         return finish('ok', null, parsed, null);
@@ -487,10 +509,8 @@ export function createGateway(options: {
         messages = [...messages, repair];
         response = await sendOnce(messages);
         noteUsage(response, JSON.stringify(messages));
-        if (response.errorCode === 'RATE_LIMITED') return finish('rate_limited', 'RATE_LIMITED', null, null);
-        if (response.errorCode === 'IMAGE_UNSUPPORTED') {
-          return finish('capability_missing', 'MODEL_CAPABILITY_MISSING', null, null);
-        }
+        const repairedStop = stopForProvider(response);
+        if (repairedStop) return repairedStop;
         parsed = parseWithSchema(response.raw, validator);
       }
       if (!parsed.ok) return finish('malformed', 'VALIDATION_ERROR', null, null);
@@ -509,14 +529,14 @@ export function createGateway(options: {
       return finish(repairCount > 0 ? 'repaired' : 'ok', null, parsed.value, null);
     } catch (error) {
       const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
-      const requestResult = code === 'TIMEOUT' ? 'timeout' : 'timeout';
+      const outcome = mapProviderCode(code);
       const requestText = JSON.stringify(messages);
       attempts.push({
         source: 'estimated',
         inputTokens: estimateTokens(requestText) ?? inputEstimate,
         outputTokens: null,
       });
-      return finish(requestResult, 'MODEL_TIMEOUT', null, null);
+      return finish(outcome.requestResult, outcome.errorCode, null, null);
     }
   }
 

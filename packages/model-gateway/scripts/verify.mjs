@@ -537,6 +537,77 @@ test('role prompts and tool scopes are versioned', () => {
   keep('roles.prompts', { requestResult: 'ok', rawOutput: JSON.stringify(scopes), data: scopes });
 });
 
+test('provider statuses map onto section 7 and are not completions', async () => {
+  const profileId = '14141414-1414-4141-8141-141414141414';
+  const doneBody = JSON.stringify({ done: true, toolCalls: [] });
+  async function call(fetchImpl, extra = {}) {
+    const gw = createGateway({
+      profiles: [{
+        id: profileId,
+        version: 1,
+        name: 'openai-errors',
+        endpoint: 'https://example.test/v1',
+        configuredModelId: 'gpt-test',
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: { structuredOutput: true, nativeTools: true, imageInput: false },
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: [],
+      }],
+      decryptKey: () => 'openai-test-key',
+      adapter: createOpenAIAdapter(fetchImpl),
+    });
+    return gw.generateDecision(baseInput(profileId, { timeoutMs: 1000, ...extra }));
+  }
+  const jsonResponse = (status, body) => async () =>
+    new Response(body, { status, headers: { 'content-type': 'application/json' } });
+
+  const unauthorized = await call(jsonResponse(401, '{"error":"bad key"}'));
+  assert.equal(unauthorized.errorCode, 'MODEL_NOT_CONFIGURED');
+  assert.equal(unauthorized.requestResult, 'not_configured');
+  assert.equal(unauthorized.data, null);
+  keep('provider.401', unauthorized);
+
+  const forbidden = await call(jsonResponse(403, '{"error":"forbidden"}'));
+  assert.equal(forbidden.errorCode, 'MODEL_NOT_CONFIGURED');
+  assert.equal(forbidden.requestResult, 'not_configured');
+  assert.equal(forbidden.data, null);
+  keep('provider.403', forbidden);
+
+  const invalid = await call(jsonResponse(422, doneBody));
+  assert.equal(invalid.errorCode, 'VALIDATION_ERROR');
+  assert.equal(invalid.requestResult, 'malformed');
+  assert.equal(invalid.data, null);
+  assert.equal(invalid.providerCalls, 1);
+  keep('provider.4xx', invalid);
+
+  const down = await call(jsonResponse(500, doneBody));
+  assert.equal(down.errorCode, 'SERVICE_UNAVAILABLE');
+  assert.equal(down.requestResult, 'unavailable');
+  assert.equal(down.data, null);
+  assert.equal(down.providerCalls, 1);
+  keep('provider.5xx', down);
+
+  const transport = await call(async () => {
+    throw new TypeError('network down');
+  });
+  assert.equal(transport.errorCode, 'SERVICE_UNAVAILABLE');
+  assert.equal(transport.requestResult, 'unavailable');
+  assert.equal(transport.data, null);
+  keep('provider.transport', transport);
+
+  const timed = await call((...args) => new Promise((_resolve, reject) => {
+    const init = args[1];
+    init.signal.addEventListener('abort', () => {
+      reject(Object.assign(new Error('The operation was aborted'), { name: 'AbortError' }));
+    });
+  }), { timeoutMs: 40 });
+  assert.equal(timed.errorCode, 'MODEL_TIMEOUT');
+  assert.equal(timed.requestResult, 'timeout');
+  assert.equal(timed.data, null);
+  keep('provider.timeout', timed);
+});
+
 test('live model probe stays blocked', () => {
   const env = { ...process.env };
   delete env.LOCALQA_MODEL_BASE_URL;
@@ -578,6 +649,12 @@ test('write evidence', () => {
     'budget',
     'complete.contract',
     'roles.prompts',
+    'provider.401',
+    'provider.403',
+    'provider.4xx',
+    'provider.5xx',
+    'provider.transport',
+    'provider.timeout',
     'live-model.blocked',
   ];
   const seen = new Set(passed);
@@ -615,6 +692,7 @@ test('write evidence', () => {
         '请求前脱敏；密钥只在调用前解密，日志不留原值；未批准或不存在的 fallback 不会被调用。',
         '六个角色的 t04.1 prompt 与契约工具范围。planner 无来源则拒绝。assertion 无引用或假 ID 为 inconclusive。',
         '工具循环走 Dispatcher。源码没有 import playwright。',
+        'OpenAI HTTP 与传输错误映射到 §7：429 RATE_LIMITED，401/403 MODEL_NOT_CONFIGURED，其他 4xx VALIDATION_ERROR，5xx 与传输失败 SERVICE_UNAVAILABLE，abort 为 MODEL_TIMEOUT。非 2xx 不把 body 当完成结果。网关 catch 按抛出的 code 映射，不再一律超时。',
       ],
       notDone: [
         '真模型调用。',
