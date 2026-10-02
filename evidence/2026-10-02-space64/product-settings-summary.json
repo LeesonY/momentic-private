@@ -1,0 +1,22 @@
+[
+  {
+    "url": "https://app.momentic.ai/settings/classification",
+    "title": "Classification | Momentic",
+    "main": "Back to app\nAccount\nProfile\nFeatures\nLabels\nClassification\nTriage\nEmail inboxes\nPhone numbers\nIntegrations\nNotifications\nNotification providers\nMo\nCustom fields\nAdministration\nWorkspace\nMembers\nAPI keys\nUsage\nBilling\nSSO\nUsage\nBilling\nCredits\n0%\nMo spend\n97%\n90% of included usage\nUpgrade to Pay-as-you-go\nClassification\nSet failure classification categories and outcome behavior. Docs\nActions\n\nChoose an action for each category.\n\nCategory\tDescription\tAction\nApplication change\tThe app changed and the test needs to be updated to match the new behavior.\t\nHeal\nFail\nWarn\nHeal\n\nBug\tThe app appears broken, such as unexpected errors, missing content, or stuck workflows.\t\nFail\nFail\nWarn\nHeal\n\nTest authorship\tThe test itself needs an authorship update, such as a clearer locator, assertion, or step.\t\nHeal\nFail\nWarn\nHeal\n\nTest setup\tThe test is missing required setup, data, files, credentials, or environment state.\t\nWarn\nFail\nWarn\nHeal\n\nInfra\tThe failure appears caused by infrastructure, outside services, browser instability, or slow-but-eventual behavior.\t\nHeal\nFail\nWarn\nHeal\n\nMomentic issue\tMomentic execution, AI, caching, or recovery behavior appears to be the source of the failure.\t\nHeal\nFail\nWarn\nHeal\n\nOther\tThe failure does not fit one of the other categories.\t\nFail\nFail\nWarn\nHeal"
+  },
+  {
+    "url": "https://app.momentic.ai/settings/triage",
+    "title": "Triage | Momentic",
+    "main": "Back to app\nAccount\nProfile\nFeatures\nLabels\nClassification\nTriage\nEmail inboxes\nPhone numbers\nIntegrations\nNotifications\nNotification providers\nMo\nCustom fields\nAdministration\nWorkspace\nMembers\nAPI keys\nUsage\nBilling\nSSO\nUsage\nBilling\nCredits\n0%\nMo spend\n97%\n90% of included usage\nUpgrade to Pay-as-you-go\nTriage\nSet how the triage agent repairs failing tests and delivers fixes.\nRepair behavior\nOn successful heal\n\nWhat the healing agent does after it repairs a test in CI. Outside CI, healed changes are always left on disk. Hover an option for details. Docs\n\nOn failed heal\n\nWhat the healing agent does when it can't repair a test. Docs\n\nPull requests\nRequest commit authors as reviewers\n\nRequest a review from the authors of the commits behind a failure on its heal pull request.\n\nAssign commit authors\n\nAssign the authors of the commits behind a failure to its heal pull request.\n\nDefault reviewer\n\nA GitHub username or org/team asked to review a repair when no reviewer is found or GitHub rejects every candidate. Not used when a triage skill selects reviewers.\n\nAuto-close inactive pull requests\n\nClose heal pull requests after this many days with no activity."
+  },
+  {
+    "url": "https://app.momentic.ai/settings/mo",
+    "title": "Custom fields | Momentic",
+    "main": "Custom fields\nAdd field"
+  },
+  {
+    "url": "https://app.momentic.ai/mo/schedules",
+    "title": "Schedules | Momentic",
+    "main": "Schedules\nNo schedules yet\nStart recurring QA sessions without kicking each one off by hand.\nNew schedule"
+  }
+]

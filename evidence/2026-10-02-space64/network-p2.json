@@ -1,0 +1,504 @@
+[
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "9F08D00FB90C1BE99E694FC8B972EF4C",
+    "url": "https://app.momentic.ai/",
+    "queryKeys": [
+      "app"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "9F08D00FB90C1BE99E694FC8B972EF4C",
+    "url": "https://app.momentic.ai/getting-started",
+    "queryKeys": [],
+    "method": "GET"
+  },
+  {
+    "event": "Network.responseReceived",
+    "requestId": "9F08D00FB90C1BE99E694FC8B972EF4C",
+    "url": "https://app.momentic.ai/getting-started",
+    "queryKeys": [],
+    "status": 200,
+    "mimeType": "text/html"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.2",
+    "url": "https://app.momentic.ai/_next/static/media/BDOGrotesk_Bold-s.p.28wh0igcm14hs.woff2",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.3",
+    "url": "https://app.momentic.ai/_next/static/media/BDOGrotesk_DemiBold-s.p.0-leko-85i8cl.woff2",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.4",
+    "url": "https://app.momentic.ai/_next/static/media/BDOGrotesk_Medium-s.p.07itrjvh3tusy.woff2",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.5",
+    "url": "https://app.momentic.ai/_next/static/media/BDOGrotesk_Regular-s.p.3w6uqmripstny.woff2",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.6",
+    "url": "https://app.momentic.ai/_next/static/media/BasicallyAMono_Bold-s.p.2m55xev62poy5.woff2",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.7",
+    "url": "https://app.momentic.ai/_next/static/media/BasicallyAMono_Medium-s.p.2k7v0lpt-rt6h.woff2",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.8",
+    "url": "https://app.momentic.ai/_next/static/media/BasicallyAMono_Regular-s.p.43pond2fsayca.woff2",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.9",
+    "url": "https://app.momentic.ai/_next/static/media/BasicallyAMono_SemiBold-s.p.3513qr724sn4l.woff2",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.10",
+    "url": "https://app.momentic.ai/_next/static/chunks/15zkbuub_h-_h.css",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.11",
+    "url": "https://app.momentic.ai/_next/static/chunks/3n5dn0xv8b_s6.css",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.14",
+    "url": "https://app.momentic.ai/_next/static/chunks/2ozf8c4nqojnl.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.15",
+    "url": "https://app.momentic.ai/_next/static/chunks/1srhu2n9w3lgt.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.16",
+    "url": "https://app.momentic.ai/_next/static/chunks/1vvvazhoz8tny.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.17",
+    "url": "https://app.momentic.ai/_next/static/chunks/2fn3-tnzbrrjc.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.18",
+    "url": "https://app.momentic.ai/_next/static/chunks/1nxbe1t5a95uw.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.19",
+    "url": "https://app.momentic.ai/_next/static/chunks/2m9hahg5z5tf3.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.20",
+    "url": "https://app.momentic.ai/_next/static/chunks/3vrvba2ryr6ep.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.21",
+    "url": "https://app.momentic.ai/_next/static/chunks/turbopack-04hssbuzce0di.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.22",
+    "url": "https://app.momentic.ai/_next/static/chunks/41mn93qge6mth.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.23",
+    "url": "https://app.momentic.ai/_next/static/chunks/25e1ddn9wlryz.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.24",
+    "url": "https://app.momentic.ai/_next/static/chunks/3dxoe_0swqzua.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.25",
+    "url": "https://app.momentic.ai/_next/static/chunks/0en6w1mvcaq56.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.26",
+    "url": "https://app.momentic.ai/_next/static/chunks/1edox_4psc-uc.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.27",
+    "url": "https://app.momentic.ai/_next/static/chunks/3wrxqx_wjdk_p.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.28",
+    "url": "https://app.momentic.ai/_next/static/chunks/2nrku26xg1ofl.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.29",
+    "url": "https://app.momentic.ai/_next/static/chunks/1h4acdr6wf_0g.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.30",
+    "url": "https://app.momentic.ai/_next/static/chunks/17myv1owomvz7.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.31",
+    "url": "https://app.momentic.ai/_next/static/chunks/3a4v42yibabo6.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.32",
+    "url": "https://app.momentic.ai/_next/static/chunks/0kywrgmjq2evq.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.33",
+    "url": "https://app.momentic.ai/_next/static/chunks/0xsz_orz9a7qm.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.34",
+    "url": "https://app.momentic.ai/_next/static/chunks/2hr_3hwuhk9i8.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.35",
+    "url": "https://app.momentic.ai/_next/static/chunks/35sg_niv--8gx.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.36",
+    "url": "https://app.momentic.ai/_next/static/chunks/0bg4owqbst8zu.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.37",
+    "url": "https://app.momentic.ai/_next/static/chunks/0p4ghwldxafwp.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.38",
+    "url": "https://app.momentic.ai/_next/static/chunks/0toafu31qz0u-.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.39",
+    "url": "https://app.momentic.ai/_next/static/chunks/2mujjlquh5p40.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.40",
+    "url": "https://app.momentic.ai/_next/static/chunks/16zm1w9xz6e_4.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.41",
+    "url": "https://app.momentic.ai/_next/static/chunks/2d0aeqprh_ljp.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.42",
+    "url": "https://app.momentic.ai/_next/static/chunks/09n8-zwcl22q-.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.43",
+    "url": "https://app.momentic.ai/_next/static/chunks/22kmq6oq47pf0.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.44",
+    "url": "https://app.momentic.ai/_next/static/chunks/1teclvcg6ehty.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.requestWillBeSent",
+    "requestId": "67741.45",
+    "url": "https://app.momentic.ai/_next/static/chunks/1jlh7bfv-6vu-.js",
+    "queryKeys": [
+      "dpl"
+    ],
+    "method": "GET"
+  },
+  {
+    "event": "Network.responseReceived",
+    "requestId": "67741.2",
+    "url": "https://app.momentic.ai/_next/static/media/BDOGrotesk_Bold-s.p.28wh0igcm14hs.woff2",
+    "queryKeys": [
+      "dpl"
+    ],
+    "status": 200,
+    "mimeType": "font/woff2"
+  },
+  {
+    "event": "Network.responseReceived",
+    "requestId": "67741.10",
+    "url": "https://app.momentic.ai/_next/static/chunks/15zkbuub_h-_h.css",
+    "queryKeys": [
+      "dpl"
+    ],
+    "status": 200,
+    "mimeType": "text/css"
+  },
+  {
+    "event": "Network.responseReceived",
+    "requestId": "67741.3",
+    "url": "https://app.momentic.ai/_next/static/media/BDOGrotesk_DemiBold-s.p.0-leko-85i8cl.woff2",
+    "queryKeys": [
+      "dpl"
+    ],
+    "status": 200,
+    "mimeType": "font/woff2"
+  },
+  {
+    "event": "Network.responseReceived",
+    "requestId": "67741.4",
+    "url": "https://app.momentic.ai/_next/static/media/BDOGrotesk_Medium-s.p.07itrjvh3tusy.woff2",
+    "queryKeys": [
+      "dpl"
+    ],
+    "status": 200,
+    "mimeType": "font/woff2"
+  },
+  {
+    "event": "Network.responseReceived",
+    "requestId": "67741.11",
+    "url": "https://app.momentic.ai/_next/static/chunks/3n5dn0xv8b_s6.css",
+    "queryKeys": [
+      "dpl"
+    ],
+    "status": 200,
+    "mimeType": "text/css"
+  },
+  {
+    "event": "Network.responseReceived",
+    "requestId": "67741.6",
+    "url": "https://app.momentic.ai/_next/static/media/BasicallyAMono_Bold-s.p.2m55xev62poy5.woff2",
+    "queryKeys": [
+      "dpl"
+    ],
+    "status": 200,
+    "mimeType": "font/woff2"
+  },
+  {
+    "event": "Network.responseReceived",
+    "requestId": "67741.5",
+    "url": "https://app.momentic.ai/_next/static/media/BDOGrotesk_Regular-s.p.3w6uqmripstny.woff2",
+    "queryKeys": [
+      "dpl"
+    ],
+    "status": 200,
+    "mimeType": "font/woff2"
+  },
+  {
+    "event": "Network.responseReceived",
+    "requestId": "67741.7",
+    "url": "https://app.momentic.ai/_next/static/media/BasicallyAMono_Medium-s.p.2k7v0lpt-rt6h.woff2",
+    "queryKeys": [
+      "dpl"
+    ],
+    "status": 200,
+    "mimeType": "font/woff2"
+  },
+  {
+    "event": "Network.responseReceived",
+    "requestId": "67741.9",
+    "url": "https://app.momentic.ai/_next/static/media/BasicallyAMono_SemiBold-s.p.3513qr724sn4l.woff2",
+    "queryKeys": [
+      "dpl"
+    ],
+    "status": 200,
+    "mimeType": "font/woff2"
+  },
+  {
+    "event": "Network.responseReceived",
+    "requestId": "67741.8",
+    "url": "https://app.momentic.ai/_next/static/media/BasicallyAMono_Regular-s.p.43pond2fsayca.woff2",
+    "queryKeys": [
+      "dpl"
+    ],
+    "status": 200,
+    "mimeType": "font/woff2"
+  }
+]

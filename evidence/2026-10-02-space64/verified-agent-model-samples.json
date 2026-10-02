@@ -1,0 +1,63 @@
+{
+  "groups": {
+    "sandbox-explore": 79,
+    "sandbox-bug-reproducer": 89,
+    "sandbox-bugbash": 899
+  },
+  "samples": [
+    {
+      "role": "sandbox-explore",
+      "selectionBasis": "UI selected Explore card",
+      "status": 200,
+      "modelIds": [
+        "gpt-6-luna"
+      ],
+      "toolNames": [
+        "tool-loadSkill",
+        "tool-list_product_requirements",
+        "tool-get_environment",
+        "tool-preview_step",
+        "tool-get_browser_state",
+        "tool-propose_exploration",
+        "tool-get_exploration_budget",
+        "tool-submit_test_case",
+        "tool-momentic_preview_steps",
+        "tool-report_suspected_bug",
+        "tool-list_test_cases",
+        "tool-complete_exploration"
+      ]
+    },
+    {
+      "role": "sandbox-bug-reproducer",
+      "selectionBasis": "Reproducer entry in observed session state",
+      "status": 200,
+      "modelIds": [
+        "gpt-6-luna"
+      ],
+      "toolNames": [
+        "tool-list_product_requirements",
+        "tool-preview_step",
+        "tool-get_browser_state",
+        "tool-momentic_retrieve_knowledge_base",
+        "tool-complete_bug_reproduction"
+      ]
+    },
+    {
+      "role": "sandbox-bugbash",
+      "selectionBasis": "UI selected test-case execution",
+      "status": 200,
+      "modelIds": [
+        "gpt-6-luna"
+      ],
+      "toolNames": [
+        "tool-list_product_requirements",
+        "tool-browser_settings",
+        "tool-preview_step",
+        "tool-get_browser_state",
+        "tool-search_network_requests",
+        "tool-track_controls",
+        "tool-submit_bugbash_report"
+      ]
+    }
+  ]
+}

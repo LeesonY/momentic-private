@@ -1,0 +1,20 @@
+# 虚构 P1 协议样例，当前没有对应的可执行回归引擎。
+kind: localqa/test
+schemaVersion: 1
+id: dashboard-smoke
+name: 虚构示例：打开首页并检查主内容
+variables: {}
+criteria:
+  - id: main.visible
+    kind: element_visible
+    description: 主要内容可见
+    sourceKind: saved_case
+    sourceRef: dashboard-smoke@1
+    locator:
+      by: role
+      value: main
+steps:
+  - kind: navigate
+    url: "{{env.BASE_URL}}"
+  - kind: assert
+    criterionId: main.visible

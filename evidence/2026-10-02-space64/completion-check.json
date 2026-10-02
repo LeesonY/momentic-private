@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-02",
+  "mode": "read-only",
+  "activeAgentCount": 0,
+  "report": {
+    "testCases": 587,
+    "passed": 476,
+    "issuesFound": 46,
+    "blocked": 65,
+    "bugs": 33,
+    "bugsByTriage": {
+      "OPEN": 33,
+      "ACCEPTED": 0,
+      "DUPLICATE": 0,
+      "WORKS_AS_INTENDED": 0,
+      "CANNOT_REPRODUCE": 0
+    }
+  },
+  "agentRecords": 1067,
+  "billingVisible": "Usage Billing Credits 0% Mo spend 97% 90% of included usage Upgrade to Pay-as-you-go",
+  "newSessionsStarted": 0,
+  "testsRerun": 0,
+  "settingsSaved": 0
+}

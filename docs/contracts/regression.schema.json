@@ -1,0 +1,367 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "RegressionDocument": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "kind": {
+          "const": "localqa/test"
+        },
+        "id": {
+          "type": "string",
+          "maxLength": 120,
+          "pattern": "^[a-zA-Z0-9_.-]+$"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 1
+        },
+        "variables": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Criterion"
+          },
+          "maxItems": 20,
+          "minItems": 1
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReplayStep"
+          },
+          "maxItems": 100,
+          "minItems": 1
+        },
+        "fixtureRefs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "id",
+              "version"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 10,
+          "minItems": 0
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "kind",
+        "id",
+        "name",
+        "criteria",
+        "steps"
+      ],
+      "additionalProperties": false
+    },
+    "Criterion": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_.-]+$"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "element_visible",
+            "text_equals",
+            "url_matches",
+            "http_status",
+            "semantic",
+            "visual"
+          ]
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000,
+          "minLength": 1
+        },
+        "sourceKind": {
+          "type": "string",
+          "enum": [
+            "generic_smoke",
+            "user_spec",
+            "project_knowledge",
+            "saved_case",
+            "inferred"
+          ]
+        },
+        "sourceRef": {
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        },
+        "locator": {
+          "$ref": "#/$defs/Locator"
+        },
+        "expectedValue": {
+          "$ref": "#/$defs/JsonValue"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "description",
+        "sourceKind",
+        "sourceRef"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "element_visible",
+                  "text_equals"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "locator"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "text_equals",
+                  "url_matches",
+                  "http_status"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "expectedValue"
+            ]
+          }
+        }
+      ]
+    },
+    "Locator": {
+      "type": "object",
+      "properties": {
+        "by": {
+          "type": "string",
+          "enum": [
+            "role",
+            "label",
+            "test_id",
+            "text",
+            "css"
+          ]
+        },
+        "value": {
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 500
+        }
+      },
+      "required": [
+        "by",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "JsonValue": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/JsonValue"
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          }
+        }
+      ]
+    },
+    "ReplayStep": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "navigate"
+            },
+            "url": {
+              "type": "string",
+              "maxLength": 8192,
+              "minLength": 1
+            }
+          },
+          "required": [
+            "kind",
+            "url"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "click"
+            },
+            "locator": {
+              "$ref": "#/$defs/Locator"
+            }
+          },
+          "required": [
+            "kind",
+            "locator"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "type_text"
+            },
+            "locator": {
+              "$ref": "#/$defs/Locator"
+            },
+            "text": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "kind",
+            "locator",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "assert"
+            },
+            "criterionId": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          "required": [
+            "kind",
+            "criterionId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "ai_action"
+            },
+            "goal": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "criteriaIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "maxItems": 20,
+              "minItems": 1
+            }
+          },
+          "required": [
+            "kind",
+            "goal",
+            "criteriaIds"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "module"
+            },
+            "ref": {
+              "type": "string",
+              "maxLength": 120,
+              "pattern": "^[a-zA-Z0-9_./-]+@[1-9][0-9]*$"
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "ref"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "$ref": "#/$defs/RegressionDocument"
+}

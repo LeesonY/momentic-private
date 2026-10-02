@@ -1,0 +1,22 @@
+{
+  "role": "sandbox-explore",
+  "selectionBasis": "UI selected Explore card",
+  "status": 200,
+  "modelIds": [
+    "gpt-6-luna"
+  ],
+  "toolNames": [
+    "tool-loadSkill",
+    "tool-list_product_requirements",
+    "tool-get_environment",
+    "tool-preview_step",
+    "tool-get_browser_state",
+    "tool-propose_exploration",
+    "tool-get_exploration_budget",
+    "tool-submit_test_case",
+    "tool-momentic_preview_steps",
+    "tool-report_suspected_bug",
+    "tool-list_test_cases",
+    "tool-complete_exploration"
+  ]
+}

@@ -1,0 +1,895 @@
+{
+  "date": "2026-10-02",
+  "assets": [
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/1vvvazhoz8tny.js",
+      "status": 200,
+      "bytes": 27150,
+      "sha256": "09e144eb2581ea5002ed25824d474ae748725fda2367e23057e4d92f085bd4b6",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/2fn3-tnzbrrjc.js",
+      "status": 200,
+      "bytes": 129445,
+      "sha256": "a9b416da888ba22a55ae1d31317647ca7c85942c405a994674f03db85a6c7bf6",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/2m9hahg5z5tf3.js",
+      "status": 200,
+      "bytes": 53908,
+      "sha256": "c6930b82e23c6b6989350ed64a7daeb152c1bc867a1ec1a5fc0d680eb853a58b",
+      "terms": [
+        "Sentry",
+        "sandbox"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/1nxbe1t5a95uw.js",
+      "status": 200,
+      "bytes": 217021,
+      "sha256": "f4fdfd0ea65a9db44e600f68ef652332e230dc972080a9a6b46d7741d11d1dca",
+      "terms": [
+        "Sentry",
+        "orb",
+        "anthropic",
+        "sandbox",
+        "eventsource"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/1srhu2n9w3lgt.js",
+      "status": 200,
+      "bytes": 204961,
+      "sha256": "948ac10f8de061a1355b386065acbe6c67f38678b3ec43a9d419b13c2b543b9e",
+      "terms": [
+        "orb"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/3vrvba2ryr6ep.js",
+      "status": 200,
+      "bytes": 32495,
+      "sha256": "11c89661f1a84993ee2bb6d73d75c715ee899fb27a95d956be712d8ddf41765d",
+      "terms": [
+        "orb"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/turbopack-04hssbuzce0di.js",
+      "status": 200,
+      "bytes": 11421,
+      "sha256": "64cacae8d183aa2abc603c49e20fce4ca2b16f4b0969ad702519999e89e28c76",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/41mn93qge6mth.js",
+      "status": 200,
+      "bytes": 14289,
+      "sha256": "374729856efaf1bcb6ad7bbc6a6639a5ce7a74c0b6507de38d2571dc7fffd6cc",
+      "terms": [
+        "orb"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/25e1ddn9wlryz.js",
+      "status": 200,
+      "bytes": 22006,
+      "sha256": "7b40c84772d04728a0b1da7b048a60fa75f01135e05ce98ad828086695d2e0f8",
+      "terms": [
+        "lucide"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/3dxoe_0swqzua.js",
+      "status": 200,
+      "bytes": 25943,
+      "sha256": "de37337964abe12fbbc1f75f1eb91797b8eaa311f3f028100a3fbc2155351fd6",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/3wrxqx_wjdk_p.js",
+      "status": 200,
+      "bytes": 26431,
+      "sha256": "3d8e01805c5f4bc294412ffc0fc828142a9c3478ce4a88462bf7dae7b083b963",
+      "terms": [
+        "radix-ui"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/0en6w1mvcaq56.js",
+      "status": 200,
+      "bytes": 27151,
+      "sha256": "52840c5df871d6535c945a81c1e90b1aab1c7f2e5e6da7029b234c948f5dcb73",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/1edox_4psc-uc.js",
+      "status": 200,
+      "bytes": 39205,
+      "sha256": "5ffe9b9b41e1bb4e593c21badc474ef7b472dfbc8f673f43fdaf57f584ae4037",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/2nrku26xg1ofl.js",
+      "status": 200,
+      "bytes": 27329,
+      "sha256": "7ac794bc7fd54f60c1c441f626ccfcd76710b8ffe6f65ad74f00e860f96734f1",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/1h4acdr6wf_0g.js",
+      "status": 200,
+      "bytes": 178987,
+      "sha256": "ca80fe2491403c6cc9a5e3b7b87effd1652761541b8b9e55bcf0b8d208bb88af",
+      "terms": [
+        "ZodError",
+        "zod"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/3a4v42yibabo6.js",
+      "status": 200,
+      "bytes": 124165,
+      "sha256": "f8ae4410c86c50078df638911bcf69834bbf2bd1a3b3a0f8a17dca44557c1650",
+      "terms": [
+        "ZodError",
+        "zod"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/17myv1owomvz7.js",
+      "status": 200,
+      "bytes": 190106,
+      "sha256": "84d448e1747eafe71d841425e2ff632cff280869003c63d196129552b5fa5ba2",
+      "terms": [
+        "rrweb",
+        "Sentry",
+        "posthog",
+        "orb",
+        "gpt-"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/0kywrgmjq2evq.js",
+      "status": 200,
+      "bytes": 21661,
+      "sha256": "148e9d1903f928a8646ee76d8bc63c9fd3d1e4684eece0ef1a7107035850c645",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/0xsz_orz9a7qm.js",
+      "status": 200,
+      "bytes": 41326,
+      "sha256": "20d46140a4f86c4900eb905907fc4272609c811ea68be22be64a45decf247eab",
+      "terms": [
+        "workos",
+        "posthog",
+        "pylon",
+        "sandbox"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/35sg_niv--8gx.js",
+      "status": 200,
+      "bytes": 3950,
+      "sha256": "8182510755a00bb37aecad16dea04474213aa36c133d367051af22c968c40568",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/2hnpvxrcd9zm4.js",
+      "status": 200,
+      "bytes": 798,
+      "sha256": "83dc6c909898bf05f477ecc5fa1bd2aa984ae07d8ac1e3c46281e3522c8373d4",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/0lx3nivologzy.js",
+      "status": 200,
+      "bytes": 12425,
+      "sha256": "d973596ec07df6b6a62130416b7e0b7cffa070d2b8332768c9a1d33eb4f430e7",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/2hr_3hwuhk9i8.js",
+      "status": 200,
+      "bytes": 30492,
+      "sha256": "9135268f7c077e604b9c52855dcfb74c21f98c1e133bd692f6c1dd473b2ecda4",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/3boiuftbapsfl.js",
+      "status": 200,
+      "bytes": 18379,
+      "sha256": "dcc4fec6ee1bab4ef026550090cd63a29408ad0973fb0f3e01977334de097c1f",
+      "terms": [
+        "sandbox"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/0cuz0u2tq2cw2.js",
+      "status": 200,
+      "bytes": 19612,
+      "sha256": "14c01bb2257abbe1a18cfc2b77f210fb1aad34dd6ec65ce342168a1d41db2b15",
+      "terms": [
+        "stripe"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/16zm1w9xz6e_4.js",
+      "status": 200,
+      "bytes": 27375,
+      "sha256": "3845b6ef602620c83c8d60f7611cdacddcfbd65ef513ab4245151a6ec0fe31da",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/41zt41hmrg2xf.js",
+      "status": 200,
+      "bytes": 24871,
+      "sha256": "3393f5fdcff617bf46995b36bf18cbf5e89e65363dbf5cd1e9c087dce743b3f1",
+      "terms": [
+        "sandbox"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/0in9qdo_wz-t1.js",
+      "status": 200,
+      "bytes": 26270,
+      "sha256": "fc2c4627c4ea46433130edfb5d07b7c0f8ad2c6f8d60ed26360c5ca0a10393e0",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/3x-pux3_9-a68.js",
+      "status": 200,
+      "bytes": 42464,
+      "sha256": "6b9fb5266e03359236e86c46cd4025c571e96becefa5f9955b4169b42f6eee32",
+      "terms": [
+        "orb",
+        "sandbox"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/42l61gslyv98a.js",
+      "status": 200,
+      "bytes": 26803,
+      "sha256": "5a66095a6da8188947bb7ac28ddf35b8f1c881b52b7c397927d6a2130b0d9f0f",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/3dqyvxmbrzvm-.js",
+      "status": 200,
+      "bytes": 25724,
+      "sha256": "6da0576cd33845557ae20c67c046df25d964dee1552aad4e2d4e306d205b27f4",
+      "terms": [
+        "sandbox"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/09n8-zwcl22q-.js",
+      "status": 200,
+      "bytes": 50907,
+      "sha256": "5440b4038b45712bd94366fe4b25b77bedf11fca05a9904014eb2ef36aaf8ee3",
+      "terms": [
+        "posthog",
+        "pylon"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/22b4vupb-jzq_.js",
+      "status": 200,
+      "bytes": 17249,
+      "sha256": "cf56d397915db7eb4032301c95284b1aafd93a9205a6e615e17aead24b28b6ae",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/2d0aeqprh_ljp.js",
+      "status": 200,
+      "bytes": 43395,
+      "sha256": "21033ddd8189d7780fb38e450025fd364fe6e8481cc20b2a73b729e88941d376",
+      "terms": [
+        "radix-ui",
+        "cmdk"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/3ey888k-asemg.js",
+      "status": 200,
+      "bytes": 279910,
+      "sha256": "e8bfa57f20e7a23d53767f7f9a3b539f311ae8134bddaec4735897e5ab6ddc3d",
+      "terms": [
+        "ZodError",
+        "zod",
+        "trigger.dev",
+        "firebase",
+        "postgres",
+        "Sentry",
+        "sandbox",
+        "eventsource"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/225k9k5xw7nxx.js",
+      "status": 200,
+      "bytes": 47774,
+      "sha256": "4873a91292e3d8498ced16778ffee90a63d877956fa4b47695c86a1313086055",
+      "terms": [
+        "orb",
+        "playwright",
+        "puppeteer"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/0yk3r-xpmr37h.js",
+      "status": 200,
+      "bytes": 124832,
+      "sha256": "71bcbebcfffbd1481101c3415689bdebed69f6a56229dd11cb8e209ae138be04",
+      "terms": [
+        "sandbox"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/2fl9z5-9-szpx.js",
+      "status": 200,
+      "bytes": 34927,
+      "sha256": "03f8709599e02b5496bfe01db6c84e6c3c80563de23ed3b5562119884f435f39",
+      "terms": [
+        "workos",
+        "pylon",
+        "browserbase",
+        "playwright",
+        "langfuse",
+        "WebRTC"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/3c6jt2e28lm9_.js",
+      "status": 200,
+      "bytes": 41601,
+      "sha256": "3f9e592da24eec55560d4d37815e6224b38590c52dfe5bb81757ffe571490112",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/22kmq6oq47pf0.js",
+      "status": 200,
+      "bytes": 163245,
+      "sha256": "7021a57022a8f0f89058bf77dd07d0c53aa77fa299e3b7b2d93e3d35c069700f",
+      "terms": [
+        "sandbox"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/3exi2_pm0ugzq.js",
+      "status": 200,
+      "bytes": 57370,
+      "sha256": "838c15b264986adb2b68de8d0b89ebd051ee8ad37ab1c5523d7d1dea2c784860",
+      "terms": [
+        "orb",
+        "sandbox"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/000eo48v38fhb.js",
+      "status": 200,
+      "bytes": 42710,
+      "sha256": "2e9cdb3c89394293f9fc1b82527e2e7d75062decffa0c0df481ac16f75467420",
+      "terms": [
+        "posthog",
+        "sandbox"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/1teclvcg6ehty.js",
+      "status": 200,
+      "bytes": 3889,
+      "sha256": "a7caaa08c56d84a336c14ea80913bef2d524e3989032167da1b7c931cccdb028",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/2-kyl8-sicum2.js",
+      "status": 200,
+      "bytes": 52957,
+      "sha256": "a068d9a09c89bb6ee2a13d628fbabdb70c45bc8a96bbc6bd55ae68a637a5be0b",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/0sc8ezh1695tz.js",
+      "status": 200,
+      "bytes": 107541,
+      "sha256": "5cd02c9bf49ae8b08d355003a0adc915df454ad3bf23d3655d8a43a7944a5dea",
+      "terms": [
+        "sandbox"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/113vwmvcuqpi6.js",
+      "status": 200,
+      "bytes": 43371,
+      "sha256": "baeea9e6f91714c070cf2f03682592aa55f0ca0a8d3128681c069cdc6a86b9f7",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/41a2yk0njy6hk.js",
+      "status": 200,
+      "bytes": 39484,
+      "sha256": "78bf62e9f5c3e2a2727e9b9bcfe2eb6337d45df6beec15a215ea22ab00943e98",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/2_yay9pu5z4p8.js",
+      "status": 200,
+      "bytes": 35937,
+      "sha256": "00f96fe11f50aa7c847b0cc083cafd75a02377ce8669276c398dc39f9713c107",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/33jm7wdm70_kc.js",
+      "status": 200,
+      "bytes": 62614,
+      "sha256": "1f0ca639287a83ed61fee663d6ec47a33b656ba3cace4f666ad8d9ff2194bb30",
+      "terms": [
+        "posthog",
+        "orb",
+        "sandbox"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/0028blbyatfac.js",
+      "status": 200,
+      "bytes": 237453,
+      "sha256": "cddf81f42d73de7cce6bca007743f91b0e7ae72219ad16dc468ea989ccf27955",
+      "terms": [
+        "orb",
+        "sandbox"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/44u_m_o8tnwsv.js",
+      "status": 200,
+      "bytes": 264247,
+      "sha256": "ce5aba70cfd95aa414de7a1c3deb98785b7505ab3dd0eec5092da1c089ef2106",
+      "terms": [
+        "orb"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/1687mxbr4hz9j.js",
+      "status": 200,
+      "bytes": 299524,
+      "sha256": "6e489c4bbaa9082b9368d9e37dc8427e27038fa984510aef4398833fedf765f2",
+      "terms": [
+        "Prisma"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/400le-q2e4919.js",
+      "status": 200,
+      "bytes": 91482,
+      "sha256": "3ebd1482937c531539151d761c9958a08e7b5e431ce0e31f8e78b2cc50ae389b",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/3cka712wn0-5b.js",
+      "status": 200,
+      "bytes": 247252,
+      "sha256": "1468a2e074c18157889d7e81f79f2185e2b0668691dde91a3a8f40cdfc8d2aac",
+      "terms": [
+        "Prisma",
+        "sandbox"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/0skdpku0tnx3p.js",
+      "status": 200,
+      "bytes": 348910,
+      "sha256": "4c5c922f59a14e20c7e21d5237bd7a8de6cc4f14ede9be143f7c681016e1b16f",
+      "terms": [
+        "codemirror",
+        "orb"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/0cz1d0mv5g_q7.js",
+      "status": 200,
+      "bytes": 112594,
+      "sha256": "0973c1d64c88adc8e3c950410cb58b288f72118d5965b78049438deb8f2f9683",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/0bg4owqbst8zu.js",
+      "status": 200,
+      "bytes": 14808,
+      "sha256": "9e8536070e317cf04146ed2b6bc36f4510d7bb03427384aab0633bbe3f33f043",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/0p4ghwldxafwp.js",
+      "status": 200,
+      "bytes": 14533,
+      "sha256": "2a9cb67f90498da9b69fd8cc17f1e6c064044f6d9edf8abe5eabbcfe3e9f1a82",
+      "terms": [
+        "orb"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/2mujjlquh5p40.js",
+      "status": 200,
+      "bytes": 25261,
+      "sha256": "e484aa807e87cb537c5e93c84bd0cd885c169d73265c2bf7376c9772b20c456e",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/0toafu31qz0u-.js",
+      "status": 200,
+      "bytes": 35817,
+      "sha256": "eceffb259ffc8fc063d6117cbd470e04c1e51a82b1d8e679006f5fb75df38bf6",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/1370n1qxrte2w.js",
+      "status": 200,
+      "bytes": 26752,
+      "sha256": "ca22bda8edfeb8ae0c1160b9134402f4013ef0af7e380ed24aabc2a0f9d1dd5b",
+      "terms": [
+        "ZodError",
+        "zod",
+        "rrweb",
+        "sandbox"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/1kuyg4hcb3m3k.js",
+      "status": 200,
+      "bytes": 36133,
+      "sha256": "56cf5bb7556dfd9316ce64ada872c0b79f0210be1e31f8f817587c618250d478",
+      "terms": [
+        "cmdk",
+        "posthog"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/3eu-wwd7kow3s.js",
+      "status": 200,
+      "bytes": 90247,
+      "sha256": "aedd3b3817ae046877e00aff34b5785fe323a1ce7b2a202826020e8a8952c92c",
+      "terms": [
+        "orb",
+        "sandbox"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/2nmy19l35e-1b.js",
+      "status": 200,
+      "bytes": 23859,
+      "sha256": "e6f8eee0ae79c6699a2820179d8eae0b2f860fc3c5f91887b2cbcfc59f486e52",
+      "terms": [
+        "posthog",
+        "orb"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/3hoy2co2tvu4g.js",
+      "status": 200,
+      "bytes": 316876,
+      "sha256": "49a20ff94c6db621ce7a031d8464ac66656b55f8b33f24645419ee484ba99aba",
+      "terms": [
+        "zod",
+        "ai-sdk",
+        "trigger.dev",
+        "orb",
+        "WebRTC",
+        "sandbox",
+        "eventsource"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/0odf0dqsmn0e5.js",
+      "status": 200,
+      "bytes": 6241,
+      "sha256": "51244c192c2af64af16dcb642f48c3e109eee5763bdb1735680076fe70116308",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/2gdbdw4qs90uu.js",
+      "status": 200,
+      "bytes": 27035,
+      "sha256": "2de28d85ec288174c0eb9073f83dbdd5583d62f58c9cf75a753c7529bf3f1061",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/0gv0qz_ki9fja.js",
+      "status": 200,
+      "bytes": 25237,
+      "sha256": "21cc27750b65d050e68dae72b5825f8b71894a771c1eee0f422076c8d11826a8",
+      "terms": [
+        "ZodError",
+        "zod",
+        "stripe"
+      ]
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/28wrj_wv2f4wl.js",
+      "status": 200,
+      "bytes": 314618,
+      "sha256": "61d76f8191776c7fb9b3b364a83f8fbfa7c1ecae0b6e694d9c83dca3783d3f28",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/2w8pecftwphvk.js",
+      "status": 200,
+      "bytes": 27238,
+      "sha256": "353a603bf81b51a2236f22ef4d58e9de086236613d6cb8c1ac973a845c493661",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/3gf6v30hdivgt.js",
+      "status": 200,
+      "bytes": 34534,
+      "sha256": "05047de30be7ae2b02c5dec38b356c58be9c9bf050892bb1a4d165412650ab0d",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/3wnsyqf18apg_.js",
+      "status": 200,
+      "bytes": 3891,
+      "sha256": "12b909df6ee96fe205c4d3b94097f826252431c469ca79f622420890e023336c",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/1ni310c4jz_kb.js",
+      "status": 200,
+      "bytes": 33422,
+      "sha256": "ae631514db391f7a7d479dc54a8354a30d25cc306968a433436e1413e6f7cb37",
+      "terms": []
+    },
+    {
+      "url": "https://app.momentic.ai/_next/static/chunks/2ozf8c4nqojnl.js",
+      "status": 200,
+      "bytes": 19670,
+      "sha256": "50520ac543139f96ba9ca61d3db9ae8646209ae714072c1585ae791a1699a107",
+      "terms": [
+        "Sentry",
+        "orb"
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "term": "radix-ui",
+      "files": [
+        "3wrxqx_wjdk_p.js",
+        "2d0aeqprh_ljp.js"
+      ]
+    },
+    {
+      "term": "cmdk",
+      "files": [
+        "2d0aeqprh_ljp.js",
+        "1kuyg4hcb3m3k.js"
+      ]
+    },
+    {
+      "term": "ZodError",
+      "files": [
+        "1h4acdr6wf_0g.js",
+        "3a4v42yibabo6.js",
+        "3ey888k-asemg.js",
+        "1370n1qxrte2w.js",
+        "0gv0qz_ki9fja.js"
+      ]
+    },
+    {
+      "term": "zod",
+      "files": [
+        "1h4acdr6wf_0g.js",
+        "3a4v42yibabo6.js",
+        "3ey888k-asemg.js",
+        "1370n1qxrte2w.js",
+        "3hoy2co2tvu4g.js",
+        "0gv0qz_ki9fja.js"
+      ]
+    },
+    {
+      "term": "rrweb",
+      "files": [
+        "17myv1owomvz7.js",
+        "1370n1qxrte2w.js"
+      ]
+    },
+    {
+      "term": "codemirror",
+      "files": [
+        "0skdpku0tnx3p.js"
+      ]
+    },
+    {
+      "term": "ai-sdk",
+      "files": [
+        "3hoy2co2tvu4g.js"
+      ]
+    },
+    {
+      "term": "trigger.dev",
+      "files": [
+        "3ey888k-asemg.js",
+        "3hoy2co2tvu4g.js"
+      ]
+    },
+    {
+      "term": "workos",
+      "files": [
+        "0xsz_orz9a7qm.js",
+        "2fl9z5-9-szpx.js"
+      ]
+    },
+    {
+      "term": "firebase",
+      "files": [
+        "3ey888k-asemg.js"
+      ]
+    },
+    {
+      "term": "Prisma",
+      "files": [
+        "1687mxbr4hz9j.js",
+        "3cka712wn0-5b.js"
+      ]
+    },
+    {
+      "term": "postgres",
+      "files": [
+        "3ey888k-asemg.js"
+      ]
+    },
+    {
+      "term": "Sentry",
+      "files": [
+        "2m9hahg5z5tf3.js",
+        "1nxbe1t5a95uw.js",
+        "17myv1owomvz7.js",
+        "3ey888k-asemg.js",
+        "2ozf8c4nqojnl.js"
+      ]
+    },
+    {
+      "term": "posthog",
+      "files": [
+        "17myv1owomvz7.js",
+        "0xsz_orz9a7qm.js",
+        "09n8-zwcl22q-.js",
+        "000eo48v38fhb.js",
+        "33jm7wdm70_kc.js",
+        "1kuyg4hcb3m3k.js",
+        "2nmy19l35e-1b.js"
+      ]
+    },
+    {
+      "term": "pylon",
+      "files": [
+        "0xsz_orz9a7qm.js",
+        "09n8-zwcl22q-.js",
+        "2fl9z5-9-szpx.js"
+      ]
+    },
+    {
+      "term": "stripe",
+      "files": [
+        "0cuz0u2tq2cw2.js",
+        "0gv0qz_ki9fja.js"
+      ]
+    },
+    {
+      "term": "orb",
+      "files": [
+        "1nxbe1t5a95uw.js",
+        "1srhu2n9w3lgt.js",
+        "3vrvba2ryr6ep.js",
+        "41mn93qge6mth.js",
+        "17myv1owomvz7.js",
+        "3x-pux3_9-a68.js",
+        "225k9k5xw7nxx.js",
+        "3exi2_pm0ugzq.js",
+        "33jm7wdm70_kc.js",
+        "0028blbyatfac.js",
+        "44u_m_o8tnwsv.js",
+        "0skdpku0tnx3p.js",
+        "0p4ghwldxafwp.js",
+        "3eu-wwd7kow3s.js",
+        "2nmy19l35e-1b.js",
+        "3hoy2co2tvu4g.js",
+        "2ozf8c4nqojnl.js"
+      ]
+    },
+    {
+      "term": "browserbase",
+      "files": [
+        "2fl9z5-9-szpx.js"
+      ]
+    },
+    {
+      "term": "playwright",
+      "files": [
+        "225k9k5xw7nxx.js",
+        "2fl9z5-9-szpx.js"
+      ]
+    },
+    {
+      "term": "puppeteer",
+      "files": [
+        "225k9k5xw7nxx.js"
+      ]
+    },
+    {
+      "term": "anthropic",
+      "files": [
+        "1nxbe1t5a95uw.js"
+      ]
+    },
+    {
+      "term": "gpt-",
+      "files": [
+        "17myv1owomvz7.js"
+      ]
+    },
+    {
+      "term": "langfuse",
+      "files": [
+        "2fl9z5-9-szpx.js"
+      ]
+    },
+    {
+      "term": "WebRTC",
+      "files": [
+        "2fl9z5-9-szpx.js",
+        "3hoy2co2tvu4g.js"
+      ]
+    },
+    {
+      "term": "sandbox",
+      "files": [
+        "2m9hahg5z5tf3.js",
+        "1nxbe1t5a95uw.js",
+        "0xsz_orz9a7qm.js",
+        "3boiuftbapsfl.js",
+        "41zt41hmrg2xf.js",
+        "3x-pux3_9-a68.js",
+        "3dqyvxmbrzvm-.js",
+        "3ey888k-asemg.js",
+        "0yk3r-xpmr37h.js",
+        "22kmq6oq47pf0.js",
+        "3exi2_pm0ugzq.js",
+        "000eo48v38fhb.js",
+        "0sc8ezh1695tz.js",
+        "33jm7wdm70_kc.js",
+        "0028blbyatfac.js",
+        "3cka712wn0-5b.js",
+        "1370n1qxrte2w.js",
+        "3eu-wwd7kow3s.js",
+        "3hoy2co2tvu4g.js"
+      ]
+    },
+    {
+      "term": "lucide",
+      "files": [
+        "25e1ddn9wlryz.js"
+      ]
+    },
+    {
+      "term": "eventsource",
+      "files": [
+        "1nxbe1t5a95uw.js",
+        "3ey888k-asemg.js",
+        "3hoy2co2tvu4g.js"
+      ]
+    }
+  ],
+  "interpretation": "Terms are raw string matches, not confirmed dependencies or backend technologies.",
+  "excludedInferences": {
+    "Prisma": "Syntax-highlighter language definitions",
+    "firebase": "Generic deployment-environment detector",
+    "postgres": "Trigger.dev SDK residency schema; does not identify Momentic application database",
+    "WebRTC": "Generic AI SDK and mobile schema references; does not prove Mo web replay uses WebRTC",
+    "browserbase": "Provider enum; does not prove this session used Browserbase",
+    "orb": "Substring matches are unreliable; vendor use was documented separately in public security docs"
+  }
+}

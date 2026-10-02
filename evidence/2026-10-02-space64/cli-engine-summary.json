@@ -1,0 +1,93 @@
+{
+  "package": "momentic",
+  "version": "3.62.3",
+  "cliSha256": "4c99051be9d82ffd96d2303ab7f747bcdfd17b5aeb53de3904f64f013e3919e4",
+  "source": "https://registry.npmjs.org/momentic/-/momentic-3.62.3.tgz",
+  "operations": [
+    {
+      "identifier": "chromium.launch",
+      "count": 2
+    },
+    {
+      "identifier": "chromium.launchPersistentContext",
+      "count": 1
+    },
+    {
+      "identifier": "connectOverCDP",
+      "count": 1
+    },
+    {
+      "identifier": "DOMSnapshot.captureSnapshot",
+      "count": 2
+    },
+    {
+      "identifier": "Accessibility.getFullAXTree",
+      "count": 1
+    },
+    {
+      "identifier": "rankChunksWithAi",
+      "count": 2
+    },
+    {
+      "identifier": "rrweb-record.js",
+      "count": 1
+    },
+    {
+      "identifier": "locate-element",
+      "count": 1
+    },
+    {
+      "identifier": "smart-waiting",
+      "count": 4
+    }
+  ],
+  "agentEndpoints": [
+    "/web-agent/agent-config",
+    "/web-agent/ai-action/evaluate",
+    "/web-agent/ai-action/next-command",
+    "/web-agent/ai-action/turbo-decision",
+    "/web-agent/assertion",
+    "/web-agent/autoheal-section",
+    "/web-agent/extract-keywords",
+    "/web-agent/failure-recovery",
+    "/web-agent/failure-recovery-memory",
+    "/web-agent/failure-recovery-plan",
+    "/web-agent/iframe-regex",
+    "/web-agent/lint/step",
+    "/web-agent/locate-element",
+    "/web-agent/next-command-dynamic",
+    "/web-agent/page-summary",
+    "/web-agent/recommend-chunks",
+    "/web-agent/recommend-chunks-ai",
+    "/web-agent/result-classification",
+    "/web-agent/reverse-mapped-description",
+    "/web-agent/smart-waiting",
+    "/web-agent/template-matching",
+    "/web-agent/text-extraction",
+    "/web-agent/visual-assertion"
+  ],
+  "packagedDefaults": {
+    "model": "gpt-5.6-sol",
+    "reasoningEffort": "high",
+    "scope": "Packaged explorer, bugbasher, and test-builder paths; not proof of current cloud Mo configuration"
+  },
+  "localServerImports": [
+    "express",
+    "socket.io"
+  ],
+  "aiSdk": "ai@7.0.113",
+  "aiProviderImports": [
+    "@ai-sdk/anthropic",
+    "@ai-sdk/xai"
+  ],
+  "modelFallbacksInPackagedAgentPaths": [
+    "openai",
+    "azure"
+  ],
+  "localAppAssets": [
+    "static/index.html",
+    "static/assets/*.js",
+    "run-viewer-static/index.html"
+  ],
+  "runtimeOperationsPerformed": false
+}

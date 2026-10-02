@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "id": "1",
+  "runId": "00000000-0000-4000-8000-000000000002",
+  "seq": 1,
+  "type": "run.updated",
+  "at": "2026-10-02T04:00:00Z",
+  "payload": {
+    "id": "00000000-0000-4000-8000-000000000002",
+    "projectId": "00000000-0000-4000-8000-000000000001",
+    "creatorId": "00000000-0000-4000-8000-000000000003",
+    "targetUrl": "http://fixture.local.test:8080/",
+    "status": "queued",
+    "phase": "preflight",
+    "completion": "none",
+    "terminationReason": null,
+    "contextVersion": 1,
+    "effectiveConfig": {
+      "allowedOrigins": [
+        "http://fixture.local.test:8080"
+      ],
+      "actionPolicy": "non_submitting",
+      "budget": {
+        "maxCases": 8,
+        "maxPages": 6,
+        "maxDepth": 2,
+        "maxActiveSeconds": 600,
+        "maxActionsPerCase": 12,
+        "maxActions": 120,
+        "maxModelCalls": 100,
+        "maxReproductions": 3,
+        "concurrency": 2,
+        "maxTotalTokens": 300000
+      },
+      "environmentVersion": null,
+      "authProfileVersion": null,
+      "models": {
+        "coordinator": {
+          "profileId": "00000000-0000-4000-8000-000000000004",
+          "version": 1
+        },
+        "explorer": {
+          "profileId": "00000000-0000-4000-8000-000000000004",
+          "version": 1
+        },
+        "executor": {
+          "profileId": "00000000-0000-4000-8000-000000000004",
+          "version": 1
+        },
+        "assertion": {
+          "profileId": "00000000-0000-4000-8000-000000000004",
+          "version": 1
+        },
+        "reproducer": {
+          "profileId": "00000000-0000-4000-8000-000000000004",
+          "version": 1
+        }
+      },
+      "knowledgeVersionIds": []
+    },
+    "budgetUsed": {
+      "activeSeconds": 0,
+      "actions": 0,
+      "modelCalls": 0,
+      "reproductions": 0,
+      "totalTokens": 0
+    },
+    "createdAt": "2026-10-02T04:00:00Z",
+    "updatedAt": "2026-10-02T04:00:00Z",
+    "version": 1
+  }
+}

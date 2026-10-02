@@ -1,0 +1,26 @@
+{
+  "name": "qa",
+  "version": "0.19.3",
+  "description": "The CLI for Mo, Momentic's autonomous QA agent.",
+  "engines": {
+    "node": "^22.12.0 || >=24.0.0"
+  },
+  "bin": {
+    "qa": "cli.cjs"
+  },
+  "dist": {
+    "unpackedSize": 9616,
+    "fileCount": 3,
+    "tarball": "https://registry.npmjs.org/qa/-/qa-0.19.3.tgz"
+  },
+  "optionalDependencies": {
+    "@momentic/qa-darwin-arm64": "0.19.3",
+    "@momentic/qa-darwin-x64": "0.19.3",
+    "@momentic/qa-linux-arm64": "0.19.3",
+    "@momentic/qa-linux-arm64-musl": "0.19.3",
+    "@momentic/qa-linux-x64": "0.19.3",
+    "@momentic/qa-linux-x64-musl": "0.19.3",
+    "@momentic/qa-windows-x64": "0.19.3"
+  },
+  "packaging": "Node launcher delegates to platform-specific executable; executable implementation language not inspected."
+}

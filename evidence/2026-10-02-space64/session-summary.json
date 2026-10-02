@@ -1,0 +1,68 @@
+{
+  "summary": {
+    "status": 200,
+    "report": {
+      "testCases": 587,
+      "passed": 476,
+      "issuesFound": 46,
+      "blocked": 65,
+      "bugs": 33,
+      "bugsByTriage": {
+        "OPEN": 33,
+        "ACCEPTED": 0,
+        "DUPLICATE": 0,
+        "WORKS_AS_INTENDED": 0,
+        "CANNOT_REPRODUCE": 0
+      }
+    },
+    "agentCount": 1067,
+    "agentKeys": [
+      "agent",
+      "conversationId",
+      "status",
+      "title",
+      "assignment",
+      "testCaseName",
+      "createdAt",
+      "updatedAt",
+      "activeSince",
+      "elapsedSeconds",
+      "budget",
+      "lastTool",
+      "lastToolTarget",
+      "testCaseCount",
+      "controlCount",
+      "verdict",
+      "investigationOutcome"
+    ],
+    "groups": {
+      "type": {},
+      "agentType": {},
+      "kind": {},
+      "status": {
+        "idle": 753,
+        "closed": 314
+      }
+    },
+    "testCaseCount": 587,
+    "controlCount": 12373,
+    "verdictCount": 752
+  },
+  "latestAgent": {
+    "status": 200,
+    "agentQueryKind": "sandbox-bugbash",
+    "messageCount": 2,
+    "modelIds": [
+      "gpt-6-luna"
+    ],
+    "toolNames": [
+      "tool-list_product_requirements",
+      "tool-browser_settings",
+      "tool-preview_step",
+      "tool-get_browser_state",
+      "tool-search_network_requests",
+      "tool-track_controls",
+      "tool-submit_bugbash_report"
+    ]
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-02",
+  "sources": [
+    {
+      "url": "https://momentic.ai/docs/mo/brief",
+      "status": 200,
+      "fact": "测试说明应明确目标、范围、预期、账号、数据及禁止动作。"
+    },
+    {
+      "url": "https://momentic.ai/docs/mo/sessions",
+      "status": 200,
+      "fact": "低探索粒度用于快速冒烟；认证状态可复用；并发、环境和预算影响执行。"
+    },
+    {
+      "url": "https://momentic.ai/docs/mo/reports",
+      "status": 200,
+      "fact": "用例、结论、复现、静态发现、控件和人工审查分别记录；可导出给开发代理。"
+    },
+    {
+      "url": "https://playwright.dev/docs/docker",
+      "status": 200,
+      "fact": "文档镜像基线 v1.63.0-noble；不可信页面使用非 root 用户及对应 seccomp/sandbox 配置。"
+    },
+    {
+      "url": "https://nodejs.org/en/about/previous-releases",
+      "status": 200,
+      "fact": "Node 24 处于 LTS。"
+    },
+    {
+      "url": "https://www.postgresql.org/support/versioning/",
+      "status": 200,
+      "fact": "PostgreSQL 18 仍受支持。"
+    },
+    {
+      "url": "https://ai-sdk.dev/docs/foundations/tools",
+      "status": 200,
+      "fact": "工具带输入 Schema 和可选执行函数；可用 Zod/JSON Schema 做输入验证。"
+    },
+    {
+      "url": "https://www.postgresql.org/docs/18/sql-select.html",
+      "status": 200,
+      "fact": "SELECT 提供 SKIP LOCKED；本项目采用数据库任务表及租约，具体正确性需故障测试。"
+    },
+    {
+      "url": "https://docs.bullmq.io/guide/jobs/stalled",
+      "status": 200,
+      "fact": "参考了任务失锁及重复处理风险；本项目未选择 BullMQ 为 P0 依赖。"
+    },
+    {
+      "url": "https://docs.bullmq.io/guide/redis-compatibility",
+      "status": 404,
+      "fact": "该入口不可用，未作为兼容性结论依据。"
+    }
+  ],
+  "sessionSettingsObserved": {
+    "interactionSpeed": "Default",
+    "audioTools": "Disabled",
+    "concurrencyShown": 25
+  },
+  "accountMutations": 0,
+  "newQaSessions": 0
+}

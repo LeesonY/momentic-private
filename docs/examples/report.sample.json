@@ -1,0 +1,444 @@
+{
+  "schemaVersion": 1,
+  "example": true,
+  "generatedAt": "2026-10-02T04:00:00Z",
+  "run": {
+    "id": "00000000-0000-4000-8000-000000000002",
+    "projectId": "00000000-0000-4000-8000-000000000001",
+    "creatorId": "00000000-0000-4000-8000-000000000003",
+    "targetUrl": "http://fixture.local.test:8080/",
+    "status": "completed",
+    "phase": "finalize",
+    "completion": "partial",
+    "terminationReason": "budget_limit",
+    "contextVersion": 1,
+    "effectiveConfig": {
+      "allowedOrigins": [
+        "http://fixture.local.test:8080"
+      ],
+      "actionPolicy": "non_submitting",
+      "budget": {
+        "maxCases": 8,
+        "maxPages": 6,
+        "maxDepth": 2,
+        "maxActiveSeconds": 600,
+        "maxActionsPerCase": 12,
+        "maxActions": 120,
+        "maxModelCalls": 100,
+        "maxReproductions": 3,
+        "concurrency": 2,
+        "maxTotalTokens": 300000
+      },
+      "environmentVersion": null,
+      "authProfileVersion": null,
+      "models": {
+        "coordinator": {
+          "profileId": "00000000-0000-4000-8000-000000000004",
+          "version": 1
+        },
+        "explorer": {
+          "profileId": "00000000-0000-4000-8000-000000000004",
+          "version": 1
+        },
+        "executor": {
+          "profileId": "00000000-0000-4000-8000-000000000004",
+          "version": 1
+        },
+        "assertion": {
+          "profileId": "00000000-0000-4000-8000-000000000004",
+          "version": 1
+        },
+        "reproducer": {
+          "profileId": "00000000-0000-4000-8000-000000000004",
+          "version": 1
+        }
+      },
+      "knowledgeVersionIds": []
+    },
+    "budgetUsed": {
+      "activeSeconds": 600,
+      "actions": 37,
+      "modelCalls": 12,
+      "reproductions": 1,
+      "totalTokens": 18000
+    },
+    "createdAt": "2026-10-02T04:00:00Z",
+    "updatedAt": "2026-10-02T04:00:00Z",
+    "version": 5
+  },
+  "summary": {
+    "planned": 5,
+    "passed": 2,
+    "issueFound": 1,
+    "blocked": 1,
+    "inconclusive": 0,
+    "notRun": 1,
+    "attempted": 4,
+    "evaluated": 3,
+    "passRate": 0.6666666666666666,
+    "attemptRate": 0.8
+  },
+  "cases": [
+    {
+      "definition": {
+        "id": "00000000-0000-4000-8000-000000000010",
+        "runId": "00000000-0000-4000-8000-000000000002",
+        "projectId": "00000000-0000-4000-8000-000000000001",
+        "version": 1,
+        "title": "虚构用例 1",
+        "summary": "受控 fixture 示例，未实际执行",
+        "preconditions": [
+          "fixture 已启动"
+        ],
+        "outline": [
+          "打开对应获准页面并检查内容"
+        ],
+        "criteria": [
+          {
+            "id": "content.visible",
+            "kind": "element_visible",
+            "description": "主要内容可见",
+            "sourceKind": "generic_smoke",
+            "sourceRef": "smoke:v1/content",
+            "locator": {
+              "by": "role",
+              "value": "main"
+            }
+          }
+        ]
+      },
+      "outcome": "passed",
+      "verdict": {
+        "id": "00000000-0000-4000-8000-000000000030",
+        "caseId": "00000000-0000-4000-8000-000000000010",
+        "attemptId": "00000000-0000-4000-8000-000000000050",
+        "status": "passed",
+        "reasonCode": "NORMAL",
+        "summary": "虚构结果，仅展示协议",
+        "criterionResults": [
+          {
+            "criterionId": "content.visible",
+            "result": "passed",
+            "reason": "示例观察",
+            "evidenceRefs": [
+              "00000000-0000-4000-8000-000000000080"
+            ]
+          }
+        ],
+        "gaps": [],
+        "createdAt": "2026-10-02T04:00:00Z"
+      }
+    },
+    {
+      "definition": {
+        "id": "00000000-0000-4000-8000-000000000011",
+        "runId": "00000000-0000-4000-8000-000000000002",
+        "projectId": "00000000-0000-4000-8000-000000000001",
+        "version": 1,
+        "title": "虚构用例 2",
+        "summary": "受控 fixture 示例，未实际执行",
+        "preconditions": [
+          "fixture 已启动"
+        ],
+        "outline": [
+          "打开对应获准页面并检查内容"
+        ],
+        "criteria": [
+          {
+            "id": "content.visible",
+            "kind": "element_visible",
+            "description": "主要内容可见",
+            "sourceKind": "generic_smoke",
+            "sourceRef": "smoke:v1/content",
+            "locator": {
+              "by": "role",
+              "value": "main"
+            }
+          }
+        ]
+      },
+      "outcome": "passed",
+      "verdict": {
+        "id": "00000000-0000-4000-8000-000000000031",
+        "caseId": "00000000-0000-4000-8000-000000000011",
+        "attemptId": "00000000-0000-4000-8000-000000000051",
+        "status": "passed",
+        "reasonCode": "NORMAL",
+        "summary": "虚构结果，仅展示协议",
+        "criterionResults": [
+          {
+            "criterionId": "content.visible",
+            "result": "passed",
+            "reason": "示例观察",
+            "evidenceRefs": [
+              "00000000-0000-4000-8000-000000000081"
+            ]
+          }
+        ],
+        "gaps": [],
+        "createdAt": "2026-10-02T04:00:00Z"
+      }
+    },
+    {
+      "definition": {
+        "id": "00000000-0000-4000-8000-000000000012",
+        "runId": "00000000-0000-4000-8000-000000000002",
+        "projectId": "00000000-0000-4000-8000-000000000001",
+        "version": 1,
+        "title": "虚构用例 3",
+        "summary": "受控 fixture 示例，未实际执行",
+        "preconditions": [
+          "fixture 已启动"
+        ],
+        "outline": [
+          "打开对应获准页面并检查内容"
+        ],
+        "criteria": [
+          {
+            "id": "content.visible",
+            "kind": "element_visible",
+            "description": "主要内容可见",
+            "sourceKind": "generic_smoke",
+            "sourceRef": "smoke:v1/content",
+            "locator": {
+              "by": "role",
+              "value": "main"
+            }
+          }
+        ]
+      },
+      "outcome": "issue_found",
+      "verdict": {
+        "id": "00000000-0000-4000-8000-000000000032",
+        "caseId": "00000000-0000-4000-8000-000000000012",
+        "attemptId": "00000000-0000-4000-8000-000000000052",
+        "status": "issue_found",
+        "reasonCode": "CRITERION_FAILED",
+        "summary": "虚构结果，仅展示协议",
+        "criterionResults": [
+          {
+            "criterionId": "content.visible",
+            "result": "failed",
+            "reason": "示例观察",
+            "evidenceRefs": [
+              "00000000-0000-4000-8000-000000000082"
+            ]
+          }
+        ],
+        "gaps": [],
+        "createdAt": "2026-10-02T04:00:00Z"
+      }
+    },
+    {
+      "definition": {
+        "id": "00000000-0000-4000-8000-000000000013",
+        "runId": "00000000-0000-4000-8000-000000000002",
+        "projectId": "00000000-0000-4000-8000-000000000001",
+        "version": 1,
+        "title": "虚构用例 4",
+        "summary": "受控 fixture 示例，未实际执行",
+        "preconditions": [
+          "fixture 已启动"
+        ],
+        "outline": [
+          "打开对应获准页面并检查内容"
+        ],
+        "criteria": [
+          {
+            "id": "content.visible",
+            "kind": "element_visible",
+            "description": "主要内容可见",
+            "sourceKind": "generic_smoke",
+            "sourceRef": "smoke:v1/content",
+            "locator": {
+              "by": "role",
+              "value": "main"
+            }
+          }
+        ]
+      },
+      "outcome": "blocked",
+      "verdict": {
+        "id": "00000000-0000-4000-8000-000000000033",
+        "caseId": "00000000-0000-4000-8000-000000000013",
+        "attemptId": "00000000-0000-4000-8000-000000000053",
+        "status": "blocked",
+        "reasonCode": "AUTH_REQUIRED",
+        "summary": "虚构结果，仅展示协议",
+        "criterionResults": [
+          {
+            "criterionId": "content.visible",
+            "result": "not_evaluated",
+            "reason": "示例观察",
+            "evidenceRefs": []
+          }
+        ],
+        "gaps": [
+          "需要认证资料"
+        ],
+        "createdAt": "2026-10-02T04:00:00Z"
+      }
+    },
+    {
+      "definition": {
+        "id": "00000000-0000-4000-8000-000000000014",
+        "runId": "00000000-0000-4000-8000-000000000002",
+        "projectId": "00000000-0000-4000-8000-000000000001",
+        "version": 1,
+        "title": "虚构用例 5",
+        "summary": "受控 fixture 示例，未实际执行",
+        "preconditions": [
+          "fixture 已启动"
+        ],
+        "outline": [
+          "打开对应获准页面并检查内容"
+        ],
+        "criteria": [
+          {
+            "id": "content.visible",
+            "kind": "element_visible",
+            "description": "主要内容可见",
+            "sourceKind": "generic_smoke",
+            "sourceRef": "smoke:v1/content",
+            "locator": {
+              "by": "role",
+              "value": "main"
+            }
+          }
+        ]
+      },
+      "outcome": "not_run",
+      "verdict": null
+    }
+  ],
+  "findings": [
+    {
+      "id": "00000000-0000-4000-8000-000000000090",
+      "runId": "00000000-0000-4000-8000-000000000002",
+      "caseIds": [
+        "00000000-0000-4000-8000-000000000012"
+      ],
+      "kind": "functional",
+      "status": "confirmed",
+      "title": "虚构 fixture 页面主要内容缺失",
+      "severity": "medium",
+      "expected": "获准页面显示主要内容",
+      "actual": "主要内容节点未出现",
+      "expectedSource": "generic_smoke",
+      "reproSteps": [
+        "打开 fixture 中的固定故障页面",
+        "等待内容检查完成"
+      ],
+      "evidenceRefs": [
+        "00000000-0000-4000-8000-000000000082",
+        "00000000-0000-4000-8000-000000000083"
+      ],
+      "reproductionRef": "00000000-0000-4000-8000-000000000091",
+      "triageDisposition": "open",
+      "version": 1
+    }
+  ],
+  "reproductions": [
+    {
+      "id": "00000000-0000-4000-8000-000000000091",
+      "findingId": "00000000-0000-4000-8000-000000000090",
+      "taskId": "00000000-0000-4000-8000-000000000092",
+      "outcome": "reproduced",
+      "freshContext": true,
+      "summary": "虚构独立复现",
+      "evidenceRefs": [
+        "00000000-0000-4000-8000-000000000083"
+      ],
+      "createdAt": "2026-10-02T04:00:00Z"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "00000000-0000-4000-8000-000000000080",
+      "projectId": "00000000-0000-4000-8000-000000000001",
+      "runId": "00000000-0000-4000-8000-000000000002",
+      "taskId": "00000000-0000-4000-8000-000000000060",
+      "stepId": "00000000-0000-4000-8000-000000000200",
+      "caseId": "00000000-0000-4000-8000-000000000010",
+      "snapshotId": "00000000-0000-4000-8000-000000000300",
+      "kind": "screenshot",
+      "status": "available",
+      "bytes": 1024,
+      "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "contentUrl": "/api/v1/artifacts/00000000-0000-4000-8000-000000000080/content",
+      "redaction": "not_needed",
+      "error": null,
+      "createdAt": "2026-10-02T04:00:00Z"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000081",
+      "projectId": "00000000-0000-4000-8000-000000000001",
+      "runId": "00000000-0000-4000-8000-000000000002",
+      "taskId": "00000000-0000-4000-8000-000000000061",
+      "stepId": "00000000-0000-4000-8000-000000000201",
+      "caseId": "00000000-0000-4000-8000-000000000011",
+      "snapshotId": "00000000-0000-4000-8000-000000000301",
+      "kind": "screenshot",
+      "status": "available",
+      "bytes": 1024,
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "contentUrl": "/api/v1/artifacts/00000000-0000-4000-8000-000000000081/content",
+      "redaction": "not_needed",
+      "error": null,
+      "createdAt": "2026-10-02T04:00:00Z"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000082",
+      "projectId": "00000000-0000-4000-8000-000000000001",
+      "runId": "00000000-0000-4000-8000-000000000002",
+      "taskId": "00000000-0000-4000-8000-000000000062",
+      "stepId": "00000000-0000-4000-8000-000000000202",
+      "caseId": "00000000-0000-4000-8000-000000000012",
+      "snapshotId": "00000000-0000-4000-8000-000000000302",
+      "kind": "screenshot",
+      "status": "available",
+      "bytes": 1024,
+      "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "contentUrl": "/api/v1/artifacts/00000000-0000-4000-8000-000000000082/content",
+      "redaction": "not_needed",
+      "error": null,
+      "createdAt": "2026-10-02T04:00:00Z"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000083",
+      "projectId": "00000000-0000-4000-8000-000000000001",
+      "runId": "00000000-0000-4000-8000-000000000002",
+      "taskId": "00000000-0000-4000-8000-000000000092",
+      "stepId": "00000000-0000-4000-8000-000000000203",
+      "caseId": "00000000-0000-4000-8000-000000000012",
+      "snapshotId": "00000000-0000-4000-8000-000000000303",
+      "kind": "screenshot",
+      "status": "available",
+      "bytes": 1024,
+      "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+      "contentUrl": "/api/v1/artifacts/00000000-0000-4000-8000-000000000083/content",
+      "redaction": "not_needed",
+      "error": null,
+      "createdAt": "2026-10-02T04:00:00Z"
+    }
+  ],
+  "modelUsage": [
+    {
+      "profileId": "00000000-0000-4000-8000-000000000004",
+      "configuredModelId": "fixture-model",
+      "reportedModelId": null,
+      "requests": 12,
+      "inputTokens": 14000,
+      "outputTokens": 4000,
+      "usageSource": "estimated"
+    }
+  ],
+  "coverageGaps": [
+    "一条用例需要认证",
+    "预算结束前未执行最后一条用例"
+  ],
+  "cleanupStatus": "not_required",
+  "warnings": [
+    "所有内容均为虚构示例，不代表平台已实现或已运行"
+  ]
+}

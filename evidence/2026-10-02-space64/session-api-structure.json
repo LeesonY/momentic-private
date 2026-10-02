@@ -1,0 +1,487 @@
+[
+  {
+    "path": "/api/sandbox/chats/<id>/agent-activity",
+    "status": 200,
+    "shape": {
+      "truncated": "boolean",
+      "messages": {
+        "type": "array",
+        "length": 2,
+        "items": {
+          "id": "string",
+          "role": "string",
+          "metadata": {
+            "createdAt": "string"
+          },
+          "parts": {
+            "type": "array",
+            "length": 1,
+            "items": {
+              "type": "object",
+              "keys": [
+                "type",
+                "text"
+              ]
+            }
+          }
+        }
+      },
+      "lastWrittenAt": "string",
+      "sessionState": {
+        "publicAccessToken": "string",
+        "lastEventId": "string",
+        "isStreaming": "boolean"
+      }
+    },
+    "selectedMetadata": [
+      {
+        "path": ".messages[].parts[].type",
+        "value": "text"
+      },
+      {
+        "path": ".messages[].metadata.modelId",
+        "value": "gpt-6-luna"
+      },
+      {
+        "path": ".messages[].parts[].type",
+        "value": "step-start"
+      },
+      {
+        "path": ".messages[].parts[].type",
+        "value": "reasoning"
+      },
+      {
+        "path": ".messages[].parts[].type",
+        "value": "tool-list_product_requirements"
+      },
+      {
+        "path": ".messages[].parts[].type",
+        "value": "step-start"
+      },
+      {
+        "path": ".messages[].parts[].type",
+        "value": "reasoning"
+      },
+      {
+        "path": ".messages[].parts[].type",
+        "value": "tool-browser_settings"
+      },
+      {
+        "path": ".messages[].parts[].type",
+        "value": "step-start"
+      },
+      {
+        "path": ".messages[].parts[].type",
+        "value": "tool-preview_step"
+      },
+      {
+        "path": ".messages[].parts[].output.type",
+        "value": "content"
+      },
+      {
+        "path": ".messages[].parts[].output.value[].type",
+        "value": "text"
+      },
+      {
+        "path": ".messages[].parts[].output.value[].type",
+        "value": "text"
+      },
+      {
+        "path": ".messages[].parts[].output.value[].type",
+        "value": "text"
+      },
+      {
+        "path": ".messages[].parts[].output.value[].type",
+        "value": "image-reference"
+      },
+      {
+        "path": ".messages[].parts[].type",
+        "value": "step-start"
+      },
+      {
+        "path": ".messages[].parts[].type",
+        "value": "reasoning"
+      },
+      {
+        "path": ".messages[].parts[].type",
+        "value": "tool-preview_step"
+      },
+      {
+        "path": ".messages[].parts[].output.type",
+        "value": "content"
+      },
+      {
+        "path": ".messages[].parts[].output.value[].type",
+        "value": "text"
+      },
+      {
+        "path": ".messages[].parts[].output.value[].type",
+        "value": "text"
+      },
+      {
+        "path": ".messages[].parts[].output.value[].type",
+        "value": "text"
+      },
+      {
+        "path": ".messages[].parts[].output.value[].type",
+        "value": "image-reference"
+      },
+      {
+        "path": ".messages[].parts[].type",
+        "value": "step-start"
+      },
+      {
+        "path": ".messages[].parts[].type",
+        "value": "reasoning"
+      },
+      {
+        "path": ".messages[].parts[].type",
+        "value": "tool-get_browser_state"
+      },
+      {
+        "path": ".messages[].parts[].output.type",
+        "value": "content"
+      },
+      {
+        "path": ".messages[].parts[].output.value[].type",
+        "value": "text"
+      },
+      {
+        "path": ".messages[].parts[].output.value[].type",
+        "value": "text"
+      },
+      {
+        "path": ".messages[].parts[].output.value[].type",
+        "value": "image-reference"
+      },
+      {
+        "path": ".messages[].parts[].type",
+        "value": "step-start"
+      }
+    ]
+  },
+  {
+    "path": "/api/sandbox/chats/state",
+    "status": 200,
+    "shape": {
+      "chat": {
+        "id": "string",
+        "title": "string",
+        "createdAt": "string",
+        "updatedAt": "string",
+        "chatStatus": "string",
+        "archived": "boolean",
+        "ownedByViewer": "boolean",
+        "hasTurn": "boolean",
+        "status": {
+          "kind": "string"
+        },
+        "activeAgentCount": "number",
+        "report": {
+          "testCases": "number",
+          "passed": "number",
+          "issuesFound": "number",
+          "blocked": "number",
+          "bugs": "number",
+          "bugsByTriage": {
+            "OPEN": "number",
+            "ACCEPTED": "number",
+            "DUPLICATE": "number",
+            "WORKS_AS_INTENDED": "number",
+            "CANNOT_REPRODUCE": "number"
+          }
+        },
+        "workspace": {
+          "agents": {
+            "type": "array",
+            "length": 1067,
+            "items": {
+              "type": "object",
+              "keys": [
+                "agent",
+                "conversationId",
+                "status",
+                "title",
+                "assignment",
+                "testCaseName",
+                "createdAt",
+                "updatedAt",
+                "activeSince",
+                "elapsedSeconds",
+                "budget",
+                "lastTool",
+                "lastToolTarget",
+                "testCaseCount",
+                "controlCount",
+                "verdict",
+                "investigationOutcome"
+              ]
+            }
+          },
+          "testCases": {
+            "type": "array",
+            "length": 587,
+            "items": {
+              "type": "object",
+              "keys": [
+                "name",
+                "summary",
+                "preconditions",
+                "outline",
+                "acceptanceCriteria",
+                "blockedReason",
+                "agent",
+                "conversationId",
+                "createdAt",
+                "updatedAt"
+              ]
+            }
+          },
+          "bugs": {
+            "type": "array",
+            "length": 33,
+            "items": {
+              "type": "object",
+              "keys": [
+                "kind",
+                "name",
+                "summary",
+                "expected",
+                "actual",
+                "reproSteps",
+                "recording",
+                "screenshot",
+                "investigatorAgent",
+                "investigatorConversationId",
+                "reviewedAt",
+                "agent",
+                "conversationId",
+                "createdAt",
+                "updatedAt"
+              ]
+            }
+          },
+          "controls": {
+            "type": "array",
+            "length": 12373,
+            "items": {
+              "type": "object",
+              "keys": [
+                "control",
+                "status",
+                "result",
+                "agent",
+                "conversationId"
+              ]
+            }
+          },
+          "verdicts": {
+            "type": "array",
+            "length": 752,
+            "items": {
+              "type": "object",
+              "keys": [
+                "testCaseName",
+                "status",
+                "summary",
+                "verified",
+                "gaps",
+                "agent",
+                "conversationId",
+                "createdAt",
+                "updatedAt"
+              ]
+            }
+          },
+          "triage": {
+            "type": "array",
+            "length": 0,
+            "items": null
+          }
+        }
+      }
+    },
+    "selectedMetadata": [
+      {
+        "path": ".chat.workspace.agents[].status",
+        "value": "idle"
+      },
+      {
+        "path": ".chat.workspace.agents[].status",
+        "value": "idle"
+      },
+      {
+        "path": ".chat.workspace.agents[].status",
+        "value": "idle"
+      },
+      {
+        "path": ".chat.workspace.agents[].status",
+        "value": "idle"
+      },
+      {
+        "path": ".chat.workspace.agents[].status",
+        "value": "idle"
+      },
+      {
+        "path": ".chat.workspace.agents[].status",
+        "value": "idle"
+      },
+      {
+        "path": ".chat.workspace.agents[].status",
+        "value": "idle"
+      },
+      {
+        "path": ".chat.workspace.agents[].status",
+        "value": "idle"
+      },
+      {
+        "path": ".chat.workspace.agents[].status",
+        "value": "idle"
+      },
+      {
+        "path": ".chat.workspace.agents[].status",
+        "value": "idle"
+      },
+      {
+        "path": ".chat.workspace.agents[].status",
+        "value": "idle"
+      },
+      {
+        "path": ".chat.workspace.agents[].status",
+        "value": "idle"
+      },
+      {
+        "path": ".chat.workspace.agents[].status",
+        "value": "idle"
+      },
+      {
+        "path": ".chat.workspace.agents[].status",
+        "value": "idle"
+      },
+      {
+        "path": ".chat.workspace.agents[].status",
+        "value": "idle"
+      },
+      {
+        "path": ".chat.workspace.controls[].status",
+        "value": "checked"
+      },
+      {
+        "path": ".chat.workspace.controls[].status",
+        "value": "checked"
+      },
+      {
+        "path": ".chat.workspace.controls[].status",
+        "value": "checked"
+      },
+      {
+        "path": ".chat.workspace.controls[].status",
+        "value": "checked"
+      },
+      {
+        "path": ".chat.workspace.controls[].status",
+        "value": "checked"
+      },
+      {
+        "path": ".chat.workspace.controls[].status",
+        "value": "checked"
+      },
+      {
+        "path": ".chat.workspace.controls[].status",
+        "value": "checked"
+      },
+      {
+        "path": ".chat.workspace.controls[].status",
+        "value": "checked"
+      },
+      {
+        "path": ".chat.workspace.controls[].status",
+        "value": "checked"
+      },
+      {
+        "path": ".chat.workspace.controls[].status",
+        "value": "checked"
+      },
+      {
+        "path": ".chat.workspace.controls[].status",
+        "value": "checked"
+      },
+      {
+        "path": ".chat.workspace.controls[].status",
+        "value": "checked"
+      },
+      {
+        "path": ".chat.workspace.controls[].status",
+        "value": "checked"
+      },
+      {
+        "path": ".chat.workspace.controls[].status",
+        "value": "checked"
+      },
+      {
+        "path": ".chat.workspace.controls[].status",
+        "value": "checked"
+      },
+      {
+        "path": ".chat.workspace.verdicts[].status",
+        "value": "verified"
+      },
+      {
+        "path": ".chat.workspace.verdicts[].status",
+        "value": "blocked"
+      },
+      {
+        "path": ".chat.workspace.verdicts[].status",
+        "value": "verified"
+      },
+      {
+        "path": ".chat.workspace.verdicts[].status",
+        "value": "verified"
+      },
+      {
+        "path": ".chat.workspace.verdicts[].status",
+        "value": "blocked"
+      },
+      {
+        "path": ".chat.workspace.verdicts[].status",
+        "value": "blocked"
+      },
+      {
+        "path": ".chat.workspace.verdicts[].status",
+        "value": "verified"
+      },
+      {
+        "path": ".chat.workspace.verdicts[].status",
+        "value": "blocked"
+      },
+      {
+        "path": ".chat.workspace.verdicts[].status",
+        "value": "verified"
+      },
+      {
+        "path": ".chat.workspace.verdicts[].status",
+        "value": "verified"
+      },
+      {
+        "path": ".chat.workspace.verdicts[].status",
+        "value": "verified"
+      },
+      {
+        "path": ".chat.workspace.verdicts[].status",
+        "value": "blocked"
+      },
+      {
+        "path": ".chat.workspace.verdicts[].status",
+        "value": "verified"
+      },
+      {
+        "path": ".chat.workspace.verdicts[].status",
+        "value": "verified"
+      },
+      {
+        "path": ".chat.workspace.verdicts[].status",
+        "value": "verified"
+      }
+    ]
+  }
+]
