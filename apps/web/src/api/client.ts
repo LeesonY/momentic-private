@@ -1,38 +1,79 @@
-import type { ApiClient } from './types.ts';
+/* Generated from docs/contracts/openapi.json by scripts/generateClient.mjs. DO NOT EDIT DIRECTLY. */
+
+import { parseContract, type ContractName } from '@localqa/contracts';
 import type {
   User,
+  UserCreate,
+  UserPatch,
+  UserPage,
   Project,
+  ProjectCreate,
+  ProjectPatch,
+  ProjectPage,
+  MemberUpdate,
+  MemberPage,
   Environment,
+  EnvironmentCreate,
+  EnvironmentPatch,
+  EnvironmentPage,
   AuthProfile,
+  AuthProfileCreate,
+  AuthProfilePatch,
+  AuthProfilePage,
   Knowledge,
+  KnowledgeCreate,
+  KnowledgePatch,
+  KnowledgePage,
   ModelProfile,
+  ModelProfileCreate,
+  ModelProfilePatch,
+  ModelProfilePage,
+  ModelProbeResult,
   Run,
-  RunConfig,
-  BudgetOverrides,
-  Task,
+  RunCreate,
+  RunPage,
+  MessageInput,
+  InputRequest,
+  InputResponse,
   CaseRecord,
-  CaseAttempt,
-  Finding,
+  CaseRecordPage,
+  CaseAttemptPage,
+  TaskPage,
   Step,
-  Artifact,
-  Report,
-  Member,
+  StepPage,
+  RunEventPage,
+  Finding,
+  FindingPage,
+  TriageInput,
   TriagePreview,
   TriageCommit,
-  InputResponse,
+  Report,
   Export,
+  ExportInput,
+  Artifact,
+  Health,
+  LoginInput,
+  LoginResult,
 } from '@localqa/contracts';
+import type {
+  ApiClient,
+  PaginationQuery,
+  ListRunsQuery,
+  ListEventHistoryQuery,
+  CreateRunInput,
+} from './types.ts';
 
 export class HttpApiClient implements ApiClient {
   private readonly baseUrl: string;
 
   constructor(baseUrl = '/api/v1') {
-    this.baseUrl = baseUrl;
+    this.baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
   }
 
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
+    contractName?: ContractName,
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const headers = new Headers(options.headers);
@@ -66,251 +107,707 @@ export class HttpApiClient implements ApiClient {
       throw err;
     }
 
-    return res.json() as Promise<T>;
+    if (res.status === 204) {
+      return undefined as unknown as T;
+    }
+
+    const data = await res.json();
+    if (contractName) {
+      return parseContract(contractName, data) as unknown as T;
+    }
+    return data as T;
   }
 
-  public async login(input: {
-    email?: string;
-    username?: string;
-    password?: string;
-  }): Promise<{ token: string; user: User }> {
-    return this.request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
+  private buildQuery(
+    params?: Record<string, string | number | boolean | undefined | null>,
+  ): string {
+    if (!params) return '';
+    const sp = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (v !== undefined && v !== null && v !== '') {
+        sp.set(k, String(v));
+      }
+    }
+    const qs = sp.toString();
+    return qs ? `?${qs}` : '';
   }
 
+  // 1. login
+  public async login(input: LoginInput): Promise<LoginResult> {
+    return this.request<LoginResult>(
+      '/auth/login',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'LoginResult',
+    );
+  }
+
+  // 2. logout
   public async logout(): Promise<void> {
-    await this.request('/auth/logout', { method: 'POST' });
+    await this.request<void>('/auth/logout', { method: 'POST' });
   }
 
+  // 3. currentUser
   public async currentUser(): Promise<User> {
-    return this.request('/auth/me');
+    return this.request<User>('/auth/me', { method: 'GET' }, 'User');
   }
 
-  public async listUsers(): Promise<{ items: User[] }> {
-    return this.request('/users');
+  // 4. listUsers
+  public async listUsers(query?: PaginationQuery): Promise<UserPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<UserPage>(`/users${qs}`, { method: 'GET' }, 'UserPage');
   }
 
-  public async listProjects(): Promise<{ items: Project[] }> {
-    return this.request('/projects');
+  // 5. createUser
+  public async createUser(input: UserCreate): Promise<User> {
+    return this.request<User>(
+      '/users',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'User',
+    );
   }
 
+  // 6. updateUser
+  public async updateUser(userId: string, input: UserPatch): Promise<User> {
+    return this.request<User>(
+      `/users/${encodeURIComponent(userId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+      'User',
+    );
+  }
+
+  // 7. listProjects
+  public async listProjects(query?: PaginationQuery): Promise<ProjectPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<ProjectPage>(
+      `/projects${qs}`,
+      { method: 'GET' },
+      'ProjectPage',
+    );
+  }
+
+  // 8. createProject
+  public async createProject(input: ProjectCreate): Promise<Project> {
+    return this.request<Project>(
+      '/projects',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'Project',
+    );
+  }
+
+  // 9. getProject
   public async getProject(projectId: string): Promise<Project> {
-    return this.request(`/projects/${projectId}`);
+    return this.request<Project>(
+      `/projects/${encodeURIComponent(projectId)}`,
+      { method: 'GET' },
+      'Project',
+    );
   }
 
-  public async createProject(input: { name: string }): Promise<Project> {
-    return this.request('/projects', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
-  }
-
+  // 10. updateProject
   public async updateProject(
     projectId: string,
-    input: Partial<Project>,
+    input: ProjectPatch,
   ): Promise<Project> {
-    return this.request(`/projects/${projectId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(input),
-    });
+    return this.request<Project>(
+      `/projects/${encodeURIComponent(projectId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+      'Project',
+    );
   }
 
-  public async listMembers(projectId: string): Promise<{ items: Member[] }> {
-    return this.request(`/projects/${projectId}/members`);
+  // 11. listMembers
+  public async listMembers(
+    projectId: string,
+    query?: PaginationQuery,
+  ): Promise<MemberPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<MemberPage>(
+      `/projects/${encodeURIComponent(projectId)}/members${qs}`,
+      { method: 'GET' },
+      'MemberPage',
+    );
+  }
+
+  // 12. replaceMembers
+  public async replaceMembers(
+    projectId: string,
+    input: MemberUpdate,
+  ): Promise<Project> {
+    return this.request<Project>(
+      `/projects/${encodeURIComponent(projectId)}/members`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      },
+      'Project',
+    );
+  }
+
+  // 13. listEnvironment
+  public async listEnvironment(
+    projectId: string,
+    query?: PaginationQuery,
+  ): Promise<EnvironmentPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<EnvironmentPage>(
+      `/projects/${encodeURIComponent(projectId)}/environments${qs}`,
+      { method: 'GET' },
+      'EnvironmentPage',
+    );
   }
 
   public async listEnvironments(
     projectId: string,
-  ): Promise<{ items: Environment[] }> {
-    return this.request(`/projects/${projectId}/environments`);
+    query?: PaginationQuery,
+  ): Promise<EnvironmentPage> {
+    return this.listEnvironment(projectId, query);
   }
 
+  // 14. createEnvironment
   public async createEnvironment(
     projectId: string,
-    input: Partial<Environment>,
+    input: EnvironmentCreate,
   ): Promise<Environment> {
-    return this.request(`/projects/${projectId}/environments`, {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
+    return this.request<Environment>(
+      `/projects/${encodeURIComponent(projectId)}/environments`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'Environment',
+    );
+  }
+
+  // 15. getEnvironment
+  public async getEnvironment(environmentId: string): Promise<Environment> {
+    return this.request<Environment>(
+      `/environments/${encodeURIComponent(environmentId)}`,
+      { method: 'GET' },
+      'Environment',
+    );
+  }
+
+  // 16. updateEnvironment
+  public async updateEnvironment(
+    environmentId: string,
+    input: EnvironmentPatch,
+  ): Promise<Environment> {
+    return this.request<Environment>(
+      `/environments/${encodeURIComponent(environmentId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+      'Environment',
+    );
+  }
+
+  // 17. listAuthProfile
+  public async listAuthProfile(
+    projectId: string,
+    query?: PaginationQuery,
+  ): Promise<AuthProfilePage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<AuthProfilePage>(
+      `/projects/${encodeURIComponent(projectId)}/auth-profiles${qs}`,
+      { method: 'GET' },
+      'AuthProfilePage',
+    );
   }
 
   public async listAuthProfiles(
     projectId: string,
-  ): Promise<{ items: AuthProfile[] }> {
-    return this.request(`/projects/${projectId}/auth-profiles`);
+    query?: PaginationQuery,
+  ): Promise<AuthProfilePage> {
+    return this.listAuthProfile(projectId, query);
   }
 
+  // 18. createAuthProfile
   public async createAuthProfile(
     projectId: string,
-    input: Partial<AuthProfile>,
+    input: AuthProfileCreate,
   ): Promise<AuthProfile> {
-    return this.request(`/projects/${projectId}/auth-profiles`, {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
+    return this.request<AuthProfile>(
+      `/projects/${encodeURIComponent(projectId)}/auth-profiles`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'AuthProfile',
+    );
   }
 
+  // 19. updateAuthProfile
+  public async updateAuthProfile(
+    authProfileId: string,
+    input: AuthProfilePatch,
+  ): Promise<AuthProfile> {
+    return this.request<AuthProfile>(
+      `/auth-profiles/${encodeURIComponent(authProfileId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+      'AuthProfile',
+    );
+  }
+
+  // 20. listKnowledge
   public async listKnowledge(
     projectId: string,
-  ): Promise<{ items: Knowledge[] }> {
-    return this.request(`/projects/${projectId}/knowledge`);
+    query?: PaginationQuery,
+  ): Promise<KnowledgePage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<KnowledgePage>(
+      `/projects/${encodeURIComponent(projectId)}/knowledge${qs}`,
+      { method: 'GET' },
+      'KnowledgePage',
+    );
   }
 
+  // 21. createKnowledge
   public async createKnowledge(
     projectId: string,
-    input: {
-      title: string;
-      text: string;
-      kind: 'terminology' | 'rule' | 'flow' | 'restriction';
-    },
+    input: KnowledgeCreate,
   ): Promise<Knowledge> {
-    return this.request(`/projects/${projectId}/knowledge`, {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
+    return this.request<Knowledge>(
+      `/projects/${encodeURIComponent(projectId)}/knowledge`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'Knowledge',
+    );
   }
 
-  public async listModels(): Promise<{ items: ModelProfile[] }> {
-    return this.request('/model-profiles');
+  // 22. updateKnowledge
+  public async updateKnowledge(
+    knowledgeId: string,
+    input: KnowledgePatch,
+  ): Promise<Knowledge> {
+    return this.request<Knowledge>(
+      `/knowledge/${encodeURIComponent(knowledgeId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+      'Knowledge',
+    );
   }
 
-  public async probeModel(
-    modelId: string,
-  ): Promise<{ healthy: boolean; latencyMs: number }> {
-    return this.request(`/model-profiles/${modelId}/probe`, { method: 'POST' });
+  // 23. listModels
+  public async listModels(query?: PaginationQuery): Promise<ModelProfilePage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<ModelProfilePage>(
+      `/model-profiles${qs}`,
+      { method: 'GET' },
+      'ModelProfilePage',
+    );
   }
 
-  public async listRuns(projectId: string): Promise<{ items: Run[] }> {
-    return this.request(`/runs?projectId=${encodeURIComponent(projectId)}`);
+  // 24. createModel
+  public async createModel(input: ModelProfileCreate): Promise<ModelProfile> {
+    return this.request<ModelProfile>(
+      '/model-profiles',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'ModelProfile',
+    );
   }
 
+  // 25. getModel
+  public async getModel(modelProfileId: string): Promise<ModelProfile> {
+    return this.request<ModelProfile>(
+      `/model-profiles/${encodeURIComponent(modelProfileId)}`,
+      { method: 'GET' },
+      'ModelProfile',
+    );
+  }
+
+  // 26. updateModel
+  public async updateModel(
+    modelProfileId: string,
+    input: ModelProfilePatch,
+  ): Promise<ModelProfile> {
+    return this.request<ModelProfile>(
+      `/model-profiles/${encodeURIComponent(modelProfileId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+      'ModelProfile',
+    );
+  }
+
+  // 27. probeModel
+  public async probeModel(modelProfileId: string): Promise<ModelProbeResult> {
+    return this.request<ModelProbeResult>(
+      `/model-profiles/${encodeURIComponent(modelProfileId)}/probe`,
+      { method: 'POST' },
+      'ModelProbeResult',
+    );
+  }
+
+  // 28. createRun
+  public async createRun(input: CreateRunInput | RunCreate): Promise<Run> {
+    const payload: RunCreate = {
+      projectId: input.projectId,
+      targetUrl: input.targetUrl,
+      mode: input.mode || 'smoke',
+    };
+    const brief =
+      ('brief' in input ? input.brief : undefined) ??
+      ('description' in input ? input.description : undefined);
+    if (brief && brief.trim()) {
+      payload.brief = brief.trim();
+    }
+    if (input.environmentId) payload.environmentId = input.environmentId;
+    if (input.authProfileId) payload.authProfileId = input.authProfileId;
+    const budget =
+      ('budget' in input ? input.budget : undefined) ??
+      ('budgetOverrides' in input ? input.budgetOverrides : undefined);
+    if (budget && Object.keys(budget).length > 0) {
+      payload.budget = budget;
+    }
+
+    const idempotencyKey =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `idemp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+    return this.request<Run>(
+      '/runs',
+      {
+        method: 'POST',
+        headers: {
+          'Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify(payload),
+      },
+      'Run',
+    );
+  }
+
+  // 29. listRuns
+  public async listRuns(
+    projectIdOrQuery: string | ListRunsQuery,
+  ): Promise<RunPage> {
+    const query =
+      typeof projectIdOrQuery === 'string'
+        ? { projectId: projectIdOrQuery }
+        : projectIdOrQuery;
+    const qs = this.buildQuery(
+      query as unknown as Record<string, string | number>,
+    );
+    return this.request<RunPage>(`/runs${qs}`, { method: 'GET' }, 'RunPage');
+  }
+
+  // 30. getRun
   public async getRun(runId: string): Promise<Run> {
-    return this.request(`/runs/${runId}`);
+    return this.request<Run>(
+      `/runs/${encodeURIComponent(runId)}`,
+      { method: 'GET' },
+      'Run',
+    );
   }
 
-  public async createRun(input: {
-    projectId: string;
-    targetUrl: string;
-    description?: string;
-    environmentId?: string;
-    authProfileId?: string;
-    modelProfileId?: string;
-    budgetOverrides?: BudgetOverrides;
-    config?: Partial<RunConfig>;
-  }): Promise<Run> {
-    return this.request('/runs', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
+  // 31. cancelRun
+  public async cancelRun(runId: string): Promise<Run> {
+    return this.request<Run>(
+      `/runs/${encodeURIComponent(runId)}/cancel`,
+      { method: 'POST' },
+      'Run',
+    );
   }
 
-  public async cancelRun(runId: string): Promise<{ success: boolean }> {
-    return this.request(`/runs/${runId}/cancel`, { method: 'POST' });
+  // 32. sendRunMessage
+  public async sendRunMessage(
+    runId: string,
+    messageOrInput: string | MessageInput,
+    expectedContextVersion = 1,
+  ): Promise<Run> {
+    const payload: MessageInput =
+      typeof messageOrInput === 'string'
+        ? { text: messageOrInput, expectedContextVersion }
+        : messageOrInput;
+
+    return this.request<Run>(
+      `/runs/${encodeURIComponent(runId)}/messages`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      'Run',
+    );
   }
 
-  public async sendRunMessage(runId: string, message: string): Promise<void> {
-    await this.request(`/runs/${runId}/messages`, {
-      method: 'POST',
-      body: JSON.stringify({ message }),
-    });
-  }
-
+  // 33. respondToInput
   public async respondToInput(
     runId: string,
     inputId: string,
     response: InputResponse,
-  ): Promise<void> {
-    await this.request(`/runs/${runId}/inputs/${inputId}/respond`, {
-      method: 'POST',
-      body: JSON.stringify(response),
-    });
+  ): Promise<InputRequest> {
+    return this.request<InputRequest>(
+      `/runs/${encodeURIComponent(runId)}/inputs/${encodeURIComponent(inputId)}/respond`,
+      {
+        method: 'POST',
+        body: JSON.stringify(response),
+      },
+      'InputRequest',
+    );
   }
 
-  public async listRunCases(runId: string): Promise<{ items: CaseRecord[] }> {
-    return this.request(`/runs/${runId}/cases`);
+  // 34. streamEvents
+  public streamEvents(runId: string, _lastEventId?: string): EventSource {
+    const url = `${this.baseUrl}/runs/${encodeURIComponent(runId)}/events`;
+    return new EventSource(url, { withCredentials: true });
   }
 
+  // 35. listRunCases
+  public async listRunCases(
+    runId: string,
+    query?: PaginationQuery,
+  ): Promise<CaseRecordPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<CaseRecordPage>(
+      `/runs/${encodeURIComponent(runId)}/cases${qs}`,
+      { method: 'GET' },
+      'CaseRecordPage',
+    );
+  }
+
+  // 36. listRunTasks
+  public async listRunTasks(
+    runId: string,
+    query?: PaginationQuery,
+  ): Promise<TaskPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<TaskPage>(
+      `/runs/${encodeURIComponent(runId)}/tasks${qs}`,
+      { method: 'GET' },
+      'TaskPage',
+    );
+  }
+
+  // 37. listRunFindings
+  public async listRunFindings(
+    runId: string,
+    query?: PaginationQuery,
+  ): Promise<FindingPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<FindingPage>(
+      `/runs/${encodeURIComponent(runId)}/findings${qs}`,
+      { method: 'GET' },
+      'FindingPage',
+    );
+  }
+
+  // 38. getCase
   public async getCase(caseId: string): Promise<CaseRecord> {
-    return this.request(`/cases/${caseId}`);
+    return this.request<CaseRecord>(
+      `/cases/${encodeURIComponent(caseId)}`,
+      { method: 'GET' },
+      'CaseRecord',
+    );
   }
 
+  // 39. listCaseAttempts
   public async listCaseAttempts(
     caseId: string,
-  ): Promise<{ items: CaseAttempt[] }> {
-    return this.request(`/cases/${caseId}/attempts`);
+    query?: PaginationQuery,
+  ): Promise<CaseAttemptPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<CaseAttemptPage>(
+      `/cases/${encodeURIComponent(caseId)}/attempts${qs}`,
+      { method: 'GET' },
+      'CaseAttemptPage',
+    );
   }
 
-  public async listRunTasks(runId: string): Promise<{ items: Task[] }> {
-    return this.request(`/runs/${runId}/tasks`);
+  // 40. listTaskSteps
+  public async listTaskSteps(
+    taskId: string,
+    query?: PaginationQuery,
+  ): Promise<StepPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<StepPage>(
+      `/tasks/${encodeURIComponent(taskId)}/steps${qs}`,
+      { method: 'GET' },
+      'StepPage',
+    );
   }
 
-  public async listTaskSteps(taskId: string): Promise<{ items: Step[] }> {
-    return this.request(`/tasks/${taskId}/steps`);
-  }
-
+  // 41. getStep
   public async getStep(stepId: string): Promise<Step> {
-    return this.request(`/steps/${stepId}`);
+    return this.request<Step>(
+      `/steps/${encodeURIComponent(stepId)}`,
+      { method: 'GET' },
+      'Step',
+    );
   }
 
-  public async listRunFindings(runId: string): Promise<{ items: Finding[] }> {
-    return this.request(`/runs/${runId}/findings`);
+  // 42. listEventHistory
+  public async listEventHistory(
+    runId: string,
+    query?: ListEventHistoryQuery,
+  ): Promise<RunEventPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<RunEventPage>(
+      `/runs/${encodeURIComponent(runId)}/event-history${qs}`,
+      { method: 'GET' },
+      'RunEventPage',
+    );
   }
 
+  // 43. getFinding
   public async getFinding(findingId: string): Promise<Finding> {
-    return this.request(`/findings/${findingId}`);
+    return this.request<Finding>(
+      `/findings/${encodeURIComponent(findingId)}`,
+      { method: 'GET' },
+      'Finding',
+    );
   }
 
+  // 44. previewTriage
   public async previewTriage(
     findingId: string,
-    disposition:
+    dispositionOrInput:
+      | TriageInput
       | 'accepted'
       | 'duplicate'
       | 'works_as_intended'
       | 'cannot_reproduce'
       | 'closed',
-    reason: string,
+    reason = '',
+    expectedVersion = 1,
   ): Promise<TriagePreview> {
-    return this.request(`/findings/${findingId}/triage-preview`, {
-      method: 'POST',
-      body: JSON.stringify({ disposition, reason }),
-    });
+    const payload: TriageInput =
+      typeof dispositionOrInput === 'object'
+        ? dispositionOrInput
+        : {
+            disposition: dispositionOrInput,
+            reason,
+            expectedVersion,
+          };
+
+    return this.request<TriagePreview>(
+      `/findings/${encodeURIComponent(findingId)}/triage-preview`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      'TriagePreview',
+    );
   }
 
+  // 45. commitTriage
   public async commitTriage(
     findingId: string,
     input: TriageCommit,
   ): Promise<Finding> {
-    return this.request(`/findings/${findingId}/triage`, {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
+    return this.request<Finding>(
+      `/findings/${encodeURIComponent(findingId)}/triage`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'Finding',
+    );
   }
 
+  // 46. getReport
   public async getReport(runId: string): Promise<Report> {
-    return this.request(`/runs/${runId}/report`);
+    return this.request<Report>(
+      `/runs/${encodeURIComponent(runId)}/report`,
+      { method: 'GET' },
+      'Report',
+    );
   }
 
+  // 47. createExport
   public async createExport(
     runId: string,
-    format: 'json' | 'markdown' | 'zip',
+    formatOrInput: 'json' | 'markdown' | 'zip' | ExportInput,
   ): Promise<Export> {
-    return this.request(`/runs/${runId}/exports`, {
-      method: 'POST',
-      body: JSON.stringify({ format }),
+    const payload: ExportInput =
+      typeof formatOrInput === 'string'
+        ? { format: formatOrInput }
+        : formatOrInput;
+
+    return this.request<Export>(
+      `/runs/${encodeURIComponent(runId)}/exports`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      'Export',
+    );
+  }
+
+  // 48. getExport
+  public async getExport(exportId: string): Promise<Export> {
+    return this.request<Export>(
+      `/exports/${encodeURIComponent(exportId)}`,
+      { method: 'GET' },
+      'Export',
+    );
+  }
+
+  // 49. downloadArtifact
+  public async downloadArtifact(artifactId: string): Promise<Blob> {
+    const url = `${this.baseUrl}/artifacts/${encodeURIComponent(artifactId)}/content`;
+    const res = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
     });
+    if (!res.ok) {
+      const errorJson = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        code?: string;
+      };
+      const err = new Error(
+        errorJson.message || `HTTP ${res.status} ${res.statusText}`,
+      ) as Error & { status: number; code?: string };
+      err.status = res.status;
+      err.code = errorJson.code;
+      throw err;
+    }
+    return res.blob();
   }
 
+  // 50. getArtifact
   public async getArtifact(artifactId: string): Promise<Artifact> {
-    return this.request(`/artifacts/${artifactId}`);
+    return this.request<Artifact>(
+      `/artifacts/${encodeURIComponent(artifactId)}`,
+      { method: 'GET' },
+      'Artifact',
+    );
   }
 
-  public async healthReady(): Promise<{
-    status: string;
-    checks: Record<string, boolean>;
-  }> {
-    return this.request('/health/ready');
+  // 51. healthLive
+  public async healthLive(): Promise<Health> {
+    return this.request<Health>('/health/live', { method: 'GET' }, 'Health');
+  }
+
+  // 52. healthReady
+  public async healthReady(): Promise<Health> {
+    return this.request<Health>('/health/ready', { method: 'GET' }, 'Health');
   }
 }

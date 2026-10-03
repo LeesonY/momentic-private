@@ -168,7 +168,7 @@ export const mockKnowledge: Knowledge[] = [
   },
 ];
 
-const defaultRunConfig = {
+export const defaultRunConfig = {
   allowedOrigins: ['http://localhost:8080'] as [string, ...string[]],
   actionPolicy: 'non_submitting' as const,
   budget: {

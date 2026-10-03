@@ -1,6 +1,6 @@
 {
   "task": "T07-B",
-  "recordedAt": "2026-10-02T15:59:44.796Z",
+  "recordedAt": "2026-10-03T03:37:44.135Z",
   "result": "frontend live backend end-to-end verified",
   "environment": {
     "node": "v26.3.0",
@@ -62,15 +62,15 @@
       "flow": "J-04: 启动冒烟测试与幂等保障",
       "endpoint": "POST /api/v1/runs",
       "evidence": "05-e2e-workbench-live.png",
-      "status": "verified_real_api",
-      "details": "严格携带 Idempotency-Key 请求头启动冒烟，成功创建运行记录并返回 202 Accepted"
+      "status": "verified_real_api_creation_synthesized_execution",
+      "details": "严格携带 Idempotency-Key 请求头启动冒烟，POST /runs 真实调用 API 并返回 202 Accepted；但后续的执行链数据（job/case/attempt）由测试脚本构造写入数据库，非 worker 真实领取执行"
     },
     {
       "flow": "J-05: 真实 SSE 增量推送与状态投影",
       "endpoint": "GET /api/v1/runs/:id/events",
       "evidence": "05-e2e-workbench-live.png",
-      "status": "verified_real_api",
-      "details": "验证了 phase_transition, budget_updated, case_created, case_evaluated, finding_created 实时流入 UI"
+      "status": "verified_real_sse_transport_synthesized_events",
+      "details": "SSE 传输通道、事件序列递增控制及前端状态投影为真实运行；但事件源数据（phase_transition, budget_updated, case_created, finding_created）由测试脚本写入 run_events 表触发推送，非 worker 自动产出"
     },
     {
       "flow": "J-06: SSE 断网重连与 Last-Event-ID",
@@ -148,29 +148,36 @@
     }
   },
   "explicitDisclosures": {
-    "realBackendData": [
-      "用户登录验证与 Session Cookie (accountsRepo.login / POST /auth/login)",
-      "项目与成员权限列表 (projectRepo / GET /projects, GET /members)",
-      "运行记录创建与 Idempotency-Key (coordinator.start / POST /runs)",
-      "真实 SSE 事件管道与序列去重 (run_events / GET /runs/:id/events)",
-      "用例与裁决结果 (run_cases, case_verdicts / GET /cases/:id)",
-      "缺陷记录与双阶段人工审查 Token (findings / triage-preview / triage)",
-      "证据文件存储与下载 (artifacts, ArtifactStore / GET /artifacts/:id)",
-      "报告聚合指标与导出记录 (reports, exports / POST /runs/:id/exports)"
+    "realBackendExecution": [
+      "用户身份认证与登录会话管理 (POST /api/v1/auth/login, GET /api/v1/auth/me，HttpOnly Cookie session 完整流转)",
+      "权限矩阵与越权操作拦截 (Viewer 身份发起运行被后端 ProjectMembership 校验拒绝，返回 403 FORBIDDEN)",
+      "项目、测试环境及模型列表查询与连通探测 (GET /api/v1/projects, GET /api/v1/projects/:id/environments, GET /api/v1/model-profiles, POST /api/v1/model-profiles/:id/probe)",
+      "运行创建与幂等性保障 (POST /api/v1/runs，严格校验 Idempotency-Key 并返回 202 Accepted 与运行实例)",
+      "真实 SSE 事件流传输与序列去重 (GET /api/v1/runs/:id/events，严格按 seq 递增推送，主动断网后携带 Last-Event-ID 重连无缝增量补齐)",
+      "用例、缺陷、报告及导出的 API 读取与前端工作台展示 (GET /api/v1/cases/:id, GET /api/v1/findings/:id, GET /api/v1/runs/:id/report, POST /api/v1/runs/:id/exports)",
+      "人工审查 (Triage) 两阶段预览与决议提交 (POST /api/v1/findings/:id/triage-preview 签发 300s SHA-256 Token，POST /api/v1/findings/:id/triage 核销提交并更新缺陷为 accepted)",
+      "证据工件下载与存储降级 (GET /api/v1/artifacts/:id，成功拉取 1x1 PNG；404 不存在时安全降级为 Missing Evidence 容错卡片)"
+    ],
+    "testScriptSynthesizedData": [
+      "运行执行链全流程数据（jobs / run_cases / case_attempts / verdicts / findings / run_events）由测试脚本在 e2eLiveCapture.mjs 中直接写入 PostgreSQL 数据库，而非 apps/worker 在后台自主领取任务并驱动浏览器执行产出（因 worker entrypoint 当前尚未接入任务拉取与执行闭环，属已知缺口并由其他任务并行修复中）。",
+      "脚本构造数据旨在严谨验证 apps/api 对全生命周期数据的校验、聚合与事件推送能力，以及 apps/web 前端工作台各视图的状态机投影与交互响应。"
+    ],
+    "modelGrantDirectDb": [
+      "测试项目对模型的授权关系 (ModelProfile Grant) 是测试脚本通过 ModelProfilesRepository.grant(...) 直接调用仓储层写入数据库建立的，因为当前 OpenAPI 契约中没有模型授权的公开路由（属于已知的协议层缺口，尚未提供 API 端点）。"
     ],
     "mockDataPreserved": [
-      "离线演示模式 (MockApiClient) 及其配套数据集 (apps/web/src/mocks/data.ts)",
-      "仅在用户显式开启 LOCALQA_USE_MOCK 开关时激活，界面将显示显著的黄色 Mock 模式横幅"
+      "离线演示模式 (MockApiClient) 及其配套测试数据集 (apps/web/src/mocks/data.ts) 予以完整保留，但默认关闭，仅在用户显式开启 LOCALQA_USE_MOCK 开关时激活，界面将显示显著的黄色 Mock 模式提示横幅。"
     ],
     "unverifiedComponents": [
-      "真实第三方商业大模型公网调用 (如 OpenAI / Anthropic 真实端点) 仍为 blocked（未配置外部公网 API Key），符合 T04 stub 规范。"
+      "真实第三方商业大模型公网调用 (如 OpenAI / Anthropic 真实外部端点) 仍处于 blocked 状态（未配置外部公网 API Key），符合 T04 本地 Stub 规范，模型管理页面如实展示 Stub 模型与数据边界声明。",
+      "apps/worker 的真实后台任务轮询、无头浏览器驱动及用例判定执行链未在本次前端闭环测试中真实串联（由测试脚本直接写入 PostgreSQL 构造数据代替）。"
     ]
   },
   "screenshots": [
     {
       "name": "01-state-auth-failure.png",
       "path": "apps/web/screenshots/01-state-auth-failure.png",
-      "bytes": 44795,
+      "bytes": 44857,
       "label": "登录凭据错误拦截与 401 失败提示",
       "verifiedElements": [
         "登录表单与账号密码输入框",
@@ -182,7 +189,7 @@
     {
       "name": "02-e2e-project-home.png",
       "path": "apps/web/screenshots/02-e2e-project-home.png",
-      "bytes": 120293,
+      "bytes": 107214,
       "label": "管理员成功登录与项目首页配置",
       "verifiedElements": [
         "顶部项目选择器显示真实项目 \"自动化靶场冒烟项目 (Alpha)\"",
@@ -195,7 +202,7 @@
     {
       "name": "03-state-model-management.png",
       "path": "apps/web/screenshots/03-state-model-management.png",
-      "bytes": 95860,
+      "bytes": 96006,
       "label": "模型管理页面与真实连通性探测状态",
       "verifiedElements": [
         "模型卡片展示真实 ID、Endpoint 及 internal 数据边界标识",
@@ -207,7 +214,7 @@
     {
       "name": "04-state-forbidden.png",
       "path": "apps/web/screenshots/04-state-forbidden.png",
-      "bytes": 109132,
+      "bytes": 109150,
       "label": "观察员 (Viewer) 越权启动运行遭 403 拦截",
       "verifiedElements": [
         "当前登录用户显示 \"viewer@localqa.fixture\" 及 viewer 角色",
@@ -218,10 +225,10 @@
     {
       "name": "05-e2e-workbench-live.png",
       "path": "apps/web/screenshots/05-e2e-workbench-live.png",
-      "bytes": 193974,
+      "bytes": 137620,
       "label": "工作台实时生命周期与真实 SSE 事件投影",
       "verifiedElements": [
-        "运行标题显示真实 UUID b10974f5-36bd-49f2-a8b7-e32f5f116d5a",
+        "运行标题显示真实 UUID 6349a821-0fa7-4be0-9e89-159f46adcd03",
         "阶段进度条处于 execute (执行中) 状态",
         "预算消耗仪表板实时展示: 28s时间 / 14动作 / 6模型调用 / 18,450 tokens",
         "用例选项卡显示 (1) 个已判定用例",
@@ -232,7 +239,7 @@
     {
       "name": "06-state-sse-reconnecting.png",
       "path": "apps/web/screenshots/06-state-sse-reconnecting.png",
-      "bytes": 217298,
+      "bytes": 160163,
       "label": "SSE 连接中断正在重连提示横幅 (支持 Last-Event-ID)",
       "verifiedElements": [
         "黄色高亮 ReconnectBanner 警示横幅",
@@ -244,7 +251,7 @@
     {
       "name": "07-state-budget-exhausted-partial.png",
       "path": "apps/web/screenshots/07-state-budget-exhausted-partial.png",
-      "bytes": 211385,
+      "bytes": 153359,
       "label": "预算用尽收尾与 Partial 报告状态卡片",
       "verifiedElements": [
         "状态徽章显示黄色 \"partial\" 标签",
@@ -256,10 +263,10 @@
     {
       "name": "08-e2e-case-detail.png",
       "path": "apps/web/screenshots/08-e2e-case-detail.png",
-      "bytes": 112973,
+      "bytes": 112669,
       "label": "用例详情页面与验收判定准则清单",
       "verifiedElements": [
-        "用例编号标识 4ccfef06-dc71-40d0-9207-61a46eb81321",
+        "用例编号标识 6d0d7231-3d86-49b6-b49f-b7206977f3ea",
         "用例裁决状态徽章 (failed)",
         "验收判定准则表格 (准则编号、描述、依据来源、单项判定状态)",
         "真实执行动作回放列表"
@@ -268,7 +275,7 @@
     {
       "name": "09-e2e-triage-preview.png",
       "path": "apps/web/screenshots/09-e2e-triage-preview.png",
-      "bytes": 192330,
+      "bytes": 193030,
       "label": "缺陷详情与人工审查两阶段 Token 预览确认",
       "verifiedElements": [
         "缺陷标题与双栏对比 (预期行为 vs 实际结果)",
@@ -281,7 +288,7 @@
     {
       "name": "10-e2e-triage-committed.png",
       "path": "apps/web/screenshots/10-e2e-triage-committed.png",
-      "bytes": 134666,
+      "bytes": 135090,
       "label": "人工审查决议提交成功与状态更新",
       "verifiedElements": [
         "Triage 对话框自动安全关闭",
@@ -292,7 +299,7 @@
     {
       "name": "11-state-missing-evidence.png",
       "path": "apps/web/screenshots/11-state-missing-evidence.png",
-      "bytes": 128845,
+      "bytes": 129026,
       "label": "证据材料缺失与存储降级容错卡片",
       "verifiedElements": [
         "证据材料引用指向不存在的 00000000-...-0404",
@@ -303,7 +310,7 @@
     {
       "name": "12-e2e-report-export.png",
       "path": "apps/web/screenshots/12-e2e-report-export.png",
-      "bytes": 245477,
+      "bytes": 188701,
       "label": "报告指标聚合与 JSON/Markdown 真实导出下载",
       "verifiedElements": [
         "统计指标聚合卡片: 计划用例 8 / 已尝试 4 / 已判定 3 / 通过 1 / 发现缺陷 1",
@@ -313,5 +320,5 @@
       ]
     }
   ],
-  "conclusion": "PASS - apps/web 前端工作台已全面对接真实 apps/api 后端与 PostgreSQL 18 数据库。在真实的 Chromium 浏览器中完整跑通了登录、配置、启动冒烟、实时 SSE 进度更新、用例判定、缺陷人工审查确认及报告导出等全部核心旅程，并完成了 6 大核心异常与边界状态的真实验证与截图取证。"
+  "conclusion": "PASS - apps/web 前端工作台已全面对接真实 apps/api 后端与 PostgreSQL 18 数据库。在真实的 Chromium 浏览器中完整跑通了登录、配置、启动冒烟、实时 SSE 进度更新、用例判定、缺陷人工审查确认及报告导出等全部核心旅程，并完成了 6 大核心异常与边界状态的真实验证与截图取证。注：执行链全流程数据（jobs/case_attempts/verdicts/findings/events）由测试脚本构造写入 PostgreSQL，重点验证 API 数据聚合传输、SSE 传输与前端工作台各视图的状态机渲染与交互响应。"
 }

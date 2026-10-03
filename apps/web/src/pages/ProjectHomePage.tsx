@@ -236,6 +236,9 @@ export const ProjectHomePage: React.FC = () => {
               onChange={(e) => setSelectedModelId(e.target.value)}
               data-testid="select-model-profile"
             >
+              {models.length === 0 && (
+                <option value="">(未配置模型 / T04 Stub 模式)</option>
+              )}
               {models.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}{' '}
@@ -245,6 +248,26 @@ export const ProjectHomePage: React.FC = () => {
             </select>
           </div>
         </div>
+
+        {/* Model Unconfigured / Blocked Notice */}
+        {models.length === 0 && (
+          <div
+            style={{
+              backgroundColor: 'var(--color-warning-bg)',
+              border: '1px solid var(--color-warning-border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '12px 16px',
+              margin: '16px 0',
+              fontSize: '0.85rem',
+              color: 'var(--color-warning-text)',
+            }}
+            data-testid="model-unconfigured-notice"
+          >
+            <strong>【模型未配置 / Blocked 状态】</strong>
+            平台尚未配置云端商业模型端点（处于 blocked 状态）。系统将使用 T04
+            内置 Stub 规则进行用例探索与判定。
+          </div>
+        )}
 
         {/* External Model Data Destination Notice */}
         {selectedModel && selectedModel.dataBoundary === 'external' && (

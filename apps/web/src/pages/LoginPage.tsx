@@ -18,7 +18,7 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      await login(username);
+      await login(username, password);
     } catch (err) {
       setError(err instanceof Error ? err.message : '登录失败，请检查账号密码');
     } finally {

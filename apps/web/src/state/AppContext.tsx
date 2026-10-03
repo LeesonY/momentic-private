@@ -24,7 +24,7 @@ interface AppContextValue {
   setCurrentProject: (project: Project) => void;
   toggleMock: (enabled: boolean) => void;
   logout: () => Promise<void>;
-  login: (username: string) => Promise<void>;
+  login: (username: string, password?: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -101,14 +101,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     init();
   }, []);
 
-  const login = async (username: string) => {
-    const res = await defaultApiClient.login({ username });
+  const login = async (username: string, password = '') => {
+    const res = await defaultApiClient.login({
+      email: username,
+      password,
+    });
     setCurrentUser(res.user);
+    try {
+      const projRes = await defaultApiClient.listProjects();
+      setProjects(projRes.items);
+      if (projRes.items.length > 0) {
+        setCurrentProject(projRes.items[0]);
+      }
+    } catch {
+      // ignore
+    }
     setRoute('home');
   };
 
   const logout = async () => {
-    await defaultApiClient.logout();
+    try {
+      await defaultApiClient.logout();
+    } catch {
+      // ignore
+    }
     setCurrentUser(null);
     setRoute('login');
   };

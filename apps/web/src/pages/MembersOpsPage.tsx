@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { Member } from '@localqa/contracts';
+import type { Member, Health } from '@localqa/contracts';
 import { useAppContext } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
 import { AppHeader } from '../components/layout/AppHeader.tsx';
@@ -8,10 +8,7 @@ import { StatusBadge } from '../components/ui/Badge.tsx';
 export const MembersOpsPage: React.FC = () => {
   const { currentProject } = useAppContext();
   const [members, setMembers] = useState<Member[]>([]);
-  const [health, setHealth] = useState<{
-    status: string;
-    checks: Record<string, boolean>;
-  } | null>(null);
+  const [health, setHealth] = useState<Health | null>(null);
 
   useEffect(() => {
     if (!currentProject) return;
@@ -52,7 +49,12 @@ export const MembersOpsPage: React.FC = () => {
         >
           <div className="card-header">
             <h2 className="card-title">平台核心服务健康度 (System Health)</h2>
-            <span className="badge badge-success">整体状态: 就绪 (READY)</span>
+            <span
+              className={`badge ${health?.status === 'ok' ? 'badge-success' : 'badge-warning'}`}
+            >
+              整体状态:{' '}
+              {health?.status === 'ok' ? '就绪 (READY)' : '未就绪 (NOT_READY)'}
+            </span>
           </div>
 
           <div
@@ -72,18 +74,22 @@ export const MembersOpsPage: React.FC = () => {
               <div
                 style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}
               >
-                PostgreSQL 数据库
+                服务运行状态 (Status)
               </div>
               <div
                 style={{
                   fontSize: '1rem',
                   fontWeight: 600,
-                  color: 'var(--color-success)',
+                  color:
+                    health?.status === 'ok'
+                      ? 'var(--color-success)'
+                      : 'var(--color-warning)',
                   marginTop: '4px',
                 }}
               >
-                🟢{' '}
-                {health?.checks.database ? '已连接 (Connected)' : '检查中...'}
+                {health?.status === 'ok'
+                  ? '🟢 就绪 (OK)'
+                  : '🟡 检查中 / 未就绪'}
               </div>
             </div>
 
@@ -97,68 +103,17 @@ export const MembersOpsPage: React.FC = () => {
               <div
                 style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}
               >
-                数据架构与迁移 (Schema)
+                契约协议版本 (Version)
               </div>
               <div
                 style={{
                   fontSize: '1rem',
                   fontWeight: 600,
-                  color: 'var(--color-success)',
+                  color: 'var(--color-text-main)',
                   marginTop: '4px',
                 }}
               >
-                🟢 {health?.checks.schema ? '版本一致 (Synced)' : '检查中...'}
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: '12px',
-                backgroundColor: 'var(--color-bg-subtle)',
-                borderRadius: 'var(--radius-md)',
-              }}
-            >
-              <div
-                style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}
-              >
-                Playwright 浏览器池
-              </div>
-              <div
-                style={{
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  color: 'var(--color-success)',
-                  marginTop: '4px',
-                }}
-              >
-                🟢{' '}
-                {health?.checks.browserWorker
-                  ? '4 槽位可用 (4 Slots)'
-                  : '检查中...'}
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: '12px',
-                backgroundColor: 'var(--color-bg-subtle)',
-                borderRadius: 'var(--radius-md)',
-              }}
-            >
-              <div
-                style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}
-              >
-                AI 模型网关 (Gateway)
-              </div>
-              <div
-                style={{
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  color: 'var(--color-success)',
-                  marginTop: '4px',
-                }}
-              >
-                🟢 {health?.checks.modelGateway ? '就绪 (Ready)' : '检查中...'}
+                🟢 v{health?.version || '1.0.0'}
               </div>
             </div>
           </div>

@@ -44,6 +44,7 @@ export const TriageModal: React.FC<TriageModalProps> = ({
         finding.id,
         disposition,
         reason,
+        finding.version,
       );
       setPreview(p);
     } catch (err) {
@@ -219,6 +220,7 @@ export const TriageModal: React.FC<TriageModalProps> = ({
                 padding: '14px',
                 marginBottom: '16px',
               }}
+              data-testid="triage-preview-card"
             >
               <h4
                 style={{

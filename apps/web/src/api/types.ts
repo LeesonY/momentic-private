@@ -1,25 +1,60 @@
+/* Generated from docs/contracts/openapi.json by scripts/generateClient.mjs. DO NOT EDIT DIRECTLY. */
+
 import type {
   User,
+  UserCreate,
+  UserPatch,
+  UserPage,
   Project,
+  ProjectCreate,
+  ProjectPatch,
+  ProjectPage,
+  MemberUpdate,
+  MemberPage,
   Environment,
+  EnvironmentCreate,
+  EnvironmentPatch,
+  EnvironmentPage,
   AuthProfile,
+  AuthProfileCreate,
+  AuthProfilePatch,
+  AuthProfilePage,
   Knowledge,
+  KnowledgeCreate,
+  KnowledgePatch,
+  KnowledgePage,
   ModelProfile,
+  ModelProfileCreate,
+  ModelProfilePatch,
+  ModelProfilePage,
+  ModelProbeResult,
   Run,
+  RunCreate,
+  RunPage,
   RunConfig,
   BudgetOverrides,
-  Task,
+  MessageInput,
+  InputRequest,
+  InputResponse,
   CaseRecord,
-  CaseAttempt,
-  Finding,
+  CaseRecordPage,
+  CaseAttemptPage,
+  TaskPage,
   Step,
-  Artifact,
-  Report,
-  Member,
+  StepPage,
+  RunEventPage,
+  Finding,
+  FindingPage,
+  TriageInput,
   TriagePreview,
   TriageCommit,
-  InputResponse,
+  Report,
   Export,
+  ExportInput,
+  Artifact,
+  Health,
+  LoginInput,
+  LoginResult,
 } from '@localqa/contracts';
 
 export type PublicOperationName =
@@ -56,114 +91,190 @@ export type PublicOperationName =
   | 'cancelRun'
   | 'sendRunMessage'
   | 'respondToInput'
+  | 'streamEvents'
   | 'listRunCases'
+  | 'listRunTasks'
+  | 'listRunFindings'
   | 'getCase'
   | 'listCaseAttempts'
-  | 'listRunTasks'
   | 'listTaskSteps'
   | 'getStep'
-  | 'listRunFindings'
+  | 'listEventHistory'
   | 'getFinding'
   | 'previewTriage'
   | 'commitTriage'
   | 'getReport'
   | 'createExport'
   | 'getExport'
+  | 'downloadArtifact'
   | 'getArtifact'
   | 'healthLive'
   | 'healthReady';
 
+export interface PaginationQuery {
+  cursor?: string;
+  limit?: number;
+}
+
+export interface ListRunsQuery extends PaginationQuery {
+  projectId: string;
+  status?: string;
+  environmentId?: string;
+}
+
+export interface ListEventHistoryQuery {
+  afterSeq?: number;
+  limit?: number;
+}
+
+export interface CreateRunInput {
+  projectId: string;
+  targetUrl: string;
+  description?: string;
+  brief?: string;
+  environmentId?: string;
+  authProfileId?: string;
+  modelProfileId?: string;
+  budgetOverrides?: BudgetOverrides;
+  budget?: BudgetOverrides;
+  mode?: 'smoke';
+  config?: Partial<RunConfig>;
+}
+
 export interface ApiClient {
-  // Auth & User
-  login(input: {
-    email?: string;
-    username?: string;
-    password?: string;
-  }): Promise<{ token: string; user: User }>;
+  // Auth & Current User
+  login(input: LoginInput): Promise<LoginResult>;
   logout(): Promise<void>;
   currentUser(): Promise<User>;
-  listUsers(): Promise<{ items: User[] }>;
+
+  // Users
+  listUsers(query?: PaginationQuery): Promise<UserPage>;
+  createUser(input: UserCreate): Promise<User>;
+  updateUser(userId: string, input: UserPatch): Promise<User>;
 
   // Projects & Members
-  listProjects(): Promise<{ items: Project[] }>;
+  listProjects(query?: PaginationQuery): Promise<ProjectPage>;
+  createProject(input: ProjectCreate): Promise<Project>;
   getProject(projectId: string): Promise<Project>;
-  createProject(input: { name: string }): Promise<Project>;
-  updateProject(projectId: string, input: Partial<Project>): Promise<Project>;
-  listMembers(projectId: string): Promise<{ items: Member[] }>;
+  updateProject(projectId: string, input: ProjectPatch): Promise<Project>;
+  listMembers(projectId: string, query?: PaginationQuery): Promise<MemberPage>;
+  replaceMembers(projectId: string, input: MemberUpdate): Promise<Project>;
 
   // Environments & Auth Profiles
-  listEnvironments(projectId: string): Promise<{ items: Environment[] }>;
+  listEnvironment(
+    projectId: string,
+    query?: PaginationQuery,
+  ): Promise<EnvironmentPage>;
+  listEnvironments(
+    projectId: string,
+    query?: PaginationQuery,
+  ): Promise<EnvironmentPage>;
   createEnvironment(
     projectId: string,
-    input: Partial<Environment>,
+    input: EnvironmentCreate,
   ): Promise<Environment>;
-  listAuthProfiles(projectId: string): Promise<{ items: AuthProfile[] }>;
+  getEnvironment(environmentId: string): Promise<Environment>;
+  updateEnvironment(
+    environmentId: string,
+    input: EnvironmentPatch,
+  ): Promise<Environment>;
+  listAuthProfile(
+    projectId: string,
+    query?: PaginationQuery,
+  ): Promise<AuthProfilePage>;
+  listAuthProfiles(
+    projectId: string,
+    query?: PaginationQuery,
+  ): Promise<AuthProfilePage>;
   createAuthProfile(
     projectId: string,
-    input: Partial<AuthProfile>,
+    input: AuthProfileCreate,
+  ): Promise<AuthProfile>;
+  updateAuthProfile(
+    authProfileId: string,
+    input: AuthProfilePatch,
   ): Promise<AuthProfile>;
 
   // Knowledge & Models
-  listKnowledge(projectId: string): Promise<{ items: Knowledge[] }>;
+  listKnowledge(
+    projectId: string,
+    query?: PaginationQuery,
+  ): Promise<KnowledgePage>;
   createKnowledge(
     projectId: string,
-    input: {
-      title: string;
-      text: string;
-      kind: 'terminology' | 'rule' | 'flow' | 'restriction';
-    },
+    input: KnowledgeCreate,
   ): Promise<Knowledge>;
-  listModels(): Promise<{ items: ModelProfile[] }>;
-  probeModel(modelId: string): Promise<{ healthy: boolean; latencyMs: number }>;
+  updateKnowledge(
+    knowledgeId: string,
+    input: KnowledgePatch,
+  ): Promise<Knowledge>;
+  listModels(query?: PaginationQuery): Promise<ModelProfilePage>;
+  createModel(input: ModelProfileCreate): Promise<ModelProfile>;
+  getModel(modelProfileId: string): Promise<ModelProfile>;
+  updateModel(
+    modelProfileId: string,
+    input: ModelProfilePatch,
+  ): Promise<ModelProfile>;
+  probeModel(modelProfileId: string): Promise<ModelProbeResult>;
 
-  // Runs
-  listRuns(projectId: string): Promise<{ items: Run[] }>;
+  // Runs & Execution
+  createRun(input: CreateRunInput | RunCreate): Promise<Run>;
+  listRuns(projectIdOrQuery: string | ListRunsQuery): Promise<RunPage>;
   getRun(runId: string): Promise<Run>;
-  createRun(input: {
-    projectId: string;
-    targetUrl: string;
-    description?: string;
-    environmentId?: string;
-    authProfileId?: string;
-    modelProfileId?: string;
-    budgetOverrides?: BudgetOverrides;
-    config?: Partial<RunConfig>;
-  }): Promise<Run>;
-  cancelRun(runId: string): Promise<{ success: boolean }>;
-  sendRunMessage(runId: string, message: string): Promise<void>;
+  cancelRun(runId: string): Promise<Run>;
+  sendRunMessage(
+    runId: string,
+    messageOrInput: string | MessageInput,
+    expectedContextVersion?: number,
+  ): Promise<Run>;
   respondToInput(
     runId: string,
     inputId: string,
     response: InputResponse,
-  ): Promise<void>;
+  ): Promise<InputRequest>;
+  streamEvents(runId: string, lastEventId?: string): EventSource;
 
-  // Work Breakdown & Artifacts
-  listRunCases(runId: string): Promise<{ items: CaseRecord[] }>;
+  // Work Breakdown, Cases, Tasks, Steps & Events
+  listRunCases(runId: string, query?: PaginationQuery): Promise<CaseRecordPage>;
   getCase(caseId: string): Promise<CaseRecord>;
-  listCaseAttempts(caseId: string): Promise<{ items: CaseAttempt[] }>;
-  listRunTasks(runId: string): Promise<{ items: Task[] }>;
-  listTaskSteps(taskId: string): Promise<{ items: Step[] }>;
+  listCaseAttempts(
+    caseId: string,
+    query?: PaginationQuery,
+  ): Promise<CaseAttemptPage>;
+  listRunTasks(runId: string, query?: PaginationQuery): Promise<TaskPage>;
+  listTaskSteps(taskId: string, query?: PaginationQuery): Promise<StepPage>;
   getStep(stepId: string): Promise<Step>;
-  listRunFindings(runId: string): Promise<{ items: Finding[] }>;
+  listEventHistory(
+    runId: string,
+    query?: ListEventHistoryQuery,
+  ): Promise<RunEventPage>;
+
+  // Findings & Triage
+  listRunFindings(runId: string, query?: PaginationQuery): Promise<FindingPage>;
   getFinding(findingId: string): Promise<Finding>;
   previewTriage(
     findingId: string,
-    disposition:
+    dispositionOrInput:
+      | TriageInput
       | 'accepted'
       | 'duplicate'
       | 'works_as_intended'
       | 'cannot_reproduce'
       | 'closed',
-    reason: string,
+    reason?: string,
+    expectedVersion?: number,
   ): Promise<TriagePreview>;
   commitTriage(findingId: string, input: TriageCommit): Promise<Finding>;
 
-  // Reports & Exports
+  // Reports, Exports, Artifacts & Health
   getReport(runId: string): Promise<Report>;
   createExport(
     runId: string,
-    format: 'json' | 'markdown' | 'zip',
+    formatOrInput: 'json' | 'markdown' | 'zip' | ExportInput,
   ): Promise<Export>;
+  getExport(exportId: string): Promise<Export>;
+  downloadArtifact(artifactId: string): Promise<Blob>;
   getArtifact(artifactId: string): Promise<Artifact>;
-  healthReady(): Promise<{ status: string; checks: Record<string, boolean> }>;
+  healthLive(): Promise<Health>;
+  healthReady(): Promise<Health>;
 }

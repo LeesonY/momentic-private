@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { CaseRecord, Finding, Task, Report } from '@localqa/contracts';
+import { defaultApiClient } from '../../api/index.ts';
 import { StatusBadge } from '../ui/Badge.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { ErrorCard } from '../ui/ErrorCard.tsx';
@@ -24,7 +25,26 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
     'cases' | 'findings' | 'tasks' | 'report'
   >('cases');
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState<string | null>(null);
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
   const { setRoute } = useApp();
+
+  const handleExport = async (format: 'json' | 'markdown') => {
+    setExportingFormat(format);
+    setExportNotice(null);
+    try {
+      const exp = await defaultApiClient.createExport(runId, format);
+      setExportNotice(
+        `已成功生成 ${format.toUpperCase()} 导出报告 (ID: ${exp.id}，状态: ${exp.status})`,
+      );
+    } catch (err) {
+      setExportNotice(
+        `导出失败: ${err instanceof Error ? err.message : '未知错误'}`,
+      );
+    } finally {
+      setExportingFormat(null);
+    }
+  };
 
   return (
     <div
@@ -389,18 +409,40 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
                     <button
                       className="btn btn-secondary btn-sm"
                       style={{ flex: 1 }}
-                      onClick={() => alert('已导出 JSON 报告')}
+                      disabled={exportingFormat !== null}
+                      onClick={() => handleExport('json')}
+                      data-testid="btn-export-json"
                     >
-                      导出 JSON
+                      {exportingFormat === 'json' ? '正在生成...' : '导出 JSON'}
                     </button>
                     <button
                       className="btn btn-secondary btn-sm"
                       style={{ flex: 1 }}
-                      onClick={() => alert('已导出 Markdown 报告')}
+                      disabled={exportingFormat !== null}
+                      onClick={() => handleExport('markdown')}
+                      data-testid="btn-export-markdown"
                     >
-                      导出 Markdown
+                      {exportingFormat === 'markdown'
+                        ? '正在生成...'
+                        : '导出 Markdown'}
                     </button>
                   </div>
+                  {exportNotice && (
+                    <div
+                      style={{
+                        marginTop: '10px',
+                        padding: '8px 12px',
+                        backgroundColor: 'var(--color-bg-subtle)',
+                        border: '1px solid var(--color-border-subtle)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.8rem',
+                        color: 'var(--color-text-main)',
+                      }}
+                      data-testid="export-notice-message"
+                    >
+                      {exportNotice}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

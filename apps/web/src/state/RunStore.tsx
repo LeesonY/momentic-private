@@ -125,16 +125,26 @@ export function RunStoreProvider({
         break;
       }
       case 'budget.updated': {
-        const budgetUsed = event.payload as unknown as BudgetUsed;
+        const payload = event.payload as unknown as
+          { used?: BudgetUsed } | BudgetUsed;
+        const budgetUsed =
+          payload && 'used' in payload && payload.used
+            ? payload.used
+            : (payload as BudgetUsed);
         setRun((prev) => (prev ? { ...prev, budgetUsed } : null));
         break;
       }
       case 'case.created': {
-        const newCase = event.payload as unknown as CaseRecord;
+        const payload = event.payload as unknown as
+          CaseRecord | CaseRecord['definition'];
+        const caseRecord: CaseRecord =
+          'definition' in payload
+            ? payload
+            : { definition: payload, outcome: 'not_run', verdict: null };
         setCases((prev) => {
-          if (prev.some((c) => c.definition.id === newCase.definition.id))
+          if (prev.some((c) => c.definition.id === caseRecord.definition.id))
             return prev;
-          return [...prev, newCase];
+          return [...prev, caseRecord];
         });
         break;
       }
@@ -216,10 +226,19 @@ export function RunStoreProvider({
     });
 
     setSseClient(client);
+    if (typeof window !== 'undefined') {
+      (
+        window as unknown as { __activeSseClient?: SseClient }
+      ).__activeSseClient = client;
+    }
     client.connect();
 
     return () => {
       client.disconnect();
+      if (typeof window !== 'undefined') {
+        delete (window as unknown as { __activeSseClient?: SseClient })
+          .__activeSseClient;
+      }
     };
   }, [runId, handleEvent]);
 
@@ -229,7 +248,7 @@ export function RunStoreProvider({
   };
 
   const sendMessage = async (msg: string) => {
-    await defaultApiClient.sendRunMessage(runId, msg);
+    await defaultApiClient.sendRunMessage(runId, msg, run?.contextVersion ?? 1);
     setRun((prev) =>
       prev ? { ...prev, contextVersion: prev.contextVersion + 1 } : null,
     );

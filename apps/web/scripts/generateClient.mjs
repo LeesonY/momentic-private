@@ -1,0 +1,1010 @@
+import { readFile, writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+
+export const root = fileURLToPath(new URL('../../../', import.meta.url));
+
+const openApiRaw = await readFile(`${root}docs/contracts/openapi.json`, 'utf8');
+const openApi = JSON.parse(openApiRaw);
+
+// Extract non-internal operations
+const operations = [];
+for (const [path, methods] of Object.entries(openApi.paths)) {
+  for (const [method, op] of Object.entries(methods)) {
+    if (op.tags && op.tags.includes('Internal')) continue;
+    const pathParams = (op.parameters || [])
+      .filter((p) => p.in === 'path')
+      .map((p) => p.name);
+    const queryParams = (op.parameters || [])
+      .filter((p) => p.in === 'query')
+      .map((p) => ({ name: p.name, required: !!p.required }));
+    const reqBodyRef =
+      op.requestBody?.content?.['application/json']?.schema?.$ref?.replace(
+        '#/components/schemas/',
+        '',
+      ) || null;
+    const successStatus = Object.keys(op.responses).find((code) =>
+      code.startsWith('2'),
+    );
+    const resContent = op.responses[successStatus]?.content;
+    const resSchemaRef =
+      resContent?.['application/json']?.schema?.$ref?.replace(
+        '#/components/schemas/',
+        '',
+      ) || null;
+    const isBlob = !!resContent?.['application/octet-stream'];
+    const isSse = !!resContent?.['text/event-stream'];
+    const isVoid =
+      successStatus === '204' || (!resSchemaRef && !isBlob && !isSse);
+
+    operations.push({
+      operationId: op.operationId,
+      method: method.toUpperCase(),
+      path,
+      pathParams,
+      queryParams,
+      reqBodyRef,
+      successStatus,
+      resSchemaRef,
+      isBlob,
+      isSse,
+      isVoid,
+    });
+  }
+}
+
+if (operations.length !== 52) {
+  throw new Error(`Expected 52 public operations, found ${operations.length}`);
+}
+
+const opNames = operations.map((op) => op.operationId);
+
+// 1. Generate types.ts
+const typesContent = `/* Generated from docs/contracts/openapi.json by scripts/generateClient.mjs. DO NOT EDIT DIRECTLY. */
+
+import type {
+  User,
+  UserCreate,
+  UserPatch,
+  UserPage,
+  Project,
+  ProjectCreate,
+  ProjectPatch,
+  ProjectPage,
+  MemberUpdate,
+  MemberPage,
+  Environment,
+  EnvironmentCreate,
+  EnvironmentPatch,
+  EnvironmentPage,
+  AuthProfile,
+  AuthProfileCreate,
+  AuthProfilePatch,
+  AuthProfilePage,
+  Knowledge,
+  KnowledgeCreate,
+  KnowledgePatch,
+  KnowledgePage,
+  ModelProfile,
+  ModelProfileCreate,
+  ModelProfilePatch,
+  ModelProfilePage,
+  ModelProbeResult,
+  Run,
+  RunCreate,
+  RunPage,
+  RunConfig,
+  BudgetOverrides,
+  MessageInput,
+  InputRequest,
+  InputResponse,
+  CaseRecord,
+  CaseRecordPage,
+  CaseAttemptPage,
+  TaskPage,
+  Step,
+  StepPage,
+  RunEventPage,
+  Finding,
+  FindingPage,
+  TriageInput,
+  TriagePreview,
+  TriageCommit,
+  Report,
+  Export,
+  ExportInput,
+  Artifact,
+  Health,
+  LoginInput,
+  LoginResult,
+} from '@localqa/contracts';
+
+export type PublicOperationName =
+${opNames.map((name) => `  | '${name}'`).join('\n')};
+
+export interface PaginationQuery {
+  cursor?: string;
+  limit?: number;
+}
+
+export interface ListRunsQuery extends PaginationQuery {
+  projectId: string;
+  status?: string;
+  environmentId?: string;
+}
+
+export interface ListEventHistoryQuery {
+  afterSeq?: number;
+  limit?: number;
+}
+
+export interface CreateRunInput {
+  projectId: string;
+  targetUrl: string;
+  description?: string;
+  brief?: string;
+  environmentId?: string;
+  authProfileId?: string;
+  modelProfileId?: string;
+  budgetOverrides?: BudgetOverrides;
+  budget?: BudgetOverrides;
+  mode?: 'smoke';
+  config?: Partial<RunConfig>;
+}
+
+export interface ApiClient {
+  // Auth & Current User
+  login(input: LoginInput): Promise<LoginResult>;
+  logout(): Promise<void>;
+  currentUser(): Promise<User>;
+
+  // Users
+  listUsers(query?: PaginationQuery): Promise<UserPage>;
+  createUser(input: UserCreate): Promise<User>;
+  updateUser(userId: string, input: UserPatch): Promise<User>;
+
+  // Projects & Members
+  listProjects(query?: PaginationQuery): Promise<ProjectPage>;
+  createProject(input: ProjectCreate): Promise<Project>;
+  getProject(projectId: string): Promise<Project>;
+  updateProject(projectId: string, input: ProjectPatch): Promise<Project>;
+  listMembers(projectId: string, query?: PaginationQuery): Promise<MemberPage>;
+  replaceMembers(projectId: string, input: MemberUpdate): Promise<Project>;
+
+  // Environments & Auth Profiles
+  listEnvironment(projectId: string, query?: PaginationQuery): Promise<EnvironmentPage>;
+  listEnvironments(projectId: string, query?: PaginationQuery): Promise<EnvironmentPage>;
+  createEnvironment(projectId: string, input: EnvironmentCreate): Promise<Environment>;
+  getEnvironment(environmentId: string): Promise<Environment>;
+  updateEnvironment(environmentId: string, input: EnvironmentPatch): Promise<Environment>;
+  listAuthProfile(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage>;
+  listAuthProfiles(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage>;
+  createAuthProfile(projectId: string, input: AuthProfileCreate): Promise<AuthProfile>;
+  updateAuthProfile(authProfileId: string, input: AuthProfilePatch): Promise<AuthProfile>;
+
+  // Knowledge & Models
+  listKnowledge(projectId: string, query?: PaginationQuery): Promise<KnowledgePage>;
+  createKnowledge(projectId: string, input: KnowledgeCreate): Promise<Knowledge>;
+  updateKnowledge(knowledgeId: string, input: KnowledgePatch): Promise<Knowledge>;
+  listModels(query?: PaginationQuery): Promise<ModelProfilePage>;
+  createModel(input: ModelProfileCreate): Promise<ModelProfile>;
+  getModel(modelProfileId: string): Promise<ModelProfile>;
+  updateModel(modelProfileId: string, input: ModelProfilePatch): Promise<ModelProfile>;
+  probeModel(modelProfileId: string): Promise<ModelProbeResult>;
+
+  // Runs & Execution
+  createRun(input: CreateRunInput | RunCreate): Promise<Run>;
+  listRuns(projectIdOrQuery: string | ListRunsQuery): Promise<RunPage>;
+  getRun(runId: string): Promise<Run>;
+  cancelRun(runId: string): Promise<Run>;
+  sendRunMessage(
+    runId: string,
+    messageOrInput: string | MessageInput,
+    expectedContextVersion?: number,
+  ): Promise<Run>;
+  respondToInput(
+    runId: string,
+    inputId: string,
+    response: InputResponse,
+  ): Promise<InputRequest>;
+  streamEvents(runId: string, lastEventId?: string): EventSource;
+
+  // Work Breakdown, Cases, Tasks, Steps & Events
+  listRunCases(runId: string, query?: PaginationQuery): Promise<CaseRecordPage>;
+  getCase(caseId: string): Promise<CaseRecord>;
+  listCaseAttempts(caseId: string, query?: PaginationQuery): Promise<CaseAttemptPage>;
+  listRunTasks(runId: string, query?: PaginationQuery): Promise<TaskPage>;
+  listTaskSteps(taskId: string, query?: PaginationQuery): Promise<StepPage>;
+  getStep(stepId: string): Promise<Step>;
+  listEventHistory(runId: string, query?: ListEventHistoryQuery): Promise<RunEventPage>;
+
+  // Findings & Triage
+  listRunFindings(runId: string, query?: PaginationQuery): Promise<FindingPage>;
+  getFinding(findingId: string): Promise<Finding>;
+  previewTriage(
+    findingId: string,
+    dispositionOrInput:
+      | TriageInput
+      | 'accepted'
+      | 'duplicate'
+      | 'works_as_intended'
+      | 'cannot_reproduce'
+      | 'closed',
+    reason?: string,
+    expectedVersion?: number,
+  ): Promise<TriagePreview>;
+  commitTriage(findingId: string, input: TriageCommit): Promise<Finding>;
+
+  // Reports, Exports, Artifacts & Health
+  getReport(runId: string): Promise<Report>;
+  createExport(
+    runId: string,
+    formatOrInput: 'json' | 'markdown' | 'zip' | ExportInput,
+  ): Promise<Export>;
+  getExport(exportId: string): Promise<Export>;
+  downloadArtifact(artifactId: string): Promise<Blob>;
+  getArtifact(artifactId: string): Promise<Artifact>;
+  healthLive(): Promise<Health>;
+  healthReady(): Promise<Health>;
+}
+`;
+
+// 2. Generate client.ts
+const clientContent = `/* Generated from docs/contracts/openapi.json by scripts/generateClient.mjs. DO NOT EDIT DIRECTLY. */
+
+import { parseContract, type ContractName } from '@localqa/contracts';
+import type {
+  User,
+  UserCreate,
+  UserPatch,
+  UserPage,
+  Project,
+  ProjectCreate,
+  ProjectPatch,
+  ProjectPage,
+  MemberUpdate,
+  MemberPage,
+  Environment,
+  EnvironmentCreate,
+  EnvironmentPatch,
+  EnvironmentPage,
+  AuthProfile,
+  AuthProfileCreate,
+  AuthProfilePatch,
+  AuthProfilePage,
+  Knowledge,
+  KnowledgeCreate,
+  KnowledgePatch,
+  KnowledgePage,
+  ModelProfile,
+  ModelProfileCreate,
+  ModelProfilePatch,
+  ModelProfilePage,
+  ModelProbeResult,
+  Run,
+  RunCreate,
+  RunPage,
+  MessageInput,
+  InputRequest,
+  InputResponse,
+  CaseRecord,
+  CaseRecordPage,
+  CaseAttemptPage,
+  TaskPage,
+  Step,
+  StepPage,
+  RunEventPage,
+  Finding,
+  FindingPage,
+  TriageInput,
+  TriagePreview,
+  TriageCommit,
+  Report,
+  Export,
+  ExportInput,
+  Artifact,
+  Health,
+  LoginInput,
+  LoginResult,
+} from '@localqa/contracts';
+import type {
+  ApiClient,
+  PaginationQuery,
+  ListRunsQuery,
+  ListEventHistoryQuery,
+  CreateRunInput,
+} from './types.ts';
+
+export class HttpApiClient implements ApiClient {
+  private readonly baseUrl: string;
+
+  constructor(baseUrl = '/api/v1') {
+    this.baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    contractName?: ContractName,
+  ): Promise<T> {
+    const url = \`\${this.baseUrl}\${endpoint}\`;
+    const headers = new Headers(options.headers);
+    if (
+      !headers.has('Content-Type') &&
+      options.body &&
+      typeof options.body === 'string'
+    ) {
+      headers.set('Content-Type', 'application/json');
+    }
+
+    const res = await fetch(url, {
+      ...options,
+      headers,
+      credentials: 'include',
+    });
+
+    if (!res.ok) {
+      const errorJson = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        code?: string;
+      };
+      const message =
+        errorJson.message || \`HTTP \${res.status} \${res.statusText}\`;
+      const err = new Error(message) as Error & {
+        status: number;
+        code?: string;
+      };
+      err.status = res.status;
+      err.code = errorJson.code;
+      throw err;
+    }
+
+    if (res.status === 204) {
+      return undefined as unknown as T;
+    }
+
+    const data = await res.json();
+    if (contractName) {
+      return parseContract(contractName, data) as unknown as T;
+    }
+    return data as T;
+  }
+
+  private buildQuery(params?: Record<string, string | number | boolean | undefined | null>): string {
+    if (!params) return '';
+    const sp = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (v !== undefined && v !== null && v !== '') {
+        sp.set(k, String(v));
+      }
+    }
+    const qs = sp.toString();
+    return qs ? \`?\${qs}\` : '';
+  }
+
+  // 1. login
+  public async login(input: LoginInput): Promise<LoginResult> {
+    return this.request<LoginResult>(
+      '/auth/login',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'LoginResult',
+    );
+  }
+
+  // 2. logout
+  public async logout(): Promise<void> {
+    await this.request<void>('/auth/logout', { method: 'POST' });
+  }
+
+  // 3. currentUser
+  public async currentUser(): Promise<User> {
+    return this.request<User>('/auth/me', { method: 'GET' }, 'User');
+  }
+
+  // 4. listUsers
+  public async listUsers(query?: PaginationQuery): Promise<UserPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<UserPage>(\`/users\${qs}\`, { method: 'GET' }, 'UserPage');
+  }
+
+  // 5. createUser
+  public async createUser(input: UserCreate): Promise<User> {
+    return this.request<User>(
+      '/users',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'User',
+    );
+  }
+
+  // 6. updateUser
+  public async updateUser(userId: string, input: UserPatch): Promise<User> {
+    return this.request<User>(
+      \`/users/\${encodeURIComponent(userId)}\`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+      'User',
+    );
+  }
+
+  // 7. listProjects
+  public async listProjects(query?: PaginationQuery): Promise<ProjectPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<ProjectPage>(
+      \`/projects\${qs}\`,
+      { method: 'GET' },
+      'ProjectPage',
+    );
+  }
+
+  // 8. createProject
+  public async createProject(input: ProjectCreate): Promise<Project> {
+    return this.request<Project>(
+      '/projects',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'Project',
+    );
+  }
+
+  // 9. getProject
+  public async getProject(projectId: string): Promise<Project> {
+    return this.request<Project>(
+      \`/projects/\${encodeURIComponent(projectId)}\`,
+      { method: 'GET' },
+      'Project',
+    );
+  }
+
+  // 10. updateProject
+  public async updateProject(projectId: string, input: ProjectPatch): Promise<Project> {
+    return this.request<Project>(
+      \`/projects/\${encodeURIComponent(projectId)}\`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+      'Project',
+    );
+  }
+
+  // 11. listMembers
+  public async listMembers(projectId: string, query?: PaginationQuery): Promise<MemberPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<MemberPage>(
+      \`/projects/\${encodeURIComponent(projectId)}/members\${qs}\`,
+      { method: 'GET' },
+      'MemberPage',
+    );
+  }
+
+  // 12. replaceMembers
+  public async replaceMembers(projectId: string, input: MemberUpdate): Promise<Project> {
+    return this.request<Project>(
+      \`/projects/\${encodeURIComponent(projectId)}/members\`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      },
+      'Project',
+    );
+  }
+
+  // 13. listEnvironment
+  public async listEnvironment(projectId: string, query?: PaginationQuery): Promise<EnvironmentPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<EnvironmentPage>(
+      \`/projects/\${encodeURIComponent(projectId)}/environments\${qs}\`,
+      { method: 'GET' },
+      'EnvironmentPage',
+    );
+  }
+
+  public async listEnvironments(projectId: string, query?: PaginationQuery): Promise<EnvironmentPage> {
+    return this.listEnvironment(projectId, query);
+  }
+
+  // 14. createEnvironment
+  public async createEnvironment(projectId: string, input: EnvironmentCreate): Promise<Environment> {
+    return this.request<Environment>(
+      \`/projects/\${encodeURIComponent(projectId)}/environments\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'Environment',
+    );
+  }
+
+  // 15. getEnvironment
+  public async getEnvironment(environmentId: string): Promise<Environment> {
+    return this.request<Environment>(
+      \`/environments/\${encodeURIComponent(environmentId)}\`,
+      { method: 'GET' },
+      'Environment',
+    );
+  }
+
+  // 16. updateEnvironment
+  public async updateEnvironment(environmentId: string, input: EnvironmentPatch): Promise<Environment> {
+    return this.request<Environment>(
+      \`/environments/\${encodeURIComponent(environmentId)}\`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+      'Environment',
+    );
+  }
+
+  // 17. listAuthProfile
+  public async listAuthProfile(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<AuthProfilePage>(
+      \`/projects/\${encodeURIComponent(projectId)}/auth-profiles\${qs}\`,
+      { method: 'GET' },
+      'AuthProfilePage',
+    );
+  }
+
+  public async listAuthProfiles(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage> {
+    return this.listAuthProfile(projectId, query);
+  }
+
+  // 18. createAuthProfile
+  public async createAuthProfile(projectId: string, input: AuthProfileCreate): Promise<AuthProfile> {
+    return this.request<AuthProfile>(
+      \`/projects/\${encodeURIComponent(projectId)}/auth-profiles\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'AuthProfile',
+    );
+  }
+
+  // 19. updateAuthProfile
+  public async updateAuthProfile(authProfileId: string, input: AuthProfilePatch): Promise<AuthProfile> {
+    return this.request<AuthProfile>(
+      \`/auth-profiles/\${encodeURIComponent(authProfileId)}\`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+      'AuthProfile',
+    );
+  }
+
+  // 20. listKnowledge
+  public async listKnowledge(projectId: string, query?: PaginationQuery): Promise<KnowledgePage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<KnowledgePage>(
+      \`/projects/\${encodeURIComponent(projectId)}/knowledge\${qs}\`,
+      { method: 'GET' },
+      'KnowledgePage',
+    );
+  }
+
+  // 21. createKnowledge
+  public async createKnowledge(projectId: string, input: KnowledgeCreate): Promise<Knowledge> {
+    return this.request<Knowledge>(
+      \`/projects/\${encodeURIComponent(projectId)}/knowledge\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'Knowledge',
+    );
+  }
+
+  // 22. updateKnowledge
+  public async updateKnowledge(knowledgeId: string, input: KnowledgePatch): Promise<Knowledge> {
+    return this.request<Knowledge>(
+      \`/knowledge/\${encodeURIComponent(knowledgeId)}\`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+      'Knowledge',
+    );
+  }
+
+  // 23. listModels
+  public async listModels(query?: PaginationQuery): Promise<ModelProfilePage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<ModelProfilePage>(
+      \`/model-profiles\${qs}\`,
+      { method: 'GET' },
+      'ModelProfilePage',
+    );
+  }
+
+  // 24. createModel
+  public async createModel(input: ModelProfileCreate): Promise<ModelProfile> {
+    return this.request<ModelProfile>(
+      '/model-profiles',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'ModelProfile',
+    );
+  }
+
+  // 25. getModel
+  public async getModel(modelProfileId: string): Promise<ModelProfile> {
+    return this.request<ModelProfile>(
+      \`/model-profiles/\${encodeURIComponent(modelProfileId)}\`,
+      { method: 'GET' },
+      'ModelProfile',
+    );
+  }
+
+  // 26. updateModel
+  public async updateModel(modelProfileId: string, input: ModelProfilePatch): Promise<ModelProfile> {
+    return this.request<ModelProfile>(
+      \`/model-profiles/\${encodeURIComponent(modelProfileId)}\`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+      'ModelProfile',
+    );
+  }
+
+  // 27. probeModel
+  public async probeModel(modelProfileId: string): Promise<ModelProbeResult> {
+    return this.request<ModelProbeResult>(
+      \`/model-profiles/\${encodeURIComponent(modelProfileId)}/probe\`,
+      { method: 'POST' },
+      'ModelProbeResult',
+    );
+  }
+
+  // 28. createRun
+  public async createRun(input: CreateRunInput | RunCreate): Promise<Run> {
+    const payload: RunCreate = {
+      projectId: input.projectId,
+      targetUrl: input.targetUrl,
+      mode: input.mode || 'smoke',
+    };
+    const brief = ('brief' in input ? input.brief : undefined) ?? ('description' in input ? input.description : undefined);
+    if (brief && brief.trim()) {
+      payload.brief = brief.trim();
+    }
+    if (input.environmentId) payload.environmentId = input.environmentId;
+    if (input.authProfileId) payload.authProfileId = input.authProfileId;
+    const budget = ('budget' in input ? input.budget : undefined) ?? ('budgetOverrides' in input ? input.budgetOverrides : undefined);
+    if (budget && Object.keys(budget).length > 0) {
+      payload.budget = budget;
+    }
+
+    const idempotencyKey =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : \`idemp_\${Date.now()}_\${Math.random().toString(36).slice(2)}\`;
+
+    return this.request<Run>(
+      '/runs',
+      {
+        method: 'POST',
+        headers: {
+          'Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify(payload),
+      },
+      'Run',
+    );
+  }
+
+  // 29. listRuns
+  public async listRuns(projectIdOrQuery: string | ListRunsQuery): Promise<RunPage> {
+    const query = typeof projectIdOrQuery === 'string'
+      ? { projectId: projectIdOrQuery }
+      : projectIdOrQuery;
+    const qs = this.buildQuery(query as unknown as Record<string, string | number>);
+    return this.request<RunPage>(\`/runs\${qs}\`, { method: 'GET' }, 'RunPage');
+  }
+
+  // 30. getRun
+  public async getRun(runId: string): Promise<Run> {
+    return this.request<Run>(\`/runs/\${encodeURIComponent(runId)}\`, { method: 'GET' }, 'Run');
+  }
+
+  // 31. cancelRun
+  public async cancelRun(runId: string): Promise<Run> {
+    return this.request<Run>(
+      \`/runs/\${encodeURIComponent(runId)}/cancel\`,
+      { method: 'POST' },
+      'Run',
+    );
+  }
+
+  // 32. sendRunMessage
+  public async sendRunMessage(
+    runId: string,
+    messageOrInput: string | MessageInput,
+    expectedContextVersion = 1,
+  ): Promise<Run> {
+    const payload: MessageInput = typeof messageOrInput === 'string'
+      ? { text: messageOrInput, expectedContextVersion }
+      : messageOrInput;
+
+    return this.request<Run>(
+      \`/runs/\${encodeURIComponent(runId)}/messages\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      'Run',
+    );
+  }
+
+  // 33. respondToInput
+  public async respondToInput(
+    runId: string,
+    inputId: string,
+    response: InputResponse,
+  ): Promise<InputRequest> {
+    return this.request<InputRequest>(
+      \`/runs/\${encodeURIComponent(runId)}/inputs/\${encodeURIComponent(inputId)}/respond\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(response),
+      },
+      'InputRequest',
+    );
+  }
+
+  // 34. streamEvents
+  public streamEvents(runId: string, _lastEventId?: string): EventSource {
+    const url = \`\${this.baseUrl}/runs/\${encodeURIComponent(runId)}/events\`;
+    return new EventSource(url, { withCredentials: true });
+  }
+
+  // 35. listRunCases
+  public async listRunCases(runId: string, query?: PaginationQuery): Promise<CaseRecordPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<CaseRecordPage>(
+      \`/runs/\${encodeURIComponent(runId)}/cases\${qs}\`,
+      { method: 'GET' },
+      'CaseRecordPage',
+    );
+  }
+
+  // 36. listRunTasks
+  public async listRunTasks(runId: string, query?: PaginationQuery): Promise<TaskPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<TaskPage>(
+      \`/runs/\${encodeURIComponent(runId)}/tasks\${qs}\`,
+      { method: 'GET' },
+      'TaskPage',
+    );
+  }
+
+  // 37. listRunFindings
+  public async listRunFindings(runId: string, query?: PaginationQuery): Promise<FindingPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<FindingPage>(
+      \`/runs/\${encodeURIComponent(runId)}/findings\${qs}\`,
+      { method: 'GET' },
+      'FindingPage',
+    );
+  }
+
+  // 38. getCase
+  public async getCase(caseId: string): Promise<CaseRecord> {
+    return this.request<CaseRecord>(
+      \`/cases/\${encodeURIComponent(caseId)}\`,
+      { method: 'GET' },
+      'CaseRecord',
+    );
+  }
+
+  // 39. listCaseAttempts
+  public async listCaseAttempts(caseId: string, query?: PaginationQuery): Promise<CaseAttemptPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<CaseAttemptPage>(
+      \`/cases/\${encodeURIComponent(caseId)}/attempts\${qs}\`,
+      { method: 'GET' },
+      'CaseAttemptPage',
+    );
+  }
+
+  // 40. listTaskSteps
+  public async listTaskSteps(taskId: string, query?: PaginationQuery): Promise<StepPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<StepPage>(
+      \`/tasks/\${encodeURIComponent(taskId)}/steps\${qs}\`,
+      { method: 'GET' },
+      'StepPage',
+    );
+  }
+
+  // 41. getStep
+  public async getStep(stepId: string): Promise<Step> {
+    return this.request<Step>(
+      \`/steps/\${encodeURIComponent(stepId)}\`,
+      { method: 'GET' },
+      'Step',
+    );
+  }
+
+  // 42. listEventHistory
+  public async listEventHistory(runId: string, query?: ListEventHistoryQuery): Promise<RunEventPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<RunEventPage>(
+      \`/runs/\${encodeURIComponent(runId)}/event-history\${qs}\`,
+      { method: 'GET' },
+      'RunEventPage',
+    );
+  }
+
+  // 43. getFinding
+  public async getFinding(findingId: string): Promise<Finding> {
+    return this.request<Finding>(
+      \`/findings/\${encodeURIComponent(findingId)}\`,
+      { method: 'GET' },
+      'Finding',
+    );
+  }
+
+  // 44. previewTriage
+  public async previewTriage(
+    findingId: string,
+    dispositionOrInput:
+      | TriageInput
+      | 'accepted'
+      | 'duplicate'
+      | 'works_as_intended'
+      | 'cannot_reproduce'
+      | 'closed',
+    reason = '',
+    expectedVersion = 1,
+  ): Promise<TriagePreview> {
+    const payload: TriageInput = typeof dispositionOrInput === 'object'
+      ? dispositionOrInput
+      : {
+          disposition: dispositionOrInput,
+          reason,
+          expectedVersion,
+        };
+
+    return this.request<TriagePreview>(
+      \`/findings/\${encodeURIComponent(findingId)}/triage-preview\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      'TriagePreview',
+    );
+  }
+
+  // 45. commitTriage
+  public async commitTriage(findingId: string, input: TriageCommit): Promise<Finding> {
+    return this.request<Finding>(
+      \`/findings/\${encodeURIComponent(findingId)}/triage\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'Finding',
+    );
+  }
+
+  // 46. getReport
+  public async getReport(runId: string): Promise<Report> {
+    return this.request<Report>(
+      \`/runs/\${encodeURIComponent(runId)}/report\`,
+      { method: 'GET' },
+      'Report',
+    );
+  }
+
+  // 47. createExport
+  public async createExport(
+    runId: string,
+    formatOrInput: 'json' | 'markdown' | 'zip' | ExportInput,
+  ): Promise<Export> {
+    const payload: ExportInput = typeof formatOrInput === 'string'
+      ? { format: formatOrInput }
+      : formatOrInput;
+
+    return this.request<Export>(
+      \`/runs/\${encodeURIComponent(runId)}/exports\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      'Export',
+    );
+  }
+
+  // 48. getExport
+  public async getExport(exportId: string): Promise<Export> {
+    return this.request<Export>(
+      \`/exports/\${encodeURIComponent(exportId)}\`,
+      { method: 'GET' },
+      'Export',
+    );
+  }
+
+  // 49. downloadArtifact
+  public async downloadArtifact(artifactId: string): Promise<Blob> {
+    const url = \`\${this.baseUrl}/artifacts/\${encodeURIComponent(artifactId)}/content\`;
+    const res = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const errorJson = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        code?: string;
+      };
+      const err = new Error(
+        errorJson.message || \`HTTP \${res.status} \${res.statusText}\`,
+      ) as Error & { status: number; code?: string };
+      err.status = res.status;
+      err.code = errorJson.code;
+      throw err;
+    }
+    return res.blob();
+  }
+
+  // 50. getArtifact
+  public async getArtifact(artifactId: string): Promise<Artifact> {
+    return this.request<Artifact>(
+      \`/artifacts/\${encodeURIComponent(artifactId)}\`,
+      { method: 'GET' },
+      'Artifact',
+    );
+  }
+
+  // 51. healthLive
+  public async healthLive(): Promise<Health> {
+    return this.request<Health>('/health/live', { method: 'GET' }, 'Health');
+  }
+
+  // 52. healthReady
+  public async healthReady(): Promise<Health> {
+    return this.request<Health>('/health/ready', { method: 'GET' }, 'Health');
+  }
+}
+`;
+
+const checkMode = process.argv.includes('--check');
+
+const targetTypes = `${root}apps/web/src/api/types.ts`;
+const targetClient = `${root}apps/web/src/api/client.ts`;
+
+if (checkMode) {
+  const currentTypes = await readFile(targetTypes, 'utf8');
+  const currentClient = await readFile(targetClient, 'utf8');
+  if (currentTypes !== typesContent) {
+    throw new Error(
+      'Generated file drift: apps/web/src/api/types.ts; run npm run generate:client',
+    );
+  }
+  if (currentClient !== clientContent) {
+    throw new Error(
+      'Generated file drift: apps/web/src/api/client.ts; run npm run generate:client',
+    );
+  }
+  console.log(
+    'Contract check passed: 52 public operations in sync with openapi.json',
+  );
+} else {
+  await writeFile(targetTypes, typesContent, 'utf8');
+  await writeFile(targetClient, clientContent, 'utf8');
+  console.log(
+    'Successfully generated apps/web/src/api/types.ts and apps/web/src/api/client.ts (52 operations).',
+  );
+}
