@@ -19,6 +19,9 @@ import {
   defaultApiClient,
   SseClient,
   type SseConnectionStatus,
+  fetchRunMessages,
+  recordMessageRendered,
+  type RunMessage,
 } from '../api/index.ts';
 
 interface RunState {
@@ -28,6 +31,7 @@ interface RunState {
   findings: Finding[];
   report: Report | null;
   activeInputRequest: InputRequest | null;
+  messages: RunMessage[];
   sseStatus: SseConnectionStatus;
   reconnectAttempt: number;
   loading: boolean;
@@ -61,6 +65,7 @@ export function RunStoreProvider({
   const [report, setReport] = useState<Report | null>(null);
   const [activeInputRequest, setActiveInputRequest] =
     useState<InputRequest | null>(null);
+  const [messages, setMessages] = useState<RunMessage[]>([]);
   const [sseStatus, setSseStatus] =
     useState<SseConnectionStatus>('disconnected');
   const [reconnectAttempt, setReconnectAttempt] = useState<number>(0);
@@ -75,19 +80,26 @@ export function RunStoreProvider({
     setLoading(true);
     setError(null);
     try {
-      const [runData, caseRes, taskRes, findRes, repData] = await Promise.all([
-        defaultApiClient.getRun(runId),
-        defaultApiClient.listRunCases(runId).catch(() => ({ items: [] })),
-        defaultApiClient.listRunTasks(runId).catch(() => ({ items: [] })),
-        defaultApiClient.listRunFindings(runId).catch(() => ({ items: [] })),
-        defaultApiClient.getReport(runId).catch(() => null),
-      ]);
+      const [runData, caseRes, taskRes, findRes, repData, msgs] =
+        await Promise.all([
+          defaultApiClient.getRun(runId),
+          defaultApiClient.listRunCases(runId).catch(() => ({ items: [] })),
+          defaultApiClient.listRunTasks(runId).catch(() => ({ items: [] })),
+          defaultApiClient.listRunFindings(runId).catch(() => ({ items: [] })),
+          defaultApiClient.getReport(runId).catch(() => null),
+          fetchRunMessages('/api/v1', runId),
+        ]);
 
       setRun(runData);
       setCases(caseRes.items);
       setTasks(taskRes.items);
       setFindings(findRes.items);
       setReport(repData);
+      setMessages(msgs);
+
+      for (const m of msgs) {
+        recordMessageRendered(m.redactedText, m.createdAt);
+      }
 
       if (runData.status === 'awaiting_input') {
         setActiveInputRequest({
@@ -111,12 +123,47 @@ export function RunStoreProvider({
     loadSnapshot();
   }, [loadSnapshot]);
 
+  // Periodic polling for messages while run is active
+  useEffect(() => {
+    if (!run || ['completed', 'failed', 'cancelled'].includes(run.status))
+      return;
+    const interval = setInterval(() => {
+      fetchRunMessages('/api/v1', runId)
+        .then((newMsgs) => {
+          if (newMsgs.length > 0) {
+            setMessages((prev) => {
+              const isDifferent =
+                newMsgs.length !== prev.length ||
+                newMsgs.some((m, idx) => m.id !== prev[idx]?.id);
+              if (isDifferent) {
+                for (const m of newMsgs) {
+                  recordMessageRendered(m.redactedText, m.createdAt);
+                }
+                return newMsgs;
+              }
+              return prev;
+            });
+          }
+        })
+        .catch(() => {});
+    }, 300);
+    return () => clearInterval(interval);
+  }, [runId, run?.status]);
+
   // 2. Event projection handler
   const handleEvent = useCallback((event: RunEvent) => {
     switch (event.type) {
       case 'run.updated': {
         const payload = event.payload as unknown as Partial<Run>;
         setRun((prev) => (prev ? { ...prev, ...payload } : (payload as Run)));
+        fetchRunMessages('/api/v1', runId)
+          .then((newMsgs) => {
+            setMessages(newMsgs);
+            for (const m of newMsgs) {
+              recordMessageRendered(m.redactedText, m.createdAt);
+            }
+          })
+          .catch(() => {});
         break;
       }
       case 'phase.changed': {
@@ -243,15 +290,22 @@ export function RunStoreProvider({
   }, [runId, handleEvent]);
 
   const cancelRun = async () => {
-    await defaultApiClient.cancelRun(runId);
-    setRun((prev) => (prev ? { ...prev, status: 'cancelling' } : null));
+    const updated = await defaultApiClient.cancelRun(runId);
+    setRun((prev) => (prev ? { ...prev, ...updated } : updated));
   };
 
   const sendMessage = async (msg: string) => {
-    await defaultApiClient.sendRunMessage(runId, msg, run?.contextVersion ?? 1);
-    setRun((prev) =>
-      prev ? { ...prev, contextVersion: prev.contextVersion + 1 } : null,
+    const updatedRun = await defaultApiClient.sendRunMessage(
+      runId,
+      msg,
+      run?.contextVersion ?? 1,
     );
+    const newMsgs = await fetchRunMessages('/api/v1', runId);
+    setMessages(newMsgs);
+    for (const m of newMsgs) {
+      recordMessageRendered(m.redactedText, m.createdAt);
+    }
+    setRun((prev) => (prev ? { ...prev, ...updatedRun } : updatedRun));
   };
 
   const respondInput = async (
@@ -281,6 +335,7 @@ export function RunStoreProvider({
         findings,
         report,
         activeInputRequest,
+        messages,
         sseStatus,
         reconnectAttempt,
         loading,

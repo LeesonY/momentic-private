@@ -92,6 +92,7 @@ const WorkbenchContent: React.FC<{
     findings,
     report,
     activeInputRequest,
+    messages,
     sseStatus,
     reconnectAttempt,
     cancelRun,
@@ -253,38 +254,155 @@ const WorkbenchContent: React.FC<{
           />
         )}
 
-        {/* User Scope Supplement Message Box */}
-        {!isCompleted && (
-          <form
-            onSubmit={handleSendMessage}
-            className="card"
+        {/* User Scope Supplement Message Box & Messages List */}
+        <div
+          className="card"
+          style={{ marginBottom: '16px' }}
+          data-testid="run-messages-card"
+        >
+          <div
             style={{
-              marginBottom: '16px',
               display: 'flex',
-              gap: '10px',
               alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '10px',
             }}
-            data-testid="send-message-box"
           >
-            <input
-              type="text"
-              className="form-input"
-              style={{ flex: 1 }}
-              placeholder="在此输入补充说明、业务预期或排除路径（将推进上下文版本）..."
-              value={inputMsg}
-              onChange={(e) => setInputMsg(e.target.value)}
-              data-testid="input-run-message"
-            />
-            <button
-              type="submit"
-              className="btn btn-secondary btn-sm"
-              disabled={sendingMsg}
-              data-testid="btn-send-message"
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 600 }}>
+                补充说明与交互消息 (Run Messages)
+              </h3>
+              <span
+                className="badge badge-neutral"
+                data-testid="run-messages-count"
+              >
+                {messages.length}
+              </span>
+            </div>
+            <span
+              style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}
             >
-              {sendingMsg ? '发送中...' : '补充说明'}
-            </button>
-          </form>
-        )}
+              按时钟打点记录业务预期、排除路径与运行消息
+            </span>
+          </div>
+
+          {messages.length === 0 ? (
+            <div
+              style={{
+                padding: '12px 14px',
+                textAlign: 'center',
+                color: 'var(--color-text-muted)',
+                fontSize: '0.85rem',
+                backgroundColor: 'var(--color-bg-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                marginBottom: isCompleted ? 0 : '10px',
+              }}
+              data-testid="no-messages-notice"
+            >
+              暂无运行补充消息。如需提供业务预期或排除路径，请在下方发送。
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                maxHeight: '220px',
+                overflowY: 'auto',
+                marginBottom: isCompleted ? 0 : '10px',
+              }}
+              data-testid="run-messages-list"
+            >
+              {messages.map((m) => (
+                <div
+                  key={m.id}
+                  style={{
+                    padding: '8px 12px',
+                    backgroundColor: 'var(--color-bg-subtle)',
+                    border: '1px solid var(--color-border-subtle)',
+                    borderRadius: 'var(--radius-md)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                  }}
+                  data-testid="run-message-item"
+                  data-message-id={m.id}
+                  data-redacted-text={m.redactedText}
+                  data-context-version={m.contextVersion}
+                  data-created-at={m.createdAt}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: '0.75rem',
+                      color: 'var(--color-text-muted)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <span
+                        className="badge badge-info"
+                        style={{ fontSize: '0.7rem' }}
+                      >
+                        v{m.contextVersion}
+                      </span>
+                      <span>操作员</span>
+                    </div>
+                    <span>{new Date(m.createdAt).toLocaleTimeString()}</span>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.875rem',
+                      color: 'var(--color-text-main)',
+                      fontWeight: 500,
+                      wordBreak: 'break-word',
+                    }}
+                    data-testid="run-message-text"
+                  >
+                    {m.redactedText}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!isCompleted && (
+            <form
+              onSubmit={handleSendMessage}
+              style={{
+                display: 'flex',
+                gap: '10px',
+                alignItems: 'center',
+              }}
+              data-testid="send-message-box"
+            >
+              <input
+                type="text"
+                className="form-input"
+                style={{ flex: 1 }}
+                placeholder="在此输入补充说明、业务预期或排除路径（将推进上下文版本）..."
+                value={inputMsg}
+                onChange={(e) => setInputMsg(e.target.value)}
+                data-testid="input-run-message"
+              />
+              <button
+                type="submit"
+                className="btn btn-primary btn-sm"
+                disabled={sendingMsg}
+                data-testid="btn-send-message"
+              >
+                {sendingMsg ? '发送中...' : '发送补充说明'}
+              </button>
+            </form>
+          )}
+        </div>
 
         {/* Live Timeline & Execution Stream */}
         <div
