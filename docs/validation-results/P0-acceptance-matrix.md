@@ -48,8 +48,9 @@
 | 状态 | 项 |
 | --- | --- |
 | **通过（12）** | 六服务+真实业务请求、代理层 SSE 未缓冲（心跳 15.009s）、端到端（含真实导出 ZIP）、10 用户 RBAC 与跨项目隔离、三级配额公平性（40 条排队样本 min 144ms / p50 651ms / p95 1175ms）、API P95 2.66ms（100 样本）、SSE 重连（Last-Event-ID 续 48–50）、UI 刷新恢复、DB 重启恢复、worker 中途 SIGKILL（未换手法）、磁盘满（隔离 8MB tmpfs → 显式 ENOSPC）、凭据撤销拒绝 |
-| **验证受阻（1）** | `5_event_to_ui_p95`：注入窗口短于工作台打开耗时。已尝试 delay 30000/60000、扩大预算、运行创建后立即注入（202，注入时状态 running），但工作台页面 20s 内未出现（`waitForSelector timed out`）。判定为**场景构造问题**，不计产品失败 |
-| **未验证（1）** | `6_ui_sse_partial_blocked`：容器栈内未取得真实断线重连/partial/受阻三态截图（agy 在生产容器 18443 端口已独立取得，属开发自测证据） |
+| **验证受阻（1）** | `5_event_to_ui_p95`：**最终状态为失败**。注入已成功（API 日志 20 条 MSG_DEBUG、POST 202），产物一致（match=true），agy 复现证明卡片在 DOM 中（hasCardAtOpen=true）；但浏览器侧 `__messageTelemetryHistory` **为 undefined（而非空数组）**、DOM 无 marker。已排除契约、静态产物、会话维护；断点在渲染/打点层。**交接手者的第一线索：telemetry 全局在容器生产构建下似乎未暴露（疑 dev-only 或被 tree-shaking 裁剪）**，与 agy 在自身环境测到 `domHasMarker=true` 恰好形成对照 |
+| **未验证（1）** | `6_ui_sse_partial_blocked`：容器栈内未取得真实断线重连/partial/受阻三态截图（agy 在生产容器 18443 端口已独立取得，属开发自测证据）。后续两轮时间均被前一项消耗，未到达 |
+
 
 ## 该项已确认的正面事实（供后续接手）
 
