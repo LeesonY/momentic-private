@@ -4,6 +4,10 @@ export type Contract =
   | ActionPermit
   | ActionReservation
   | ActionResult
+  | ApiKey
+  | ApiKeyCreate
+  | ApiKeyCreated
+  | ApiKeyPage
   | Artifact
   | AuthProfile
   | AuthProfileCreate
@@ -15,6 +19,7 @@ export type Contract =
   | BudgetLimits
   | BudgetOverrides
   | BudgetUsed
+  | CacheStats
   | CandidateCase
   | CaseAttempt
   | CaseAttemptPage
@@ -72,9 +77,15 @@ export type Contract =
   | ProjectPage
   | ProjectPatch
   | RegressionDocument
+  | RegressionRunCreate
+  | RepairProposal
+  | RepairProposalCreate
+  | RepairProposalPage
   | ReplayStep
   | Report
   | Reproduction
+  | ReviewCommit
+  | ReviewPreview
   | RoleModels
   | Run
   | RunConfig
@@ -84,6 +95,16 @@ export type Contract =
   | RunMessage
   | RunMessagePage
   | RunPage
+  | SavedCase
+  | SavedCaseCreate
+  | SavedCasePage
+  | SavedCaseVersion
+  | SavedCaseVersionCreate
+  | SavedCaseVersionPage
+  | Schedule
+  | ScheduleCreate
+  | SchedulePage
+  | SchedulePatch
   | SnapshotNode
   | Step
   | StepPage
@@ -420,6 +441,41 @@ export interface ActionResult {
   evidenceRefs: string[];
   resultHash: string;
 }
+export interface ApiKey {
+  id: string;
+  projectId: string;
+  name: string;
+  /**
+   * @minItems 1
+   * @maxItems 20
+   */
+  scope: [string, ...string[]];
+  createdBy: string;
+  createdAt: string;
+  expiresAt: string | null;
+  revokedAt: string | null;
+}
+export interface ApiKeyCreate {
+  name: string;
+  /**
+   * @minItems 1
+   * @maxItems 20
+   */
+  scope: [string, ...string[]];
+  expiresAt?: string | null;
+}
+export interface ApiKeyCreated {
+  key: ApiKey;
+  token: string;
+}
+export interface ApiKeyPage {
+  /**
+   * @minItems 0
+   * @maxItems 100
+   */
+  items: ApiKey[];
+  nextCursor: string | null;
+}
 export interface Artifact {
   id: string;
   projectId: string;
@@ -570,6 +626,15 @@ export interface BudgetUsed {
   modelCalls: number;
   reproductions: number;
   totalTokens: number;
+}
+export interface CacheStats {
+  runId: string;
+  hits: number;
+  misses: number;
+  invalidated: number;
+  resolution: string;
+  savedModelCalls: number;
+  savedMs: number;
 }
 export interface CaseAttempt {
   id: string;
@@ -1012,6 +1077,39 @@ export interface RegressionDocument {
     version: number;
   }[];
 }
+export interface RegressionRunCreate {
+  projectId: string;
+  /**
+   * @minItems 1
+   * @maxItems 100
+   */
+  caseVersionIds: [string, ...string[]];
+  environmentId?: string;
+  authProfileId?: string;
+  budget?: BudgetOverrides;
+}
+export interface RepairProposal {
+  id: string;
+  caseId: string;
+  findingId: string;
+  proposedVersion: number;
+  diff: string;
+  verificationRunId: string | null;
+  status: "open" | "accepted" | "rejected";
+  createdAt: string;
+}
+export interface RepairProposalCreate {
+  findingId: string;
+  diff: string;
+}
+export interface RepairProposalPage {
+  /**
+   * @minItems 0
+   * @maxItems 100
+   */
+  items: RepairProposal[];
+  nextCursor: string | null;
+}
 export interface Report {
   schemaVersion: 1;
   example: boolean;
@@ -1131,6 +1229,23 @@ export interface Reproduction {
   evidenceRefs: string[];
   createdAt: string;
 }
+export interface ReviewCommit {
+  expectedVersion: number;
+  decision: "approve" | "reject";
+  reason: string;
+  confirmationToken: string;
+}
+export interface ReviewPreview {
+  versionId: string;
+  diff: string;
+  /**
+   * @minItems 0
+   * @maxItems 20
+   */
+  risks: string[];
+  confirmationToken: string;
+  expiresAt: string;
+}
 export interface RunCreate {
   projectId: string;
   targetUrl: string;
@@ -1171,6 +1286,94 @@ export interface RunPage {
    */
   items: Run[];
   nextCursor: string | null;
+}
+export interface SavedCase {
+  id: string;
+  projectId: string;
+  slug: string;
+  name: string;
+  status: "active" | "archived";
+  currentApprovedVersionId: string | null;
+  version: number;
+  createdAt: string;
+}
+export interface SavedCaseCreate {
+  slug: string;
+  name: string;
+  document?: RegressionDocument;
+  sourceRunCaseId?: string;
+}
+export interface SavedCasePage {
+  /**
+   * @minItems 0
+   * @maxItems 100
+   */
+  items: SavedCase[];
+  nextCursor: string | null;
+}
+export interface SavedCaseVersion {
+  id: string;
+  caseId: string;
+  version: number;
+  document: RegressionDocument;
+  sha256: string;
+  reviewStatus: "draft" | "approved" | "rejected";
+  createdBy: string;
+  createdAt: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+}
+export interface SavedCaseVersionCreate {
+  expectedVersion: number;
+  document: RegressionDocument;
+}
+export interface SavedCaseVersionPage {
+  /**
+   * @minItems 0
+   * @maxItems 100
+   */
+  items: SavedCaseVersion[];
+  nextCursor: string | null;
+}
+export interface Schedule {
+  id: string;
+  projectId: string;
+  name: string;
+  cron: string;
+  timezone: string;
+  runTemplate: RunCreate;
+  overlapPolicy: "skip" | "queue";
+  missedPolicy: "skip" | "catchup_one";
+  enabled: boolean;
+  version: number;
+  createdAt: string;
+}
+export interface ScheduleCreate {
+  name: string;
+  cron: string;
+  timezone?: string;
+  runTemplate: RunCreate;
+  overlapPolicy?: "skip" | "queue";
+  missedPolicy?: "skip" | "catchup_one";
+  enabled?: boolean;
+}
+export interface SchedulePage {
+  /**
+   * @minItems 0
+   * @maxItems 100
+   */
+  items: Schedule[];
+  nextCursor: string | null;
+}
+export interface SchedulePatch {
+  expectedVersion: number;
+  name?: string;
+  cron?: string;
+  timezone?: string;
+  runTemplate?: RunCreate;
+  overlapPolicy?: "skip" | "queue";
+  missedPolicy?: "skip" | "catchup_one";
+  enabled?: boolean;
 }
 export interface Step {
   id: string;
@@ -1277,6 +1480,10 @@ export interface ContractTypes {
   ActionPermit: ActionPermit;
   ActionReservation: ActionReservation;
   ActionResult: ActionResult;
+  ApiKey: ApiKey;
+  ApiKeyCreate: ApiKeyCreate;
+  ApiKeyCreated: ApiKeyCreated;
+  ApiKeyPage: ApiKeyPage;
   Artifact: Artifact;
   AuthProfile: AuthProfile;
   AuthProfileCreate: AuthProfileCreate;
@@ -1288,6 +1495,7 @@ export interface ContractTypes {
   BudgetLimits: BudgetLimits;
   BudgetOverrides: BudgetOverrides;
   BudgetUsed: BudgetUsed;
+  CacheStats: CacheStats;
   CandidateCase: CandidateCase;
   CaseAttempt: CaseAttempt;
   CaseAttemptPage: CaseAttemptPage;
@@ -1345,9 +1553,15 @@ export interface ContractTypes {
   ProjectPage: ProjectPage;
   ProjectPatch: ProjectPatch;
   RegressionDocument: RegressionDocument;
+  RegressionRunCreate: RegressionRunCreate;
+  RepairProposal: RepairProposal;
+  RepairProposalCreate: RepairProposalCreate;
+  RepairProposalPage: RepairProposalPage;
   ReplayStep: ReplayStep;
   Report: Report;
   Reproduction: Reproduction;
+  ReviewCommit: ReviewCommit;
+  ReviewPreview: ReviewPreview;
   RoleModels: RoleModels;
   Run: Run;
   RunConfig: RunConfig;
@@ -1357,6 +1571,16 @@ export interface ContractTypes {
   RunMessage: RunMessage;
   RunMessagePage: RunMessagePage;
   RunPage: RunPage;
+  SavedCase: SavedCase;
+  SavedCaseCreate: SavedCaseCreate;
+  SavedCasePage: SavedCasePage;
+  SavedCaseVersion: SavedCaseVersion;
+  SavedCaseVersionCreate: SavedCaseVersionCreate;
+  SavedCaseVersionPage: SavedCaseVersionPage;
+  Schedule: Schedule;
+  ScheduleCreate: ScheduleCreate;
+  SchedulePage: SchedulePage;
+  SchedulePatch: SchedulePatch;
   SnapshotNode: SnapshotNode;
   Step: Step;
   StepPage: StepPage;

@@ -145,7 +145,7 @@ event_payloads = {
     "run.finished": ref("Run"),
 }
 D["RunEvent"]["allOf"] = [{"if": {"properties": {"type": {"const": name}}, "required": ["type"]}, "then": {"properties": {"payload": schema}}} for name, schema in event_payloads.items()]
-for name in ["User", "Project", "Environment", "AuthProfile", "Knowledge", "ModelProfile", "Run", "CaseRecord", "CaseAttempt", "Step", "RunEvent", "Task", "Finding", "Member", "RunMessage"]:
+for name in ["User", "Project", "Environment", "AuthProfile", "Knowledge", "ModelProfile", "Run", "CaseRecord", "CaseAttempt", "Step", "RunEvent", "Task", "Finding", "Member", "RunMessage", "SavedCase", "SavedCaseVersion", "Schedule", "ApiKey", "RepairProposal"]:
     D[name + "Page"] = obj({"items": arr(ref(name), 100), "nextCursor": nullable(text(2000))})
 
 tools = {}
@@ -174,6 +174,25 @@ D["ActionReservation"]["properties"]["toolCall"] = ref("ToolCall")
 replay_steps = [obj({"kind": {"const": "navigate"}, "url": text(8192, minLength=1)}), obj({"kind": {"const": "click"}, "locator": ref("Locator")}), obj({"kind": {"const": "type_text"}, "locator": ref("Locator"), "text": text(2000)}), obj({"kind": {"const": "assert"}, "criterionId": text(64)}), obj({"kind": {"const": "ai_action"}, "goal": text(2000), "criteriaIds": arr(text(64), 20, 1)}), obj({"kind": {"const": "module"}, "ref": text(120, pattern="^[a-zA-Z0-9_./-]+@[1-9][0-9]*$"), "arguments": {"type": "object", "additionalProperties": ref("JsonValue")}}, ["kind", "ref"])]
 D["ReplayStep"] = {"oneOf": replay_steps}
 D["RegressionDocument"] = obj({"schemaVersion": {"const": 1}, "kind": {"const": "localqa/test"}, "id": text(120, pattern="^[a-zA-Z0-9_.-]+$"), "name": text(200, minLength=1), "variables": {"type": "object", "additionalProperties": {"type": ["string", "number", "boolean"]}}, "criteria": arr(ref("Criterion"), 20, 1), "steps": arr(ref("ReplayStep"), 100, 1), "fixtureRefs": arr(obj({"id": UUID, "version": VER}), 10)}, ["schemaVersion", "kind", "id", "name", "criteria", "steps"])
+
+# P1: saved cases, versions, schedules, api-keys, cache stats, repair proposals.
+# Source: docs/06-web-regression-and-scheduling.md §3.
+D["SavedCase"] = obj({"id": UUID, "projectId": UUID, "slug": text(120, pattern="^[a-zA-Z0-9_.-]+$"), "name": text(200, minLength=1), "status": enum("active", "archived"), "currentApprovedVersionId": nullable(UUID), "version": VER, "createdAt": DATE})
+D["SavedCaseCreate"] = obj({"slug": text(120, pattern="^[a-zA-Z0-9_.-]+$"), "name": text(200, minLength=1), "document": ref("RegressionDocument"), "sourceRunCaseId": UUID}, ["slug", "name"])
+D["SavedCaseVersion"] = obj({"id": UUID, "caseId": UUID, "version": VER, "document": ref("RegressionDocument"), "sha256": text(64, pattern="^[0-9a-f]{64}$"), "reviewStatus": enum("draft", "approved", "rejected"), "createdBy": UUID, "createdAt": DATE, "reviewedBy": nullable(UUID), "reviewedAt": nullable(DATE)})
+D["SavedCaseVersionCreate"] = obj({"expectedVersion": VER, "document": ref("RegressionDocument")})
+D["ReviewPreview"] = obj({"versionId": UUID, "diff": text(20000), "risks": arr(text(1000), 20), "confirmationToken": text(1000), "expiresAt": DATE})
+D["ReviewCommit"] = obj({"expectedVersion": VER, "decision": enum("approve", "reject"), "reason": text(2000), "confirmationToken": text(1000, minLength=1)})
+D["Schedule"] = obj({"id": UUID, "projectId": UUID, "name": text(120, minLength=1), "cron": text(120), "timezone": text(80), "runTemplate": ref("RunCreate"), "overlapPolicy": enum("skip", "queue"), "missedPolicy": enum("skip", "catchup_one"), "enabled": BOOL, "version": VER, "createdAt": DATE})
+D["ScheduleCreate"] = obj({"name": text(120, minLength=1), "cron": text(120, minLength=1), "timezone": text(80), "runTemplate": ref("RunCreate"), "overlapPolicy": {**enum("skip", "queue"), "default": "skip"}, "missedPolicy": {**enum("skip", "catchup_one"), "default": "skip"}, "enabled": {**BOOL, "default": True}}, ["name", "cron", "runTemplate"])
+D["SchedulePatch"] = obj({"expectedVersion": VER, **copy.deepcopy(D["ScheduleCreate"]["properties"])}, ["expectedVersion"])
+D["ApiKey"] = obj({"id": UUID, "projectId": UUID, "name": text(120, minLength=1), "scope": arr(text(80), 20, 1), "createdBy": UUID, "createdAt": DATE, "expiresAt": nullable(DATE), "revokedAt": nullable(DATE)})
+D["ApiKeyCreate"] = obj({"name": text(120, minLength=1), "scope": arr(text(80), 20, 1), "expiresAt": nullable(DATE)}, ["name", "scope"])
+D["ApiKeyCreated"] = obj({"key": ref("ApiKey"), "token": text(2000)})
+D["CacheStats"] = obj({"runId": UUID, "hits": integer(), "misses": integer(), "invalidated": integer(), "resolution": text(200), "savedModelCalls": integer(), "savedMs": integer()})
+D["RepairProposal"] = obj({"id": UUID, "caseId": UUID, "findingId": UUID, "proposedVersion": VER, "diff": text(20000), "verificationRunId": nullable(UUID), "status": enum("open", "accepted", "rejected"), "createdAt": DATE})
+D["RepairProposalCreate"] = obj({"findingId": UUID, "diff": text(20000, minLength=1)})
+D["RegressionRunCreate"] = obj({"projectId": UUID, "caseVersionIds": arr(UUID, 100, 1), "environmentId": UUID, "authProfileId": UUID, "budget": ref("BudgetOverrides")}, ["projectId", "caseVersionIds"])
 
 def convert_refs(value):
     if isinstance(value, dict): return {k: convert_refs(v) for k, v in value.items()}
@@ -243,6 +262,25 @@ operation(P+"/runs/{runId}/exports", "post", "createExport", "Export", "ExportIn
 operation(P+"/exports/{exportId}", "get", "getExport", "Export")
 operation(P+"/artifacts/{artifactId}/content", "get", "downloadArtifact", "Binary", media="application/octet-stream")
 operation(P+"/artifacts/{artifactId}", "get", "getArtifact", "Artifact")
+# P1 increment (docs/06 §3). Not part of the P0 HTTP contract; added here so
+# T10/T11/T12 owners implement against one authoritative schema.
+operation(P+"/projects/{projectId}/saved-cases", "get", "listSavedCases", "SavedCasePage")
+operation(P+"/projects/{projectId}/saved-cases", "post", "createSavedCase", "SavedCase", "SavedCaseCreate", 201)
+operation(P+"/saved-cases/{caseId}/versions", "get", "listSavedCaseVersions", "SavedCaseVersionPage")
+operation(P+"/saved-cases/{caseId}/versions", "post", "createSavedCaseVersion", "SavedCaseVersion", "SavedCaseVersionCreate", 201)
+operation(P+"/saved-case-versions/{versionId}/review-preview", "post", "previewSavedCaseReview", "ReviewPreview")
+operation(P+"/saved-case-versions/{versionId}/review", "post", "commitSavedCaseReview", "SavedCaseVersion", "ReviewCommit")
+operation(P+"/regression-runs", "post", "createRegressionRun", "Run", "RegressionRunCreate", 202)
+operation(P+"/projects/{projectId}/schedules", "get", "listSchedules", "SchedulePage")
+operation(P+"/projects/{projectId}/schedules", "post", "createSchedule", "Schedule", "ScheduleCreate", 201)
+operation(P+"/schedules/{scheduleId}", "patch", "updateSchedule", "Schedule", "SchedulePatch")
+operation(P+"/schedules/{scheduleId}/run-now", "post", "runScheduleNow", "Run", status=202)
+operation(P+"/projects/{projectId}/api-keys", "get", "listApiKeys", "ApiKeyPage")
+operation(P+"/projects/{projectId}/api-keys", "post", "createApiKey", "ApiKeyCreated", "ApiKeyCreate", 201)
+operation(P+"/api-keys/{keyId}/revoke", "post", "revokeApiKey", "ApiKey")
+operation(P+"/runs/{runId}/cache-stats", "get", "getCacheStats", "CacheStats")
+operation(P+"/saved-cases/{caseId}/repair-proposals", "get", "listRepairProposals", "RepairProposalPage")
+operation(P+"/saved-cases/{caseId}/repair-proposals", "post", "createRepairProposal", "RepairProposal", "RepairProposalCreate", 201)
 for suffix in ["live", "ready"]: operation(P+"/health/"+suffix, "get", "health"+suffix.title(), "Health", public=True)
 paths[P+"/health/ready"]["get"]["responses"]["503"] = {"description": "Core API dependencies not ready", "content": {"application/json": {"schema": convert_refs(ref("Health"))}}}
 I = "/internal/v1"

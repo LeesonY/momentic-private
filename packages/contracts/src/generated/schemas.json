@@ -4772,6 +4772,151 @@
         ],
         "additionalProperties": false
       },
+      "SavedCasePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/SavedCase"
+            },
+            "maxItems": 100,
+            "minItems": 0
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "SavedCaseVersionPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/SavedCaseVersion"
+            },
+            "maxItems": 100,
+            "minItems": 0
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "SchedulePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/Schedule"
+            },
+            "maxItems": 100,
+            "minItems": 0
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "ApiKeyPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/ApiKey"
+            },
+            "maxItems": 100,
+            "minItems": 0
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "RepairProposalPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/RepairProposal"
+            },
+            "maxItems": 100,
+            "minItems": 0
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
       "ToolCall": {
         "oneOf": [
           {
@@ -5648,6 +5793,697 @@
           "name",
           "criteria",
           "steps"
+        ],
+        "additionalProperties": false
+      },
+      "SavedCase": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[a-zA-Z0-9_.-]+$"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "archived"
+            ]
+          },
+          "currentApprovedVersionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "slug",
+          "name",
+          "status",
+          "currentApprovedVersionId",
+          "version",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "SavedCaseCreate": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[a-zA-Z0-9_.-]+$"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "document": {
+            "$ref": "#/$defs/RegressionDocument"
+          },
+          "sourceRunCaseId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "slug",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "SavedCaseVersion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "caseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "document": {
+            "$ref": "#/$defs/RegressionDocument"
+          },
+          "sha256": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "reviewStatus": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "approved",
+              "rejected"
+            ]
+          },
+          "createdBy": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reviewedBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "caseId",
+          "version",
+          "document",
+          "sha256",
+          "reviewStatus",
+          "createdBy",
+          "createdAt",
+          "reviewedBy",
+          "reviewedAt"
+        ],
+        "additionalProperties": false
+      },
+      "SavedCaseVersionCreate": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "document": {
+            "$ref": "#/$defs/RegressionDocument"
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "document"
+        ],
+        "additionalProperties": false
+      },
+      "ReviewPreview": {
+        "type": "object",
+        "properties": {
+          "versionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "diff": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "risks": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 1000
+            },
+            "maxItems": 20,
+            "minItems": 0
+          },
+          "confirmationToken": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "versionId",
+          "diff",
+          "risks",
+          "confirmationToken",
+          "expiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "ReviewCommit": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "confirmationToken": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "decision",
+          "reason",
+          "confirmationToken"
+        ],
+        "additionalProperties": false
+      },
+      "Schedule": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "cron": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "runTemplate": {
+            "$ref": "#/$defs/RunCreate"
+          },
+          "overlapPolicy": {
+            "type": "string",
+            "enum": [
+              "skip",
+              "queue"
+            ]
+          },
+          "missedPolicy": {
+            "type": "string",
+            "enum": [
+              "skip",
+              "catchup_one"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "name",
+          "cron",
+          "timezone",
+          "runTemplate",
+          "overlapPolicy",
+          "missedPolicy",
+          "enabled",
+          "version",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "ScheduleCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "cron": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "runTemplate": {
+            "$ref": "#/$defs/RunCreate"
+          },
+          "overlapPolicy": {
+            "type": "string",
+            "enum": [
+              "skip",
+              "queue"
+            ],
+            "default": "skip"
+          },
+          "missedPolicy": {
+            "type": "string",
+            "enum": [
+              "skip",
+              "catchup_one"
+            ],
+            "default": "skip"
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "name",
+          "cron",
+          "runTemplate"
+        ],
+        "additionalProperties": false
+      },
+      "SchedulePatch": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "cron": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "runTemplate": {
+            "$ref": "#/$defs/RunCreate"
+          },
+          "overlapPolicy": {
+            "type": "string",
+            "enum": [
+              "skip",
+              "queue"
+            ],
+            "default": "skip"
+          },
+          "missedPolicy": {
+            "type": "string",
+            "enum": [
+              "skip",
+              "catchup_one"
+            ],
+            "default": "skip"
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "expectedVersion"
+        ],
+        "additionalProperties": false
+      },
+      "ApiKey": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "scope": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "maxItems": 20,
+            "minItems": 1
+          },
+          "createdBy": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revokedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "name",
+          "scope",
+          "createdBy",
+          "createdAt",
+          "expiresAt",
+          "revokedAt"
+        ],
+        "additionalProperties": false
+      },
+      "ApiKeyCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "scope": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "maxItems": 20,
+            "minItems": 1
+          },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "scope"
+        ],
+        "additionalProperties": false
+      },
+      "ApiKeyCreated": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/ApiKey"
+          },
+          "token": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "key",
+          "token"
+        ],
+        "additionalProperties": false
+      },
+      "CacheStats": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hits": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "misses": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "invalidated": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "resolution": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "savedModelCalls": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "savedMs": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "runId",
+          "hits",
+          "misses",
+          "invalidated",
+          "resolution",
+          "savedModelCalls",
+          "savedMs"
+        ],
+        "additionalProperties": false
+      },
+      "RepairProposal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "caseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "findingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "proposedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "diff": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "verificationRunId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "accepted",
+              "rejected"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "caseId",
+          "findingId",
+          "proposedVersion",
+          "diff",
+          "verificationRunId",
+          "status",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "RepairProposalCreate": {
+        "type": "object",
+        "properties": {
+          "findingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "diff": {
+            "type": "string",
+            "maxLength": 20000,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "findingId",
+          "diff"
+        ],
+        "additionalProperties": false
+      },
+      "RegressionRunCreate": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "caseVersionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 100,
+            "minItems": 1
+          },
+          "environmentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "authProfileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "budget": {
+            "$ref": "#/$defs/BudgetOverrides"
+          }
+        },
+        "required": [
+          "projectId",
+          "caseVersionIds"
         ],
         "additionalProperties": false
       }
@@ -9951,6 +10787,865 @@
                   "schema": {
                     "$ref": "#/components/schemas/Error"
                   }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/projects/{projectId}/saved-cases": {
+        "get": {
+          "operationId": "listSavedCases",
+          "tags": [
+            "P0"
+          ],
+          "summary": "listSavedCases",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "projectId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "listSavedCases",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SavedCasePage"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "operationId": "createSavedCase",
+          "tags": [
+            "P0"
+          ],
+          "summary": "createSavedCase",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "projectId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "201": {
+              "description": "createSavedCase",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SavedCase"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedCaseCreate"
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/saved-cases/{caseId}/versions": {
+        "get": {
+          "operationId": "listSavedCaseVersions",
+          "tags": [
+            "P0"
+          ],
+          "summary": "listSavedCaseVersions",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "caseId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "listSavedCaseVersions",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SavedCaseVersionPage"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "operationId": "createSavedCaseVersion",
+          "tags": [
+            "P0"
+          ],
+          "summary": "createSavedCaseVersion",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "caseId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "201": {
+              "description": "createSavedCaseVersion",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SavedCaseVersion"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedCaseVersionCreate"
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/saved-case-versions/{versionId}/review-preview": {
+        "post": {
+          "operationId": "previewSavedCaseReview",
+          "tags": [
+            "P0"
+          ],
+          "summary": "previewSavedCaseReview",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "versionId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "previewSavedCaseReview",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ReviewPreview"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/saved-case-versions/{versionId}/review": {
+        "post": {
+          "operationId": "commitSavedCaseReview",
+          "tags": [
+            "P0"
+          ],
+          "summary": "commitSavedCaseReview",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "versionId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "commitSavedCaseReview",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SavedCaseVersion"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewCommit"
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/regression-runs": {
+        "post": {
+          "operationId": "createRegressionRun",
+          "tags": [
+            "P0"
+          ],
+          "summary": "createRegressionRun",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [],
+          "responses": {
+            "202": {
+              "description": "createRegressionRun",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Run"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegressionRunCreate"
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/projects/{projectId}/schedules": {
+        "get": {
+          "operationId": "listSchedules",
+          "tags": [
+            "P0"
+          ],
+          "summary": "listSchedules",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "projectId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "listSchedules",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SchedulePage"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "operationId": "createSchedule",
+          "tags": [
+            "P0"
+          ],
+          "summary": "createSchedule",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "projectId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "201": {
+              "description": "createSchedule",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Schedule"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleCreate"
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/schedules/{scheduleId}": {
+        "patch": {
+          "operationId": "updateSchedule",
+          "tags": [
+            "P0"
+          ],
+          "summary": "updateSchedule",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "scheduleId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "updateSchedule",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Schedule"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulePatch"
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/schedules/{scheduleId}/run-now": {
+        "post": {
+          "operationId": "runScheduleNow",
+          "tags": [
+            "P0"
+          ],
+          "summary": "runScheduleNow",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "scheduleId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "202": {
+              "description": "runScheduleNow",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Run"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/projects/{projectId}/api-keys": {
+        "get": {
+          "operationId": "listApiKeys",
+          "tags": [
+            "P0"
+          ],
+          "summary": "listApiKeys",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "projectId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "listApiKeys",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiKeyPage"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "operationId": "createApiKey",
+          "tags": [
+            "P0"
+          ],
+          "summary": "createApiKey",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "projectId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "201": {
+              "description": "createApiKey",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiKeyCreated"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyCreate"
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/api-keys/{keyId}/revoke": {
+        "post": {
+          "operationId": "revokeApiKey",
+          "tags": [
+            "P0"
+          ],
+          "summary": "revokeApiKey",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "keyId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "revokeApiKey",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiKey"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/runs/{runId}/cache-stats": {
+        "get": {
+          "operationId": "getCacheStats",
+          "tags": [
+            "P0"
+          ],
+          "summary": "getCacheStats",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "runId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "getCacheStats",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/CacheStats"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/saved-cases/{caseId}/repair-proposals": {
+        "get": {
+          "operationId": "listRepairProposals",
+          "tags": [
+            "P0"
+          ],
+          "summary": "listRepairProposals",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "caseId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "listRepairProposals",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/RepairProposalPage"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "operationId": "createRepairProposal",
+          "tags": [
+            "P0"
+          ],
+          "summary": "createRepairProposal",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "caseId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "201": {
+              "description": "createRepairProposal",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/RepairProposal"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepairProposalCreate"
                 }
               }
             }
@@ -15325,6 +17020,151 @@
           ],
           "additionalProperties": false
         },
+        "SavedCasePage": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/SavedCase"
+              },
+              "maxItems": 100,
+              "minItems": 0
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        },
+        "SavedCaseVersionPage": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/SavedCaseVersion"
+              },
+              "maxItems": 100,
+              "minItems": 0
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        },
+        "SchedulePage": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Schedule"
+              },
+              "maxItems": 100,
+              "minItems": 0
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        },
+        "ApiKeyPage": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/ApiKey"
+              },
+              "maxItems": 100,
+              "minItems": 0
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        },
+        "RepairProposalPage": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/RepairProposal"
+              },
+              "maxItems": 100,
+              "minItems": 0
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        },
         "ToolCall": {
           "oneOf": [
             {
@@ -16201,6 +18041,697 @@
             "name",
             "criteria",
             "steps"
+          ],
+          "additionalProperties": false
+        },
+        "SavedCase": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "projectId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "slug": {
+              "type": "string",
+              "maxLength": 120,
+              "pattern": "^[a-zA-Z0-9_.-]+$"
+            },
+            "name": {
+              "type": "string",
+              "maxLength": 200,
+              "minLength": 1
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "active",
+                "archived"
+              ]
+            },
+            "currentApprovedVersionId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "id",
+            "projectId",
+            "slug",
+            "name",
+            "status",
+            "currentApprovedVersionId",
+            "version",
+            "createdAt"
+          ],
+          "additionalProperties": false
+        },
+        "SavedCaseCreate": {
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string",
+              "maxLength": 120,
+              "pattern": "^[a-zA-Z0-9_.-]+$"
+            },
+            "name": {
+              "type": "string",
+              "maxLength": 200,
+              "minLength": 1
+            },
+            "document": {
+              "$ref": "#/components/schemas/RegressionDocument"
+            },
+            "sourceRunCaseId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "slug",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        "SavedCaseVersion": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "caseId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "document": {
+              "$ref": "#/components/schemas/RegressionDocument"
+            },
+            "sha256": {
+              "type": "string",
+              "maxLength": 64,
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "reviewStatus": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "approved",
+                "rejected"
+              ]
+            },
+            "createdBy": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "reviewedBy": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "reviewedAt": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "caseId",
+            "version",
+            "document",
+            "sha256",
+            "reviewStatus",
+            "createdBy",
+            "createdAt",
+            "reviewedBy",
+            "reviewedAt"
+          ],
+          "additionalProperties": false
+        },
+        "SavedCaseVersionCreate": {
+          "type": "object",
+          "properties": {
+            "expectedVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "document": {
+              "$ref": "#/components/schemas/RegressionDocument"
+            }
+          },
+          "required": [
+            "expectedVersion",
+            "document"
+          ],
+          "additionalProperties": false
+        },
+        "ReviewPreview": {
+          "type": "object",
+          "properties": {
+            "versionId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "diff": {
+              "type": "string",
+              "maxLength": 20000
+            },
+            "risks": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 1000
+              },
+              "maxItems": 20,
+              "minItems": 0
+            },
+            "confirmationToken": {
+              "type": "string",
+              "maxLength": 1000
+            },
+            "expiresAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "versionId",
+            "diff",
+            "risks",
+            "confirmationToken",
+            "expiresAt"
+          ],
+          "additionalProperties": false
+        },
+        "ReviewCommit": {
+          "type": "object",
+          "properties": {
+            "expectedVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "decision": {
+              "type": "string",
+              "enum": [
+                "approve",
+                "reject"
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "confirmationToken": {
+              "type": "string",
+              "maxLength": 1000,
+              "minLength": 1
+            }
+          },
+          "required": [
+            "expectedVersion",
+            "decision",
+            "reason",
+            "confirmationToken"
+          ],
+          "additionalProperties": false
+        },
+        "Schedule": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "projectId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "name": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1
+            },
+            "cron": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "timezone": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "runTemplate": {
+              "$ref": "#/components/schemas/RunCreate"
+            },
+            "overlapPolicy": {
+              "type": "string",
+              "enum": [
+                "skip",
+                "queue"
+              ]
+            },
+            "missedPolicy": {
+              "type": "string",
+              "enum": [
+                "skip",
+                "catchup_one"
+              ]
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "id",
+            "projectId",
+            "name",
+            "cron",
+            "timezone",
+            "runTemplate",
+            "overlapPolicy",
+            "missedPolicy",
+            "enabled",
+            "version",
+            "createdAt"
+          ],
+          "additionalProperties": false
+        },
+        "ScheduleCreate": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1
+            },
+            "cron": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1
+            },
+            "timezone": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "runTemplate": {
+              "$ref": "#/components/schemas/RunCreate"
+            },
+            "overlapPolicy": {
+              "type": "string",
+              "enum": [
+                "skip",
+                "queue"
+              ],
+              "default": "skip"
+            },
+            "missedPolicy": {
+              "type": "string",
+              "enum": [
+                "skip",
+                "catchup_one"
+              ],
+              "default": "skip"
+            },
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          "required": [
+            "name",
+            "cron",
+            "runTemplate"
+          ],
+          "additionalProperties": false
+        },
+        "SchedulePatch": {
+          "type": "object",
+          "properties": {
+            "expectedVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "name": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1
+            },
+            "cron": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1
+            },
+            "timezone": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "runTemplate": {
+              "$ref": "#/components/schemas/RunCreate"
+            },
+            "overlapPolicy": {
+              "type": "string",
+              "enum": [
+                "skip",
+                "queue"
+              ],
+              "default": "skip"
+            },
+            "missedPolicy": {
+              "type": "string",
+              "enum": [
+                "skip",
+                "catchup_one"
+              ],
+              "default": "skip"
+            },
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          "required": [
+            "expectedVersion"
+          ],
+          "additionalProperties": false
+        },
+        "ApiKey": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "projectId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "name": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1
+            },
+            "scope": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "maxItems": 20,
+              "minItems": 1
+            },
+            "createdBy": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "expiresAt": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "revokedAt": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "projectId",
+            "name",
+            "scope",
+            "createdBy",
+            "createdAt",
+            "expiresAt",
+            "revokedAt"
+          ],
+          "additionalProperties": false
+        },
+        "ApiKeyCreate": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1
+            },
+            "scope": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "maxItems": 20,
+              "minItems": 1
+            },
+            "expiresAt": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "name",
+            "scope"
+          ],
+          "additionalProperties": false
+        },
+        "ApiKeyCreated": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "$ref": "#/components/schemas/ApiKey"
+            },
+            "token": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "key",
+            "token"
+          ],
+          "additionalProperties": false
+        },
+        "CacheStats": {
+          "type": "object",
+          "properties": {
+            "runId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "hits": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "misses": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "invalidated": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "resolution": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "savedModelCalls": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "savedMs": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "runId",
+            "hits",
+            "misses",
+            "invalidated",
+            "resolution",
+            "savedModelCalls",
+            "savedMs"
+          ],
+          "additionalProperties": false
+        },
+        "RepairProposal": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "caseId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "findingId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "proposedVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "diff": {
+              "type": "string",
+              "maxLength": 20000
+            },
+            "verificationRunId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "open",
+                "accepted",
+                "rejected"
+              ]
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "id",
+            "caseId",
+            "findingId",
+            "proposedVersion",
+            "diff",
+            "verificationRunId",
+            "status",
+            "createdAt"
+          ],
+          "additionalProperties": false
+        },
+        "RepairProposalCreate": {
+          "type": "object",
+          "properties": {
+            "findingId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "diff": {
+              "type": "string",
+              "maxLength": 20000,
+              "minLength": 1
+            }
+          },
+          "required": [
+            "findingId",
+            "diff"
+          ],
+          "additionalProperties": false
+        },
+        "RegressionRunCreate": {
+          "type": "object",
+          "properties": {
+            "projectId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "caseVersionIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "maxItems": 100,
+              "minItems": 1
+            },
+            "environmentId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "authProfileId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "budget": {
+              "$ref": "#/components/schemas/BudgetOverrides"
+            }
+          },
+          "required": [
+            "projectId",
+            "caseVersionIds"
           ],
           "additionalProperties": false
         }
