@@ -1,6 +1,6 @@
 {
   "task": "T09-B-P0-acceptance",
-  "recordedAt": "2026-10-03T16:00:31.532Z",
+  "recordedAt": "2026-10-03T18:07:10.390Z",
   "P0Passed": false,
   "checks": [
     {
@@ -47,9 +47,9 @@
     },
     {
       "name": "model_default_to_run",
-      "projectId": "9ce11b26-0f6f-4bab-ba27-e05fad45847e",
-      "modelId": "7ff66d62-dedc-4fe7-9fde-2c7393357bfb",
-      "runId": "80dd1da5-40b6-420d-9984-6ebe7a2fedc2",
+      "projectId": "3b8e19fd-602c-4eb5-84b9-b95a323e5a67",
+      "modelId": "9ec824c1-07d8-4799-9d9c-4dafd79fae3b",
+      "runId": "62ee405e-ec0a-445d-9b25-d1d795e0d540",
       "status": "queued",
       "kind": "prerequisite"
     },
@@ -65,7 +65,7 @@
     {
       "name": "nginx_sse_heartbeat",
       "lastEventId": 50,
-      "heartbeatMs": 15016,
+      "heartbeatMs": 15009,
       "observedWithin22s": true,
       "waitReason": "SSE 心跳语义（真实 15s），非性能开销",
       "kind": "prerequisite"
@@ -73,16 +73,28 @@
   ],
   "unverified": [
     {
+      "item": "1_six_services_business",
+      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。"
+    },
+    {
+      "item": "3_ten_users_rbac",
+      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。"
+    },
+    {
+      "item": "5_api_p95",
+      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。"
+    },
+    {
+      "item": "4_sse_reconnect",
+      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。"
+    },
+    {
       "item": "6_ui",
-      "reason": "单点复验跳过；沿用 2026-10-03T15:57:56.832Z 完整运行的结果。"
+      "reason": "单点复验跳过且无历史结果，视为未验证。"
     },
     {
       "item": "4_faults",
-      "reason": "单点复验跳过；沿用 2026-10-03T15:57:56.832Z 完整运行的结果。"
-    },
-    {
-      "item": "2_end_to_end",
-      "reason": "前置步骤失败或验证程序未能到达本项"
+      "reason": "单点复验跳过且无历史结果，视为未验证。"
     },
     {
       "item": "3_four_slots_fairness",
@@ -125,73 +137,75 @@
     "5_event_to_ui_p95"
   ],
   "noBuild": true,
-  "baseRun": "2026-10-03T15:57:56.832Z",
+  "baseRun": "2026-10-03T17:48:30.500Z",
   "baseRunCategories": {
-    "1_proxy_sse_unbuffered": {
-      "status": "通过",
-      "recordedAt": "2026-10-03T15:57:56.832Z"
-    },
     "1_six_services_business": {
-      "status": "通过",
-      "recordedAt": "2026-10-03T15:57:56.832Z"
-    },
-    "3_ten_users_rbac": {
-      "status": "通过",
-      "recordedAt": "2026-10-03T15:57:56.832Z"
-    },
-    "5_api_p95": {
-      "status": "通过",
-      "recordedAt": "2026-10-03T15:57:56.832Z"
-    },
-    "5_event_to_ui_p95": {
-      "status": "失败",
-      "recordedAt": "2026-10-03T15:57:56.832Z"
-    },
-    "4_sse_reconnect": {
-      "status": "通过",
-      "recordedAt": "2026-10-03T15:57:56.832Z"
-    },
-    "6_ui": {
       "status": "未验证",
-      "recordedAt": "2026-10-03T15:57:56.832Z"
+      "recordedAt": "2026-10-03T17:48:30.500Z"
     },
-    "4_faults": {
+    "1_proxy_sse_unbuffered": {
       "status": "未验证",
-      "recordedAt": "2026-10-03T15:57:56.832Z"
+      "recordedAt": "2026-10-03T17:48:30.500Z"
     },
     "2_end_to_end": {
       "status": "未验证",
-      "recordedAt": "2026-10-03T15:57:56.832Z"
+      "recordedAt": "2026-10-03T17:48:30.500Z"
+    },
+    "3_ten_users_rbac": {
+      "status": "未验证",
+      "recordedAt": "2026-10-03T17:48:30.500Z"
     },
     "3_four_slots_fairness": {
       "status": "未验证",
-      "recordedAt": "2026-10-03T15:57:56.832Z"
+      "recordedAt": "2026-10-03T17:48:30.500Z"
     },
     "4_db_restart": {
       "status": "未验证",
-      "recordedAt": "2026-10-03T15:57:56.832Z"
+      "recordedAt": "2026-10-03T17:48:30.500Z"
     },
     "4_worker_midtask_kill": {
       "status": "未验证",
-      "recordedAt": "2026-10-03T15:57:56.832Z"
+      "recordedAt": "2026-10-03T17:48:30.500Z"
     },
     "4_disk_full": {
       "status": "未验证",
-      "recordedAt": "2026-10-03T15:57:56.832Z"
+      "recordedAt": "2026-10-03T17:48:30.500Z"
+    },
+    "4_sse_reconnect": {
+      "status": "未验证",
+      "recordedAt": "2026-10-03T17:48:30.500Z"
     },
     "4_credential_revocation": {
       "status": "未验证",
-      "recordedAt": "2026-10-03T15:57:56.832Z"
+      "recordedAt": "2026-10-03T17:48:30.500Z"
+    },
+    "5_api_p95": {
+      "status": "未验证",
+      "recordedAt": "2026-10-03T17:48:30.500Z"
+    },
+    "5_event_to_ui_p95": {
+      "status": "未验证",
+      "recordedAt": "2026-10-03T17:48:30.500Z"
     },
     "6_ui_refresh": {
       "status": "未验证",
-      "recordedAt": "2026-10-03T15:57:56.832Z"
+      "recordedAt": "2026-10-03T17:48:30.500Z"
     },
     "6_ui_sse_partial_blocked": {
       "status": "未验证",
-      "recordedAt": "2026-10-03T15:57:56.832Z"
+      "recordedAt": "2026-10-03T17:48:30.500Z"
     }
   },
+  "effectiveOnly": [
+    "5_event_to_ui_p95",
+    "2_end_to_end"
+  ],
+  "prerequisiteChecks": [
+    "2_end_to_end"
+  ],
+  "targetChecks": [
+    "5_event_to_ui_p95"
+  ],
   "history": [
     {
       "recordedAt": "2026-10-03T04:51:03.550Z",
@@ -72770,14 +72784,1112 @@
       },
       "releaseDecision": "不放行：真实模型 G3 和必需的 G4 项未全部通过；任何失败/未验证均不可视为通过。",
       "P0Passed": false
+    },
+    {
+      "recordedAt": "2026-10-03T16:00:31.532Z",
+      "categories": {
+        "1_proxy_sse_unbuffered": {
+          "status": "通过",
+          "raw": {
+            "lastEventId": 50,
+            "ms": 15016,
+            "frame": ": ping\n\n",
+            "status": 200,
+            "contentType": "text/event-stream; charset=utf-8",
+            "waitReason": "SSE 心跳语义（真实 15s），非性能开销"
+          },
+          "reason": null,
+          "samples": 1
+        },
+        "1_six_services_business": {
+          "status": "通过",
+          "raw": {
+            "compose": [
+              {
+                "name": "localqa-gateway",
+                "health": "healthy"
+              },
+              {
+                "name": "localqa-web",
+                "health": "healthy"
+              },
+              {
+                "name": "localqa-api",
+                "health": "healthy"
+              },
+              {
+                "name": "localqa-orchestrator",
+                "health": "healthy"
+              },
+              {
+                "name": "localqa-worker",
+                "health": "healthy"
+              },
+              {
+                "name": "localqa-postgres",
+                "health": "healthy"
+              }
+            ],
+            "gatewayWeb": {
+              "status": 200,
+              "contentType": "text/html; charset=utf-8",
+              "containsLocalQA": true
+            },
+            "gatewayApi": {
+              "status": 200,
+              "projects": 1
+            },
+            "postgresMigrations": "5",
+            "orchestratorJobCount": "5",
+            "workerLeasedJobCount": "5",
+            "chromium": {
+              "node": "v24.20.0",
+              "uid": 1001,
+              "url": "http://localqa-t09b-fixture:8080/",
+              "action": "details-tab.click",
+              "processes": [
+                {
+                  "uid": 1001,
+                  "seccomp": 2,
+                  "noSandbox": false
+                },
+                {
+                  "uid": 1001,
+                  "seccomp": 2,
+                  "noSandbox": false
+                },
+                {
+                  "uid": 1001,
+                  "seccomp": 2,
+                  "noSandbox": false
+                },
+                {
+                  "uid": 1001,
+                  "seccomp": 2,
+                  "noSandbox": false
+                },
+                {
+                  "uid": 1001,
+                  "seccomp": 2,
+                  "noSandbox": false
+                },
+                {
+                  "uid": 1001,
+                  "seccomp": 2,
+                  "noSandbox": false
+                },
+                {
+                  "uid": 1001,
+                  "seccomp": 2,
+                  "noSandbox": false
+                }
+              ],
+              "browserVersion": "153.0.8010.12",
+              "playwright": "1.63.0"
+            }
+          },
+          "reason": "单点复验跳过；沿用 2026-10-03T15:57:56.832Z 完整运行的结果。",
+          "samples": 6
+        },
+        "3_ten_users_rbac": {
+          "status": "通过",
+          "raw": {
+            "usersCreated": [
+              {
+                "index": 0,
+                "status": 201,
+                "role": "owner"
+              },
+              {
+                "index": 1,
+                "status": 201,
+                "role": "owner"
+              },
+              {
+                "index": 2,
+                "status": 201,
+                "role": "owner"
+              },
+              {
+                "index": 3,
+                "status": 201,
+                "role": "operator"
+              },
+              {
+                "index": 4,
+                "status": 201,
+                "role": "operator"
+              },
+              {
+                "index": 5,
+                "status": 201,
+                "role": "operator"
+              },
+              {
+                "index": 6,
+                "status": 201,
+                "role": "viewer"
+              },
+              {
+                "index": 7,
+                "status": 201,
+                "role": "viewer"
+              },
+              {
+                "index": 8,
+                "status": 201,
+                "role": "viewer"
+              }
+            ],
+            "memberPut": 200,
+            "logins": [
+              {
+                "index": 0,
+                "status": 200,
+                "role": "owner"
+              },
+              {
+                "index": 1,
+                "status": 200,
+                "role": "owner"
+              },
+              {
+                "index": 2,
+                "status": 200,
+                "role": "owner"
+              },
+              {
+                "index": 3,
+                "status": 200,
+                "role": "operator"
+              },
+              {
+                "index": 4,
+                "status": 200,
+                "role": "operator"
+              },
+              {
+                "index": 5,
+                "status": 200,
+                "role": "operator"
+              },
+              {
+                "index": 6,
+                "status": 200,
+                "role": "viewer"
+              },
+              {
+                "index": 7,
+                "status": 200,
+                "role": "viewer"
+              },
+              {
+                "index": 8,
+                "status": 200,
+                "role": "viewer"
+              }
+            ],
+            "concurrentGets": [
+              {
+                "role": "admin",
+                "self": 200,
+                "alpha": 200,
+                "beta": null
+              },
+              {
+                "role": "owner",
+                "self": 200,
+                "alpha": 200,
+                "beta": 404
+              },
+              {
+                "role": "owner",
+                "self": 200,
+                "alpha": 200,
+                "beta": 404
+              },
+              {
+                "role": "owner",
+                "self": 200,
+                "alpha": 200,
+                "beta": 404
+              },
+              {
+                "role": "operator",
+                "self": 200,
+                "alpha": 200,
+                "beta": 404
+              },
+              {
+                "role": "operator",
+                "self": 200,
+                "alpha": 200,
+                "beta": 404
+              },
+              {
+                "role": "operator",
+                "self": 200,
+                "alpha": 200,
+                "beta": 404
+              },
+              {
+                "role": "viewer",
+                "self": 200,
+                "alpha": 200,
+                "beta": 404
+              },
+              {
+                "role": "viewer",
+                "self": 200,
+                "alpha": 200,
+                "beta": 404
+              },
+              {
+                "role": "viewer",
+                "self": 200,
+                "alpha": 200,
+                "beta": 404
+              }
+            ],
+            "viewerRun": {
+              "status": 403,
+              "code": "FORBIDDEN"
+            },
+            "betaCreation": 201,
+            "betaDefault": 200,
+            "slotConfiguration": "BROWSER_SLOTS=4; projectSlots=4; run concurrency budget defaults to 2"
+          },
+          "reason": "单点复验跳过；沿用 2026-10-03T15:57:56.832Z 完整运行的结果。",
+          "samples": 10
+        },
+        "5_api_p95": {
+          "status": "通过",
+          "raw": {
+            "count": 100,
+            "p95Ms": 3.19,
+            "minMs": 1.36,
+            "maxMs": 5.89,
+            "samples": [
+              {
+                "ms": 4.66,
+                "status": 200
+              },
+              {
+                "ms": 2.04,
+                "status": 200
+              },
+              {
+                "ms": 1.68,
+                "status": 200
+              },
+              {
+                "ms": 1.78,
+                "status": 200
+              },
+              {
+                "ms": 1.79,
+                "status": 200
+              },
+              {
+                "ms": 1.74,
+                "status": 200
+              },
+              {
+                "ms": 1.53,
+                "status": 200
+              },
+              {
+                "ms": 1.98,
+                "status": 200
+              },
+              {
+                "ms": 1.94,
+                "status": 200
+              },
+              {
+                "ms": 1.73,
+                "status": 200
+              },
+              {
+                "ms": 1.72,
+                "status": 200
+              },
+              {
+                "ms": 1.57,
+                "status": 200
+              },
+              {
+                "ms": 1.83,
+                "status": 200
+              },
+              {
+                "ms": 1.5,
+                "status": 200
+              },
+              {
+                "ms": 1.59,
+                "status": 200
+              },
+              {
+                "ms": 1.69,
+                "status": 200
+              },
+              {
+                "ms": 1.78,
+                "status": 200
+              },
+              {
+                "ms": 1.62,
+                "status": 200
+              },
+              {
+                "ms": 1.87,
+                "status": 200
+              },
+              {
+                "ms": 1.64,
+                "status": 200
+              },
+              {
+                "ms": 1.52,
+                "status": 200
+              },
+              {
+                "ms": 1.62,
+                "status": 200
+              },
+              {
+                "ms": 1.57,
+                "status": 200
+              },
+              {
+                "ms": 1.88,
+                "status": 200
+              },
+              {
+                "ms": 1.42,
+                "status": 200
+              },
+              {
+                "ms": 1.57,
+                "status": 200
+              },
+              {
+                "ms": 2.25,
+                "status": 200
+              },
+              {
+                "ms": 4.49,
+                "status": 200
+              },
+              {
+                "ms": 3.81,
+                "status": 200
+              },
+              {
+                "ms": 2.02,
+                "status": 200
+              },
+              {
+                "ms": 2.07,
+                "status": 200
+              },
+              {
+                "ms": 2.04,
+                "status": 200
+              },
+              {
+                "ms": 2.14,
+                "status": 200
+              },
+              {
+                "ms": 2.02,
+                "status": 200
+              },
+              {
+                "ms": 1.56,
+                "status": 200
+              },
+              {
+                "ms": 1.43,
+                "status": 200
+              },
+              {
+                "ms": 1.57,
+                "status": 200
+              },
+              {
+                "ms": 2.31,
+                "status": 200
+              },
+              {
+                "ms": 1.85,
+                "status": 200
+              },
+              {
+                "ms": 1.69,
+                "status": 200
+              },
+              {
+                "ms": 1.76,
+                "status": 200
+              },
+              {
+                "ms": 2.02,
+                "status": 200
+              },
+              {
+                "ms": 1.64,
+                "status": 200
+              },
+              {
+                "ms": 1.48,
+                "status": 200
+              },
+              {
+                "ms": 1.6,
+                "status": 200
+              },
+              {
+                "ms": 1.72,
+                "status": 200
+              },
+              {
+                "ms": 1.47,
+                "status": 200
+              },
+              {
+                "ms": 1.43,
+                "status": 200
+              },
+              {
+                "ms": 1.46,
+                "status": 200
+              },
+              {
+                "ms": 1.49,
+                "status": 200
+              },
+              {
+                "ms": 1.56,
+                "status": 200
+              },
+              {
+                "ms": 1.49,
+                "status": 200
+              },
+              {
+                "ms": 1.54,
+                "status": 200
+              },
+              {
+                "ms": 1.54,
+                "status": 200
+              },
+              {
+                "ms": 3.63,
+                "status": 200
+              },
+              {
+                "ms": 2.1,
+                "status": 200
+              },
+              {
+                "ms": 1.71,
+                "status": 200
+              },
+              {
+                "ms": 1.51,
+                "status": 200
+              },
+              {
+                "ms": 1.56,
+                "status": 200
+              },
+              {
+                "ms": 1.62,
+                "status": 200
+              },
+              {
+                "ms": 1.48,
+                "status": 200
+              },
+              {
+                "ms": 1.38,
+                "status": 200
+              },
+              {
+                "ms": 2.44,
+                "status": 200
+              },
+              {
+                "ms": 1.53,
+                "status": 200
+              },
+              {
+                "ms": 1.56,
+                "status": 200
+              },
+              {
+                "ms": 1.36,
+                "status": 200
+              },
+              {
+                "ms": 1.68,
+                "status": 200
+              },
+              {
+                "ms": 2.54,
+                "status": 200
+              },
+              {
+                "ms": 2.78,
+                "status": 200
+              },
+              {
+                "ms": 2.63,
+                "status": 200
+              },
+              {
+                "ms": 2.16,
+                "status": 200
+              },
+              {
+                "ms": 1.87,
+                "status": 200
+              },
+              {
+                "ms": 1.64,
+                "status": 200
+              },
+              {
+                "ms": 2.56,
+                "status": 200
+              },
+              {
+                "ms": 2.33,
+                "status": 200
+              },
+              {
+                "ms": 2.41,
+                "status": 200
+              },
+              {
+                "ms": 2.46,
+                "status": 200
+              },
+              {
+                "ms": 2.31,
+                "status": 200
+              },
+              {
+                "ms": 2.69,
+                "status": 200
+              },
+              {
+                "ms": 2.85,
+                "status": 200
+              },
+              {
+                "ms": 2.99,
+                "status": 200
+              },
+              {
+                "ms": 3.19,
+                "status": 200
+              },
+              {
+                "ms": 1.99,
+                "status": 200
+              },
+              {
+                "ms": 2.06,
+                "status": 200
+              },
+              {
+                "ms": 2.14,
+                "status": 200
+              },
+              {
+                "ms": 1.68,
+                "status": 200
+              },
+              {
+                "ms": 1.58,
+                "status": 200
+              },
+              {
+                "ms": 1.62,
+                "status": 200
+              },
+              {
+                "ms": 1.79,
+                "status": 200
+              },
+              {
+                "ms": 1.97,
+                "status": 200
+              },
+              {
+                "ms": 2.35,
+                "status": 200
+              },
+              {
+                "ms": 1.94,
+                "status": 200
+              },
+              {
+                "ms": 1.7,
+                "status": 200
+              },
+              {
+                "ms": 1.72,
+                "status": 200
+              },
+              {
+                "ms": 1.69,
+                "status": 200
+              },
+              {
+                "ms": 1.99,
+                "status": 200
+              },
+              {
+                "ms": 1.68,
+                "status": 200
+              },
+              {
+                "ms": 2.02,
+                "status": 200
+              },
+              {
+                "ms": 2.53,
+                "status": 200
+              },
+              {
+                "ms": 5.89,
+                "status": 200
+              }
+            ],
+            "hardwareCaveat": "Current host/VM resource budget must be compared with design reference 16 vCPU/32GiB/SSD"
+          },
+          "reason": "单点复验跳过；沿用 2026-10-03T15:57:56.832Z 完整运行的结果。",
+          "samples": 100
+        },
+        "5_event_to_ui_p95": {
+          "status": "失败",
+          "raw": {
+            "error": "ReferenceError: cvAtOpen is not defined",
+            "repro": {
+              "rings": {
+                "ring0_post": {
+                  "status": 202,
+                  "contextVersionAfter": 2
+                },
+                "ring1_api": {
+                  "note": "GET messages via API with same session",
+                  "status": 200,
+                  "body": {
+                    "items": [
+                      {
+                        "id": "256e7dbf-0c5f-4928-bb85-88b2c3b24da1",
+                        "runId": "1c5645c7-2523-4ef4-90e2-178fef258631",
+                        "actorId": "72d24776-0924-4891-9424-7bd621b2cbdd",
+                        "contextVersion": 2,
+                        "redactedText": "REPRO_68B4D196",
+                        "createdAt": "2026-10-03T17:25:37.546Z"
+                      }
+                    ],
+                    "nextCursor": null
+                  },
+                  "markerPresent": true,
+                  "firstItemKeys": [
+                    "id",
+                    "runId",
+                    "actorId",
+                    "contextVersion",
+                    "redactedText",
+                    "createdAt"
+                  ]
+                },
+                "ring2_frontend_accept": {
+                  "note": "feed real API payload into parseRunMessage logic (from built bundle semantics)",
+                  "output": "ACCEPTED 1/1 hasMarker=true",
+                  "exitCode": 0
+                },
+                "ring3_bundle": {
+                  "note": "compare container bundle vs local apps/web build output",
+                  "localIndexHash": "43bef98f6e82c1ff3f0cea45b54739e69652c991251a18d091053b2ba900a93c",
+                  "containerAsset": "index-B8NOZd0v.js",
+                  "containerHasRecordMessageRendered": true,
+                  "containerHasRunMessagesCard": true
+                },
+                "ring4_render": {
+                  "note": "real browser: select project, open workbench, read __messageTelemetryHistory and DOM",
+                  "raw": {
+                    "spaceId": 625,
+                    "messagesCountAtOpen": null,
+                    "sseStatusAtOpen": "SSE-pill-absent",
+                    "runDebug": {
+                      "hasCard": false,
+                      "status": "执行中"
+                    },
+                    "pageHtmlSnippet": "NO_CARD",
+                    "screenshot": "/Users/dcp/Documents/公司/momentic//deploy/.evidence/repro-workbench.png",
+                    "telemetryCount": 0,
+                    "messagesCount": null,
+                    "domHasMarker": false,
+                    "bodyText": "L\nLocalQA\n/\nT09B repro fixture\n项目首页\n运行工作台\n环境/认证\n项目知识\n模型管理\n成员/运维\n🌐 真实 API 模式\nadmin@localqa.internal\n平台管理员\n退出\n运行历史 (Runs)\n全部状态\n活跃中\n已结束\n1c5645c7-2523-4e...\n执行中\nhttp://localqa-t09b-fixture:8080/fix-02-delayed.html\n01:25:36 · 2 动作 / 4 模型调用\n运行: 1c5645c7-2523-4ef4-90e2-178fef258631\n执行中\n上下文版本: v2\n停止运行 (Cancel)\n目标站点: http://localqa-t09b-fixture:8080/fix-02-delayed.html\n时间消耗: 0s / 600s\n动作步数: 2 / 120\n模型调用: 3 / 100\nToken 消耗: 54 / 300,000\n复现次数: 0 / 3\n运行生命周期阶段推进 (Phase Timeline)\n当前阶段: PLAN (running)\n1. 预检 (Preflight)\n2. 认证 (Auth)\n3. 探索 (Explore)\n4. 计划 (Plan)\n5. 执行 (Execute)\n6. 复现 (Reproduce)\n7. 报告 (Finalize)\n补充说明\n实时执行动态 (Timeline Events)\n已过滤模型隐藏推理，保证事实记录真实可见\n耗时: 0s\n[COORDINATOR]\nsucceeded\npreflight\n耗时: 0s\n[EXPLORER]\nsucceeded\nexplore\n耗时: 0s\n[COORDINATOR]\n执行中\nplan\n用例 (0)\n缺陷 (0)\n任务 (3)\n报告\n▶\n📭\n暂无用例记录\n\n冒烟规划中或此运行尚未生成用例。"
+                  },
+                  "stderrTail": "REPRO_BROWSER_JSON {\"spaceId\":625,\"messagesCountAtOpen\":null,\"sseStatusAtOpen\":\"SSE-pill-absent\",\"runDebug\":{\"hasCard\":false,\"status\":\"执行中\"},\"pageHtmlSnippet\":\"NO_CARD\",\"screenshot\":\"/Users/dcp/Documents/公司/momentic//deploy/.evidence/repro-workbench.png\",\"telemetryCount\":0,\"messagesCount\":null,\"domHasMarker\":false,\"bodyText\":\"L\\nLocalQA\\n/\\nT09B repro fixture\\n项目首页\\n运行工作台\\n环境/认证\\n项目知识\\n模型管理\\n成员/运维\\n🌐 真实 API 模式\\nadmin@localqa.internal\\n平台管理员\\n退出\\n运行历史 (Runs)\\n全部状态\\n活跃中\\n已结束\\n1c5645c7-2523-4e...\\n执行中\\nhttp://localqa-t09b-fixture:8080/fix-02-delayed.html\\n01:25:36 · 2 动作 / 4 模型调用\\n运行: 1c5645c7-2523-4ef4-90e2-178fef258631\\n执行中\\n上下文版本: v2\\n停止运行 (Cancel)\\n目标站点: http://localqa-t09b-fixture:8080/fix-02-delayed.html\\n时间消耗: 0s / 600s\\n动作步数: 2 / 120\\n模型调用: 3 / 100\\nToken 消耗: 54 / 300,000\\n复现次数: 0 / 3\\n运行生命周期阶段推进 (Phase Timeline)\\n当前阶段: PLAN (running)\\n1. 预检 (Preflight)\\n2. 认证 (Auth)\\n3. 探索 (Explore)\\n4. 计划 (Plan)\\n5. 执行 (Execute)\\n6. 复现 (Reproduce)\\n7. 报告 (Finalize)\\n补充说明\\n实时执行动态 (Timeline Events)\\n已过滤模型隐藏推理，保证事实记录真实可见\\n耗时: 0s\\n[COORDINATOR]\\nsucceeded\\npreflight\\n耗时: 0s\\n[EXPLORER]\\nsucceeded\\nexplore\\n耗时: 0s\\n[COORDINATOR]\\n执行中\\nplan\\n用例 (0)\\n缺陷 (0)\\n任务 (3)\\n报告\\n▶\\n📭\\n暂无用例记录\\n\\n冒烟规划中或此运行尚未生成用例。\"}\n\n"
+                }
+              },
+              "diagnosis": "render/polling layer: API returns and parser accepts, but UI does not render (polling stopped early / SSE handling)",
+              "screenshot": "deploy/.evidence/repro-workbench.png (deleted with cleanup; see bodyText/runDebug in ring4)"
+            }
+          },
+          "reason": "四环最小复现定位：①接口层 GET /messages 返回 200 且含 marker；②前端解析接受真实 payload（hasMarker=true）；③容器 bundle 与本地生产构建一致（含 recordMessageRendered）；④真实浏览器打开 workbench 后 run-messages-card 不存在于 DOM（runDebug.hasCard=false）、telemetryCount=0、domHasMarker=false。断在渲染层：Workbench 在 run 加载完成前不渲染该卡片，且轮询因 run 已 completed 而提前停止。属产品问题（前端），非环境/旧 bundle。",
+          "samples": null
+        },
+        "4_sse_reconnect": {
+          "status": "通过",
+          "raw": {
+            "maxSeq": 50,
+            "first": {
+              "status": 200,
+              "ids": [
+                48,
+                49,
+                50
+              ],
+              "raw": "id: 48\nevent: run.updated\ndata: {\"schemaVersion\":1,\"id\":\"48\",\"runId\":\"76ee9969-968c-40d1-bb32-64152c660fed\",\"seq\":48,\"type\":\"run.updated\",\"at\":\"2026-10-03T15:22:08.486Z\",\"payload\":{\"id\":\"76ee9969-968c-40d1-bb32-64152c660fed\",\"phase\":\"finalize\",\"status\":\"completed\",\"version\":8,\"createdAt\":\"2026-10-03T15:22:02.938Z\",\"creatorId\":\"a17f5a8b-d705-4add-ae99-139fee6c2151\",\"projectId\":\"a6fa9979-0b13-4f74-9234-81edc8b4bb57\",\"targetUrl\":\"http://localqa-t09b-fixture:8080/\",\"updatedAt\":\"2026-10-03T15:22:08.494Z\",\"budgetUsed\":{\"actions\":5,\"modelCalls\":7,\"totalTokens\":126,\"activeSeconds\":0,\"reproductions\":0},\"completion\":\"complete\",\"contextVersion\":1,\"effectiveConfig\":{\"budget\":{\"maxCases\":8,\"maxDepth\":2,\"maxPages\":6,\"maxActions\":120,\"concurrency\":2,\"maxModelCalls\":100,\"maxTotalTokens\":300000,\"maxActiveSeconds\":600,\"maxReproductions\":3,\"maxActionsPerCase\":12},\"models\":{\"executor\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"},\"explorer\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"},\"assertion\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"},\"reproducer\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"},\"coordinator\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"}},\"actionPolicy\":\"non_submitting\",\"allowedOrigins\":[\"http://localqa-t09b-fixture:8080\"],\"authProfileVersion\":null,\"environmentVersion\":null,\"knowledgeVersionIds\":[]},\"terminationReason\":\"normal\"}}\n\nid: 49\nevent: report.ready\ndata: {\"schemaVersion\":"
+            },
+            "second": {
+              "status": 200,
+              "ids": [
+                50
+              ],
+              "raw": "id: 50\nevent: run.finished\ndata: {\"schemaVersion\":1,\"id\":\"50\",\"runId\":\"76ee9969-968c-40d1-bb32-64152c660fed\",\"seq\":50,\"type\":\"run.finished\",\"at\":\"2026-10-03T15:22:08.486Z\",\"payload\":{\"id\":\"76ee9969-968c-40d1-bb32-64152c660fed\",\"phase\":\"finalize\",\"status\":\"completed\",\"version\":8,\"createdAt\":\"2026-10-03T15:22:02.938Z\",\"creatorId\":\"a17f5a8b-d705-4add-ae99-139fee6c2151\",\"projectId\":\"a6fa9979-0b13-4f74-9234-81edc8b4bb57\",\"targetUrl\":\"http://localqa-t09b-fixture:8080/\",\"updatedAt\":\"2026-10-03T15:22:08.494Z\",\"budgetUsed\":{\"actions\":5,\"modelCalls\":7,\"totalTokens\":126,\"activeSeconds\":0,\"reproductions\":0},\"completion\":\"complete\",\"contextVersion\":1,\"effectiveConfig\":{\"budget\":{\"maxCases\":8,\"maxDepth\":2,\"maxPages\":6,\"maxActions\":120,\"concurrency\":2,\"maxModelCalls\":100,\"maxTotalTokens\":300000,\"maxActiveSeconds\":600,\"maxReproductions\":3,\"maxActionsPerCase\":12},\"models\":{\"executor\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"},\"explorer\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"},\"assertion\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"},\"reproducer\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"},\"coordinator\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"}},\"actionPolicy\":\"non_submitting\",\"allowedOrigins\":[\"http://localqa-t09b-fixture:8080\"],\"authProfileVersion\":null,\"environmentVersion\":null,\"knowledgeVersionIds\":[]},\"terminationReason\":\"normal\"}}\n\n"
+            }
+          },
+          "reason": "单点复验跳过；沿用 2026-10-03T15:57:56.832Z 完整运行的结果。",
+          "samples": 2
+        },
+        "6_ui": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "单点复验跳过；沿用 2026-10-03T15:57:56.832Z 完整运行的结果。",
+          "samples": 0
+        },
+        "4_faults": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "单点复验跳过；沿用 2026-10-03T15:57:56.832Z 完整运行的结果。",
+          "samples": 0
+        },
+        "2_end_to_end": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "3_four_slots_fairness": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "4_db_restart": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "4_worker_midtask_kill": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "4_disk_full": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "4_credential_revocation": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "6_ui_refresh": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "6_ui_sse_partial_blocked": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        }
+      },
+      "releaseDecision": "不放行：真实模型 G3 和必需的 G4 项未全部通过；任何失败/未验证均不可视为通过。",
+      "P0Passed": false
+    },
+    {
+      "recordedAt": "2026-10-03T17:48:30.500Z",
+      "categories": {
+        "1_six_services_business": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "1_proxy_sse_unbuffered": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "2_end_to_end": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "3_ten_users_rbac": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "3_four_slots_fairness": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "4_db_restart": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "4_worker_midtask_kill": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "4_disk_full": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "4_sse_reconnect": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "4_credential_revocation": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "5_api_p95": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "5_event_to_ui_p95": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "6_ui_refresh": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "6_ui_sse_partial_blocked": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        }
+      },
+      "releaseDecision": "不放行：真实模型 G3 和必需的 G4 项未全部通过；任何失败/未验证均不可视为通过。",
+      "P0Passed": false
     }
   ],
   "categories": {
+    "2_end_to_end": {
+      "status": "通过",
+      "raw": {
+        "runId": "62ee405e-ec0a-445d-9b25-d1d795e0d540",
+        "db": "lease|5|1\nverdict|1|passed\nevents|50|1..50\nevidence|1|b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
+        "reportStatus": 200,
+        "reportSummary": {
+          "passed": 1,
+          "issueFound": 0,
+          "blocked": 0,
+          "inconclusive": 0,
+          "notRun": 0,
+          "planned": 1,
+          "evaluated": 1,
+          "attempted": 1,
+          "passRate": 1,
+          "attemptRate": 1
+        },
+        "cleanupStatus": "succeeded",
+        "caseStatuses": [
+          "passed"
+        ],
+        "screenshot": {
+          "id": "6b5bc1df-310a-471c-bf77-4ca5aeb6dbab",
+          "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
+          "bytes": 265850,
+          "contentHttp": 200,
+          "contentType": "image/png"
+        },
+        "exportCreate": {
+          "status": 202,
+          "body": {
+            "id": "57dd2e79-8deb-49ef-b518-4821adc74640",
+            "runId": "62ee405e-ec0a-445d-9b25-d1d795e0d540",
+            "status": "ready",
+            "format": "zip",
+            "artifactId": "56124015-91fb-463d-95e6-91b8b4bb35f7",
+            "snapshotAt": "2026-10-03T18:07:36.625Z",
+            "error": null
+          }
+        },
+        "exportGet": {
+          "status": 200,
+          "body": {
+            "id": "57dd2e79-8deb-49ef-b518-4821adc74640",
+            "error": null,
+            "runId": "62ee405e-ec0a-445d-9b25-d1d795e0d540",
+            "format": "zip",
+            "status": "ready",
+            "artifactId": "56124015-91fb-463d-95e6-91b8b4bb35f7",
+            "snapshotAt": "2026-10-03T18:07:36.625Z"
+          }
+        },
+        "exportDownload": {
+          "status": 200,
+          "contentType": "application/zip"
+        },
+        "zipVerification": {
+          "zipSha256": "569d83476d581ae7be82d770d43d7089d8b133fd0e2f2f70e4a16de5ccefb151",
+          "zipBytes": 254257,
+          "unzipStatus": 0,
+          "entries": [
+            "report.json",
+            "report.md",
+            "manifest.json",
+            "artifacts/6b5bc1df-310a-471c-bf77-4ca5aeb6dbab.png"
+          ],
+          "manifest": {
+            "schemaVersion": 1,
+            "runId": "62ee405e-ec0a-445d-9b25-d1d795e0d540",
+            "projectId": "3b8e19fd-602c-4eb5-84b9-b95a323e5a67",
+            "generatedAt": "2026-10-03T18:07:36.617Z",
+            "isSnapshot": false,
+            "totalArtifacts": 1,
+            "availableArtifacts": 1,
+            "missingArtifacts": 0,
+            "degradedArtifacts": 0,
+            "failedArtifacts": 0,
+            "artifacts": [
+              {
+                "id": "6b5bc1df-310a-471c-bf77-4ca5aeb6dbab",
+                "kind": "screenshot",
+                "status": "available",
+                "bytes": 265850,
+                "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
+                "relativePath": "artifacts/6b5bc1df-310a-471c-bf77-4ca5aeb6dbab.png",
+                "error": null
+              }
+            ]
+          },
+          "hashes": [
+            {
+              "id": "6b5bc1df-310a-471c-bf77-4ca5aeb6dbab",
+              "status": "available",
+              "included": true,
+              "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
+              "expectedSha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb"
+            }
+          ],
+          "valid": true
+        }
+      },
+      "reason": null,
+      "samples": 1
+    },
     "1_proxy_sse_unbuffered": {
       "status": "通过",
       "raw": {
         "lastEventId": 50,
-        "ms": 15016,
+        "ms": 15009,
         "frame": ": ping\n\n",
         "status": 200,
         "contentType": "text/event-stream; charset=utf-8",
@@ -72787,785 +73899,51 @@
       "samples": 1
     },
     "1_six_services_business": {
-      "status": "通过",
+      "status": "未验证",
       "raw": {
-        "compose": [
-          {
-            "name": "localqa-gateway",
-            "health": "healthy"
-          },
-          {
-            "name": "localqa-web",
-            "health": "healthy"
-          },
-          {
-            "name": "localqa-api",
-            "health": "healthy"
-          },
-          {
-            "name": "localqa-orchestrator",
-            "health": "healthy"
-          },
-          {
-            "name": "localqa-worker",
-            "health": "healthy"
-          },
-          {
-            "name": "localqa-postgres",
-            "health": "healthy"
-          }
-        ],
-        "gatewayWeb": {
-          "status": 200,
-          "contentType": "text/html; charset=utf-8",
-          "containsLocalQA": true
-        },
-        "gatewayApi": {
-          "status": 200,
-          "projects": 1
-        },
-        "postgresMigrations": "5",
-        "orchestratorJobCount": "5",
-        "workerLeasedJobCount": "5",
-        "chromium": {
-          "node": "v24.20.0",
-          "uid": 1001,
-          "url": "http://localqa-t09b-fixture:8080/",
-          "action": "details-tab.click",
-          "processes": [
-            {
-              "uid": 1001,
-              "seccomp": 2,
-              "noSandbox": false
-            },
-            {
-              "uid": 1001,
-              "seccomp": 2,
-              "noSandbox": false
-            },
-            {
-              "uid": 1001,
-              "seccomp": 2,
-              "noSandbox": false
-            },
-            {
-              "uid": 1001,
-              "seccomp": 2,
-              "noSandbox": false
-            },
-            {
-              "uid": 1001,
-              "seccomp": 2,
-              "noSandbox": false
-            },
-            {
-              "uid": 1001,
-              "seccomp": 2,
-              "noSandbox": false
-            },
-            {
-              "uid": 1001,
-              "seccomp": 2,
-              "noSandbox": false
-            }
-          ],
-          "browserVersion": "153.0.8010.12",
-          "playwright": "1.63.0"
-        }
+        "sampleCount": 0
       },
-      "reason": "单点复验跳过；沿用 2026-10-03T15:57:56.832Z 完整运行的结果。",
-      "samples": 6
+      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。",
+      "samples": 0
     },
     "3_ten_users_rbac": {
-      "status": "通过",
+      "status": "未验证",
       "raw": {
-        "usersCreated": [
-          {
-            "index": 0,
-            "status": 201,
-            "role": "owner"
-          },
-          {
-            "index": 1,
-            "status": 201,
-            "role": "owner"
-          },
-          {
-            "index": 2,
-            "status": 201,
-            "role": "owner"
-          },
-          {
-            "index": 3,
-            "status": 201,
-            "role": "operator"
-          },
-          {
-            "index": 4,
-            "status": 201,
-            "role": "operator"
-          },
-          {
-            "index": 5,
-            "status": 201,
-            "role": "operator"
-          },
-          {
-            "index": 6,
-            "status": 201,
-            "role": "viewer"
-          },
-          {
-            "index": 7,
-            "status": 201,
-            "role": "viewer"
-          },
-          {
-            "index": 8,
-            "status": 201,
-            "role": "viewer"
-          }
-        ],
-        "memberPut": 200,
-        "logins": [
-          {
-            "index": 0,
-            "status": 200,
-            "role": "owner"
-          },
-          {
-            "index": 1,
-            "status": 200,
-            "role": "owner"
-          },
-          {
-            "index": 2,
-            "status": 200,
-            "role": "owner"
-          },
-          {
-            "index": 3,
-            "status": 200,
-            "role": "operator"
-          },
-          {
-            "index": 4,
-            "status": 200,
-            "role": "operator"
-          },
-          {
-            "index": 5,
-            "status": 200,
-            "role": "operator"
-          },
-          {
-            "index": 6,
-            "status": 200,
-            "role": "viewer"
-          },
-          {
-            "index": 7,
-            "status": 200,
-            "role": "viewer"
-          },
-          {
-            "index": 8,
-            "status": 200,
-            "role": "viewer"
-          }
-        ],
-        "concurrentGets": [
-          {
-            "role": "admin",
-            "self": 200,
-            "alpha": 200,
-            "beta": null
-          },
-          {
-            "role": "owner",
-            "self": 200,
-            "alpha": 200,
-            "beta": 404
-          },
-          {
-            "role": "owner",
-            "self": 200,
-            "alpha": 200,
-            "beta": 404
-          },
-          {
-            "role": "owner",
-            "self": 200,
-            "alpha": 200,
-            "beta": 404
-          },
-          {
-            "role": "operator",
-            "self": 200,
-            "alpha": 200,
-            "beta": 404
-          },
-          {
-            "role": "operator",
-            "self": 200,
-            "alpha": 200,
-            "beta": 404
-          },
-          {
-            "role": "operator",
-            "self": 200,
-            "alpha": 200,
-            "beta": 404
-          },
-          {
-            "role": "viewer",
-            "self": 200,
-            "alpha": 200,
-            "beta": 404
-          },
-          {
-            "role": "viewer",
-            "self": 200,
-            "alpha": 200,
-            "beta": 404
-          },
-          {
-            "role": "viewer",
-            "self": 200,
-            "alpha": 200,
-            "beta": 404
-          }
-        ],
-        "viewerRun": {
-          "status": 403,
-          "code": "FORBIDDEN"
-        },
-        "betaCreation": 201,
-        "betaDefault": 200,
-        "slotConfiguration": "BROWSER_SLOTS=4; projectSlots=4; run concurrency budget defaults to 2"
+        "sampleCount": 0
       },
-      "reason": "单点复验跳过；沿用 2026-10-03T15:57:56.832Z 完整运行的结果。",
-      "samples": 10
+      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。",
+      "samples": 0
     },
     "5_api_p95": {
-      "status": "通过",
+      "status": "未验证",
       "raw": {
-        "count": 100,
-        "p95Ms": 3.19,
-        "minMs": 1.36,
-        "maxMs": 5.89,
-        "samples": [
-          {
-            "ms": 4.66,
-            "status": 200
-          },
-          {
-            "ms": 2.04,
-            "status": 200
-          },
-          {
-            "ms": 1.68,
-            "status": 200
-          },
-          {
-            "ms": 1.78,
-            "status": 200
-          },
-          {
-            "ms": 1.79,
-            "status": 200
-          },
-          {
-            "ms": 1.74,
-            "status": 200
-          },
-          {
-            "ms": 1.53,
-            "status": 200
-          },
-          {
-            "ms": 1.98,
-            "status": 200
-          },
-          {
-            "ms": 1.94,
-            "status": 200
-          },
-          {
-            "ms": 1.73,
-            "status": 200
-          },
-          {
-            "ms": 1.72,
-            "status": 200
-          },
-          {
-            "ms": 1.57,
-            "status": 200
-          },
-          {
-            "ms": 1.83,
-            "status": 200
-          },
-          {
-            "ms": 1.5,
-            "status": 200
-          },
-          {
-            "ms": 1.59,
-            "status": 200
-          },
-          {
-            "ms": 1.69,
-            "status": 200
-          },
-          {
-            "ms": 1.78,
-            "status": 200
-          },
-          {
-            "ms": 1.62,
-            "status": 200
-          },
-          {
-            "ms": 1.87,
-            "status": 200
-          },
-          {
-            "ms": 1.64,
-            "status": 200
-          },
-          {
-            "ms": 1.52,
-            "status": 200
-          },
-          {
-            "ms": 1.62,
-            "status": 200
-          },
-          {
-            "ms": 1.57,
-            "status": 200
-          },
-          {
-            "ms": 1.88,
-            "status": 200
-          },
-          {
-            "ms": 1.42,
-            "status": 200
-          },
-          {
-            "ms": 1.57,
-            "status": 200
-          },
-          {
-            "ms": 2.25,
-            "status": 200
-          },
-          {
-            "ms": 4.49,
-            "status": 200
-          },
-          {
-            "ms": 3.81,
-            "status": 200
-          },
-          {
-            "ms": 2.02,
-            "status": 200
-          },
-          {
-            "ms": 2.07,
-            "status": 200
-          },
-          {
-            "ms": 2.04,
-            "status": 200
-          },
-          {
-            "ms": 2.14,
-            "status": 200
-          },
-          {
-            "ms": 2.02,
-            "status": 200
-          },
-          {
-            "ms": 1.56,
-            "status": 200
-          },
-          {
-            "ms": 1.43,
-            "status": 200
-          },
-          {
-            "ms": 1.57,
-            "status": 200
-          },
-          {
-            "ms": 2.31,
-            "status": 200
-          },
-          {
-            "ms": 1.85,
-            "status": 200
-          },
-          {
-            "ms": 1.69,
-            "status": 200
-          },
-          {
-            "ms": 1.76,
-            "status": 200
-          },
-          {
-            "ms": 2.02,
-            "status": 200
-          },
-          {
-            "ms": 1.64,
-            "status": 200
-          },
-          {
-            "ms": 1.48,
-            "status": 200
-          },
-          {
-            "ms": 1.6,
-            "status": 200
-          },
-          {
-            "ms": 1.72,
-            "status": 200
-          },
-          {
-            "ms": 1.47,
-            "status": 200
-          },
-          {
-            "ms": 1.43,
-            "status": 200
-          },
-          {
-            "ms": 1.46,
-            "status": 200
-          },
-          {
-            "ms": 1.49,
-            "status": 200
-          },
-          {
-            "ms": 1.56,
-            "status": 200
-          },
-          {
-            "ms": 1.49,
-            "status": 200
-          },
-          {
-            "ms": 1.54,
-            "status": 200
-          },
-          {
-            "ms": 1.54,
-            "status": 200
-          },
-          {
-            "ms": 3.63,
-            "status": 200
-          },
-          {
-            "ms": 2.1,
-            "status": 200
-          },
-          {
-            "ms": 1.71,
-            "status": 200
-          },
-          {
-            "ms": 1.51,
-            "status": 200
-          },
-          {
-            "ms": 1.56,
-            "status": 200
-          },
-          {
-            "ms": 1.62,
-            "status": 200
-          },
-          {
-            "ms": 1.48,
-            "status": 200
-          },
-          {
-            "ms": 1.38,
-            "status": 200
-          },
-          {
-            "ms": 2.44,
-            "status": 200
-          },
-          {
-            "ms": 1.53,
-            "status": 200
-          },
-          {
-            "ms": 1.56,
-            "status": 200
-          },
-          {
-            "ms": 1.36,
-            "status": 200
-          },
-          {
-            "ms": 1.68,
-            "status": 200
-          },
-          {
-            "ms": 2.54,
-            "status": 200
-          },
-          {
-            "ms": 2.78,
-            "status": 200
-          },
-          {
-            "ms": 2.63,
-            "status": 200
-          },
-          {
-            "ms": 2.16,
-            "status": 200
-          },
-          {
-            "ms": 1.87,
-            "status": 200
-          },
-          {
-            "ms": 1.64,
-            "status": 200
-          },
-          {
-            "ms": 2.56,
-            "status": 200
-          },
-          {
-            "ms": 2.33,
-            "status": 200
-          },
-          {
-            "ms": 2.41,
-            "status": 200
-          },
-          {
-            "ms": 2.46,
-            "status": 200
-          },
-          {
-            "ms": 2.31,
-            "status": 200
-          },
-          {
-            "ms": 2.69,
-            "status": 200
-          },
-          {
-            "ms": 2.85,
-            "status": 200
-          },
-          {
-            "ms": 2.99,
-            "status": 200
-          },
-          {
-            "ms": 3.19,
-            "status": 200
-          },
-          {
-            "ms": 1.99,
-            "status": 200
-          },
-          {
-            "ms": 2.06,
-            "status": 200
-          },
-          {
-            "ms": 2.14,
-            "status": 200
-          },
-          {
-            "ms": 1.68,
-            "status": 200
-          },
-          {
-            "ms": 1.58,
-            "status": 200
-          },
-          {
-            "ms": 1.62,
-            "status": 200
-          },
-          {
-            "ms": 1.79,
-            "status": 200
-          },
-          {
-            "ms": 1.97,
-            "status": 200
-          },
-          {
-            "ms": 2.35,
-            "status": 200
-          },
-          {
-            "ms": 1.94,
-            "status": 200
-          },
-          {
-            "ms": 1.7,
-            "status": 200
-          },
-          {
-            "ms": 1.72,
-            "status": 200
-          },
-          {
-            "ms": 1.69,
-            "status": 200
-          },
-          {
-            "ms": 1.99,
-            "status": 200
-          },
-          {
-            "ms": 1.68,
-            "status": 200
-          },
-          {
-            "ms": 2.02,
-            "status": 200
-          },
-          {
-            "ms": 2.53,
-            "status": 200
-          },
-          {
-            "ms": 5.89,
-            "status": 200
-          }
-        ],
-        "hardwareCaveat": "Current host/VM resource budget must be compared with design reference 16 vCPU/32GiB/SSD"
+        "sampleCount": 0
       },
-      "reason": "单点复验跳过；沿用 2026-10-03T15:57:56.832Z 完整运行的结果。",
-      "samples": 100
+      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。",
+      "samples": 0
     },
     "5_event_to_ui_p95": {
       "status": "失败",
       "raw": {
-        "error": "ReferenceError: cvAtOpen is not defined",
-        "repro": {
-          "rings": {
-            "ring0_post": {
-              "status": 202,
-              "contextVersionAfter": 2
-            },
-            "ring1_api": {
-              "note": "GET messages via API with same session",
-              "status": 200,
-              "body": {
-                "items": [
-                  {
-                    "id": "256e7dbf-0c5f-4928-bb85-88b2c3b24da1",
-                    "runId": "1c5645c7-2523-4ef4-90e2-178fef258631",
-                    "actorId": "72d24776-0924-4891-9424-7bd621b2cbdd",
-                    "contextVersion": 2,
-                    "redactedText": "REPRO_68B4D196",
-                    "createdAt": "2026-10-03T17:25:37.546Z"
-                  }
-                ],
-                "nextCursor": null
-              },
-              "markerPresent": true,
-              "firstItemKeys": [
-                "id",
-                "runId",
-                "actorId",
-                "contextVersion",
-                "redactedText",
-                "createdAt"
-              ]
-            },
-            "ring2_frontend_accept": {
-              "note": "feed real API payload into parseRunMessage logic (from built bundle semantics)",
-              "output": "ACCEPTED 1/1 hasMarker=true",
-              "exitCode": 0
-            },
-            "ring3_bundle": {
-              "note": "compare container bundle vs local apps/web build output",
-              "localIndexHash": "43bef98f6e82c1ff3f0cea45b54739e69652c991251a18d091053b2ba900a93c",
-              "containerAsset": "index-B8NOZd0v.js",
-              "containerHasRecordMessageRendered": true,
-              "containerHasRunMessagesCard": true
-            },
-            "ring4_render": {
-              "note": "real browser: select project, open workbench, read __messageTelemetryHistory and DOM",
-              "raw": {
-                "spaceId": 625,
-                "messagesCountAtOpen": null,
-                "sseStatusAtOpen": "SSE-pill-absent",
-                "runDebug": {
-                  "hasCard": false,
-                  "status": "执行中"
-                },
-                "pageHtmlSnippet": "NO_CARD",
-                "screenshot": "/Users/dcp/Documents/公司/momentic//deploy/.evidence/repro-workbench.png",
-                "telemetryCount": 0,
-                "messagesCount": null,
-                "domHasMarker": false,
-                "bodyText": "L\nLocalQA\n/\nT09B repro fixture\n项目首页\n运行工作台\n环境/认证\n项目知识\n模型管理\n成员/运维\n🌐 真实 API 模式\nadmin@localqa.internal\n平台管理员\n退出\n运行历史 (Runs)\n全部状态\n活跃中\n已结束\n1c5645c7-2523-4e...\n执行中\nhttp://localqa-t09b-fixture:8080/fix-02-delayed.html\n01:25:36 · 2 动作 / 4 模型调用\n运行: 1c5645c7-2523-4ef4-90e2-178fef258631\n执行中\n上下文版本: v2\n停止运行 (Cancel)\n目标站点: http://localqa-t09b-fixture:8080/fix-02-delayed.html\n时间消耗: 0s / 600s\n动作步数: 2 / 120\n模型调用: 3 / 100\nToken 消耗: 54 / 300,000\n复现次数: 0 / 3\n运行生命周期阶段推进 (Phase Timeline)\n当前阶段: PLAN (running)\n1. 预检 (Preflight)\n2. 认证 (Auth)\n3. 探索 (Explore)\n4. 计划 (Plan)\n5. 执行 (Execute)\n6. 复现 (Reproduce)\n7. 报告 (Finalize)\n补充说明\n实时执行动态 (Timeline Events)\n已过滤模型隐藏推理，保证事实记录真实可见\n耗时: 0s\n[COORDINATOR]\nsucceeded\npreflight\n耗时: 0s\n[EXPLORER]\nsucceeded\nexplore\n耗时: 0s\n[COORDINATOR]\n执行中\nplan\n用例 (0)\n缺陷 (0)\n任务 (3)\n报告\n▶\n📭\n暂无用例记录\n\n冒烟规划中或此运行尚未生成用例。"
-              },
-              "stderrTail": "REPRO_BROWSER_JSON {\"spaceId\":625,\"messagesCountAtOpen\":null,\"sseStatusAtOpen\":\"SSE-pill-absent\",\"runDebug\":{\"hasCard\":false,\"status\":\"执行中\"},\"pageHtmlSnippet\":\"NO_CARD\",\"screenshot\":\"/Users/dcp/Documents/公司/momentic//deploy/.evidence/repro-workbench.png\",\"telemetryCount\":0,\"messagesCount\":null,\"domHasMarker\":false,\"bodyText\":\"L\\nLocalQA\\n/\\nT09B repro fixture\\n项目首页\\n运行工作台\\n环境/认证\\n项目知识\\n模型管理\\n成员/运维\\n🌐 真实 API 模式\\nadmin@localqa.internal\\n平台管理员\\n退出\\n运行历史 (Runs)\\n全部状态\\n活跃中\\n已结束\\n1c5645c7-2523-4e...\\n执行中\\nhttp://localqa-t09b-fixture:8080/fix-02-delayed.html\\n01:25:36 · 2 动作 / 4 模型调用\\n运行: 1c5645c7-2523-4ef4-90e2-178fef258631\\n执行中\\n上下文版本: v2\\n停止运行 (Cancel)\\n目标站点: http://localqa-t09b-fixture:8080/fix-02-delayed.html\\n时间消耗: 0s / 600s\\n动作步数: 2 / 120\\n模型调用: 3 / 100\\nToken 消耗: 54 / 300,000\\n复现次数: 0 / 3\\n运行生命周期阶段推进 (Phase Timeline)\\n当前阶段: PLAN (running)\\n1. 预检 (Preflight)\\n2. 认证 (Auth)\\n3. 探索 (Explore)\\n4. 计划 (Plan)\\n5. 执行 (Execute)\\n6. 复现 (Reproduce)\\n7. 报告 (Finalize)\\n补充说明\\n实时执行动态 (Timeline Events)\\n已过滤模型隐藏推理，保证事实记录真实可见\\n耗时: 0s\\n[COORDINATOR]\\nsucceeded\\npreflight\\n耗时: 0s\\n[EXPLORER]\\nsucceeded\\nexplore\\n耗时: 0s\\n[COORDINATOR]\\n执行中\\nplan\\n用例 (0)\\n缺陷 (0)\\n任务 (3)\\n报告\\n▶\\n📭\\n暂无用例记录\\n\\n冒烟规划中或此运行尚未生成用例。\"}\n\n"
-            }
-          },
-          "diagnosis": "render/polling layer: API returns and parser accepts, but UI does not render (polling stopped early / SSE handling)",
-          "screenshot": "deploy/.evidence/repro-workbench.png (deleted with cleanup; see bodyText/runDebug in ring4)"
-        }
+        "error": "Error: connect ECONNREFUSED 127.0.0.1:18443"
       },
-      "reason": "四环最小复现定位：①接口层 GET /messages 返回 200 且含 marker；②前端解析接受真实 payload（hasMarker=true）；③容器 bundle 与本地生产构建一致（含 recordMessageRendered）；④真实浏览器打开 workbench 后 run-messages-card 不存在于 DOM（runDebug.hasCard=false）、telemetryCount=0、domHasMarker=false。断在渲染层：Workbench 在 run 加载完成前不渲染该卡片，且轮询因 run 已 completed 而提前停止。属产品问题（前端），非环境/旧 bundle。",
+      "reason": "本项执行失败，不视作通过",
       "samples": null
     },
     "4_sse_reconnect": {
-      "status": "通过",
+      "status": "未验证",
       "raw": {
-        "maxSeq": 50,
-        "first": {
-          "status": 200,
-          "ids": [
-            48,
-            49,
-            50
-          ],
-          "raw": "id: 48\nevent: run.updated\ndata: {\"schemaVersion\":1,\"id\":\"48\",\"runId\":\"76ee9969-968c-40d1-bb32-64152c660fed\",\"seq\":48,\"type\":\"run.updated\",\"at\":\"2026-10-03T15:22:08.486Z\",\"payload\":{\"id\":\"76ee9969-968c-40d1-bb32-64152c660fed\",\"phase\":\"finalize\",\"status\":\"completed\",\"version\":8,\"createdAt\":\"2026-10-03T15:22:02.938Z\",\"creatorId\":\"a17f5a8b-d705-4add-ae99-139fee6c2151\",\"projectId\":\"a6fa9979-0b13-4f74-9234-81edc8b4bb57\",\"targetUrl\":\"http://localqa-t09b-fixture:8080/\",\"updatedAt\":\"2026-10-03T15:22:08.494Z\",\"budgetUsed\":{\"actions\":5,\"modelCalls\":7,\"totalTokens\":126,\"activeSeconds\":0,\"reproductions\":0},\"completion\":\"complete\",\"contextVersion\":1,\"effectiveConfig\":{\"budget\":{\"maxCases\":8,\"maxDepth\":2,\"maxPages\":6,\"maxActions\":120,\"concurrency\":2,\"maxModelCalls\":100,\"maxTotalTokens\":300000,\"maxActiveSeconds\":600,\"maxReproductions\":3,\"maxActionsPerCase\":12},\"models\":{\"executor\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"},\"explorer\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"},\"assertion\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"},\"reproducer\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"},\"coordinator\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"}},\"actionPolicy\":\"non_submitting\",\"allowedOrigins\":[\"http://localqa-t09b-fixture:8080\"],\"authProfileVersion\":null,\"environmentVersion\":null,\"knowledgeVersionIds\":[]},\"terminationReason\":\"normal\"}}\n\nid: 49\nevent: report.ready\ndata: {\"schemaVersion\":"
-        },
-        "second": {
-          "status": 200,
-          "ids": [
-            50
-          ],
-          "raw": "id: 50\nevent: run.finished\ndata: {\"schemaVersion\":1,\"id\":\"50\",\"runId\":\"76ee9969-968c-40d1-bb32-64152c660fed\",\"seq\":50,\"type\":\"run.finished\",\"at\":\"2026-10-03T15:22:08.486Z\",\"payload\":{\"id\":\"76ee9969-968c-40d1-bb32-64152c660fed\",\"phase\":\"finalize\",\"status\":\"completed\",\"version\":8,\"createdAt\":\"2026-10-03T15:22:02.938Z\",\"creatorId\":\"a17f5a8b-d705-4add-ae99-139fee6c2151\",\"projectId\":\"a6fa9979-0b13-4f74-9234-81edc8b4bb57\",\"targetUrl\":\"http://localqa-t09b-fixture:8080/\",\"updatedAt\":\"2026-10-03T15:22:08.494Z\",\"budgetUsed\":{\"actions\":5,\"modelCalls\":7,\"totalTokens\":126,\"activeSeconds\":0,\"reproductions\":0},\"completion\":\"complete\",\"contextVersion\":1,\"effectiveConfig\":{\"budget\":{\"maxCases\":8,\"maxDepth\":2,\"maxPages\":6,\"maxActions\":120,\"concurrency\":2,\"maxModelCalls\":100,\"maxTotalTokens\":300000,\"maxActiveSeconds\":600,\"maxReproductions\":3,\"maxActionsPerCase\":12},\"models\":{\"executor\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"},\"explorer\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"},\"assertion\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"},\"reproducer\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"},\"coordinator\":{\"version\":1,\"profileId\":\"795ec449-d363-4ba5-bf45-1cbfde774a0e\"}},\"actionPolicy\":\"non_submitting\",\"allowedOrigins\":[\"http://localqa-t09b-fixture:8080\"],\"authProfileVersion\":null,\"environmentVersion\":null,\"knowledgeVersionIds\":[]},\"terminationReason\":\"normal\"}}\n\n"
-        }
+        "sampleCount": 0
       },
-      "reason": "单点复验跳过；沿用 2026-10-03T15:57:56.832Z 完整运行的结果。",
-      "samples": 2
+      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。",
+      "samples": 0
     },
     "6_ui": {
       "status": "未验证",
       "raw": {
         "sampleCount": 0
       },
-      "reason": "单点复验跳过；沿用 2026-10-03T15:57:56.832Z 完整运行的结果。",
+      "reason": "单点复验跳过且无历史结果，视为未验证。",
       "samples": 0
     },
     "4_faults": {
@@ -73573,15 +73951,7 @@
       "raw": {
         "sampleCount": 0
       },
-      "reason": "单点复验跳过；沿用 2026-10-03T15:57:56.832Z 完整运行的结果。",
-      "samples": 0
-    },
-    "2_end_to_end": {
-      "status": "未验证",
-      "raw": {
-        "sampleCount": 0
-      },
-      "reason": "前置步骤失败或验证程序未能到达本项",
+      "reason": "单点复验跳过且无历史结果，视为未验证。",
       "samples": 0
     },
     "3_four_slots_fairness": {
@@ -73644,59 +74014,59 @@
   "timings": [
     {
       "label": "compose up postgres",
-      "startAt": "2026-10-03T16:00:32.158Z",
-      "endAt": "2026-10-03T16:00:37.809Z",
-      "ms": 5651,
+      "startAt": "2026-10-03T18:07:10.888Z",
+      "endAt": "2026-10-03T18:07:16.532Z",
+      "ms": 5644,
       "waitReason": "compose start + pg healthcheck"
     },
     {
       "label": "db migrate",
-      "startAt": "2026-10-03T16:00:37.942Z",
-      "endAt": "2026-10-03T16:00:38.361Z",
-      "ms": 419,
+      "startAt": "2026-10-03T18:07:16.702Z",
+      "endAt": "2026-10-03T18:07:17.131Z",
+      "ms": 429,
       "waitReason": null
     },
     {
       "label": "bootstrap admin",
-      "startAt": "2026-10-03T16:00:38.361Z",
-      "endAt": "2026-10-03T16:00:38.858Z",
-      "ms": 497,
+      "startAt": "2026-10-03T18:07:17.131Z",
+      "endAt": "2026-10-03T18:07:17.691Z",
+      "ms": 560,
       "waitReason": null
     },
     {
       "label": "compose up six services",
-      "startAt": "2026-10-03T16:00:38.941Z",
-      "endAt": "2026-10-03T16:00:50.981Z",
-      "ms": 12040,
+      "startAt": "2026-10-03T18:07:17.779Z",
+      "endAt": "2026-10-03T18:07:29.964Z",
+      "ms": 12185,
       "waitReason": "compose start + healthchecks (5 services)"
     },
     {
       "label": "5_event_to_ui_p95",
-      "startAt": "2026-10-03T16:01:12.661Z",
-      "endAt": "2026-10-03T16:01:12.990Z",
-      "ms": 329
+      "startAt": "2026-10-03T18:07:51.724Z",
+      "endAt": "2026-10-03T18:11:59.105Z",
+      "ms": 247381
     },
     {
       "label": "compose down + cleanup",
-      "startAt": "2026-10-03T16:01:12.990Z",
-      "endAt": "2026-10-03T16:01:14.333Z",
-      "ms": 1343,
+      "startAt": "2026-10-03T18:11:59.105Z",
+      "endAt": "2026-10-03T18:11:59.332Z",
+      "ms": 227,
       "waitReason": null
     }
   ],
   "timingsSummary": {
-    "totalMs": 20279,
-    "semanticWaitMs": 17691,
-    "otherOverheadMs": 2588,
+    "totalMs": 266426,
+    "semanticWaitMs": 17829,
+    "otherOverheadMs": 248597,
     "semanticWaits": [
       {
         "label": "compose up postgres",
-        "ms": 5651,
+        "ms": 5644,
         "waitReason": "compose start + pg healthcheck"
       },
       {
         "label": "compose up six services",
-        "ms": 12040,
+        "ms": 12185,
         "waitReason": "compose start + healthchecks (5 services)"
       }
     ]
@@ -73712,31 +74082,43 @@
     }
   },
   "prerequisites": [],
-  "targetChecks": [
-    "5_event_to_ui_p95"
-  ],
   "result": "failed",
   "releaseDecision": "不放行：真实模型 G3 和必需的 G4 项未全部通过；任何失败/未验证均不可视为通过。",
   "remainingGaps": [
+    {
+      "item": "1_six_services_business",
+      "status": "未验证",
+      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。"
+    },
+    {
+      "item": "3_ten_users_rbac",
+      "status": "未验证",
+      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。"
+    },
+    {
+      "item": "5_api_p95",
+      "status": "未验证",
+      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。"
+    },
     {
       "item": "5_event_to_ui_p95",
       "status": "失败",
       "reason": "本项执行失败，不视作通过"
     },
     {
+      "item": "4_sse_reconnect",
+      "status": "未验证",
+      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。"
+    },
+    {
       "item": "6_ui",
       "status": "未验证",
-      "reason": "单点复验跳过；沿用 2026-10-03T15:57:56.832Z 完整运行的结果。"
+      "reason": "单点复验跳过且无历史结果，视为未验证。"
     },
     {
       "item": "4_faults",
       "status": "未验证",
-      "reason": "单点复验跳过；沿用 2026-10-03T15:57:56.832Z 完整运行的结果。"
-    },
-    {
-      "item": "2_end_to_end",
-      "status": "未验证",
-      "reason": "前置步骤失败或验证程序未能到达本项"
+      "reason": "单点复验跳过且无历史结果，视为未验证。"
     },
     {
       "item": "3_four_slots_fairness",

@@ -56,7 +56,7 @@ evidence.baseRunCategories = only
     )
   : null;
 function shouldRun(name) {
-  return !only || only.includes(name);
+  return !effectiveOnly || effectiveOnly.includes(name);
 }
 function gatedRecord(category, status, raw, reason = null, samples = null) {
   if (!shouldRun(category)) {
@@ -65,6 +65,24 @@ function gatedRecord(category, status, raw, reason = null, samples = null) {
   }
   record(category, status, raw, reason, samples);
 }
+// Declared dependency closure: each target check names the checks whose
+// fixtures it needs (a running run, project/model bindings, etc.).
+const CHECK_DEPS = {
+  '5_event_to_ui_p95': ['2_end_to_end'],
+  '6_ui_sse_partial_blocked': ['2_end_to_end'],
+};
+function withDeps(ids) {
+  if (!ids) return null;
+  const out = new Set(ids);
+  for (const id of ids) for (const dep of CHECK_DEPS[id] || []) out.add(dep);
+  return [...out];
+}
+const effectiveOnly = only ? withDeps(only) : null;
+evidence.only = only;
+evidence.effectiveOnly = effectiveOnly;
+evidence.prerequisiteChecks =
+  effectiveOnly?.filter((k) => !only.includes(k)) ?? [];
+evidence.targetChecks = only ?? 'all';
 evidence.history = previous
   ? [
       ...(previous.history || []),
@@ -418,6 +436,29 @@ try {
     'gateway',
   ]);
   timingEnd(tStackUp);
+  // Verify the served page is the current build: the HTML entry references
+  // the same asset hash as the local build output. This catches the historical
+  // "old bundle served from /app/dist" failure mode.
+  const servedIndex = cmd(
+    'docker',
+    ['exec', 'localqa-web', 'cat', '/app/apps/web/dist/index.html'],
+    true,
+  ).stdout;
+  const servedAsset = (servedIndex.match(/assets\/(index-[^"]+\.js)/) || [])[1];
+  const localIndex = readFileSync(`${root}/apps/web/dist/index.html`, 'utf8');
+  const localAsset = (localIndex.match(/assets\/(index-[^"]+\.js)/) || [])[1];
+  const bundleMatch = servedAsset && servedAsset === localAsset;
+  evidence.checks.push({
+    name: 'web_bundle_served_matches_build',
+    servedAsset,
+    localAsset,
+    match: bundleMatch,
+    kind: 'prerequisite',
+  });
+  if (!bundleMatch)
+    throw new Error(
+      `served web bundle (${servedAsset}) does not match local build (${localAsset})`,
+    );
   note('six_services_ready', {
     statuses: containers.slice(0, 6).map((name) => ({
       name,
@@ -831,9 +872,11 @@ try {
     sandbox,
     statuses: evidence.checks[0].statuses,
     timings: evidence.timings,
-    only,
+    only: effectiveOnly,
     previousCategories: previous?.categories || {},
     previousRecordedAt: previous?.recordedAt ?? null,
+    fixtureUrl:
+      'http://localqa-t09b-fixture:8080/fix-02-delayed.html?delay=5000',
   });
   // Summarize wall-clock timings: separate semantic waits from other overhead.
   // (final compose-down timing is appended in the finally block below.)

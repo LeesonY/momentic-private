@@ -16,7 +16,7 @@ ENV NODE_ENV=production HOME=/home/localqa
 RUN groupadd --gid "${LOCALQA_GID}" localqa && \
     useradd --uid "${LOCALQA_UID}" --gid "${LOCALQA_GID}" --create-home --home-dir /home/localqa --shell /usr/sbin/nologin localqa
 WORKDIR /app
-COPY --from=build --chown=${LOCALQA_UID}:${LOCALQA_GID} /app/apps/web/dist /app/dist
+COPY --from=build --chown=${LOCALQA_UID}:${LOCALQA_GID} /app/apps/web/dist /app/apps/web/dist
 COPY --from=build --chown=${LOCALQA_UID}:${LOCALQA_GID} /app/deploy/images/web-entry.mjs /app/web-entry.mjs
 USER ${LOCALQA_UID}:${LOCALQA_GID}
 EXPOSE 8080

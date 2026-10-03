@@ -17,7 +17,23 @@ if (process.argv.includes('--check')) {
     process.exit(1);
   }
 }
-const root = '/app/dist';
+const root = process.env.WEB_DIST_DIR || '/app/apps/web/dist';
+// Refuse to serve a tree that does not match the build output: if both
+// /app/dist and /app/apps/web/dist exist and their entry HTML differ, fail
+// loudly instead of silently serving a stale bundle.
+const altRoot = '/app/dist';
+try {
+  const [a, b] = await Promise.all([
+    readFile(`${root}/index.html`, 'utf8'),
+    readFile(`${altRoot}/index.html`, 'utf8').catch(() => null),
+  ]);
+  if (b !== null && b !== a)
+    throw new Error(
+      `web dist mismatch: ${root} vs ${altRoot} serve different builds`,
+    );
+} catch (e) {
+  if (e.code !== 'ENOENT') throw e;
+}
 const mime = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
