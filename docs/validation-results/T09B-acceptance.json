@@ -1,0 +1,1109 @@
+{
+  "task": "T09-B-P0-acceptance",
+  "recordedAt": "2026-10-03T04:51:03.550Z",
+  "P0Passed": false,
+  "checks": [
+    {
+      "name": "six_services_ready",
+      "statuses": [
+        {
+          "name": "localqa-gateway",
+          "health": "healthy"
+        },
+        {
+          "name": "localqa-web",
+          "health": "healthy"
+        },
+        {
+          "name": "localqa-api",
+          "health": "healthy"
+        },
+        {
+          "name": "localqa-orchestrator",
+          "health": "healthy"
+        },
+        {
+          "name": "localqa-worker",
+          "health": "healthy"
+        },
+        {
+          "name": "localqa-postgres",
+          "health": "healthy"
+        }
+      ]
+    },
+    {
+      "name": "worker_sandbox",
+      "uid": 1001,
+      "node": "v24.20.0",
+      "playwright": "1.63.0",
+      "chromium": "153.0.8010.12",
+      "seccompModes": [
+        2
+      ],
+      "noSandbox": false
+    },
+    {
+      "name": "model_default_to_run",
+      "projectId": "f77448b0-e2d7-4788-87f9-70264de425a8",
+      "modelId": "2134cf44-70c3-4f93-a61b-5c13692c48ba",
+      "runId": "8735a445-6bcd-4ab0-b4d2-c49f6d00a80e",
+      "status": "queued"
+    },
+    {
+      "name": "leased_worker_browser_result",
+      "status": "completed",
+      "completion": "complete",
+      "jobs": 5,
+      "navigate": 2,
+      "artifacts": 1
+    },
+    {
+      "name": "two_slots_admission",
+      "configured": 2,
+      "thirdStatus": 429,
+      "code": "RATE_LIMITED",
+      "retryAfter": "1",
+      "occupancy": "test-reservations"
+    },
+    {
+      "name": "nginx_sse_heartbeat",
+      "lastEventId": 50,
+      "heartbeatMs": 15007,
+      "observedWithin22s": true
+    }
+  ],
+  "unverified": [
+    {
+      "item": "3_four_slots_fairness",
+      "reason": "八运行完成也不能证明长期公平，需带排队时间的三级限额观测。"
+    },
+    {
+      "item": "5_event_to_ui_p95",
+      "reason": "未建立同一时钟的数据库提交→真实 UI DOM 呈现时间戳；不能把 SSE 到达时间替代 UI 指标。"
+    },
+    {
+      "item": "6_ui_sse_partial_blocked",
+      "reason": "未获得真实断线重连和 partial/受阻状态截图，不复用 mock 画面。"
+    },
+    {
+      "item": "4_disk_full",
+      "reason": "不在共享 Docker VM 上填满持久卷；没有隔离容量限制/独立测试磁盘，未注入 ENOSPC。"
+    }
+  ],
+  "cleanup": {
+    "containers": [],
+    "volumes": [],
+    "networks": [],
+    "credentialsPresent": false,
+    "downError": null
+  },
+  "categories": {
+    "2_end_to_end": {
+      "status": "失败",
+      "raw": {
+        "runId": "8735a445-6bcd-4ab0-b4d2-c49f6d00a80e",
+        "db": "lease|5|1\nverdict|1|passed\nevents|50|1..50\nevidence|1|b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
+        "reportStatus": 200,
+        "reportSummary": {
+          "passed": 1,
+          "issueFound": 0,
+          "blocked": 0,
+          "inconclusive": 0,
+          "notRun": 0,
+          "planned": 1,
+          "evaluated": 1,
+          "attempted": 1,
+          "passRate": 1,
+          "attemptRate": 1
+        },
+        "cleanupStatus": "succeeded",
+        "caseStatuses": [
+          "passed"
+        ],
+        "screenshot": {
+          "id": "b1a2ace7-3d27-488f-ba0e-b6fffc675b41",
+          "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
+          "bytes": 265850,
+          "contentHttp": 200,
+          "contentType": "image/png"
+        },
+        "exportCreate": {
+          "status": 202,
+          "body": {
+            "id": "30f039a3-c238-4c68-95b2-2f9d51cf27c9",
+            "runId": "8735a445-6bcd-4ab0-b4d2-c49f6d00a80e",
+            "status": "ready",
+            "format": "zip",
+            "artifactId": null,
+            "snapshotAt": "2026-10-03T04:51:26.511Z",
+            "error": null
+          }
+        },
+        "exportGet": {
+          "status": 200,
+          "body": {
+            "id": "30f039a3-c238-4c68-95b2-2f9d51cf27c9",
+            "error": null,
+            "runId": "8735a445-6bcd-4ab0-b4d2-c49f6d00a80e",
+            "format": "zip",
+            "status": "ready",
+            "artifactId": null,
+            "snapshotAt": "2026-10-03T04:51:26.511Z"
+          }
+        },
+        "exportDownload": {
+          "status": 404,
+          "body": {
+            "code": "NOT_FOUND",
+            "message": "Cannot GET /api/v1/exports/30f039a3-c238-4c68-95b2-2f9d51cf27c9/download",
+            "requestId": "d535d4d9-00a4-449f-82b0-8bdd64cc3dbd"
+          }
+        }
+      },
+      "reason": "运行和 verdict/证据已落库，但导出必须有真实可下载的 ZIP；不能将 status=ready + artifactId=null 视为完成。",
+      "samples": 1
+    },
+    "1_proxy_sse_unbuffered": {
+      "status": "通过",
+      "raw": {
+        "lastEventId": 50,
+        "ms": 15007,
+        "frame": ": ping\n\n",
+        "status": 200,
+        "contentType": "text/event-stream; charset=utf-8"
+      },
+      "reason": null,
+      "samples": 1
+    },
+    "1_six_services_business": {
+      "status": "通过",
+      "raw": {
+        "compose": [
+          {
+            "name": "localqa-gateway",
+            "health": "healthy"
+          },
+          {
+            "name": "localqa-web",
+            "health": "healthy"
+          },
+          {
+            "name": "localqa-api",
+            "health": "healthy"
+          },
+          {
+            "name": "localqa-orchestrator",
+            "health": "healthy"
+          },
+          {
+            "name": "localqa-worker",
+            "health": "healthy"
+          },
+          {
+            "name": "localqa-postgres",
+            "health": "healthy"
+          }
+        ],
+        "gatewayWeb": {
+          "status": 200,
+          "contentType": "text/html; charset=utf-8",
+          "containsLocalQA": true
+        },
+        "gatewayApi": {
+          "status": 200,
+          "projects": 1
+        },
+        "postgresMigrations": "5",
+        "orchestratorJobCount": "5",
+        "workerLeasedJobCount": "5",
+        "chromium": {
+          "node": "v24.20.0",
+          "uid": 1001,
+          "url": "http://localqa-t09b-fixture:8080/",
+          "action": "details-tab.click",
+          "processes": [
+            {
+              "uid": 1001,
+              "seccomp": 2,
+              "noSandbox": false
+            },
+            {
+              "uid": 1001,
+              "seccomp": 2,
+              "noSandbox": false
+            },
+            {
+              "uid": 1001,
+              "seccomp": 2,
+              "noSandbox": false
+            },
+            {
+              "uid": 1001,
+              "seccomp": 2,
+              "noSandbox": false
+            },
+            {
+              "uid": 1001,
+              "seccomp": 2,
+              "noSandbox": false
+            },
+            {
+              "uid": 1001,
+              "seccomp": 2,
+              "noSandbox": false
+            },
+            {
+              "uid": 1001,
+              "seccomp": 2,
+              "noSandbox": false
+            }
+          ],
+          "browserVersion": "153.0.8010.12",
+          "playwright": "1.63.0"
+        }
+      },
+      "reason": null,
+      "samples": 6
+    },
+    "3_ten_users_rbac": {
+      "status": "通过",
+      "raw": {
+        "usersCreated": [
+          {
+            "index": 0,
+            "status": 201,
+            "role": "owner"
+          },
+          {
+            "index": 1,
+            "status": 201,
+            "role": "owner"
+          },
+          {
+            "index": 2,
+            "status": 201,
+            "role": "owner"
+          },
+          {
+            "index": 3,
+            "status": 201,
+            "role": "operator"
+          },
+          {
+            "index": 4,
+            "status": 201,
+            "role": "operator"
+          },
+          {
+            "index": 5,
+            "status": 201,
+            "role": "operator"
+          },
+          {
+            "index": 6,
+            "status": 201,
+            "role": "viewer"
+          },
+          {
+            "index": 7,
+            "status": 201,
+            "role": "viewer"
+          },
+          {
+            "index": 8,
+            "status": 201,
+            "role": "viewer"
+          }
+        ],
+        "memberPut": 200,
+        "logins": [
+          {
+            "index": 0,
+            "status": 200,
+            "role": "owner"
+          },
+          {
+            "index": 1,
+            "status": 200,
+            "role": "owner"
+          },
+          {
+            "index": 2,
+            "status": 200,
+            "role": "owner"
+          },
+          {
+            "index": 3,
+            "status": 200,
+            "role": "operator"
+          },
+          {
+            "index": 4,
+            "status": 200,
+            "role": "operator"
+          },
+          {
+            "index": 5,
+            "status": 200,
+            "role": "operator"
+          },
+          {
+            "index": 6,
+            "status": 200,
+            "role": "viewer"
+          },
+          {
+            "index": 7,
+            "status": 200,
+            "role": "viewer"
+          },
+          {
+            "index": 8,
+            "status": 200,
+            "role": "viewer"
+          }
+        ],
+        "concurrentGets": [
+          {
+            "role": "admin",
+            "self": 200,
+            "alpha": 200,
+            "beta": null
+          },
+          {
+            "role": "owner",
+            "self": 200,
+            "alpha": 200,
+            "beta": 404
+          },
+          {
+            "role": "owner",
+            "self": 200,
+            "alpha": 200,
+            "beta": 404
+          },
+          {
+            "role": "owner",
+            "self": 200,
+            "alpha": 200,
+            "beta": 404
+          },
+          {
+            "role": "operator",
+            "self": 200,
+            "alpha": 200,
+            "beta": 404
+          },
+          {
+            "role": "operator",
+            "self": 200,
+            "alpha": 200,
+            "beta": 404
+          },
+          {
+            "role": "operator",
+            "self": 200,
+            "alpha": 200,
+            "beta": 404
+          },
+          {
+            "role": "viewer",
+            "self": 200,
+            "alpha": 200,
+            "beta": 404
+          },
+          {
+            "role": "viewer",
+            "self": 200,
+            "alpha": 200,
+            "beta": 404
+          },
+          {
+            "role": "viewer",
+            "self": 200,
+            "alpha": 200,
+            "beta": 404
+          }
+        ],
+        "viewerRun": {
+          "status": 403,
+          "code": "FORBIDDEN"
+        },
+        "betaCreation": 201,
+        "betaDefault": 200,
+        "slotConfiguration": "BROWSER_SLOTS=4; projectSlots=4; run concurrency budget defaults to 2"
+      },
+      "reason": null,
+      "samples": 10
+    },
+    "3_four_slots_fairness": {
+      "status": "未验证",
+      "raw": {
+        "requestStatuses": [
+          {
+            "status": 202
+          },
+          {
+            "status": 202
+          },
+          {
+            "status": 202
+          },
+          {
+            "status": 202
+          },
+          {
+            "status": 202
+          },
+          {
+            "status": 202
+          },
+          {
+            "status": 202
+          },
+          {
+            "status": 202
+          }
+        ],
+        "accepted": 8,
+        "samples": 35,
+        "maxActiveReservations": 4,
+        "firstSnapshots": [
+          "0|0|0",
+          "0|0|0",
+          "0|0|0",
+          "0|0|0",
+          "3|1|0",
+          "0|0|0",
+          "0|0|0",
+          "0|0|0",
+          "2|1|0",
+          "4|1|0",
+          "4|1|0",
+          "0|0|0"
+        ],
+        "lastFinishState": "completed:8",
+        "projects": [
+          "f77448b0-e2d7-4788-87f9-70264de425a8",
+          "36072a45-4fa1-4e1a-9ebc-f1980ccf1c65"
+        ]
+      },
+      "reason": "八运行完成也不能证明长期公平，需带排队时间的三级限额观测。",
+      "samples": 35
+    },
+    "5_api_p95": {
+      "status": "通过",
+      "raw": {
+        "count": 100,
+        "p95Ms": 2.36,
+        "minMs": 1.01,
+        "maxMs": 5.28,
+        "samples": [
+          {
+            "ms": 5.28,
+            "status": 200
+          },
+          {
+            "ms": 1.99,
+            "status": 200
+          },
+          {
+            "ms": 1.42,
+            "status": 200
+          },
+          {
+            "ms": 2.36,
+            "status": 200
+          },
+          {
+            "ms": 2.38,
+            "status": 200
+          },
+          {
+            "ms": 3.81,
+            "status": 200
+          },
+          {
+            "ms": 3.19,
+            "status": 200
+          },
+          {
+            "ms": 1.79,
+            "status": 200
+          },
+          {
+            "ms": 1.59,
+            "status": 200
+          },
+          {
+            "ms": 1.43,
+            "status": 200
+          },
+          {
+            "ms": 1.68,
+            "status": 200
+          },
+          {
+            "ms": 1.3,
+            "status": 200
+          },
+          {
+            "ms": 1.31,
+            "status": 200
+          },
+          {
+            "ms": 1.18,
+            "status": 200
+          },
+          {
+            "ms": 1.71,
+            "status": 200
+          },
+          {
+            "ms": 1.77,
+            "status": 200
+          },
+          {
+            "ms": 1.25,
+            "status": 200
+          },
+          {
+            "ms": 1.56,
+            "status": 200
+          },
+          {
+            "ms": 1.66,
+            "status": 200
+          },
+          {
+            "ms": 1.45,
+            "status": 200
+          },
+          {
+            "ms": 1.52,
+            "status": 200
+          },
+          {
+            "ms": 1.72,
+            "status": 200
+          },
+          {
+            "ms": 1.64,
+            "status": 200
+          },
+          {
+            "ms": 1.4,
+            "status": 200
+          },
+          {
+            "ms": 1.21,
+            "status": 200
+          },
+          {
+            "ms": 1.23,
+            "status": 200
+          },
+          {
+            "ms": 1.33,
+            "status": 200
+          },
+          {
+            "ms": 1.6,
+            "status": 200
+          },
+          {
+            "ms": 1.48,
+            "status": 200
+          },
+          {
+            "ms": 2,
+            "status": 200
+          },
+          {
+            "ms": 1.41,
+            "status": 200
+          },
+          {
+            "ms": 1.2,
+            "status": 200
+          },
+          {
+            "ms": 1.52,
+            "status": 200
+          },
+          {
+            "ms": 1.45,
+            "status": 200
+          },
+          {
+            "ms": 1.14,
+            "status": 200
+          },
+          {
+            "ms": 1.14,
+            "status": 200
+          },
+          {
+            "ms": 1.24,
+            "status": 200
+          },
+          {
+            "ms": 1.35,
+            "status": 200
+          },
+          {
+            "ms": 1.26,
+            "status": 200
+          },
+          {
+            "ms": 1.21,
+            "status": 200
+          },
+          {
+            "ms": 1.23,
+            "status": 200
+          },
+          {
+            "ms": 1.18,
+            "status": 200
+          },
+          {
+            "ms": 1.19,
+            "status": 200
+          },
+          {
+            "ms": 1.3,
+            "status": 200
+          },
+          {
+            "ms": 1.38,
+            "status": 200
+          },
+          {
+            "ms": 1.19,
+            "status": 200
+          },
+          {
+            "ms": 1.22,
+            "status": 200
+          },
+          {
+            "ms": 1.21,
+            "status": 200
+          },
+          {
+            "ms": 1.12,
+            "status": 200
+          },
+          {
+            "ms": 1.2,
+            "status": 200
+          },
+          {
+            "ms": 1.21,
+            "status": 200
+          },
+          {
+            "ms": 1.12,
+            "status": 200
+          },
+          {
+            "ms": 1.03,
+            "status": 200
+          },
+          {
+            "ms": 1.38,
+            "status": 200
+          },
+          {
+            "ms": 1.13,
+            "status": 200
+          },
+          {
+            "ms": 1.13,
+            "status": 200
+          },
+          {
+            "ms": 1.03,
+            "status": 200
+          },
+          {
+            "ms": 1.01,
+            "status": 200
+          },
+          {
+            "ms": 1.37,
+            "status": 200
+          },
+          {
+            "ms": 1.19,
+            "status": 200
+          },
+          {
+            "ms": 1.34,
+            "status": 200
+          },
+          {
+            "ms": 1.17,
+            "status": 200
+          },
+          {
+            "ms": 1.1,
+            "status": 200
+          },
+          {
+            "ms": 1.19,
+            "status": 200
+          },
+          {
+            "ms": 1.18,
+            "status": 200
+          },
+          {
+            "ms": 1.08,
+            "status": 200
+          },
+          {
+            "ms": 1.13,
+            "status": 200
+          },
+          {
+            "ms": 1.12,
+            "status": 200
+          },
+          {
+            "ms": 1.19,
+            "status": 200
+          },
+          {
+            "ms": 1.33,
+            "status": 200
+          },
+          {
+            "ms": 1.22,
+            "status": 200
+          },
+          {
+            "ms": 1.09,
+            "status": 200
+          },
+          {
+            "ms": 1.42,
+            "status": 200
+          },
+          {
+            "ms": 1.28,
+            "status": 200
+          },
+          {
+            "ms": 1.1,
+            "status": 200
+          },
+          {
+            "ms": 1.28,
+            "status": 200
+          },
+          {
+            "ms": 1.51,
+            "status": 200
+          },
+          {
+            "ms": 1.94,
+            "status": 200
+          },
+          {
+            "ms": 1.21,
+            "status": 200
+          },
+          {
+            "ms": 1.38,
+            "status": 200
+          },
+          {
+            "ms": 1.2,
+            "status": 200
+          },
+          {
+            "ms": 1.23,
+            "status": 200
+          },
+          {
+            "ms": 1.21,
+            "status": 200
+          },
+          {
+            "ms": 1.8,
+            "status": 200
+          },
+          {
+            "ms": 1.59,
+            "status": 200
+          },
+          {
+            "ms": 1.58,
+            "status": 200
+          },
+          {
+            "ms": 1.41,
+            "status": 200
+          },
+          {
+            "ms": 1.75,
+            "status": 200
+          },
+          {
+            "ms": 2.06,
+            "status": 200
+          },
+          {
+            "ms": 1.45,
+            "status": 200
+          },
+          {
+            "ms": 1.17,
+            "status": 200
+          },
+          {
+            "ms": 1.26,
+            "status": 200
+          },
+          {
+            "ms": 4.28,
+            "status": 200
+          },
+          {
+            "ms": 1.31,
+            "status": 200
+          },
+          {
+            "ms": 1.16,
+            "status": 200
+          },
+          {
+            "ms": 1.17,
+            "status": 200
+          },
+          {
+            "ms": 1.17,
+            "status": 200
+          },
+          {
+            "ms": 1.07,
+            "status": 200
+          },
+          {
+            "ms": 1.24,
+            "status": 200
+          },
+          {
+            "ms": 1.11,
+            "status": 200
+          }
+        ],
+        "hardwareCaveat": "Current host/VM resource budget must be compared with design reference 16 vCPU/32GiB/SSD"
+      },
+      "reason": null,
+      "samples": 100
+    },
+    "5_event_to_ui_p95": {
+      "status": "未验证",
+      "raw": {
+        "count": 0
+      },
+      "reason": "未建立同一时钟的数据库提交→真实 UI DOM 呈现时间戳；不能把 SSE 到达时间替代 UI 指标。",
+      "samples": 0
+    },
+    "4_sse_reconnect": {
+      "status": "通过",
+      "raw": {
+        "maxSeq": 50,
+        "first": {
+          "status": 200,
+          "ids": [
+            48,
+            49,
+            50
+          ],
+          "raw": "id: 48\nevent: run.updated\ndata: {\"schemaVersion\":1,\"id\":\"48\",\"runId\":\"8735a445-6bcd-4ab0-b4d2-c49f6d00a80e\",\"seq\":48,\"type\":\"run.updated\",\"at\":\"2026-10-03T04:51:25.958Z\",\"payload\":{\"id\":\"8735a445-6bcd-4ab0-b4d2-c49f6d00a80e\",\"phase\":\"finalize\",\"status\":\"completed\",\"version\":8,\"createdAt\":\"2026-10-03T04:51:23.323Z\",\"creatorId\":\"60e94851-d868-474f-aa7d-0aaec2a8d19e\",\"projectId\":\"f77448b0-e2d7-4788-87f9-70264de425a8\",\"targetUrl\":\"http://localqa-t09b-fixture:8080/\",\"updatedAt\":\"2026-10-03T04:51:25.970Z\",\"budgetUsed\":{\"actions\":5,\"modelCalls\":7,\"totalTokens\":126,\"activeSeconds\":0,\"reproductions\":0},\"completion\":\"complete\",\"contextVersion\":1,\"effectiveConfig\":{\"budget\":{\"maxCases\":8,\"maxDepth\":2,\"maxPages\":6,\"maxActions\":120,\"concurrency\":2,\"maxModelCalls\":100,\"maxTotalTokens\":300000,\"maxActiveSeconds\":600,\"maxReproductions\":3,\"maxActionsPerCase\":12},\"models\":{\"executor\":{\"version\":1,\"profileId\":\"2134cf44-70c3-4f93-a61b-5c13692c48ba\"},\"explorer\":{\"version\":1,\"profileId\":\"2134cf44-70c3-4f93-a61b-5c13692c48ba\"},\"assertion\":{\"version\":1,\"profileId\":\"2134cf44-70c3-4f93-a61b-5c13692c48ba\"},\"reproducer\":{\"version\":1,\"profileId\":\"2134cf44-70c3-4f93-a61b-5c13692c48ba\"},\"coordinator\":{\"version\":1,\"profileId\":\"2134cf44-70c3-4f93-a61b-5c13692c48ba\"}},\"actionPolicy\":\"non_submitting\",\"allowedOrigins\":[\"http://localqa-t09b-fixture:8080\"],\"authProfileVersion\":null,\"environmentVersion\":null,\"knowledgeVersionIds\":[]},\"terminationReason\":\"normal\"}}\n\nid: 49\nevent: report.ready\ndata: {\"schemaVersion\":"
+        },
+        "second": {
+          "status": 200,
+          "ids": [
+            50
+          ],
+          "raw": "id: 50\nevent: run.finished\ndata: {\"schemaVersion\":1,\"id\":\"50\",\"runId\":\"8735a445-6bcd-4ab0-b4d2-c49f6d00a80e\",\"seq\":50,\"type\":\"run.finished\",\"at\":\"2026-10-03T04:51:25.958Z\",\"payload\":{\"id\":\"8735a445-6bcd-4ab0-b4d2-c49f6d00a80e\",\"phase\":\"finalize\",\"status\":\"completed\",\"version\":8,\"createdAt\":\"2026-10-03T04:51:23.323Z\",\"creatorId\":\"60e94851-d868-474f-aa7d-0aaec2a8d19e\",\"projectId\":\"f77448b0-e2d7-4788-87f9-70264de425a8\",\"targetUrl\":\"http://localqa-t09b-fixture:8080/\",\"updatedAt\":\"2026-10-03T04:51:25.970Z\",\"budgetUsed\":{\"actions\":5,\"modelCalls\":7,\"totalTokens\":126,\"activeSeconds\":0,\"reproductions\":0},\"completion\":\"complete\",\"contextVersion\":1,\"effectiveConfig\":{\"budget\":{\"maxCases\":8,\"maxDepth\":2,\"maxPages\":6,\"maxActions\":120,\"concurrency\":2,\"maxModelCalls\":100,\"maxTotalTokens\":300000,\"maxActiveSeconds\":600,\"maxReproductions\":3,\"maxActionsPerCase\":12},\"models\":{\"executor\":{\"version\":1,\"profileId\":\"2134cf44-70c3-4f93-a61b-5c13692c48ba\"},\"explorer\":{\"version\":1,\"profileId\":\"2134cf44-70c3-4f93-a61b-5c13692c48ba\"},\"assertion\":{\"version\":1,\"profileId\":\"2134cf44-70c3-4f93-a61b-5c13692c48ba\"},\"reproducer\":{\"version\":1,\"profileId\":\"2134cf44-70c3-4f93-a61b-5c13692c48ba\"},\"coordinator\":{\"version\":1,\"profileId\":\"2134cf44-70c3-4f93-a61b-5c13692c48ba\"}},\"actionPolicy\":\"non_submitting\",\"allowedOrigins\":[\"http://localqa-t09b-fixture:8080\"],\"authProfileVersion\":null,\"environmentVersion\":null,\"knowledgeVersionIds\":[]},\"terminationReason\":\"normal\"}}\n\n"
+        }
+      },
+      "reason": "预期：Last-Event-ID 后续帧无漏序；浏览器 UI 状态恢复另测。",
+      "samples": 2
+    },
+    "6_ui_refresh": {
+      "status": "失败",
+      "raw": {
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": "ACCEPT_UI_JSON {\"spaceId\":69,\"initial\":\"[p1 \\\"LocalQA - 自动化网页质量分析工作台\\\" | space \\\"T09-B P0 real UI\\\"(69): 1 managed, 0 untracked — p1* \\\"LocalQA - 自动化网页质量分析工作台\\\"]\\nroot\\n  container\\n    container\\n      text \\\"L\\\"\\n      heading\\n        text \\\"LocalQA 平台登录\\\"\\n      paragraph\\n        text \\\"内网多用户自动化网页质量中台\\\"\\n    form\\n      container\\n        text \\\"账号 / 邮箱 (Username / Email)\\\"\\n        textbox [ref=1, loc=css:input[placeholder=\\\"admin@localqa.fixture\\\"]]\\n          text \\\"admin@localqa.fixture\\\"\\n      container\\n        text \\\"登录密码 (Password)\\\"\\n        textbox [ref=2, loc=css:input[placeholder=\\\"••••••••••••\\\"]]\\n      container\\n        text \\\"* 系统支持固定角色账号快速演示：\\\"\\n        text \\\"- 管理员:\\\"\\n        text \\\"admin@localqa.fixture\\\"\\n        text \\\"- 操作员:\\\"\\n        text \\\"operator@localqa.fixture\\\"\\n        text \\\"- 观察员:\\\"\\n        text \\\"viewer@localqa.fixture\\\"\\n      button [ref=3]\\n        text \\\"登 录\\\"\\n  container\\n    container\\n      button \\\"翻译\\\" [ref=4, loc=css:button[aria-label=\\\"翻译\\\"]]\\n        svg_root\\n      button \\\"朗读\\\" [ref=5, loc=css:button[aria-label=\\\"朗读\\\"]]\\n        svg_root\\n      button \\\"词典\\\" [ref=6, loc=css:button[aria-label=\\\"词典\\\"]]\\n        image\\n      button \\\"长难句分析\\\" [ref=7, loc=css:button[aria-label=\\\"长难句分析\\\"]]\\n        image\\n    button \\\"更多操作\\\" [ref=8, loc=css:button[aria-label=\\\"更多操作\\\"]]\\n      svg_root\\n  image\\n\",\"afterLogin\":\"[p1 \\\"LocalQA - 自动化网页质量分析工作台\\\" | space \\\"T09-B P0 real UI\\\"(69): 1 managed, 0 untracked — p1* \\\"LocalQA - 自动化网页质量分析工作台\\\"]\\nroot\\n  container\\n    container\\n      text \\\"L\\\"\\n      heading\\n        text \\\"LocalQA 平台登录\\\"\\n      paragraph\\n        text \\\"内网多用户自动化网页质量中台\\\"\\n    text \\\"Origin mismatch\\\"\\n    form\\n      container\\n        text \\\"账号 / 邮箱 (Username / Email)\\\"\\n        textbox [ref=1, loc=css:input[placeholder=\\\"admin@localqa.fixture\\\"]]\\n          text \\\"admin@localqa.internal\\\"\\n      container\\n        text \\\"登录密码 (Password)\\\"\\n        textbox [ref=2, loc=css:input[placeholder=\\\"••••••••••••\\\"]]\\n      container\\n        text \\\"* 系统支持固定角色账号快速演示：\\\"\\n        text \\\"- 管理员:\\\"\\n        text \\\"admin@localqa.fixture\\\"\\n        text \\\"- 操作员:\\\"\\n        text \\\"operator@localqa.fixture\\\"\\n        text \\\"- 观察员:\\\"\\n        text \\\"viewer@localqa.fixture\\\"\\n      button [ref=3]\\n        text \\\"登 录\\\"\\n  container\\n    container\\n      button \\\"翻译\\\" [ref=4, loc=css:button[aria-label=\\\"翻译\\\"]]\\n        svg_root\\n      button \\\"朗读\\\" [ref=5, loc=css:button[aria-label=\\\"朗读\\\"]]\\n        svg_root\\n      button \\\"词典\\\" [ref=6, loc=css:button[aria-label=\\\"词典\\\"]]\\n        image\\n      button \\\"长难句分析\\\" [ref=7, loc=css:button[aria-label=\\\"长难句分析\\\"]]\\n        image\\n    button \\\"更多操作\\\" [ref=8, loc=css:button[aria-label=\\\"更多操作\\\"]]\\n      svg_root\\n  image\\n\",\"beforeRefresh\":\"[p1 \\\"LocalQA - 自动化网页质量分析工作台\\\" | space \\\"T09-B P0 real UI\\\"(69): 1 managed, 0 untracked — p1* \\\"LocalQA - 自动化网页质量分析工作台\\\"]\\nroot\\n  container\\n    container\\n      text \\\"L\\\"\\n      heading\\n        text \\\"LocalQA 平台登录\\\"\\n      paragraph\\n        text \\\"内网多用户自动化网页质量中台\\\"\\n    text \\\"Origin mismatch\\\"\\n    form\\n      container\\n        text \\\"账号 / 邮箱 (Username / Email)\\\"\\n        textbox [ref=1, loc=css:input[placeholder=\\\"admin@localqa.fixture\\\"]]\\n          text \\\"admin@localqa.internal\\\"\\n      container\\n        text \\\"登录密码 (Password)\\\"\\n        textbox [ref=2, loc=css:input[placeholder=\\\"••••••••••••\\\"]]\\n      container\\n        text \\\"* 系统支持固定角色账号快速演示：\\\"\\n        text \\\"- 管理员:\\\"\\n        text \\\"admin@localqa.fixture\\\"\\n        text \\\"- 操作员:\\\"\\n        text \\\"operator@localqa.fixture\\\"\\n        text \\\"- 观察员:\\\"\\n        text \\\"viewer@localqa.fixture\\\"\\n      button [ref=3]\\n        text \\\"登 录\\\"\\n  container\\n    container\\n      button \\\"翻译\\\" [ref=4, loc=css:button[aria-label=\\\"翻译\\\"]]\\n        svg_root\\n      button \\\"朗读\\\" [ref=5, loc=css:button[aria-label=\\\"朗读\\\"]]\\n        svg_root\\n      button \\\"词典\\\" [ref=6, loc=css:button[aria-label=\\\"词典\\\"]]\\n        image\\n      button \\\"长难句分析\\\" [ref=7, loc=css:button[aria-label=\\\"长难句分析\\\"]]\\n        image\\n    button \\\"更多操作\\\" [ref=8, loc=css:button[aria-label=\\\"更多操作\\\"]]\\n      svg_root\\n  image\\n\",\"afterRefresh\":\"[p1 \\\"LocalQA - 自动化网页质量分析工作台\\\" | space \\\"T09-B P0 real UI\\\"(69): 1 managed, 0 untracked — p1* \\\"LocalQA - 自动化网页质量分析工作台\\\"]\\nroot\\n  container\\n    container\\n      text \\\"L\\\"\\n      heading\\n        text \\\"LocalQA 平台登录\\\"\\n      paragraph\\n        text \\\"内网多用户自动化网页质量中台\\\"\\n    form\\n      container\\n        text \\\"账号 / 邮箱 (Username / Email)\\\"\\n        textbox [ref=9, loc=css:input[placeholder=\\\"admin@localqa.fixture\\\"]]\\n          text \\\"admin@localqa.fixture\\\"\\n      container\\n        text \\\"登录密码 (Password)\\\"\\n        textbox [ref=10, loc=css:input[placeholder=\\\"••••••••••••\\\"]]\\n      container\\n        text \\\"* 系统支持固定角色账号快速演示：\\\"\\n        text \\\"- 管理员:\\\"\\n        text \\\"admin@localqa.fixture\\\"\\n        text \\\"- 操作员:\\\"\\n        text \\\"operator@localqa.fixture\\\"\\n        text \\\"- 观察员:\\\"\\n        text \\\"viewer@localqa.fixture\\\"\\n      button [ref=11]\\n        text \\\"登 录\\\"\\n  container\\n    container\\n      button \\\"翻译\\\" [ref=12, loc=css:button[aria-label=\\\"翻译\\\"]]\\n        svg_root\\n      button \\\"朗读\\\" [ref=13, loc=css:button[aria-label=\\\"朗读\\\"]]\\n        svg_root\\n      button \\\"词典\\\" [ref=14, loc=css:button[aria-label=\\\"词典\\\"]]\\n        image\\n      button \\\"长难句分析\\\" [ref=15, loc=css:button[aria-label=\\\"长难句分析\\\"]]\\n        image\\n    button \\\"更多操作\\\" [ref=16, loc=css:button[aria-label=\\\"更多操作\\\"]]\\n      svg_root\\n  image\\n\",\"mock\":null,\"screenshot\":\"/Users/dcp/Documents/公司/momentic//deploy/.evidence/T09B-ui-real.png\"}\n\n",
+        "result": {
+          "spaceId": 69,
+          "initial": "[p1 \"LocalQA - 自动化网页质量分析工作台\" | space \"T09-B P0 real UI\"(69): 1 managed, 0 untracked — p1* \"LocalQA - 自动化网页质量分析工作台\"]\nroot\n  container\n    container\n      text \"L\"\n      heading\n        text \"LocalQA 平台登录\"\n      paragraph\n        text \"内网多用户自动化网页质量中台\"\n    form\n      container\n        text \"账号 / 邮箱 (Username / Email)\"\n        textbox [ref=1, loc=css:input[placeholder=\"admin@localqa.fixture\"]]\n          text \"admin@localqa.fixture\"\n      container\n        text \"登录密码 (Password)\"\n        textbox [ref=2, loc=css:input[placeholder=\"••••••••••••\"]]\n      container\n        text \"* 系统支持固定角色账号快速演示：\"\n        text \"- 管理员:\"\n        text \"admin@localqa.fixture\"\n        text \"- 操作员:\"\n        text \"operator@localqa.fixture\"\n        text \"- 观察员:\"\n        text \"viewer@localqa.fixture\"\n      button [ref=3]\n        text \"登 录\"\n  container\n    container\n      button \"翻译\" [ref=4, loc=css:button[aria-label=\"翻译\"]]\n        svg_root\n      button \"朗读\" [ref=5, loc=css:button[aria-label=\"朗读\"]]\n        svg_root\n      button \"词典\" [ref=6, loc=css:button[aria-label=\"词典\"]]\n        image\n      button \"长难句分析\" [ref=7, loc=css:button[aria-label=\"长难句分析\"]]\n        image\n    button \"更多操作\" [ref=8, loc=css:button[aria-label=\"更多操作\"]]\n      svg_root\n  image\n",
+          "afterLogin": "[p1 \"LocalQA - 自动化网页质量分析工作台\" | space \"T09-B P0 real UI\"(69): 1 managed, 0 untracked — p1* \"LocalQA - 自动化网页质量分析工作台\"]\nroot\n  container\n    container\n      text \"L\"\n      heading\n        text \"LocalQA 平台登录\"\n      paragraph\n        text \"内网多用户自动化网页质量中台\"\n    text \"Origin mismatch\"\n    form\n      container\n        text \"账号 / 邮箱 (Username / Email)\"\n        textbox [ref=1, loc=css:input[placeholder=\"admin@localqa.fixture\"]]\n          text \"admin@localqa.internal\"\n      container\n        text \"登录密码 (Password)\"\n        textbox [ref=2, loc=css:input[placeholder=\"••••••••••••\"]]\n      container\n        text \"* 系统支持固定角色账号快速演示：\"\n        text \"- 管理员:\"\n        text \"admin@localqa.fixture\"\n        text \"- 操作员:\"\n        text \"operator@localqa.fixture\"\n        text \"- 观察员:\"\n        text \"viewer@localqa.fixture\"\n      button [ref=3]\n        text \"登 录\"\n  container\n    container\n      button \"翻译\" [ref=4, loc=css:button[aria-label=\"翻译\"]]\n        svg_root\n      button \"朗读\" [ref=5, loc=css:button[aria-label=\"朗读\"]]\n        svg_root\n      button \"词典\" [ref=6, loc=css:button[aria-label=\"词典\"]]\n        image\n      button \"长难句分析\" [ref=7, loc=css:button[aria-label=\"长难句分析\"]]\n        image\n    button \"更多操作\" [ref=8, loc=css:button[aria-label=\"更多操作\"]]\n      svg_root\n  image\n",
+          "beforeRefresh": "[p1 \"LocalQA - 自动化网页质量分析工作台\" | space \"T09-B P0 real UI\"(69): 1 managed, 0 untracked — p1* \"LocalQA - 自动化网页质量分析工作台\"]\nroot\n  container\n    container\n      text \"L\"\n      heading\n        text \"LocalQA 平台登录\"\n      paragraph\n        text \"内网多用户自动化网页质量中台\"\n    text \"Origin mismatch\"\n    form\n      container\n        text \"账号 / 邮箱 (Username / Email)\"\n        textbox [ref=1, loc=css:input[placeholder=\"admin@localqa.fixture\"]]\n          text \"admin@localqa.internal\"\n      container\n        text \"登录密码 (Password)\"\n        textbox [ref=2, loc=css:input[placeholder=\"••••••••••••\"]]\n      container\n        text \"* 系统支持固定角色账号快速演示：\"\n        text \"- 管理员:\"\n        text \"admin@localqa.fixture\"\n        text \"- 操作员:\"\n        text \"operator@localqa.fixture\"\n        text \"- 观察员:\"\n        text \"viewer@localqa.fixture\"\n      button [ref=3]\n        text \"登 录\"\n  container\n    container\n      button \"翻译\" [ref=4, loc=css:button[aria-label=\"翻译\"]]\n        svg_root\n      button \"朗读\" [ref=5, loc=css:button[aria-label=\"朗读\"]]\n        svg_root\n      button \"词典\" [ref=6, loc=css:button[aria-label=\"词典\"]]\n        image\n      button \"长难句分析\" [ref=7, loc=css:button[aria-label=\"长难句分析\"]]\n        image\n    button \"更多操作\" [ref=8, loc=css:button[aria-label=\"更多操作\"]]\n      svg_root\n  image\n",
+          "afterRefresh": "[p1 \"LocalQA - 自动化网页质量分析工作台\" | space \"T09-B P0 real UI\"(69): 1 managed, 0 untracked — p1* \"LocalQA - 自动化网页质量分析工作台\"]\nroot\n  container\n    container\n      text \"L\"\n      heading\n        text \"LocalQA 平台登录\"\n      paragraph\n        text \"内网多用户自动化网页质量中台\"\n    form\n      container\n        text \"账号 / 邮箱 (Username / Email)\"\n        textbox [ref=9, loc=css:input[placeholder=\"admin@localqa.fixture\"]]\n          text \"admin@localqa.fixture\"\n      container\n        text \"登录密码 (Password)\"\n        textbox [ref=10, loc=css:input[placeholder=\"••••••••••••\"]]\n      container\n        text \"* 系统支持固定角色账号快速演示：\"\n        text \"- 管理员:\"\n        text \"admin@localqa.fixture\"\n        text \"- 操作员:\"\n        text \"operator@localqa.fixture\"\n        text \"- 观察员:\"\n        text \"viewer@localqa.fixture\"\n      button [ref=11]\n        text \"登 录\"\n  container\n    container\n      button \"翻译\" [ref=12, loc=css:button[aria-label=\"翻译\"]]\n        svg_root\n      button \"朗读\" [ref=13, loc=css:button[aria-label=\"朗读\"]]\n        svg_root\n      button \"词典\" [ref=14, loc=css:button[aria-label=\"词典\"]]\n        image\n      button \"长难句分析\" [ref=15, loc=css:button[aria-label=\"长难句分析\"]]\n        image\n    button \"更多操作\" [ref=16, loc=css:button[aria-label=\"更多操作\"]]\n      svg_root\n  image\n",
+          "mock": null,
+          "screenshot": "/Users/dcp/Documents/公司/momentic//deploy/.evidence/T09B-ui-real.png"
+        },
+        "screenshot": {
+          "path": "deploy/.evidence/T09B-ui-real.png",
+          "bytes": 46418,
+          "sha256": "7e7300e1d7bf6d6bcf1fb97757addd6008b684b594b2c99cba7ace7e16cfbd61"
+        }
+      },
+      "reason": "不能用截图存在替代刷新位置、真实后端与 SSE 恢复断言。",
+      "samples": 1
+    },
+    "6_ui_sse_partial_blocked": {
+      "status": "未验证",
+      "raw": {
+        "screenshot": {
+          "path": "deploy/.evidence/T09B-ui-real.png",
+          "bytes": 46418,
+          "sha256": "7e7300e1d7bf6d6bcf1fb97757addd6008b684b594b2c99cba7ace7e16cfbd61"
+        },
+        "disconnectEvents": 0,
+        "partialScreenshots": 0,
+        "blockedScreenshots": 0
+      },
+      "reason": "未获得真实断线重连和 partial/受阻状态截图，不复用 mock 画面。",
+      "samples": 0
+    },
+    "4_db_restart": {
+      "status": "通过",
+      "raw": {
+        "before": 200,
+        "dockerRestartExit": 0,
+        "after": 200,
+        "persistedStatus": "completed"
+      },
+      "reason": "预期：已提交运行保留、API 恢复可读；在途动作语义未覆盖。",
+      "samples": 1
+    },
+    "4_worker_midtask_kill": {
+      "status": "失败",
+      "raw": {
+        "newRun": 202,
+        "runningJob": "613e7d9a-8ac4-4df8-bf3a-b1cec90b1e9c",
+        "killExit": 0,
+        "restartedHealth": "unhealthy",
+        "authoritativeRun": "running",
+        "workerLogs": "Target/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/6/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/6/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/7/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/7/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/9/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/9/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/10/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/10/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/caseId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/caseId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/evidenceRefs/items\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/evidenceRefs/items\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/14/properties/args/properties/evidenceRefs/items\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/14/properties/args/properties/evidenceRefs/items\"\n"
+      },
+      "reason": "杀死在途 Worker 后未能于 25 秒内恢复就绪；旧 fencing/unknown intent 另需复核。",
+      "samples": 1
+    },
+    "4_disk_full": {
+      "status": "未验证",
+      "raw": {
+        "bytesWritten": 0,
+        "target": "persistent data volume"
+      },
+      "reason": "不在共享 Docker VM 上填满持久卷；没有隔离容量限制/独立测试磁盘，未注入 ENOSPC。",
+      "samples": 0
+    },
+    "4_credential_revocation": {
+      "status": "失败",
+      "raw": {
+        "patchStatus": 200,
+        "patchBody": {
+          "id": "2134cf44-70c3-4f93-a61b-5c13692c48ba",
+          "name": "T09B fixed stub",
+          "status": "disabled",
+          "adapter": "openai_compatible",
+          "version": 2,
+          "endpoint": "https://stub.example.test/v1",
+          "capabilities": {
+            "imageInput": false,
+            "nativeTools": false,
+            "structuredOutput": false
+          },
+          "dataBoundary": "internal",
+          "configuredModelId": "stub-normal"
+        },
+        "createStatus": 202,
+        "createBody": {
+          "id": "1d3d318d-1ade-4b9d-aa5d-74204c47c085",
+          "status": "queued"
+        },
+        "observedStatus": "queued"
+      },
+      "reason": "预期：禁用档案不能继续驱动新运行；固定 stub 模式与真实密钥撤销仍需分别验证。",
+      "samples": 1
+    }
+  },
+  "environment": {
+    "docker": "{\"Platform\":{\"Name\":\"Docker Engine - Community\"},\"Version\":\"29.5.2\",\"ApiVersion\":\"1.54\",\"MinAPIVersion\":\"1.40\",\"Os\":\"linux\",\"Arch\":\"arm64\",\"Components\":[{\"Name\":\"Engine\",\"Version\":\"29.5.2\",\"Details\":{\"ApiVersion\":\"1.54\",\"Arch\":\"arm64\",\"BuildTime\":\"Wed May 20 14:39:25 2026\",\"Experimental\":\"false\",\"GitCommit\":\"568f755\",\"GoVersion\":\"go1.26.3\",\"KernelVersion\":\"6.8.0-117-generic\",\"MinAPIVersion\":\"1.40\",\"Module\":\"github.com/moby/moby/v2\",\"ModuleVersion\":\"v2.0.0+unknown\",\"Os\":\"linux\"}},{\"Name\":\"containerd\",\"Version\":\"v2.2.4\",\"Details\":{\"GitCommit\":\"193637f7ee8ae5f5aa5248f49e7baa3e6164966e\"}},{\"Name\":\"runc\",\"Version\":\"1.3.5\",\"Details\":{\"GitCommit\":\"v1.3.5-0-g488fc13e\"}},{\"Name\":\"docker-init\",\"Version\":\"0.19.0\",\"Details\":{\"GitCommit\":\"de40ad0\"}}],\"GitCommit\":\"568f755\",\"GoVersion\":\"go1.26.3\",\"KernelVersion\":\"6.8.0-117-generic\",\"BuildTime\":\"2026-05-20T14:39:25.000000000+00:00\"}",
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "node": "v26.3.0",
+      "cpus": 10,
+      "totalMemoryBytes": 17179869184
+    },
+    "dockerVM": { "cpus": 2, "memoryBytes": 2054766592, "architecture": "aarch64", "kernel": "6.8.0-117-generic", "differenceFromReference": "Reference 16 vCPU/32 GiB/SSD; this 2 vCPU/2 GiB VM result cannot be extrapolated to reference hardware." },
+    "model": "T04 fixed stub only; no real model endpoint"
+  },
+  "summary": {
+    "1_six_services": "通过；六 healthy、真实 API/Web/DB 请求、Orchestrator 推进和 Worker 领取/浏览器动作；nginx SSE 15s 心跳实测",
+    "2_end_to_end": "失败；真实 Worker 产生 passed verdict、截图和 1..50 事件，报告 200，但 ZIP 导出状态 ready 却无 artifactId，下载 404",
+    "3_multi_user_and_quota": "未验证；10 用户 RBAC/跨项目通过，4 槽八运行峰值 4 且完成，但项目公平与运行级限额未证明",
+    "4_fault_injection": "失败；已提交数据在 DB 重启后可读、SSE 续传通过，Worker 在途 kill 后 25s 未恢复健康，禁用模型后仍接受新运行；磁盘满未注入",
+    "5_performance": "未验证；100 次非长任务 GET P95 2.36ms（此 VM 样本通过），事件入库至真实 UI P95 无样本",
+    "6_real_ui": "失败；自签证书/IP 访问导致 Origin mismatch，真实浏览器截图仅为登录页，刷新恢复、SSE/partial/受阻截图未完成"
+  },
+  "harnessCompleted": true,
+  "result": "failed",
+  "releaseDecision": "不放行：真实模型 G3 和必需的 G4 项未全部通过；任何失败/未验证均不可视为通过。",
+  "cleanupStatus": "本次六容器、fixture、两具名卷、两网络、临时 .env/secrets/certs/ca 与临时凭据已删除并回查；仅保留交付 localqa-*:latest 与 postgres/playwright 基础镜像。deploy/.evidence/T09B-ui-real.png 为本证据引用截图而保留。既存无法归属的匿名卷 79e6b625... 未删除。",
+  "remainingGaps": [
+    {
+      "item": "2_end_to_end",
+      "status": "失败",
+      "reason": "运行和 verdict/证据已落库，但导出必须有真实可下载的 ZIP；不能将 status=ready + artifactId=null 视为完成。"
+    },
+    {
+      "item": "3_four_slots_fairness",
+      "status": "未验证",
+      "reason": "八运行完成也不能证明长期公平，需带排队时间的三级限额观测。"
+    },
+    {
+      "item": "5_event_to_ui_p95",
+      "status": "未验证",
+      "reason": "未建立同一时钟的数据库提交→真实 UI DOM 呈现时间戳；不能把 SSE 到达时间替代 UI 指标。"
+    },
+    {
+      "item": "6_ui_refresh",
+      "status": "失败",
+      "reason": "不能用截图存在替代刷新位置、真实后端与 SSE 恢复断言。"
+    },
+    {
+      "item": "6_ui_sse_partial_blocked",
+      "status": "未验证",
+      "reason": "未获得真实断线重连和 partial/受阻状态截图，不复用 mock 画面。"
+    },
+    {
+      "item": "4_worker_midtask_kill",
+      "status": "失败",
+      "reason": "杀死在途 Worker 后未能于 25 秒内恢复就绪；旧 fencing/unknown intent 另需复核。"
+    },
+    {
+      "item": "4_disk_full",
+      "status": "未验证",
+      "reason": "不在共享 Docker VM 上填满持久卷；没有隔离容量限制/独立测试磁盘，未注入 ENOSPC。"
+    },
+    {
+      "item": "4_credential_revocation",
+      "status": "失败",
+      "reason": "预期：禁用档案不能继续驱动新运行；固定 stub 模式与真实密钥撤销仍需分别验证。"
+    }
+  ]
+}
