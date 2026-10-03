@@ -1,0 +1,205 @@
+{
+  "title": "第三轮契约一致性审计（导出、消息、worker 入口、RLS 005、web messages）",
+  "date": "2026-10-03",
+  "mode": "report-only",
+  "changedPackages": false,
+  "claims": {
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalled": false,
+    "postgresUsed": false,
+    "playwrightLaunched": false
+  },
+  "host": {
+    "node": "v26.3.0",
+    "platform": "darwin",
+    "probedAt": "2026-10-03T07:05:35.519Z"
+  },
+  "method": "只读源码，并用已安装的 @localqa/contracts（packages/contracts/dist/index.js 的 validateContract / getApiValidator）以及 packages/report/dist 的导出函数做实测。临时脚本曾放在 spikes/audit3/check.mjs，跑完已删除；下面每条 validator 都是当时的实测结果。未改产品代码，未跑 git，未安装依赖，未为本轮启动 Postgres、浏览器或容器。设计条款只在冻结 schema 没有对应字段时引用。apps/web 以 2026-10-03T07:05:35.519Z 读到的内容为准。上一轮已关闭的不符合项没有重测。",
+  "contracts": [
+    "docs/contracts/openapi.json Export、ExportInput、MessageInput、Run、createExport、getExport、downloadArtifact、sendRunMessage",
+    "docs/contracts/domain.schema.json",
+    "docs/contracts/events.schema.json run.updated",
+    "docs/01-requirements.md FR-032",
+    "docs/02-technical-design.md §3、§8.1",
+    "docs/03-data-and-api.md §2 规则 2、§4.1、§5",
+    "packages/storage/migrations/003_access.sql",
+    "packages/storage/migrations/004_hardening.sql",
+    "packages/storage/migrations/005_project_default_model.sql"
+  ],
+  "counts": {
+    "符合": 9,
+    "不符合": 4,
+    "无法判定": 1
+  },
+  "items": [
+    {
+      "id": "api.export-status-schema",
+      "package": "apps/api",
+      "checkpoint": "Export.status 枚举与 artifactId 必填",
+      "conclusion": "符合",
+      "summary": "冻结的 Export.status 只有 queued、running、ready、failed。partial 和 snapshot 都过不了校验。artifactId 在 required 中，可以是 uuid 或 null；缺这个键会失败。实现写入的文档总是 status=ready，并且 artifactId 是新的 uuid，createExport 的 202 和 getExport 的 200 都能通过 Export。非终态有没有被注明，见 api.export-partial-mark。",
+      "location": "docs/contracts/openapi.json:5960",
+      "contract": "openapi.json Export.status 枚举 queued|running|ready|failed（5960–5967 行）。required 含 artifactId（6004–6011 行）。artifactId 为 uuid 或 null（5977–5986 行）。createExport 202 与 getExport 200 的 schema 都是 Export。",
+      "repro": "validateContract('Export', {status:'ready', artifactId:uuid, ...}) 成功。status 换成 partial 或 snapshot，错误都是 /status enum。artifactId:null 成功。去掉 artifactId 后错误是 must have required property 'artifactId'。getApiValidator('createExport', 202) 与 getApiValidator('getExport', 200) 接受 ready 文档，拒绝 partial。",
+      "validator": "exportReady ok=true；exportPartial ok=false；exportSnapshot ok=false；exportNullArtifact ok=true；exportMissingArtifact ok=false；createExport202Ready=true；createExport202Partial=false；getExport200Ready=true。"
+    },
+    {
+      "id": "api.export-partial-mark",
+      "package": "apps/api",
+      "checkpoint": "非终态导出注明 snapshot/partial，以及导出状态是否区分快照",
+      "conclusion": "不符合",
+      "summary": "POST /runs/{id}/exports 在同一次请求里生成文件并插入 status=ready，JSON、Markdown、ZIP 都一样。调用方只看 Export 资源时，运行中的导出和终态导出都是 ready。非终态 JSON 正文是报告本身：实测一份 status=running、completion=none 的报告，exportJson 的正文没有 SNAPSHOT，也没有 partial 这个词；库返回的文件名带 -snapshot，但 API 只保存 .content。下载的 Content-Disposition 用 artifactId 加扩展名，-snapshot 到不了客户端。Markdown 正文有 [SNAPSHOT / PARTIAL EXPORT] 横幅，终态没有。ZIP 的 manifest.isSnapshot 在运行中为 true。queued、running、failed 这三个 Export 状态没有被写入，生成过程也没有独立的导出任务。",
+      "location": "apps/api/src/routes/execution.ts:715",
+      "contract": "docs/01-requirements.md 第 104 行 FR-032：导出 JSON、Markdown 和包含获准证据的离线 ZIP；非终态导出注明 snapshot/partial。docs/03-data-and-api.md 第 128 行：POST exports / GET export 是固定快照，任务化生成。同文件第 127 行：报告快照在非终态含 partial 标记。openapi 的 Export.status 没有 partial 或 snapshot，所以注明不能靠把 status 写成这两个词。",
+      "repro": "对 status=running 的报告调用 ExportService.exportJson：filename 为 localqa-report-{runId}-snapshot.json，contentHasSnapshotWord=false，contentHasPartialWord=false，正文 run.status 仍是 running。renderMarkdownReport 同一份报告含 [SNAPSHOT / PARTIAL EXPORT]；status=completed 时不含。execution.ts:715–718 只把 .content 写入制品。execution.ts:738–749 与 packages/report/src/export/service.ts:110、120 把 Export.status 写成 ready。execution.ts:918 的 Content-Disposition 文件名是 artifactId 加扩展名。",
+      "validator": "jsonSnapshot.filename 含 -snapshot；contentHasSnapshotWord=false；contentHasPartialWord=false。markdownHasBanner=true；terminalMarkdownHasBanner=false。createExport202Ready=true，说明 ready 文档本身合法，缺的是非终态注明。"
+    },
+    {
+      "id": "api.export-flags",
+      "package": "apps/api",
+      "checkpoint": "ExportInput.includeArtifacts 与 requireTerminal",
+      "conclusion": "无法判定",
+      "summary": "这两个布尔字段能通过 ExportInput 校验，openapi 里没有 description。apps/api 源码没有出现这两个标识符，处理函数只按 format 分支。契约正文没有写 requireTerminal=true 必须拒绝非终态，也没有写 includeArtifacts=false 必须省略二进制。字段被接受后未使用，这是事实；它们应该产生什么效果，契约没有给出可核对的句子。",
+      "location": "docs/contracts/openapi.json:5937",
+      "contract": "openapi.json ExportInput properties includeArtifacts、requireTerminal（5937–5942 行）。required 只有 format。additionalProperties false。无 description。",
+      "repro": "validateContract('ExportInput', {format:'zip', includeArtifacts:false, requireTerminal:true}) 成功。rg requireTerminal|includeArtifacts apps/api 无匹配。execution.ts:711 只判断 input.format。",
+      "validator": "exportInput ok=true。没有对应的行为校验器，因为 schema 没有描述这两个字段的效果。"
+    },
+    {
+      "id": "api.export-zip",
+      "package": "packages/report",
+      "checkpoint": "ZIP 内容与 manifest 是否自洽",
+      "conclusion": "符合",
+      "summary": "createOfflineZipArchive 只打包 status=available 且带 relativePath 的二进制。校验和不匹配时把该条改为 degraded、relativePath 置空并写明 error，文件不进入 ZIP。读取失败时改为 missing，同样不打包。计数和 report.md、manifest.json 在 pack 之前按改写后的条目重写。API 的 zip 格式走 ExportService.exportZip，会调用这个函数。实测一份含好文件、坏校验和、缺失文件的归档：ZIP 里只有 report.json、report.md、manifest.json 和 artifacts/good.bin；包内 manifest.json 与函数返回的 manifestDocument 字符串相等；计数为 available 1、degraded 1、missing 1；运行中的 isSnapshot 为 true。这是库函数加假存储，不是对 POST /exports 的 HTTP 调用。",
+      "location": "packages/report/src/export/zip.ts:250",
+      "contract": "docs/01-requirements.md FR-032：ZIP 包含获准证据。docs/03-data-and-api.md 第 44 行：制品有 hash、可用/降级/错误。manifest 把未放入包内的文件仍标成 available 且给出 relativePath，就会和包内容不一致；当前写包前的改写避免了这一对失败路径。",
+      "repro": "假存储对 good 返回匹配 sha256 的字节，对 bad 返回另一段字节，对 miss 抛错。createOfflineZipArchive 后 unpackZip 的名字集合不含 artifacts/bad.bin 与 artifacts/miss.bin。bad 条 status=degraded、relativePath=null、error=Evidence checksum mismatch; binary omitted。miss 条 status=missing、error=Evidence binary unavailable during export。JSON.stringify(包内 manifest.json) 等于 JSON.stringify(返回的 manifestDocument)。",
+      "validator": "zip.manifestMatchesArchive=true；goodPacked=true；badPacked=false；missPacked=false；counts available=1 degraded=1 missing=1；isSnapshot=true。"
+    },
+    {
+      "id": "api.download-auth-range",
+      "package": "apps/api",
+      "checkpoint": "制品下载的权限与 Range",
+      "conclusion": "符合",
+      "summary": "GET /artifacts/{artifactId}/content 先 requireAuth，再以当前 actor 查询 artifacts。查不到行就 NOT_FOUND，因此跨项目访问依赖这条查询上的 RLS，而不是信任路径里的文件名。内容先做 sha256，不一致返回 503。Range 接受 bytes=start-end 和后缀形式；区间不成立时写 416、Content-Range: bytes */长度，以及通过 parseContract 的 Error；成立时写 206、Content-Range 和 Accept-Ranges。无 Range 时写 200。本条没有向运行中的 API 发送请求。openapi 未声明 206/416，以及整段读入内存，见 api.download-contract-status。",
+      "location": "apps/api/src/routes/execution.ts:803",
+      "contract": "docs/01-requirements.md FR-032：下载走权限控制。docs/03-data-and-api.md 第 129 行：授权材料，参数不是文件路径，支持 Range 和 Content-Disposition。openapi downloadArtifact 有 cookieAuth。",
+      "repro": "execution.ts:803 requireAuth；806–814 在 db.actor 中按 id 查 document，无行则 StorageError NOT_FOUND。871–908 解析 Range，失败写 416。911–918 无 Range 写 200，有 Range 写 206 和 Content-Range。835–843 校验 sha256。",
+      "validator": "getApiValidator('downloadArtifact', {kind:'response', status:'200', mediaType:'application/octet-stream'}) 能编译。206/416 的编译结果见下一条。"
+    },
+    {
+      "id": "api.download-contract-status",
+      "package": "apps/api",
+      "checkpoint": "下载响应是否落在 openapi 已声明的状态上，以及是否流式",
+      "conclusion": "不符合",
+      "summary": "openapi 的 downloadArtifact 只声明 200 application/octet-stream 和 default Error。实现在有 Range 时返回 206，区间不成立时返回 416。校验器无法为这两个状态编译响应 schema。docs/03 写的是授权流式材料；实现先把整个制品读进 Buffer，校验 sha256 后再 subarray 送出。权限判断和 Range 算术本身见 api.download-auth-range。",
+      "location": "apps/api/src/routes/execution.ts:911",
+      "contract": "docs/contracts/openapi.json downloadArtifact responses 只有 200 与 default（2551–2571 行）。docs/03-data-and-api.md 第 129 行：授权流式材料，支持 Range 与 Content-Disposition。",
+      "repro": "getApiValidator('downloadArtifact', {kind:'response', status:'206'}) 抛出 No content schema。416 同样。execution.ts:819–844 调用 artifacts.get 得到完整 bytes，910 行再 subarray，911 行按是否有 Range 写 200 或 206，893 行写 416。",
+      "validator": "download200Compiled=true。download206=No content schema: [\"downloadArtifact\",{\"kind\":\"response\",\"status\":\"206\"}]。download416 同理，status 为 416。"
+    },
+    {
+      "id": "api.messages-shape",
+      "package": "apps/api",
+      "checkpoint": "POST /runs/{id}/messages 的请求与 202 响应形状",
+      "conclusion": "符合",
+      "summary": "处理函数用 parseContract('MessageInput') 接请求，成功时 HTTP 202，响应再用 parseContract('Run')。同一事务里 appendEvent 的 run.updated 载荷是刷新后的 Run。校验器接受 text 加 expectedContextVersion，拒绝空 text 和 expectedContextVersion 0。一份最小合法 Run 能通过 sendRunMessage 的 202 schema。",
+      "location": "apps/api/src/routes/runs.ts:266",
+      "contract": "openapi.json sendRunMessage：请求 MessageInput，202 的 schema 为 Run（1545–1578 行）。MessageInput 要求 text（1–4000）和 expectedContextVersion（整数，最小 1）（5797–5814 行）。events.schema.json 中 run.updated 的 payload 是 Run。",
+      "repro": "runs.ts:266 parseContract('MessageInput')；315–316 设 202 并 parseContract('Run', updatedRun)；309–310 appendEvent(..., 'run.updated', refreshed)。validateContract MessageInput {text:'补充范围', expectedContextVersion:1} 成功。text:'' 失败于 minLength。expectedContextVersion:0 失败于 minimum。getApiValidator('sendRunMessage', 202) 接受最小 Run。",
+      "validator": "messageInput ok=true；messageEmpty ok=false；messageVersionZero ok=false；sendRequestOk=true；send202Run=true；runOk ok=true。"
+    },
+    {
+      "id": "api.messages-context",
+      "package": "apps/api",
+      "checkpoint": "contextVersion 推进是否符合 docs/02 §3 与 docs/03 的版本规则",
+      "conclusion": "符合",
+      "summary": "docs/02 §3 规定的是 Run.status、phase、completion 和 terminationReason，正文没有 contextVersion。这条消息接口不修改 status、phase 或 effective_config，因此没有推动 §3 的状态机。它拒绝终态和 cancelling；expectedContextVersion 与当前值不一致时返回 VERSION_CONFLICT；成功时 context_version 与行 version 各加 1，并把正文插入 run_messages。002 的触发器只允许 context_version 增加 1，并在增加时把当时的 effective_config 抄进 run_context_versions，所以既有配置快照还在，消息没有改写执行中的 criteria。这与 docs/03「补充范围建立新 contextVersion、保留既有记录」以及「持久化并推进上下文版本，不直接执行任意指令」一致。正文是原样写入 redacted_text 的；冻结的 MessageInput 只定义 text，没有找到必须先脱敏的条款。",
+      "location": "apps/api/src/routes/runs.ts:279",
+      "contract": "docs/02-technical-design.md §3 第 59–80 行：status、phase、completion。docs/03-data-and-api.md 第 53 行：补充范围建立新 contextVersion，保留既有记录；执行中的原 criteria 不被消息降级。第 117 行：补充说明持久化并推进上下文版本，不直接执行任意指令。packages/storage/migrations/002_invariants.sql 第 27–39 行：禁止 context_version 跳号或回退；配置变化必须伴随加 1；加 1 时复制 effective_config。",
+      "repro": "runs.ts:279–280 终态或 cancelling 抛 VALIDATION_ERROR。282–283 版本不一致抛 VERSION_CONFLICT。286–293 只更新 context_version、version、updated_at。297–307 插入 run_messages，redacted_text 为 input.text。没有 UPDATE status、phase 或 effective_config。",
+      "validator": "Run.contextVersion 的 minimum 为 1，与 MessageInput.expectedContextVersion 的 minimum 1 一致。send202Run=true。没有连库执行这条 UPDATE。"
+    },
+    {
+      "id": "worker.primitives",
+      "package": "deploy/images",
+      "checkpoint": "租约领取、心跳、提交结果是否只用 storage 已冻结的原语",
+      "conclusion": "不符合",
+      "summary": "领取和提交结果都跑在 Coordinator.tx 里。tx 使用 serviceActor 做 db.actor，并调用 requireAdmin。worker-entry 把 serviceActor 设成第一个未禁用的 admin，同时自己打开 Database 和 KEK。领取调用的是 claimTask 函数，但调用点在这个 admin 事务里，不是 LeaseRepository.claim 的 db.worker 边界。心跳续期调用了 LeaseRepository.heartbeat，这是 storage 里按 worker 身份执行的原语；同一次心跳随后又进入 admin 事务做 validateLease。提交结果走 Coordinator.finish 的自有 SQL，核对 fencing 和 token hash 之后写 jobs 和 verdicts，没有调用 LeaseRepository.complete 或 submitVerdict。入口还直接 SELECT 活跃项目和 model_profile_versions。另外，LOCALQA_ALLOW_TEST_STUB 不为 1 时进程在进入循环前抛错。",
+      "location": "packages/orchestrator/src/core.ts:955",
+      "contract": "docs/02-technical-design.md 第 57 行：Worker 不直接解密全局密钥，也不读取其他项目数据；租约领取及权威状态写入由内部 API/协调服务执行。第 161 行：内部入口验证 worker 服务身份和短期租约 token，不允许用户 session 调用。docs/03-data-and-api.md §5 第 141–147 行：/internal/v1 使用 Worker service identity 加短期 lease token；POST /leases/claim、POST /tasks/{taskId}/heartbeat、POST /tasks/{taskId}/complete。storage 中对应的仓库方法是 LeaseRepository.claim、heartbeat、complete（packages/storage/src/leases.ts）。",
+      "repro": "worker-entry.mjs:30 loadProtectedKek；39–49 查询 admin 并作为 serviceActor；22–25 无 LOCALQA_ALLOW_TEST_STUB=1 则抛错；180–186 SELECT projects；66–74 SELECT model_profile_versions。core.ts:130–132 tx 为 db.actor(serviceActor) 且 requireAdmin。core.ts:447 claim 在 tx 内调用 claimTask。runtime.ts:51–63 先 leases.heartbeat，再在 tx 里 validateLease。core.ts:955 finish 不调用 leases.complete。rg LeaseRepository 的 complete( 在 worker-entry 与 RuntimeClient.finish 路径上没有命中。",
+      "validator": "未对租约 SQL 做校验器。本条是源码调用链。"
+    },
+    {
+      "id": "worker.db-health",
+      "package": "deploy/images",
+      "checkpoint": "数据库连接失败时会不会永久 unhealthy",
+      "conclusion": "符合",
+      "summary": "循环内的数据库错误被 catch 住：删除 task-ready；只有容量探测已超过 60 秒才删除 browser-ready；然后等待并继续 while，进程不退出。worker 的就绪检查要求 task-ready 的 mtime 在 60 秒内，并且 readiness 成功。readiness 在连接失败时返回 false，下次查询成功会再返回 true。Database 对空闲连接上的 error 只记录日志，避免未捕获异常把进程打死。连接失败期间检查为不健康；连接恢复后，同一循环在 readiness 成功之后会重新写 task-ready，健康检查可以恢复。循环开始前的 db.auth 若连接失败，进程会退出；compose 里 worker 的 restart 是 unless-stopped，退出后会被再次拉起。本条来自控制流，没有做真实断连实验。查询被接受后一直不返回，不在本条结论内。",
+      "location": "deploy/images/worker-entry.mjs:218",
+      "contract": "deploy/images/check.mjs 第 18–22 行：worker 就绪要看 task-ready 的新旧，以及 readiness({browserMarker:true})。deploy/images/readiness.mjs 第 8–33 行：连不上或迁移数量不对则返回 false。deploy/docker-compose.yml 第 158 行：worker restart unless-stopped。第 178–179 行的健康检查调用 check.mjs worker ready。",
+      "repro": "worker-entry.mjs:218–227 catch 后 rm task-ready，仅当 Date.now()-capacityAt>60000 才 rm browser-ready，随后 227 行 delay 并回到 while。208 与 217 行在 readiness 成功后写 task-ready。database.ts:39–54 监听 pool 与 client 的 error 并 console.error。40–48 行的 db.auth 在 try 之外，失败会拒绝启动期的 await。",
+      "validator": "未运行。没有连接数据库。"
+    },
+    {
+      "id": "worker.cancel-fencing",
+      "package": "apps/worker",
+      "checkpoint": "取消与 fencing 是否被检查",
+      "conclusion": "符合",
+      "summary": "claimTask 把 fencing_token 加 1，并只保存租约 token 的 hash。心跳 SQL 要求 project、task、worker、fencing_token 和 token hash 一致，否则 LEASE_EXPIRED；运行状态不是 queued 或 running 时，返回的 cancelRequested 为 true。Worker.once 在 cancelRequested 为真或 contextVersion 与凭证不一致时中止，心跳抛错也中止。validateLease 用同样的 fencing 与 token 条件锁行；contextVersion 不一致时即使 allowStopping 也抛 LEASE_EXPIRED。finish 先按 fencing 和 token hash 锁住 job，再 validateLease，旧凭证写不了结果。stopTask 再次校验；运行已经是 cancelling 或终态时直接返回，不把终止原因改成 worker_failure。tick 会调用 recoverExpired。两个边界也记在这里：worker-entry 调用 once() 时没有传入 SIGTERM 的 AbortSignal，信号只把外层 running 设为 false，并在退出前等待当前 flight；心跳在返回取消信号之前会先续租，已处于 cancelling 的 stopTask 不释放租约，槽位要等租约到期后由 recoverExpired 收回。检查发生了，释放会晚一个租约周期。没有在运行中的容器里发取消。",
+      "location": "apps/worker/src/index.ts:95",
+      "contract": "docs/02-technical-design.md §8.1 第 159–161 行：领取时 fencingToken+1；每次提交结果、派发模型或动作必须检查当前 fencing、上下文版本和取消状态。docs/03-data-and-api.md 第 146–147 行：心跳返回取消/上下文变更信号；complete 校验当前 fencing。packages/storage/src/leases.ts 的 claimTask、currentLease、heartbeat 是这些检查的存储实现。",
+      "repro": "leases.ts:66–80 条件更新 fencing_token=fencing_token+1 并插入 token_hash。99–109 与 154 行是心跳的 fencing 条件和 cancelRequested。apps/worker/src/index.ts:95–101 根据取消、上下文或心跳失败 abort。core.ts:407–444 validateLease。core.ts:963–987 finish 的 fencing 查询。core.ts:1849–1856 stopTask 在 cancelling 或终态时 return。core.ts:1435–1438 tick 调用 recoverExpired。worker-entry.mjs:101–104 与 209、231 行是信号与 once() 的关系。",
+      "validator": "未运行。没有领取租约。"
+    },
+    {
+      "id": "storage.grant-insert",
+      "package": "packages/storage",
+      "checkpoint": "005 是否在调整一条 INSERT 策略时放宽了其他权限",
+      "conclusion": "符合",
+      "summary": "005 只有两句：删除并重建 model_profile_grants 上的 grant_insert，对象是 localqa_app 的 INSERT，WITH CHECK 为 can_project(project_id, 'owner')。004 曾经删掉 003 建的 member_insert、member_update、member_delete，并把 grant_insert 收成 is_admin()，update 和 delete 也是 is_admin()。003 对这张表的 member_insert 本来就是 owner。005 的 INSERT 条件与 003 的 member_insert 相同，比 004 的仅 admin 宽；文件头写明这是让项目拥有者绑定已有模型，而且语句只动这一条 INSERT。grant_update、grant_delete、003 留下的 member_read 和 worker_scope 都没有改。没有 GRANT，没有其他表。can_project 的 owner 档对 admin 仍为真，operator 和 viewer 过不了。WITH CHECK 不限制 profile_id，拥有者知道 UUID 就能插入授权行；这与 003 的插入条件一样宽。没有在数据库里执行迁移。",
+      "location": "packages/storage/migrations/005_project_default_model.sql:4",
+      "contract": "003_access.sql 第 43–51 行：model_profile_grants 在 owner 档，member_insert 的 WITH CHECK 是 can_project(project_id, 'owner')。004_hardening.sql 第 41–46 行：DROP member_insert/update/delete，CREATE grant_insert WITH CHECK(is_admin())，grant_update 与 grant_delete 也是 is_admin()。005 第 4–6 行只替换 grant_insert。003 第 10–11 行：can_project 的 owner 档为 is_admin() 或 project_role 为 owner。",
+      "repro": "005 全文没有出现 SELECT、UPDATE、DELETE、GRANT 或其他表名。对照 004:44 的 is_admin() 与 005:6 的 can_project(project_id, 'owner')，变化只在这一条 INSERT 的 WITH CHECK。003:49 对同一张表的旧 member_insert 使用同一个 owner 条件。",
+      "validator": "未运行。没有连接 Postgres，也没有执行迁移。"
+    },
+    {
+      "id": "web.messages-client",
+      "package": "apps/web",
+      "checkpoint": "messages 客户端请求与响应类型",
+      "conclusion": "符合",
+      "summary": "结论对应该时刻读到的文件：2026-10-03T07:05:35.519Z。apps/web/src/api/client.ts 与 types.ts 的 mtime 是 2026-10-03T04:12:58.429Z 与 04:12:58.438Z，RunStore.tsx 是 04:12:58.576Z，WorkbenchPage.tsx 是 2026-10-02T12:45:33.730Z。这些 mtime 都早于读取，本轮内没有再变。sendRunMessage 把字符串收成 {text, expectedContextVersion}，响应用 parseContract('Run')。校验器接受这份请求体，也接受一份最小 Run 作为 202 响应。页面在提交前丢掉空白文本。超过 4000 字的限制由服务端 MessageInput 拒绝，客户端类型没有另写一个更宽的正文。",
+      "location": "apps/web/src/api/client.ts:541",
+      "contract": "openapi.json MessageInput 与 sendRunMessage 202 Run，同 api.messages-shape。apps/web 应消费公共 Run，而不是内部协议。",
+      "repro": "client.ts:546–558 组装 MessageInput 并 request(..., 'Run')。client.ts:115–116 在有 contractName 时 parseContract。WorkbenchPage.tsx:108 对空白文本 return。validateContract 与 getApiValidator('sendRunMessage') 的结果与 API 那条相同。",
+      "validator": "sendRequestOk=true；send202Run=true；messageInput ok=true。读取时刻的 mtime 见 summary。"
+    },
+    {
+      "id": "web.messages-render",
+      "package": "apps/web",
+      "checkpoint": "messages 渲染与返回的 Run 是否被采用",
+      "conclusion": "不符合",
+      "summary": "同一读取时刻，见 web.messages-client 的 mtime。sendMessage 等到 POST 成功后，不使用返回的 Run，而是把本地 contextVersion 加 1。API 会在同一事务写入 run.updated，载荷是已经增加过版本的 Run。SSE 处理函数把该载荷摊进当前 run。事件若先被摊进状态，后面这次无条件加 1 会再加一次。这是控制流上的竞争，没有在浏览器里执行。工作台在 cancelling 时仍显示补充说明表单，因为完成判断只包含 completed、cancelled、failed；API 对 cancelling 返回 VALIDATION_ERROR。页面显示输入框和上下文版本徽章。冻结契约没有要求页面列出历史 run_messages，因此没有消息列表这件事单独不构成不符合。",
+      "location": "apps/web/src/state/RunStore.tsx:250",
+      "contract": "openapi.json sendRunMessage 的 202 正文是完整 Run，其中 contextVersion 为整数且最小 1。docs/03-data-and-api.md 第 117 行：消息推进上下文版本。apps/api/src/routes/runs.ts:279–280 拒绝 cancelling。events 的 run.updated 载荷是 Run。",
+      "repro": "RunStore.tsx:250–254 调用 sendRunMessage 后执行 setRun，把 prev.contextVersion 加 1，返回值未使用。117–119 行 run.updated 使用 { ...prev, ...payload }。runs.ts:309–310 把刷新后的 Run 作为 run.updated 的载荷。WorkbenchPage.tsx:122 的 isCompleted 不含 cancelling，257 行在 !isCompleted 时渲染表单。176–177 行渲染上下文版本。",
+      "validator": "send202Run=true，说明返回体可以被当成 Run 校验。页面没有把这个返回体写入状态。竞争没有在浏览器中复现。"
+    }
+  ],
+  "本次未覆盖的范围": [
+    "没有对运行中的 API 发 HTTP，没有用 Postgres 执行迁移或 RLS，没有开浏览器操作工作台。审计结束时旁边已有一套 compose 栈在运行，本轮没有使用它，也没有停它。",
+    "ZIP 自洽调用的是 createOfflineZipArchive 和假的 artifactStore，不是 POST /runs/{id}/exports 经过鉴权、RLS 和 ExportService 的整条路径。",
+    "下载的 206 与 416 只对照源码和 openapi。没有发送带 Range 的请求，也没有用非成员身份访问制品。",
+    "includeArtifacts 与 requireTerminal 没有契约正文，单列为无法判定。",
+    "消息正文原样写入 redacted_text。MessageInput 只要求 text，没有找到必须先脱敏的条款，所以没有把它判成不符合。",
+    "GET /runs/{id}/report 仍在 apps/api/src/routes/execution.ts:673 把 cleanupStatus 写成 succeeded。这是此前已说明、且不在本轮五个对象写入范围内的残留，本轮没有重测。",
+    "migrations/002 中 guard_verdict 与仓库层 SCOPE_CHANGED 的差异、模型网关仍可能返回的 FAKE_EVIDENCE，不在本轮对象内。",
+    "其余 API 操作，以及前两轮已经关闭的不符合项，没有重测。",
+    "apps/web 若在 2026-10-03T07:05:35.519Z 之后被修改，本结论不覆盖新内容。本次核对的四个文件 mtime 都早于该时刻。",
+    "数据库连接失败的结论来自控制流。查询挂起、SIGTERM 对正在执行的 once()、取消后租约要等到期才由 recoverExpired 收回，都没有在容器里做实验。",
+    "Coordinator.finish 里的 verdict 与 finding 写入没有执行。005 的 WITH CHECK 不限制 profile_id；相对 003 的插入条件没有更宽，但是拥有者能否凭 UUID 授权一个自己不能 SELECT 的模型，没有连库验证。"
+  ],
+  "清理状态": "已删除 spikes/audit3/check.mjs，spikes/audit3 目录已不在。本轮未创建容器、卷、网络或镜像。回查时别人的栈正在运行，没有启动、停止或删除它们：localqa-gateway、localqa-orchestrator、localqa-api、localqa-web、localqa-t09b-fixture、localqa-postgres 为 Up，localqa-worker 为 Exited (137)。卷仍是 localqa-data、localqa-pgdata 和匿名卷 79e6b62585a4。镜像未删。未跑 git。"
+}
