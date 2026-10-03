@@ -1,0 +1,301 @@
+{
+  "started_at": "2026-10-03T13:36:20.446841+08:00",
+  "authorization": "User requested safe cleanup of reclaimable storage",
+  "scope": [
+    "Discard free blocks in Colima guest filesystems without deleting live files",
+    "Clear npm download cache",
+    "Remove only dangling Docker images unused by any container"
+  ],
+  "preserved": [
+    "All tagged current LocalQA and base images",
+    "All database volumes",
+    "Project source, node_modules, pnpm cache, evidence",
+    "Ego browser profiles",
+    "Installed/global tooling and Codex runtime files",
+    "npx cache"
+  ],
+  "before": {
+    "disks": [
+      {
+        "path": "/Users/dcp/.colima/_lima/_disks/colima/datadisk",
+        "allocated_bytes": 17524166656,
+        "logical_bytes": 107374182400
+      },
+      {
+        "path": "/Users/dcp/.colima/_lima/colima/disk",
+        "allocated_bytes": 1495748608,
+        "logical_bytes": 21474836480
+      }
+    ],
+    "host_df": {
+      "command": [
+        "df",
+        "-k",
+        "/System/Volumes/Data"
+      ],
+      "exit_code": 0,
+      "stdout": "Filesystem   1024-blocks      Used Available Capacity iused     ifree %iused  Mounted on\n/dev/disk3s5   239362496 125847692  85790204    60% 1515745 857902040    0%   /System/Volumes/Data\n",
+      "stderr": ""
+    },
+    "docker_df": {
+      "command": [
+        "docker",
+        "system",
+        "df"
+      ],
+      "exit_code": 0,
+      "stdout": "TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE\nImages          10        0         4.959GB   1.126GB (22%)\nContainers      0         0         0B        0B\nLocal Volumes   1         0         69.14MB   69.14MB (100%)\nBuild Cache     0         0         0B        0B\n",
+      "stderr": ""
+    },
+    "images": {
+      "command": [
+        "docker",
+        "image",
+        "ls",
+        "--no-trunc",
+        "--format",
+        "{{.Repository}}:{{.Tag}}\t{{.ID}}"
+      ],
+      "exit_code": 0,
+      "stdout": "localqa-worker:latest\tsha256:3d81b6792e4e0c70742339d92d8dccad88b4cd4811facece500f5bfaeebd5753\nlocalqa-api:latest\tsha256:4290f04e5b45a235f972bdc95f08ad374de09401a13b3ed7fc222739d5c48225\nlocalqa-orchestrator:latest\tsha256:62b4e16295e150e3c1658b3ff1a2988842da1497d0f9c8113665db8a8444b79f\nlocalqa-web:latest\tsha256:4f09b08db8d43e9bbf0b4c36bc7e73b8ccf30c8ea6acda70f561a307272526c8\nnode:24-bookworm-slim\tsha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6\npostgres:18-alpine\tsha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873\nmcr.microsoft.com/playwright:v1.63.0-noble\tsha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27\nhello-world:latest\tsha256:5e23090353324d887c48ad5e5c56d294eab81588df9605b07d1afe895f9cc8f8\nnginx:1.27-alpine\tsha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10\n",
+      "stderr": ""
+    },
+    "volumes": {
+      "command": [
+        "docker",
+        "volume",
+        "ls",
+        "-q"
+      ],
+      "exit_code": 0,
+      "stdout": "79e6b62585a476cb1d73128a4304fe0556d3526fda92d40302434fde82407472\n",
+      "stderr": ""
+    },
+    "containers": {
+      "command": [
+        "docker",
+        "ps",
+        "-a",
+        "--format",
+        "{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "npm_cache_du": {
+      "command": [
+        "du",
+        "-k",
+        "-s",
+        "/Users/dcp/.npm/_cacache"
+      ],
+      "exit_code": 0,
+      "stdout": "8790212\t/Users/dcp/.npm/_cacache\n",
+      "stderr": ""
+    }
+  },
+  "actions": [
+    {
+      "label": "Remove dangling Docker images only",
+      "command": [
+        "docker",
+        "image",
+        "prune",
+        "--force"
+      ],
+      "started_at": "2026-10-03T13:37:25.460255+08:00",
+      "exit_code": 0,
+      "stdout": "Deleted Images:\nuntagged: sha256:489c10197c148588eaf61b21621a9b76bdf00fe973940fcc2f3e008a37eea4d7\ndeleted: sha256:489c10197c148588eaf61b21621a9b76bdf00fe973940fcc2f3e008a37eea4d7\nuntagged: sha256:5f65aca6c0ce48520d016c2bfd9348cf9334e1122c50e37152ebe06abfefb503\ndeleted: sha256:5f65aca6c0ce48520d016c2bfd9348cf9334e1122c50e37152ebe06abfefb503\nuntagged: sha256:7769de826a056b58ef48fed898130e802c29212e07b471076822f7b249c0642b\ndeleted: sha256:7769de826a056b58ef48fed898130e802c29212e07b471076822f7b249c0642b\nuntagged: sha256:849fda4b2528154de2b03d312a9e69c768a96045bae39124c6d4eb53d9b56d04\ndeleted: sha256:849fda4b2528154de2b03d312a9e69c768a96045bae39124c6d4eb53d9b56d04\nuntagged: sha256:4ae65a7b12c5a7fcb85368ba8ebe3576176ba65f15522921c72bb1ac14177027\ndeleted: sha256:4ae65a7b12c5a7fcb85368ba8ebe3576176ba65f15522921c72bb1ac14177027\nuntagged: sha256:5b68831ee7fd7e987183c74b22072a546fe983803c7ca73eada4690bb611ef2d\ndeleted: sha256:5b68831ee7fd7e987183c74b22072a546fe983803c7ca73eada4690bb611ef2d\nuntagged: sha256:6d2f920743a694b77baccaef1415650ba2087e9b1c928c9fc9a87beec33aa8c8\ndeleted: sha256:6d2f920743a694b77baccaef1415650ba2087e9b1c928c9fc9a87beec33aa8c8\nuntagged: sha256:a1c0883036a74d7489ba5742bbf4beb17f08332faabf31ce1b0b95e027c9078b\ndeleted: sha256:a1c0883036a74d7489ba5742bbf4beb17f08332faabf31ce1b0b95e027c9078b\nuntagged: sha256:b891a35ff17e12ee08983b743408e035e85af77725cfb3953c059c697f64e557\ndeleted: sha256:b891a35ff17e12ee08983b743408e035e85af77725cfb3953c059c697f64e557\nuntagged: sha256:d2f58ba7c27a207e95a7084bf89d69e7f9c6d1f433a0e87eca807193a17ea7be\ndeleted: sha256:d2f58ba7c27a207e95a7084bf89d69e7f9c6d1f433a0e87eca807193a17ea7be\nuntagged: sha256:efd2dda7d4af7bd3b6fbe6b102ade889b3438971ece1721b520b3dafe69c7d05\ndeleted: sha256:efd2dda7d4af7bd3b6fbe6b102ade889b3438971ece1721b520b3dafe69c7d05\nuntagged: sha256:41bf3c520adaf82711cd7e64df98a3f9a0d9c5c289e63bee567980986a793808\ndeleted: sha256:41bf3c520adaf82711cd7e64df98a3f9a0d9c5c289e63bee567980986a793808\n\nTotal reclaimed space: 167.3kB\n",
+      "stderr": "",
+      "finished_at": "2026-10-03T13:37:25.567768+08:00"
+    },
+    {
+      "label": "Clear npm download cache only, retaining npx and installed packages",
+      "command": [
+        "npm",
+        "cache",
+        "clean",
+        "--force",
+        "--cache",
+        "/Users/dcp/.npm"
+      ],
+      "started_at": "2026-10-03T13:37:25.568529+08:00",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "npm warn using --force Recommended protections disabled.\n",
+      "finished_at": "2026-10-03T13:37:26.801429+08:00"
+    },
+    {
+      "label": "Discard free blocks in Colima data filesystem",
+      "command": [
+        "colima",
+        "ssh",
+        "--",
+        "sudo",
+        "fstrim",
+        "-v",
+        "/var/lib/docker"
+      ],
+      "started_at": "2026-10-03T13:37:26.801858+08:00",
+      "exit_code": 0,
+      "stdout": "/var/lib/docker: 14 GiB (15015686144 bytes) trimmed\n",
+      "stderr": "",
+      "finished_at": "2026-10-03T13:37:27.546669+08:00"
+    },
+    {
+      "label": "Discard free blocks in Colima system filesystem",
+      "command": [
+        "colima",
+        "ssh",
+        "--",
+        "sudo",
+        "fstrim",
+        "-v",
+        "/"
+      ],
+      "started_at": "2026-10-03T13:37:27.547556+08:00",
+      "exit_code": 0,
+      "stdout": "/: 431.2 MiB (452132864 bytes) trimmed\n",
+      "stderr": "",
+      "finished_at": "2026-10-03T13:37:27.726349+08:00"
+    }
+  ],
+  "database_volume_retained": {
+    "name": "79e6b62585a476cb1d73128a4304fe0556d3526fda92d40302434fde82407472",
+    "size_decimal_mb": 69.14,
+    "reason": "Unreferenced anonymous volume has no reliable ownership or disposable-data evidence; earlier development cleanup report explicitly retained it for the same reason."
+  },
+  "after": {
+    "measured_at": "2026-10-03T13:38:09.608093+08:00",
+    "disks": [
+      {
+        "path": "/Users/dcp/.colima/_lima/_disks/colima/datadisk",
+        "allocated_bytes": 5774012416,
+        "logical_bytes": 107374182400
+      },
+      {
+        "path": "/Users/dcp/.colima/_lima/colima/disk",
+        "allocated_bytes": 1496551424,
+        "logical_bytes": 21474836480
+      }
+    ],
+    "host_df": {
+      "command": [
+        "df",
+        "-k",
+        "/System/Volumes/Data"
+      ],
+      "exit_code": 0,
+      "stdout": "Filesystem   1024-blocks      Used Available Capacity iused      ifree %iused  Mounted on\n/dev/disk3s5   239362496 105583764 106054132    50% 1504046 1060541320    0%   /System/Volumes/Data\n",
+      "stderr": ""
+    },
+    "docker_df": {
+      "command": [
+        "docker",
+        "system",
+        "df"
+      ],
+      "exit_code": 0,
+      "stdout": "TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE\nImages          9         0         4.958GB   1.126GB (22%)\nContainers      0         0         0B        0B\nLocal Volumes   1         0         69.14MB   69.14MB (100%)\nBuild Cache     0         0         0B        0B\n",
+      "stderr": ""
+    },
+    "images": {
+      "command": [
+        "docker",
+        "image",
+        "ls",
+        "--no-trunc",
+        "--format",
+        "{{.Repository}}:{{.Tag}}\t{{.ID}}"
+      ],
+      "exit_code": 0,
+      "stdout": "localqa-worker:latest\tsha256:3d81b6792e4e0c70742339d92d8dccad88b4cd4811facece500f5bfaeebd5753\nlocalqa-api:latest\tsha256:4290f04e5b45a235f972bdc95f08ad374de09401a13b3ed7fc222739d5c48225\nlocalqa-orchestrator:latest\tsha256:62b4e16295e150e3c1658b3ff1a2988842da1497d0f9c8113665db8a8444b79f\nlocalqa-web:latest\tsha256:4f09b08db8d43e9bbf0b4c36bc7e73b8ccf30c8ea6acda70f561a307272526c8\nnode:24-bookworm-slim\tsha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6\npostgres:18-alpine\tsha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873\nmcr.microsoft.com/playwright:v1.63.0-noble\tsha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27\nhello-world:latest\tsha256:5e23090353324d887c48ad5e5c56d294eab81588df9605b07d1afe895f9cc8f8\nnginx:1.27-alpine\tsha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10\n",
+      "stderr": ""
+    },
+    "volumes": {
+      "command": [
+        "docker",
+        "volume",
+        "ls",
+        "-q"
+      ],
+      "exit_code": 0,
+      "stdout": "79e6b62585a476cb1d73128a4304fe0556d3526fda92d40302434fde82407472\n",
+      "stderr": ""
+    },
+    "containers": {
+      "command": [
+        "docker",
+        "ps",
+        "-a",
+        "--format",
+        "{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "npm_cache_exists": false,
+    "npx_cache_du": {
+      "command": [
+        "du",
+        "-k",
+        "-s",
+        "/Users/dcp/.npm/_npx"
+      ],
+      "exit_code": 0,
+      "stdout": "324488\t/Users/dcp/.npm/_npx\n",
+      "stderr": ""
+    },
+    "project_dependencies_du": {
+      "command": [
+        "du",
+        "-k",
+        "-s",
+        "/Users/dcp/Documents/公司/momentic/node_modules",
+        "/Users/dcp/Documents/公司/momentic/.cache/pnpm"
+      ],
+      "exit_code": 0,
+      "stdout": "172588\t/Users/dcp/Documents/公司/momentic/node_modules\n354420\t/Users/dcp/Documents/公司/momentic/.cache/pnpm\n",
+      "stderr": ""
+    },
+    "guest_df": {
+      "command": [
+        "colima",
+        "ssh",
+        "--",
+        "df",
+        "-k",
+        "/",
+        "/var/lib/docker"
+      ],
+      "exit_code": 0,
+      "stdout": "Filesystem     1K-blocks    Used Available Use% Mounted on\n/dev/root       19221248 1231680  17973184   7% /\n/dev/vdb1      102624184 4915996  92449028   6% /var/lib/docker\n",
+      "stderr": ""
+    }
+  },
+  "verification": {
+    "preserved_image_tags": [
+      "hello-world:latest",
+      "localqa-api:latest",
+      "localqa-orchestrator:latest",
+      "localqa-web:latest",
+      "localqa-worker:latest",
+      "mcr.microsoft.com/playwright:v1.63.0-noble",
+      "nginx:1.27-alpine",
+      "node:24-bookworm-slim",
+      "postgres:18-alpine"
+    ],
+    "all_original_tags_preserved": true,
+    "volume_list_unchanged": true,
+    "colima_allocated_bytes_freed": 11749351424,
+    "npm_download_cache_before_bytes": 9001177088,
+    "npm_download_cache_cleared": true,
+    "npx_cache_retained": true,
+    "all_cleanup_commands_succeeded": true,
+    "host_used_bytes_decrease": 20750262272,
+    "host_available_bytes_increase": 20750262272
+  },
+  "finished_at": "2026-10-03T13:38:10.630283+08:00"
+}
