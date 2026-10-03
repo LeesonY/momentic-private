@@ -23,3 +23,8 @@ playwright-report/
 # 崩溃转储（容器内 Chromium 崩溃会写进挂载的项目目录）
 core
 core.*
+
+# 部署运行期凭据与证书：绝不入库（KEK、worker 身份、TLS 私钥）
+deploy/secrets/
+deploy/certs/
+deploy/.evidence/
