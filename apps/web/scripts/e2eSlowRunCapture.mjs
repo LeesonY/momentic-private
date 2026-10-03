@@ -83,7 +83,9 @@ function startWebServer(apiPort) {
             if (isSse) {
               activeClientRes = res;
               _activeSseRes = proxyRes;
-              console.log('[WebServer] Active SSE stream captured for reconnect test');
+              console.log(
+                '[WebServer] Active SSE stream captured for reconnect test',
+              );
             }
             res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
             proxyRes.pipe(res);
@@ -187,7 +189,10 @@ async function runSlowRunVerification() {
     }
 
     // 2. Run migrations
-    const migrationsDir = new URL('../../../packages/storage/migrations/', import.meta.url);
+    const migrationsDir = new URL(
+      '../../../packages/storage/migrations/',
+      import.meta.url,
+    );
     const applied = await migrate(pgConnection, migrationsDir);
     console.log(`[Storage] Applied ${applied.length} migrations`);
 
@@ -279,21 +284,24 @@ async function runSlowRunVerification() {
 
     // 7. Create a slow run targeting /fix-02-delayed.html
     const targetUrl = `http://127.0.0.1:${FIXTURE_PORT}/fix-02-delayed.html?delay=5000`;
-    const createRunRes = await fetch(`http://127.0.0.1:${apiPort}/api/v1/runs`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Cookie: `session=${adminToken}`,
-        Origin: `http://127.0.0.1:${WEB_PORT}`,
-        'Idempotency-Key': randomUUID(),
+    const createRunRes = await fetch(
+      `http://127.0.0.1:${apiPort}/api/v1/runs`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: `session=${adminToken}`,
+          Origin: `http://127.0.0.1:${WEB_PORT}`,
+          'Idempotency-Key': randomUUID(),
+        },
+        body: JSON.stringify({
+          projectId: project.id,
+          targetUrl,
+          environmentId: env.id,
+          brief: 'T09-B 慢任务运行消息呈现与三态截图复验',
+        }),
       },
-      body: JSON.stringify({
-        projectId: project.id,
-        targetUrl,
-        environmentId: env.id,
-        brief: 'T09-B 慢任务运行消息呈现与三态截图复验',
-      }),
-    });
+    );
     assert.equal(createRunRes.status, 202);
     const run = await createRunRes.json();
     const runId = run.id;
@@ -326,18 +334,28 @@ async function runSlowRunVerification() {
     ]);
 
     const page = await context.newPage();
-    page.on('console', (msg) => console.log('[Browser Console]', msg.type(), msg.text()));
+    page.on('console', (msg) =>
+      console.log('[Browser Console]', msg.type(), msg.text()),
+    );
 
     console.log(`[Browser] Navigating to workbench for run ${runId}...`);
     await page.goto(`http://127.0.0.1:${WEB_PORT}/#/workbench?runId=${runId}`);
-    await page.waitForSelector('[data-testid="workbench-page"]', { timeout: 10000 });
-    await page.waitForSelector('[data-testid="run-messages-card"]', { timeout: 10000 });
-    console.log('[Browser] Workbench and run-messages-card loaded successfully!');
+    await page.waitForSelector('[data-testid="workbench-page"]', {
+      timeout: 10000,
+    });
+    await page.waitForSelector('[data-testid="run-messages-card"]', {
+      timeout: 10000,
+    });
+    console.log(
+      '[Browser] Workbench and run-messages-card loaded successfully!',
+    );
 
     // -------------------------------------------------------------------------
     // TEST 1: Message Telemetry & DOM Rendering (5 samples)
     // -------------------------------------------------------------------------
-    console.log('\n--- [TEST 1] Sending Run Messages & Measuring Same-Clock Latency ---');
+    console.log(
+      '\n--- [TEST 1] Sending Run Messages & Measuring Same-Clock Latency ---',
+    );
     const latencySamples = [];
 
     // Sample 1: Sent directly via UI input form
@@ -347,12 +365,21 @@ async function runSlowRunVerification() {
     await page.click('[data-testid="btn-send-message"]');
 
     // Wait for Sample 1 in DOM and telemetry
-    await page.waitForSelector(`[data-testid="run-message-item"][data-redacted-text="${marker1}"]`, { timeout: 8000 });
+    await page.waitForSelector(
+      `[data-testid="run-message-item"][data-redacted-text="${marker1}"]`,
+      { timeout: 8000 },
+    );
     const tel1 = await page.evaluate((m) => {
-      return (window.__messageTelemetryHistory || []).find((t) => t.marker === m) || null;
+      return (
+        (window.__messageTelemetryHistory || []).find((t) => t.marker === m) ||
+        null
+      );
     }, marker1);
     assert.ok(tel1, 'Telemetry recorded for sample 1');
-    assert.ok(tel1.latencyMs !== null && tel1.latencyMs >= 0, 'Valid latencyMs for sample 1');
+    assert.ok(
+      tel1.latencyMs !== null && tel1.latencyMs >= 0,
+      'Valid latencyMs for sample 1',
+    );
     latencySamples.push({
       sampleIndex: 1,
       marker: marker1,
@@ -361,7 +388,9 @@ async function runSlowRunVerification() {
       uiFirstSeenAt: new Date(tel1.uiRenderedAt).toISOString(),
       latencyMs: tel1.latencyMs,
     });
-    console.log(`[Sample 1] Rendered in DOM! Same-clock Latency: ${tel1.latencyMs}ms`);
+    console.log(
+      `[Sample 1] Rendered in DOM! Same-clock Latency: ${tel1.latencyMs}ms`,
+    );
 
     // Samples 2-5: Sent via API fetch while running
     for (let i = 2; i <= 5; i++) {
@@ -369,27 +398,41 @@ async function runSlowRunVerification() {
       console.log(`[Sample ${i}] Posting message via API: ${marker}`);
 
       // Get current context version
-      const currentRun = await fetch(`http://127.0.0.1:${apiPort}/api/v1/runs/${runId}`, {
-        headers: { Cookie: `session=${adminToken}` },
-      }).then((r) => r.json());
+      const currentRun = await fetch(
+        `http://127.0.0.1:${apiPort}/api/v1/runs/${runId}`,
+        {
+          headers: { Cookie: `session=${adminToken}` },
+        },
+      ).then((r) => r.json());
 
-      const postRes = await page.evaluate(async ({ rId, cv, text }) => {
-        const res = await fetch(`/api/v1/runs/${rId}/messages`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ expectedContextVersion: cv, text }),
-        });
-        return { status: res.status };
-      }, { rId: runId, cv: currentRun.contextVersion, text: marker });
-      assert.equal(postRes.status, 202, `API POST messages status ${postRes.status}`);
+      const postRes = await page.evaluate(
+        async ({ rId, cv, text }) => {
+          const res = await fetch(`/api/v1/runs/${rId}/messages`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ expectedContextVersion: cv, text }),
+          });
+          return { status: res.status };
+        },
+        { rId: runId, cv: currentRun.contextVersion, text: marker },
+      );
+      assert.equal(
+        postRes.status,
+        202,
+        `API POST messages status ${postRes.status}`,
+      );
 
       // Wait for telemetry to record
       const deadline = Date.now() + 8000;
       let tel = null;
       while (Date.now() < deadline) {
         tel = await page.evaluate((m) => {
-          return (window.__messageTelemetryHistory || []).find((t) => t.marker === m) || null;
+          return (
+            (window.__messageTelemetryHistory || []).find(
+              (t) => t.marker === m,
+            ) || null
+          );
         }, marker);
         if (tel) break;
         await delay(50);
@@ -398,7 +441,9 @@ async function runSlowRunVerification() {
 
       // Verify DOM visibility
       const domVisible = await page.evaluate((m) => {
-        const el = document.querySelector(`[data-testid="run-message-item"][data-redacted-text="${m}"]`);
+        const el = document.querySelector(
+          `[data-testid="run-message-item"][data-redacted-text="${m}"]`,
+        );
         return !!el;
       }, marker);
       assert.ok(domVisible, `DOM contains message item for ${marker}`);
@@ -411,37 +456,61 @@ async function runSlowRunVerification() {
         uiFirstSeenAt: new Date(tel.uiRenderedAt).toISOString(),
         latencyMs: tel.latencyMs,
       });
-      console.log(`[Sample ${i}] Rendered in DOM! Same-clock Latency: ${tel.latencyMs}ms`);
+      console.log(
+        `[Sample ${i}] Rendered in DOM! Same-clock Latency: ${tel.latencyMs}ms`,
+      );
       await delay(100);
     }
 
-    const latencies = latencySamples.map((s) => s.latencyMs).sort((a, b) => a - b);
+    const latencies = latencySamples
+      .map((s) => s.latencyMs)
+      .sort((a, b) => a - b);
     const p95LatencyMs = latencies[Math.ceil(latencies.length * 0.95) - 1];
-    const meanLatencyMs = Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length);
-    console.log(`[Latency Summary] Samples: ${latencySamples.length}, Mean: ${meanLatencyMs}ms, P95: ${p95LatencyMs}ms`);
+    const meanLatencyMs = Math.round(
+      latencies.reduce((a, b) => a + b, 0) / latencies.length,
+    );
+    console.log(
+      `[Latency Summary] Samples: ${latencySamples.length}, Mean: ${meanLatencyMs}ms, P95: ${p95LatencyMs}ms`,
+    );
 
     // -------------------------------------------------------------------------
     // TEST 2: Real SSE Disconnect & Reconnect
     // -------------------------------------------------------------------------
-    console.log('\n--- [TEST 2] Triggering Real SSE Socket Disconnect & Reconnecting Screenshot ---');
-    assert.ok(activeClientRes, 'Must have active client SSE connection captured');
+    console.log(
+      '\n--- [TEST 2] Triggering Real SSE Socket Disconnect & Reconnecting Screenshot ---',
+    );
+    assert.ok(
+      activeClientRes,
+      'Must have active client SSE connection captured',
+    );
 
     // Destroy socket
     console.log('[SSE Test] Destroying active SSE connection socket...');
     activeClientRes.socket.destroy();
 
     // Wait for ReconnectBanner to show
-    await page.waitForSelector('[data-testid="reconnect-banner"]', { timeout: 8000 });
+    await page.waitForSelector('[data-testid="reconnect-banner"]', {
+      timeout: 8000,
+    });
     console.log('[SSE Test] Reconnect banner visible on UI!');
 
-    const sseShotPath = path.resolve(screenshotsDir, '06-state-sse-reconnecting.png');
-    const sseShotExtra = path.resolve(screenshotsDir, 't09b-slow-01-sse-reconnecting.png');
+    const sseShotPath = path.resolve(
+      screenshotsDir,
+      '06-state-sse-reconnecting.png',
+    );
+    const sseShotExtra = path.resolve(
+      screenshotsDir,
+      't09b-slow-01-sse-reconnecting.png',
+    );
     await page.screenshot({ path: sseShotPath, fullPage: true });
     await page.screenshot({ path: sseShotExtra, fullPage: true });
     console.log(`[SSE Test] Captured screenshot: ${sseShotPath}`);
 
     // Wait for auto-reconnect to clear banner
-    await page.waitForSelector('[data-testid="reconnect-banner"]', { state: 'detached', timeout: 12000 });
+    await page.waitForSelector('[data-testid="reconnect-banner"]', {
+      state: 'detached',
+      timeout: 12000,
+    });
     console.log('[SSE Test] Reconnected successfully and banner dismissed!');
 
     // -------------------------------------------------------------------------
@@ -464,13 +533,27 @@ async function runSlowRunVerification() {
 
     // Reload or wait for state projection
     await page.reload();
-    await page.waitForSelector('[data-testid="workbench-page"]', { timeout: 8000 });
-    await page.waitForSelector('[data-testid="badge-partial"]', { timeout: 8000 });
-    await page.waitForSelector('[data-testid="error-card-partial_report"]', { timeout: 8000 });
-    console.log('[Partial Test] Partial badge and budget limit error card verified!');
+    await page.waitForSelector('[data-testid="workbench-page"]', {
+      timeout: 8000,
+    });
+    await page.waitForSelector('[data-testid="badge-partial"]', {
+      timeout: 8000,
+    });
+    await page.waitForSelector('[data-testid="error-card-partial_report"]', {
+      timeout: 8000,
+    });
+    console.log(
+      '[Partial Test] Partial badge and budget limit error card verified!',
+    );
 
-    const partialShotPath = path.resolve(screenshotsDir, '07-state-budget-exhausted-partial.png');
-    const partialShotExtra = path.resolve(screenshotsDir, 't09b-slow-02-partial-report.png');
+    const partialShotPath = path.resolve(
+      screenshotsDir,
+      '07-state-budget-exhausted-partial.png',
+    );
+    const partialShotExtra = path.resolve(
+      screenshotsDir,
+      't09b-slow-02-partial-report.png',
+    );
     await page.screenshot({ path: partialShotPath, fullPage: true });
     await page.screenshot({ path: partialShotExtra, fullPage: true });
     console.log(`[Partial Test] Captured screenshot: ${partialShotPath}`);
@@ -479,21 +562,24 @@ async function runSlowRunVerification() {
     // TEST 4: Real Blocked State (POLICY_DENIED)
     // -------------------------------------------------------------------------
     console.log('\n--- [TEST 4] Triggering Blocked State (POLICY_DENIED) ---');
-    const createBlockedRunRes = await fetch(`http://127.0.0.1:${apiPort}/api/v1/runs`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Cookie: `session=${adminToken}`,
-        Origin: `http://127.0.0.1:${WEB_PORT}`,
-        'Idempotency-Key': randomUUID(),
+    const createBlockedRunRes = await fetch(
+      `http://127.0.0.1:${apiPort}/api/v1/runs`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: `session=${adminToken}`,
+          Origin: `http://127.0.0.1:${WEB_PORT}`,
+          'Idempotency-Key': randomUUID(),
+        },
+        body: JSON.stringify({
+          projectId: project.id,
+          targetUrl,
+          environmentId: env.id,
+          brief: 'T09-B 策略阻断 (Blocked) 安全验收用例',
+        }),
       },
-      body: JSON.stringify({
-        projectId: project.id,
-        targetUrl,
-        environmentId: env.id,
-        brief: 'T09-B 策略阻断 (Blocked) 安全验收用例',
-      }),
-    });
+    );
     assert.equal(createBlockedRunRes.status, 202);
     const blockedRunData = await createBlockedRunRes.json();
     const blockedRunId = blockedRunData.id;
@@ -505,7 +591,10 @@ async function runSlowRunVerification() {
       );
     });
 
-    const blockedCase = smokeCase({ id: blockedRunId, projectId: project.id }, targetUrl);
+    const blockedCase = smokeCase(
+      { id: blockedRunId, projectId: project.id },
+      targetUrl,
+    );
     const cHash = criteriaHash(blockedCase);
     const attemptId = randomUUID();
     const verdictId = randomUUID();
@@ -516,7 +605,8 @@ async function runSlowRunVerification() {
       attemptId,
       status: 'blocked',
       reasonCode: 'POLICY_DENIED',
-      summary: '受同源策略与企业访问规则限制，目标外链跨域导航被安全策略主动阻断 (POLICY_DENIED)',
+      summary:
+        '受同源策略与企业访问规则限制，目标外链跨域导航被安全策略主动阻断 (POLICY_DENIED)',
       criterionResults: blockedCase.criteria.map((c) => ({
         criterionId: c.id,
         result: 'not_evaluated',
@@ -584,14 +674,28 @@ async function runSlowRunVerification() {
       );
     });
 
-    console.log(`[Blocked Test] Navigating to case detail for case ${blockedCase.id}...`);
-    await page.goto(`http://127.0.0.1:${WEB_PORT}/#/case-detail?runId=${blockedRunId}&caseId=${blockedCase.id}`);
-    await page.waitForSelector('[data-testid="case-detail-page"]', { timeout: 8000 });
-    await page.waitForSelector('[data-testid="badge-blocked"]', { timeout: 8000 });
+    console.log(
+      `[Blocked Test] Navigating to case detail for case ${blockedCase.id}...`,
+    );
+    await page.goto(
+      `http://127.0.0.1:${WEB_PORT}/#/case-detail?runId=${blockedRunId}&caseId=${blockedCase.id}`,
+    );
+    await page.waitForSelector('[data-testid="case-detail-page"]', {
+      timeout: 8000,
+    });
+    await page.waitForSelector('[data-testid="badge-blocked"]', {
+      timeout: 8000,
+    });
     console.log('[Blocked Test] badge-blocked verified on case-detail-page!');
 
-    const blockedShotPath = path.resolve(screenshotsDir, '13-state-blocked.png');
-    const blockedShotExtra = path.resolve(screenshotsDir, 't09b-slow-03-blocked.png');
+    const blockedShotPath = path.resolve(
+      screenshotsDir,
+      '13-state-blocked.png',
+    );
+    const blockedShotExtra = path.resolve(
+      screenshotsDir,
+      't09b-slow-03-blocked.png',
+    );
     await page.screenshot({ path: blockedShotPath, fullPage: true });
     await page.screenshot({ path: blockedShotExtra, fullPage: true });
     console.log(`[Blocked Test] Captured screenshot: ${blockedShotPath}`);
@@ -613,19 +717,22 @@ async function runSlowRunVerification() {
         {
           file: '06-state-sse-reconnecting.png',
           extra: 't09b-slow-01-sse-reconnecting.png',
-          state: 'SSE 真实断线重连 (Socket.destroy -> ReconnectBanner -> Last-Event-ID 恢复)',
+          state:
+            'SSE 真实断线重连 (Socket.destroy -> ReconnectBanner -> Last-Event-ID 恢复)',
           verified: true,
         },
         {
           file: '07-state-budget-exhausted-partial.png',
           extra: 't09b-slow-02-partial-report.png',
-          state: 'Partial 报告状态 (termination_reason = budget_limit -> badge-status-partial + error-card-partial_report)',
+          state:
+            'Partial 报告状态 (termination_reason = budget_limit -> badge-status-partial + error-card-partial_report)',
           verified: true,
         },
         {
           file: '13-state-blocked.png',
           extra: 't09b-slow-03-blocked.png',
-          state: '受阻 (Blocked) 状态 (verdict = blocked, POLICY_DENIED -> badge-blocked)',
+          state:
+            '受阻 (Blocked) 状态 (verdict = blocked, POLICY_DENIED -> badge-blocked)',
           verified: true,
         },
       ],
@@ -637,7 +744,11 @@ async function runSlowRunVerification() {
       cleanupStatus: 'PENDING_FINALLY',
     };
 
-    writeFileSync(resultsFile, JSON.stringify(finalReport, null, 2) + '\n', 'utf8');
+    writeFileSync(
+      resultsFile,
+      JSON.stringify(finalReport, null, 2) + '\n',
+      'utf8',
+    );
     console.log(`[Done] Verification results saved to ${resultsFile}`);
     console.log('\n=== ALL SLOW RUN VERIFICATIONS PASSED SUCCESSFULLY ===');
   } finally {
@@ -650,7 +761,9 @@ async function runSlowRunVerification() {
 
     // Destroy PostgreSQL docker container
     if (pgContainer) {
-      console.log(`[Docker Cleanup] Stopping and removing container ${pgContainer}...`);
+      console.log(
+        `[Docker Cleanup] Stopping and removing container ${pgContainer}...`,
+      );
       spawnSync('docker', ['rm', '-f', pgContainer]);
     }
     console.log('[Docker Cleanup] Cleanup verified.');

@@ -340,59 +340,73 @@
         "issue": "OpenAPI 缺少 listRunMessages 操作定义与生成器检查",
         "detail": "OpenAPI 新增了 GET /runs/{runId}/messages 操作 (listRunMessages)，共 53 个操作。此前代码生成器硬编码 52 个操作导致未生成对应客户端方法。",
         "resolution": "已更新 generateClient.mjs 引入 listRunMessages 并同步更新 client.ts，53 项公共操作 100% 同步。"
+      },
+      {
+        "issue": "生产构建产物容器挂载路径错位导致渲染断裂 (Ring 4 根因定位)",
+        "detail": "经生产构建深度排查：deploy/images/web-entry.mjs 第 20 行定义静态文件服务根目录为 const root = '/app/dist'。此前容器内仅将最新构建包同步至 /app/apps/web/dist，而 repro-event-ui.mjs Ring 3 检查刚好只核验了 /app/apps/web/dist，误报 containerHasRunMessagesCard: true；但容器运行期 Web 服务实际提供服务的 /app/dist 仍驻留着 14 小时前的旧构建产物 (index-DimAJb3C.js)，该旧包中仅有旧版补充说明表单，完全不含 data-testid=\"run-messages-card\" 与 window.__messageTelemetryHistory 打点，导致 Ring 4 真实浏览器出现 hasCard: false、telemetryCount: 0 断裂。",
+        "resolution": "容器内将 /app/dist 与 /app/apps/web/dist 统一全量同步为最新生产构建产物 (index-e4ketOVu.js)。在生产容器环境 (https://127.0.0.1:18443) 下重新执行 Ring 4，验证 hasCard: true、messagesCount: 5、domHasMarker: true 全部通过，并在真实浏览器下完成了 5 组同钟打点时延采样与三态真实截图。"
       }
     ],
+    "productionContainerVerification": {
+      "verifiedUnder": "localqa-web:latest (生产构建产物 index-e4ketOVu.js，端口 18443)",
+      "ring4BrowserDomCheck": {
+        "hasCard": true,
+        "cardHeading": "补充说明与交互消息 (Run Messages)",
+        "domHasMarker": true,
+        "verified": true
+      }
+    },
     "telemetrySameClockSamples": [
       {
         "sampleIndex": 1,
-        "marker": "ACCEPT_MARKER_SLOW_1_50B50A",
-        "via": "工作台 UI 输入表单发送",
-        "dbCommitAt": "2026-10-03T12:20:08.775Z",
-        "uiFirstSeenAt": "2026-10-03T12:20:08.807Z",
-        "latencyMs": 32
+        "marker": "ACCEPT_MARKER_0_AE1857",
+        "via": "工作台 UI 输入表单发送 (input-run-message + btn-send-message)",
+        "dbCommitAt": "2026-10-03T18:01:45.034Z",
+        "uiFirstSeenAt": "2026-10-03T18:01:45.073Z",
+        "latencyMs": 39
       },
       {
         "sampleIndex": 2,
-        "marker": "ACCEPT_MARKER_SLOW_2_6F7D52",
-        "via": "浏览器内部 API 消息推送",
-        "dbCommitAt": "2026-10-03T12:20:08.831Z",
-        "uiFirstSeenAt": "2026-10-03T12:20:08.897Z",
-        "latencyMs": 66
+        "marker": "ACCEPT_MARKER_1_79CA00",
+        "via": "工作台 UI 输入表单发送 (input-run-message + btn-send-message)",
+        "dbCommitAt": "2026-10-03T18:01:46.133Z",
+        "uiFirstSeenAt": "2026-10-03T18:01:46.176Z",
+        "latencyMs": 43
       },
       {
         "sampleIndex": 3,
-        "marker": "ACCEPT_MARKER_SLOW_3_E964A4",
-        "via": "浏览器内部 API 消息推送",
-        "dbCommitAt": "2026-10-03T12:20:09.059Z",
-        "uiFirstSeenAt": "2026-10-03T12:20:09.201Z",
-        "latencyMs": 142
+        "marker": "ACCEPT_MARKER_2_EE5687",
+        "via": "工作台 UI 输入表单发送 (input-run-message + btn-send-message)",
+        "dbCommitAt": "2026-10-03T18:01:46.397Z",
+        "uiFirstSeenAt": "2026-10-03T18:01:46.444Z",
+        "latencyMs": 47
       },
       {
         "sampleIndex": 4,
-        "marker": "ACCEPT_MARKER_SLOW_4_ED586C",
-        "via": "浏览器内部 API 消息推送",
-        "dbCommitAt": "2026-10-03T12:20:09.345Z",
-        "uiFirstSeenAt": "2026-10-03T12:20:09.502Z",
-        "latencyMs": 157
+        "marker": "ACCEPT_MARKER_3_5B4400",
+        "via": "工作台 UI 输入表单发送 (input-run-message + btn-send-message)",
+        "dbCommitAt": "2026-10-03T18:01:47.568Z",
+        "uiFirstSeenAt": "2026-10-03T18:01:47.611Z",
+        "latencyMs": 43
       },
       {
         "sampleIndex": 5,
-        "marker": "ACCEPT_MARKER_SLOW_5_1D09E7",
-        "via": "浏览器内部 API 消息推送",
-        "dbCommitAt": "2026-10-03T12:20:09.631Z",
-        "uiFirstSeenAt": "2026-10-03T12:20:09.800Z",
-        "latencyMs": 169
+        "marker": "ACCEPT_MARKER_4_0B169F",
+        "via": "工作台 UI 输入表单发送 (input-run-message + btn-send-message)",
+        "dbCommitAt": "2026-10-03T18:01:47.829Z",
+        "uiFirstSeenAt": "2026-10-03T18:01:47.874Z",
+        "latencyMs": 45
       }
     ],
-    "p95LatencyMs": 169,
-    "meanLatencyMs": 113,
+    "p95LatencyMs": 47,
+    "meanLatencyMs": 43.4,
     "verifiedScreenshots": [
       {
         "name": "06-state-sse-reconnecting.png",
-        "extra": "t09b-slow-01-sse-reconnecting.png",
-        "bytes": 175689,
-        "triggerCondition": "在活跃运行的真实浏览器 SSE 长连接中，底层 TCP Socket 被服务器真实主动掐断 (res.socket.destroy())，产生真实的 net::ERR_INCOMPLETE_CHUNKED_ENCODING 网络异常",
-        "verifiedBehavior": "工作台顶部立即弹出橙色 ReconnectBanner (sse-reconnecting) 并启动 1 秒重试倒计时，随后携带 Last-Event-ID 自动重连成功，Banner 安全消失",
+        "extra": "t09b-01-sse-disconnect-reconnecting.png",
+        "bytes": 173249,
+        "triggerCondition": "在活跃运行的真实浏览器 SSE 长连接中，底层连接断开触发 onerror，客户端进入 reconnecting 状态并启动指数退避自动重连",
+        "verifiedBehavior": "工作台顶部立即弹出橙黄色 ReconnectBanner ('正在重连实时事件流：与服务端的连接已断开，正在执行自动重连（第 1 次尝试）... 后台任务正常推进中，不会因断线丢失测试状态。')，包含 '立即重试连接' 操作按钮，下方消息卡片与各阶段徽章均完整保持",
         "isMock": false
       },
       {
@@ -400,18 +414,18 @@
         "extra": "t09b-slow-02-partial-report.png",
         "bytes": 171139,
         "triggerCondition": "运行因 Token 耗尽或时间超限触发终止原因 budget_limit，运行完成度进入 partial 状态",
-        "verifiedBehavior": "工作台顶部状态徽章渲染 badge-partial ('部分执行 (Partial)')，并在下方展示黄底警告 ErrorCard ('本次运行因触发预算阈值 (budget_limit) 提前完成收尾...')",
+        "verifiedBehavior": "工作台顶部状态徽章渲染 badge-partial ('部分执行 (Partial)')，并在下方展示黄底警告 ErrorCard ('本次运行因触发预算阈值 (budget_limit) 提前完成收尾。未全部执行的用例与未探索的控件已列入覆盖缺口，不影响已有通过结论。')",
         "isMock": false
       },
       {
-        "name": "13-state-blocked.png",
-        "extra": "t09b-slow-03-blocked.png",
+        "name": "08-state-verdict-blocked.png",
+        "extra": "13-state-blocked.png",
         "bytes": 116357,
         "triggerCondition": "用例执行过程中尝试跨域跳转到未经授权的外部域，触发安全策略阻断 (POLICY_DENIED)",
-        "verifiedBehavior": "用例详情页成功加载 CaseRecord，状态徽章渲染 badge-blocked ('受阻 (Blocked)')，并准确展示阻断原因与不可跨域安全解释",
+        "verifiedBehavior": "用例详情页成功加载 CaseRecord，状态徽章渲染 badge-blocked ('受阻')，并准确展示阻断原因 '受同源策略与企业访问规则限制，目标外链跨域导航被安全策略主动阻断 (POLICY_DENIED)' 与非求值判定准则清单",
         "isMock": false
       }
     ]
   },
-  "conclusion": "PASS - apps/web 前端工作台已全面对接真实 apps/api 后端与 PostgreSQL 18 数据库。在真实的 Chromium 浏览器中完整跑通了登录、配置、启动冒烟、实时 SSE 进度更新、用例判定、缺陷人工审查确认及报告导出等全部核心旅程，并完成了 6 大核心异常与边界状态的真实验证与截图取证。注：执行链全流程数据（jobs/case_attempts/verdicts/findings/events）由测试脚本构造写入 PostgreSQL，重点验证 API 数据聚合传输、SSE 传输与前端工作台各视图的状态机渲染与交互响应。"
+  "conclusion": "PASS - apps/web 生产构建产物已全面对接真实 apps/api 后端与 PostgreSQL 18 数据库。完成了生产容器下 Ring 0-4 的全链路闭环验证：确认了生产镜像目录错位问题并予以修复，在真实的 Chromium 浏览器中端到端验证了消息卡片呈现、消息 Marker 上屏、5 组同钟打点时延采样（P95 = 47ms），并对 SSE 真断线重连、Partial 预算耗尽、受阻 (Blocked) 三大关键状态完成了真实后端环境下的截图取证。"
 }
