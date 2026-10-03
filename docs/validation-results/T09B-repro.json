@@ -1,0 +1,76 @@
+{
+  "task": "T09-B-repro-5_event_to_ui",
+  "recordedAt": "2026-10-03T17:25:17.256Z",
+  "rings": {
+    "ring0_post": {
+      "status": 202,
+      "contextVersionAfter": 2
+    },
+    "ring1_api": {
+      "note": "GET messages via API with same session",
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "id": "256e7dbf-0c5f-4928-bb85-88b2c3b24da1",
+            "runId": "1c5645c7-2523-4ef4-90e2-178fef258631",
+            "actorId": "72d24776-0924-4891-9424-7bd621b2cbdd",
+            "contextVersion": 2,
+            "redactedText": "REPRO_68B4D196",
+            "createdAt": "2026-10-03T17:25:37.546Z"
+          }
+        ],
+        "nextCursor": null
+      },
+      "markerPresent": true,
+      "firstItemKeys": [
+        "id",
+        "runId",
+        "actorId",
+        "contextVersion",
+        "redactedText",
+        "createdAt"
+      ]
+    },
+    "ring2_frontend_accept": {
+      "note": "feed real API payload into parseRunMessage logic (from built bundle semantics)",
+      "output": "ACCEPTED 1/1 hasMarker=true",
+      "exitCode": 0
+    },
+    "ring3_bundle": {
+      "note": "compare container bundle vs local apps/web build output",
+      "localIndexHash": "43bef98f6e82c1ff3f0cea45b54739e69652c991251a18d091053b2ba900a93c",
+      "containerAsset": "index-B8NOZd0v.js",
+      "containerHasRecordMessageRendered": true,
+      "containerHasRunMessagesCard": true
+    },
+    "ring4_render": {
+      "note": "real browser: select project, open workbench, read __messageTelemetryHistory and DOM",
+      "raw": {
+        "spaceId": 625,
+        "messagesCountAtOpen": null,
+        "sseStatusAtOpen": "SSE-pill-absent",
+        "runDebug": {
+          "hasCard": false,
+          "status": "执行中"
+        },
+        "pageHtmlSnippet": "NO_CARD",
+        "screenshot": "/Users/dcp/Documents/公司/momentic//deploy/.evidence/repro-workbench.png",
+        "telemetryCount": 0,
+        "messagesCount": null,
+        "domHasMarker": false,
+        "bodyText": "L\nLocalQA\n/\nT09B repro fixture\n项目首页\n运行工作台\n环境/认证\n项目知识\n模型管理\n成员/运维\n🌐 真实 API 模式\nadmin@localqa.internal\n平台管理员\n退出\n运行历史 (Runs)\n全部状态\n活跃中\n已结束\n1c5645c7-2523-4e...\n执行中\nhttp://localqa-t09b-fixture:8080/fix-02-delayed.html\n01:25:36 · 2 动作 / 4 模型调用\n运行: 1c5645c7-2523-4ef4-90e2-178fef258631\n执行中\n上下文版本: v2\n停止运行 (Cancel)\n目标站点: http://localqa-t09b-fixture:8080/fix-02-delayed.html\n时间消耗: 0s / 600s\n动作步数: 2 / 120\n模型调用: 3 / 100\nToken 消耗: 54 / 300,000\n复现次数: 0 / 3\n运行生命周期阶段推进 (Phase Timeline)\n当前阶段: PLAN (running)\n1. 预检 (Preflight)\n2. 认证 (Auth)\n3. 探索 (Explore)\n4. 计划 (Plan)\n5. 执行 (Execute)\n6. 复现 (Reproduce)\n7. 报告 (Finalize)\n补充说明\n实时执行动态 (Timeline Events)\n已过滤模型隐藏推理，保证事实记录真实可见\n耗时: 0s\n[COORDINATOR]\nsucceeded\npreflight\n耗时: 0s\n[EXPLORER]\nsucceeded\nexplore\n耗时: 0s\n[COORDINATOR]\n执行中\nplan\n用例 (0)\n缺陷 (0)\n任务 (3)\n报告\n▶\n📭\n暂无用例记录\n\n冒烟规划中或此运行尚未生成用例。"
+      },
+      "stderrTail": "REPRO_BROWSER_JSON {\"spaceId\":625,\"messagesCountAtOpen\":null,\"sseStatusAtOpen\":\"SSE-pill-absent\",\"runDebug\":{\"hasCard\":false,\"status\":\"执行中\"},\"pageHtmlSnippet\":\"NO_CARD\",\"screenshot\":\"/Users/dcp/Documents/公司/momentic//deploy/.evidence/repro-workbench.png\",\"telemetryCount\":0,\"messagesCount\":null,\"domHasMarker\":false,\"bodyText\":\"L\\nLocalQA\\n/\\nT09B repro fixture\\n项目首页\\n运行工作台\\n环境/认证\\n项目知识\\n模型管理\\n成员/运维\\n🌐 真实 API 模式\\nadmin@localqa.internal\\n平台管理员\\n退出\\n运行历史 (Runs)\\n全部状态\\n活跃中\\n已结束\\n1c5645c7-2523-4e...\\n执行中\\nhttp://localqa-t09b-fixture:8080/fix-02-delayed.html\\n01:25:36 · 2 动作 / 4 模型调用\\n运行: 1c5645c7-2523-4ef4-90e2-178fef258631\\n执行中\\n上下文版本: v2\\n停止运行 (Cancel)\\n目标站点: http://localqa-t09b-fixture:8080/fix-02-delayed.html\\n时间消耗: 0s / 600s\\n动作步数: 2 / 120\\n模型调用: 3 / 100\\nToken 消耗: 54 / 300,000\\n复现次数: 0 / 3\\n运行生命周期阶段推进 (Phase Timeline)\\n当前阶段: PLAN (running)\\n1. 预检 (Preflight)\\n2. 认证 (Auth)\\n3. 探索 (Explore)\\n4. 计划 (Plan)\\n5. 执行 (Execute)\\n6. 复现 (Reproduce)\\n7. 报告 (Finalize)\\n补充说明\\n实时执行动态 (Timeline Events)\\n已过滤模型隐藏推理，保证事实记录真实可见\\n耗时: 0s\\n[COORDINATOR]\\nsucceeded\\npreflight\\n耗时: 0s\\n[EXPLORER]\\nsucceeded\\nexplore\\n耗时: 0s\\n[COORDINATOR]\\n执行中\\nplan\\n用例 (0)\\n缺陷 (0)\\n任务 (3)\\n报告\\n▶\\n📭\\n暂无用例记录\\n\\n冒烟规划中或此运行尚未生成用例。\"}\n\n"
+    }
+  },
+  "diagnosis": "render/polling layer: API returns and parser accepts, but UI does not render (polling stopped early / SSE handling)",
+  "allPassed": false,
+  "cleanup": {
+    "containers": [],
+    "volumes": [],
+    "networks": [],
+    "credentialsPresent": false,
+    "downError": null
+  }
+}

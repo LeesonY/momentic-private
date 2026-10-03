@@ -10209,6 +10209,13 @@
             "type": "string",
             "maxLength": 80
           },
+          "templateKind": {
+            "type": "string",
+            "enum": [
+              "smoke",
+              "regression"
+            ]
+          },
           "runTemplate": {
             "$ref": "#/components/schemas/RunCreate"
           },
@@ -10244,6 +10251,7 @@
           "name",
           "cron",
           "timezone",
+          "templateKind",
           "runTemplate",
           "overlapPolicy",
           "missedPolicy",
@@ -10269,6 +10277,13 @@
           "timezone": {
             "type": "string",
             "maxLength": 80
+          },
+          "templateKind": {
+            "type": "string",
+            "enum": [
+              "smoke",
+              "regression"
+            ]
           },
           "runTemplate": {
             "$ref": "#/components/schemas/RunCreate"
@@ -10297,6 +10312,7 @@
         "required": [
           "name",
           "cron",
+          "templateKind",
           "runTemplate"
         ],
         "additionalProperties": false
@@ -10321,6 +10337,13 @@
           "timezone": {
             "type": "string",
             "maxLength": 80
+          },
+          "templateKind": {
+            "type": "string",
+            "enum": [
+              "smoke",
+              "regression"
+            ]
           },
           "runTemplate": {
             "$ref": "#/components/schemas/RunCreate"
@@ -10351,6 +10374,15 @@
         ],
         "additionalProperties": false
       },
+      "ApiKeyScope": {
+        "type": "string",
+        "enum": [
+          "runs:create",
+          "runs:read",
+          "reports:read",
+          "runs:cancel"
+        ]
+      },
       "ApiKey": {
         "type": "object",
         "properties": {
@@ -10370,8 +10402,7 @@
           "scope": {
             "type": "array",
             "items": {
-              "type": "string",
-              "maxLength": 80
+              "$ref": "#/components/schemas/ApiKeyScope"
             },
             "maxItems": 20,
             "minItems": 1
@@ -10430,8 +10461,7 @@
           "scope": {
             "type": "array",
             "items": {
-              "type": "string",
-              "maxLength": 80
+              "$ref": "#/components/schemas/ApiKeyScope"
             },
             "maxItems": 20,
             "minItems": 1
@@ -10551,8 +10581,8 @@
           "status": {
             "type": "string",
             "enum": [
-              "open",
-              "accepted",
+              "draft",
+              "approved",
               "rejected"
             ]
           },

@@ -8,6 +8,7 @@ export type Contract =
   | ApiKeyCreate
   | ApiKeyCreated
   | ApiKeyPage
+  | ApiKeyScope
   | Artifact
   | AuthProfile
   | AuthProfileCreate
@@ -273,6 +274,7 @@ export type JsonValue =
   | {
       [k: string]: JsonValue | undefined;
     };
+export type ApiKeyScope = "runs:create" | "runs:read" | "reports:read" | "runs:cancel";
 export type AuthProfileCreate = {
   environmentId?: string | null;
   name: string;
@@ -449,7 +451,7 @@ export interface ApiKey {
    * @minItems 1
    * @maxItems 20
    */
-  scope: [string, ...string[]];
+  scope: [ApiKeyScope, ...ApiKeyScope[]];
   createdBy: string;
   createdAt: string;
   expiresAt: string | null;
@@ -461,7 +463,7 @@ export interface ApiKeyCreate {
    * @minItems 1
    * @maxItems 20
    */
-  scope: [string, ...string[]];
+  scope: [ApiKeyScope, ...ApiKeyScope[]];
   expiresAt?: string | null;
 }
 export interface ApiKeyCreated {
@@ -1095,7 +1097,7 @@ export interface RepairProposal {
   proposedVersion: number;
   diff: string;
   verificationRunId: string | null;
-  status: "open" | "accepted" | "rejected";
+  status: "draft" | "approved" | "rejected";
   createdAt: string;
 }
 export interface RepairProposalCreate {
@@ -1341,6 +1343,7 @@ export interface Schedule {
   name: string;
   cron: string;
   timezone: string;
+  templateKind: "smoke" | "regression";
   runTemplate: RunCreate;
   overlapPolicy: "skip" | "queue";
   missedPolicy: "skip" | "catchup_one";
@@ -1352,6 +1355,7 @@ export interface ScheduleCreate {
   name: string;
   cron: string;
   timezone?: string;
+  templateKind: "smoke" | "regression";
   runTemplate: RunCreate;
   overlapPolicy?: "skip" | "queue";
   missedPolicy?: "skip" | "catchup_one";
@@ -1370,6 +1374,7 @@ export interface SchedulePatch {
   name?: string;
   cron?: string;
   timezone?: string;
+  templateKind?: "smoke" | "regression";
   runTemplate?: RunCreate;
   overlapPolicy?: "skip" | "queue";
   missedPolicy?: "skip" | "catchup_one";
@@ -1484,6 +1489,7 @@ export interface ContractTypes {
   ApiKeyCreate: ApiKeyCreate;
   ApiKeyCreated: ApiKeyCreated;
   ApiKeyPage: ApiKeyPage;
+  ApiKeyScope: ApiKeyScope;
   Artifact: Artifact;
   AuthProfile: AuthProfile;
   AuthProfileCreate: AuthProfileCreate;

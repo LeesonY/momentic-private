@@ -1,8 +1,15 @@
 {
   "task": "T09-B-P0-acceptance",
-  "recordedAt": "2026-10-03T18:07:10.390Z",
+  "recordedAt": "2026-10-03T21:43:42.495Z",
   "P0Passed": false,
   "checks": [
+    {
+      "name": "web_bundle_served_matches_build",
+      "servedAsset": "index-e4ketOVu.js",
+      "localAsset": "index-e4ketOVu.js",
+      "match": true,
+      "kind": "prerequisite"
+    },
     {
       "name": "six_services_ready",
       "statuses": [
@@ -47,9 +54,9 @@
     },
     {
       "name": "model_default_to_run",
-      "projectId": "3b8e19fd-602c-4eb5-84b9-b95a323e5a67",
-      "modelId": "9ec824c1-07d8-4799-9d9c-4dafd79fae3b",
-      "runId": "62ee405e-ec0a-445d-9b25-d1d795e0d540",
+      "projectId": "9638a535-ae9d-4924-a899-7f6589183cdd",
+      "modelId": "0099a7d6-b1bb-4c1c-9014-b3589d38ffda",
+      "runId": "1d4b1970-7992-47d4-aa8a-444511298247",
       "status": "queued",
       "kind": "prerequisite"
     },
@@ -65,7 +72,7 @@
     {
       "name": "nginx_sse_heartbeat",
       "lastEventId": 50,
-      "heartbeatMs": 15009,
+      "heartbeatMs": 15013,
       "observedWithin22s": true,
       "waitReason": "SSE 心跳语义（真实 15s），非性能开销",
       "kind": "prerequisite"
@@ -74,27 +81,27 @@
   "unverified": [
     {
       "item": "1_six_services_business",
-      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。"
+      "reason": "单点复验跳过；沿用 2026-10-03T18:07:10.390Z 完整运行的结果。"
     },
     {
       "item": "3_ten_users_rbac",
-      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。"
+      "reason": "单点复验跳过；沿用 2026-10-03T18:07:10.390Z 完整运行的结果。"
     },
     {
       "item": "5_api_p95",
-      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。"
+      "reason": "单点复验跳过；沿用 2026-10-03T18:07:10.390Z 完整运行的结果。"
     },
     {
       "item": "4_sse_reconnect",
-      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。"
+      "reason": "单点复验跳过；沿用 2026-10-03T18:07:10.390Z 完整运行的结果。"
     },
     {
       "item": "6_ui",
-      "reason": "单点复验跳过且无历史结果，视为未验证。"
+      "reason": "单点复验跳过；沿用 2026-10-03T18:07:10.390Z 完整运行的结果。"
     },
     {
       "item": "4_faults",
-      "reason": "单点复验跳过且无历史结果，视为未验证。"
+      "reason": "单点复验跳过；沿用 2026-10-03T18:07:10.390Z 完整运行的结果。"
     },
     {
       "item": "3_four_slots_fairness",
@@ -134,77 +141,88 @@
   },
   "runScope": "partial",
   "only": [
-    "5_event_to_ui_p95"
+    "5_event_to_ui_p95",
+    "6_ui_sse_partial_blocked"
   ],
   "noBuild": true,
-  "baseRun": "2026-10-03T17:48:30.500Z",
+  "baseRun": "2026-10-03T18:07:10.390Z",
   "baseRunCategories": {
-    "1_six_services_business": {
-      "status": "未验证",
-      "recordedAt": "2026-10-03T17:48:30.500Z"
+    "2_end_to_end": {
+      "status": "通过",
+      "recordedAt": "2026-10-03T18:07:10.390Z"
     },
     "1_proxy_sse_unbuffered": {
-      "status": "未验证",
-      "recordedAt": "2026-10-03T17:48:30.500Z"
+      "status": "通过",
+      "recordedAt": "2026-10-03T18:07:10.390Z"
     },
-    "2_end_to_end": {
+    "1_six_services_business": {
       "status": "未验证",
-      "recordedAt": "2026-10-03T17:48:30.500Z"
+      "recordedAt": "2026-10-03T18:07:10.390Z"
     },
     "3_ten_users_rbac": {
       "status": "未验证",
-      "recordedAt": "2026-10-03T17:48:30.500Z"
-    },
-    "3_four_slots_fairness": {
-      "status": "未验证",
-      "recordedAt": "2026-10-03T17:48:30.500Z"
-    },
-    "4_db_restart": {
-      "status": "未验证",
-      "recordedAt": "2026-10-03T17:48:30.500Z"
-    },
-    "4_worker_midtask_kill": {
-      "status": "未验证",
-      "recordedAt": "2026-10-03T17:48:30.500Z"
-    },
-    "4_disk_full": {
-      "status": "未验证",
-      "recordedAt": "2026-10-03T17:48:30.500Z"
-    },
-    "4_sse_reconnect": {
-      "status": "未验证",
-      "recordedAt": "2026-10-03T17:48:30.500Z"
-    },
-    "4_credential_revocation": {
-      "status": "未验证",
-      "recordedAt": "2026-10-03T17:48:30.500Z"
+      "recordedAt": "2026-10-03T18:07:10.390Z"
     },
     "5_api_p95": {
       "status": "未验证",
-      "recordedAt": "2026-10-03T17:48:30.500Z"
+      "recordedAt": "2026-10-03T18:07:10.390Z"
     },
     "5_event_to_ui_p95": {
+      "status": "失败",
+      "recordedAt": "2026-10-03T18:07:10.390Z"
+    },
+    "4_sse_reconnect": {
       "status": "未验证",
-      "recordedAt": "2026-10-03T17:48:30.500Z"
+      "recordedAt": "2026-10-03T18:07:10.390Z"
+    },
+    "6_ui": {
+      "status": "未验证",
+      "recordedAt": "2026-10-03T18:07:10.390Z"
+    },
+    "4_faults": {
+      "status": "未验证",
+      "recordedAt": "2026-10-03T18:07:10.390Z"
+    },
+    "3_four_slots_fairness": {
+      "status": "未验证",
+      "recordedAt": "2026-10-03T18:07:10.390Z"
+    },
+    "4_db_restart": {
+      "status": "未验证",
+      "recordedAt": "2026-10-03T18:07:10.390Z"
+    },
+    "4_worker_midtask_kill": {
+      "status": "未验证",
+      "recordedAt": "2026-10-03T18:07:10.390Z"
+    },
+    "4_disk_full": {
+      "status": "未验证",
+      "recordedAt": "2026-10-03T18:07:10.390Z"
+    },
+    "4_credential_revocation": {
+      "status": "未验证",
+      "recordedAt": "2026-10-03T18:07:10.390Z"
     },
     "6_ui_refresh": {
       "status": "未验证",
-      "recordedAt": "2026-10-03T17:48:30.500Z"
+      "recordedAt": "2026-10-03T18:07:10.390Z"
     },
     "6_ui_sse_partial_blocked": {
       "status": "未验证",
-      "recordedAt": "2026-10-03T17:48:30.500Z"
+      "recordedAt": "2026-10-03T18:07:10.390Z"
     }
   },
   "effectiveOnly": [
     "5_event_to_ui_p95",
+    "6_ui_sse_partial_blocked",
     "2_end_to_end"
   ],
   "prerequisiteChecks": [
     "2_end_to_end"
   ],
   "targetChecks": [
-    "5_event_to_ui_p95"
+    "5_event_to_ui_p95",
+    "6_ui_sse_partial_blocked"
   ],
   "history": [
     {
@@ -73777,13 +73795,341 @@
       },
       "releaseDecision": "不放行：真实模型 G3 和必需的 G4 项未全部通过；任何失败/未验证均不可视为通过。",
       "P0Passed": false
+    },
+    {
+      "recordedAt": "2026-10-03T18:07:10.390Z",
+      "categories": {
+        "2_end_to_end": {
+          "status": "通过",
+          "raw": {
+            "runId": "62ee405e-ec0a-445d-9b25-d1d795e0d540",
+            "db": "lease|5|1\nverdict|1|passed\nevents|50|1..50\nevidence|1|b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
+            "reportStatus": 200,
+            "reportSummary": {
+              "passed": 1,
+              "issueFound": 0,
+              "blocked": 0,
+              "inconclusive": 0,
+              "notRun": 0,
+              "planned": 1,
+              "evaluated": 1,
+              "attempted": 1,
+              "passRate": 1,
+              "attemptRate": 1
+            },
+            "cleanupStatus": "succeeded",
+            "caseStatuses": [
+              "passed"
+            ],
+            "screenshot": {
+              "id": "6b5bc1df-310a-471c-bf77-4ca5aeb6dbab",
+              "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
+              "bytes": 265850,
+              "contentHttp": 200,
+              "contentType": "image/png"
+            },
+            "exportCreate": {
+              "status": 202,
+              "body": {
+                "id": "57dd2e79-8deb-49ef-b518-4821adc74640",
+                "runId": "62ee405e-ec0a-445d-9b25-d1d795e0d540",
+                "status": "ready",
+                "format": "zip",
+                "artifactId": "56124015-91fb-463d-95e6-91b8b4bb35f7",
+                "snapshotAt": "2026-10-03T18:07:36.625Z",
+                "error": null
+              }
+            },
+            "exportGet": {
+              "status": 200,
+              "body": {
+                "id": "57dd2e79-8deb-49ef-b518-4821adc74640",
+                "error": null,
+                "runId": "62ee405e-ec0a-445d-9b25-d1d795e0d540",
+                "format": "zip",
+                "status": "ready",
+                "artifactId": "56124015-91fb-463d-95e6-91b8b4bb35f7",
+                "snapshotAt": "2026-10-03T18:07:36.625Z"
+              }
+            },
+            "exportDownload": {
+              "status": 200,
+              "contentType": "application/zip"
+            },
+            "zipVerification": {
+              "zipSha256": "569d83476d581ae7be82d770d43d7089d8b133fd0e2f2f70e4a16de5ccefb151",
+              "zipBytes": 254257,
+              "unzipStatus": 0,
+              "entries": [
+                "report.json",
+                "report.md",
+                "manifest.json",
+                "artifacts/6b5bc1df-310a-471c-bf77-4ca5aeb6dbab.png"
+              ],
+              "manifest": {
+                "schemaVersion": 1,
+                "runId": "62ee405e-ec0a-445d-9b25-d1d795e0d540",
+                "projectId": "3b8e19fd-602c-4eb5-84b9-b95a323e5a67",
+                "generatedAt": "2026-10-03T18:07:36.617Z",
+                "isSnapshot": false,
+                "totalArtifacts": 1,
+                "availableArtifacts": 1,
+                "missingArtifacts": 0,
+                "degradedArtifacts": 0,
+                "failedArtifacts": 0,
+                "artifacts": [
+                  {
+                    "id": "6b5bc1df-310a-471c-bf77-4ca5aeb6dbab",
+                    "kind": "screenshot",
+                    "status": "available",
+                    "bytes": 265850,
+                    "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
+                    "relativePath": "artifacts/6b5bc1df-310a-471c-bf77-4ca5aeb6dbab.png",
+                    "error": null
+                  }
+                ]
+              },
+              "hashes": [
+                {
+                  "id": "6b5bc1df-310a-471c-bf77-4ca5aeb6dbab",
+                  "status": "available",
+                  "included": true,
+                  "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
+                  "expectedSha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb"
+                }
+              ],
+              "valid": true
+            }
+          },
+          "reason": null,
+          "samples": 1
+        },
+        "1_proxy_sse_unbuffered": {
+          "status": "通过",
+          "raw": {
+            "lastEventId": 50,
+            "ms": 15009,
+            "frame": ": ping\n\n",
+            "status": 200,
+            "contentType": "text/event-stream; charset=utf-8",
+            "waitReason": "SSE 心跳语义（真实 15s），非性能开销"
+          },
+          "reason": null,
+          "samples": 1
+        },
+        "1_six_services_business": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。",
+          "samples": 0
+        },
+        "3_ten_users_rbac": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。",
+          "samples": 0
+        },
+        "5_api_p95": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。",
+          "samples": 0
+        },
+        "5_event_to_ui_p95": {
+          "status": "失败",
+          "raw": {
+            "error": "Error: connect ECONNREFUSED 127.0.0.1:18443",
+            "agyRepro": {
+              "steps": {
+                "step1_bundle": {
+                  "servedAsset": "index-e4ketOVu.js",
+                  "localAsset": "index-e4ketOVu.js",
+                  "match": true
+                },
+                "step1b_runRunning": {
+                  "status": "running",
+                  "contextVersion": 1
+                },
+                "step3_postImmediate": {
+                  "status": 202,
+                  "body": {
+                    "id": "06d741ea-9db1-4209-9042-f33f6fab9202",
+                    "phase": "preflight",
+                    "status": "running",
+                    "version": 3,
+                    "createdAt": "2026-10-03T20:37:46.187Z",
+                    "creatorId": "77a8c5b6-4438-4706-9d25-cd9f6351327a",
+                    "projectId": "b2a32872-0ea9-4eee-b9b0-477dcfaccbf2",
+                    "targetUrl": "http://localqa-t09b-fixture:8080/fix-02-delayed.html",
+                    "updatedAt": "2026-10-03T20:37:46.862Z",
+                    "budgetUsed": {
+                      "actions": 0,
+                      "modelCalls": 1,
+                      "totalTokens": 18,
+                      "activeSeconds": 0,
+                      "reproductions": 0
+                    },
+                    "completion": "none",
+                    "contextVersion": 2,
+                    "effectiveConfig": {
+                      "budget": {
+                        "maxCases": 8,
+                        "maxDepth": 2,
+                        "maxPages": 6,
+                        "maxActions": 120,
+                        "concurrency": 2,
+                        "maxModelCalls": 100,
+                        "maxTotalTokens": 300000,
+                        "maxActiveSeconds": 600,
+                        "maxReproductions": 3,
+                        "maxActionsPerCase": 30
+                      },
+                      "models": {
+                        "executor": {
+                          "version": 1,
+                          "profileId": "05a74fc9-2881-4773-9bd9-a8c2c86aa421"
+                        },
+                        "explorer": {
+                          "version": 1,
+                          "profileId": "05a74fc9-2881-4773-9bd9-a8c2c86aa421"
+                        },
+                        "assertion": {
+                          "version": 1,
+                          "profileId": "05a74fc9-2881-4773-9bd9-a8c2c86aa421"
+                        },
+                        "reproducer": {
+                          "version": 1,
+                          "profileId": "05a74fc9-2881-4773-9bd9-a8c2c86aa421"
+                        },
+                        "coordinator": {
+                          "version": 1,
+                          "profileId": "05a74fc9-2881-4773-9bd9-a8c2c86aa421"
+                        }
+                      },
+                      "actionPolicy": "non_submitting",
+                      "allowedOrigins": [
+                        "http://localqa-t09b-fixture:8080"
+                      ],
+                      "authProfileVersion": null,
+                      "environmentVersion": null,
+                      "knowledgeVersionIds": []
+                    },
+                    "terminationReason": null
+                  },
+                  "injectedAtStatus": "running"
+                },
+                "step2_browserOpen": {
+                  "spaceId": 656,
+                  "error": "Error: page.waitForSelector timed out after 20000ms: [data-testid=\"workbench-page\"]"
+                },
+                "step3_browserRead": {
+                  "error": "no browser json",
+                  "stderr": ""
+                }
+              },
+              "verdict": "environment",
+              "verdictReason": "agy steps still fail in this stack; environments genuinely differ."
+            }
+          },
+          "reason": "验证受阻：注入窗口短于工作台打开耗时。已尝试：delay=30000/60000、更大预算、立即注入（注入成功 202，injectedAtStatus=running），但浏览器打开工作台超时（workbench-page 未在 20s 内出现），无法完成同钟打点。agy 在开发服务上通过；本容器栈的注入-渲染链路在 harness 下未跑通。",
+          "samples": null
+        },
+        "4_sse_reconnect": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。",
+          "samples": 0
+        },
+        "6_ui": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "单点复验跳过且无历史结果，视为未验证。",
+          "samples": 0
+        },
+        "4_faults": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "单点复验跳过且无历史结果，视为未验证。",
+          "samples": 0
+        },
+        "3_four_slots_fairness": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "4_db_restart": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "4_worker_midtask_kill": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "4_disk_full": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "4_credential_revocation": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "6_ui_refresh": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        },
+        "6_ui_sse_partial_blocked": {
+          "status": "未验证",
+          "raw": {
+            "sampleCount": 0
+          },
+          "reason": "前置步骤失败或验证程序未能到达本项",
+          "samples": 0
+        }
+      },
+      "releaseDecision": "不放行：真实模型 G3 和必需的 G4 项未全部通过；任何失败/未验证均不可视为通过。",
+      "P0Passed": false
     }
   ],
   "categories": {
     "2_end_to_end": {
       "status": "通过",
       "raw": {
-        "runId": "62ee405e-ec0a-445d-9b25-d1d795e0d540",
+        "runId": "1d4b1970-7992-47d4-aa8a-444511298247",
         "db": "lease|5|1\nverdict|1|passed\nevents|50|1..50\nevidence|1|b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
         "reportStatus": 200,
         "reportSummary": {
@@ -73803,7 +74149,7 @@
           "passed"
         ],
         "screenshot": {
-          "id": "6b5bc1df-310a-471c-bf77-4ca5aeb6dbab",
+          "id": "71db91e2-d2e5-4c50-8e08-2a8a90e8b55e",
           "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
           "bytes": 265850,
           "contentHttp": 200,
@@ -73812,25 +74158,25 @@
         "exportCreate": {
           "status": 202,
           "body": {
-            "id": "57dd2e79-8deb-49ef-b518-4821adc74640",
-            "runId": "62ee405e-ec0a-445d-9b25-d1d795e0d540",
+            "id": "617b4f64-a8ad-4e71-884a-cb240c24dd77",
+            "runId": "1d4b1970-7992-47d4-aa8a-444511298247",
             "status": "ready",
             "format": "zip",
-            "artifactId": "56124015-91fb-463d-95e6-91b8b4bb35f7",
-            "snapshotAt": "2026-10-03T18:07:36.625Z",
+            "artifactId": "0bcfa838-b881-4d9b-adcf-54db0a1e7cb9",
+            "snapshotAt": "2026-10-03T21:44:08.763Z",
             "error": null
           }
         },
         "exportGet": {
           "status": 200,
           "body": {
-            "id": "57dd2e79-8deb-49ef-b518-4821adc74640",
+            "id": "617b4f64-a8ad-4e71-884a-cb240c24dd77",
             "error": null,
-            "runId": "62ee405e-ec0a-445d-9b25-d1d795e0d540",
+            "runId": "1d4b1970-7992-47d4-aa8a-444511298247",
             "format": "zip",
             "status": "ready",
-            "artifactId": "56124015-91fb-463d-95e6-91b8b4bb35f7",
-            "snapshotAt": "2026-10-03T18:07:36.625Z"
+            "artifactId": "0bcfa838-b881-4d9b-adcf-54db0a1e7cb9",
+            "snapshotAt": "2026-10-03T21:44:08.763Z"
           }
         },
         "exportDownload": {
@@ -73838,20 +74184,20 @@
           "contentType": "application/zip"
         },
         "zipVerification": {
-          "zipSha256": "569d83476d581ae7be82d770d43d7089d8b133fd0e2f2f70e4a16de5ccefb151",
-          "zipBytes": 254257,
+          "zipSha256": "a2843bf027a317a4bbb87e0a13a7feb321f1497e8953dcb93081d81167c5a918",
+          "zipBytes": 254266,
           "unzipStatus": 0,
           "entries": [
             "report.json",
             "report.md",
             "manifest.json",
-            "artifacts/6b5bc1df-310a-471c-bf77-4ca5aeb6dbab.png"
+            "artifacts/71db91e2-d2e5-4c50-8e08-2a8a90e8b55e.png"
           ],
           "manifest": {
             "schemaVersion": 1,
-            "runId": "62ee405e-ec0a-445d-9b25-d1d795e0d540",
-            "projectId": "3b8e19fd-602c-4eb5-84b9-b95a323e5a67",
-            "generatedAt": "2026-10-03T18:07:36.617Z",
+            "runId": "1d4b1970-7992-47d4-aa8a-444511298247",
+            "projectId": "9638a535-ae9d-4924-a899-7f6589183cdd",
+            "generatedAt": "2026-10-03T21:44:08.755Z",
             "isSnapshot": false,
             "totalArtifacts": 1,
             "availableArtifacts": 1,
@@ -73860,19 +74206,19 @@
             "failedArtifacts": 0,
             "artifacts": [
               {
-                "id": "6b5bc1df-310a-471c-bf77-4ca5aeb6dbab",
+                "id": "71db91e2-d2e5-4c50-8e08-2a8a90e8b55e",
                 "kind": "screenshot",
                 "status": "available",
                 "bytes": 265850,
                 "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
-                "relativePath": "artifacts/6b5bc1df-310a-471c-bf77-4ca5aeb6dbab.png",
+                "relativePath": "artifacts/71db91e2-d2e5-4c50-8e08-2a8a90e8b55e.png",
                 "error": null
               }
             ]
           },
           "hashes": [
             {
-              "id": "6b5bc1df-310a-471c-bf77-4ca5aeb6dbab",
+              "id": "71db91e2-d2e5-4c50-8e08-2a8a90e8b55e",
               "status": "available",
               "included": true,
               "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
@@ -73889,7 +74235,7 @@
       "status": "通过",
       "raw": {
         "lastEventId": 50,
-        "ms": 15009,
+        "ms": 15013,
         "frame": ": ping\n\n",
         "status": 200,
         "contentType": "text/event-stream; charset=utf-8",
@@ -73903,7 +74249,7 @@
       "raw": {
         "sampleCount": 0
       },
-      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。",
+      "reason": "单点复验跳过；沿用 2026-10-03T18:07:10.390Z 完整运行的结果。",
       "samples": 0
     },
     "3_ten_users_rbac": {
@@ -73911,7 +74257,7 @@
       "raw": {
         "sampleCount": 0
       },
-      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。",
+      "reason": "单点复验跳过；沿用 2026-10-03T18:07:10.390Z 完整运行的结果。",
       "samples": 0
     },
     "5_api_p95": {
@@ -73919,114 +74265,190 @@
       "raw": {
         "sampleCount": 0
       },
-      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。",
+      "reason": "单点复验跳过；沿用 2026-10-03T18:07:10.390Z 完整运行的结果。",
       "samples": 0
     },
     "5_event_to_ui_p95": {
       "status": "失败",
       "raw": {
-        "error": "Error: connect ECONNREFUSED 127.0.0.1:18443",
-        "agyRepro": {
-          "steps": {
-            "step1_bundle": {
-              "servedAsset": "index-e4ketOVu.js",
-              "localAsset": "index-e4ketOVu.js",
-              "match": true
-            },
-            "step1b_runRunning": {
-              "status": "running",
-              "contextVersion": 1
-            },
-            "step3_postImmediate": {
-              "status": 202,
-              "body": {
-                "id": "06d741ea-9db1-4209-9042-f33f6fab9202",
-                "phase": "preflight",
-                "status": "running",
-                "version": 3,
-                "createdAt": "2026-10-03T20:37:46.187Z",
-                "creatorId": "77a8c5b6-4438-4706-9d25-cd9f6351327a",
-                "projectId": "b2a32872-0ea9-4eee-b9b0-477dcfaccbf2",
-                "targetUrl": "http://localqa-t09b-fixture:8080/fix-02-delayed.html",
-                "updatedAt": "2026-10-03T20:37:46.862Z",
-                "budgetUsed": {
-                  "actions": 0,
-                  "modelCalls": 1,
-                  "totalTokens": 18,
-                  "activeSeconds": 0,
-                  "reproductions": 0
-                },
-                "completion": "none",
-                "contextVersion": 2,
-                "effectiveConfig": {
-                  "budget": {
-                    "maxCases": 8,
-                    "maxDepth": 2,
-                    "maxPages": 6,
-                    "maxActions": 120,
-                    "concurrency": 2,
-                    "maxModelCalls": 100,
-                    "maxTotalTokens": 300000,
-                    "maxActiveSeconds": 600,
-                    "maxReproductions": 3,
-                    "maxActionsPerCase": 30
-                  },
-                  "models": {
-                    "executor": {
-                      "version": 1,
-                      "profileId": "05a74fc9-2881-4773-9bd9-a8c2c86aa421"
-                    },
-                    "explorer": {
-                      "version": 1,
-                      "profileId": "05a74fc9-2881-4773-9bd9-a8c2c86aa421"
-                    },
-                    "assertion": {
-                      "version": 1,
-                      "profileId": "05a74fc9-2881-4773-9bd9-a8c2c86aa421"
-                    },
-                    "reproducer": {
-                      "version": 1,
-                      "profileId": "05a74fc9-2881-4773-9bd9-a8c2c86aa421"
-                    },
-                    "coordinator": {
-                      "version": 1,
-                      "profileId": "05a74fc9-2881-4773-9bd9-a8c2c86aa421"
-                    }
-                  },
-                  "actionPolicy": "non_submitting",
-                  "allowedOrigins": [
-                    "http://localqa-t09b-fixture:8080"
-                  ],
-                  "authProfileVersion": null,
-                  "environmentVersion": null,
-                  "knowledgeVersionIds": []
-                },
-                "terminationReason": null
-              },
-              "injectedAtStatus": "running"
-            },
-            "step2_browserOpen": {
-              "spaceId": 656,
-              "error": "Error: page.waitForSelector timed out after 20000ms: [data-testid=\"workbench-page\"]"
-            },
-            "step3_browserRead": {
-              "error": "no browser json",
-              "stderr": ""
-            }
+        "count": 20,
+        "measured": 0,
+        "p95Ms": null,
+        "minMs": null,
+        "maxMs": null,
+        "samples": [
+          {
+            "marker": "ACCEPT_MARKER_0_6CBE9F",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
           },
-          "verdict": "environment",
-          "verdictReason": "agy steps still fail in this stack; environments genuinely differ."
-        }
+          {
+            "marker": "ACCEPT_MARKER_1_0B8654",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          },
+          {
+            "marker": "ACCEPT_MARKER_2_6D31A3",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          },
+          {
+            "marker": "ACCEPT_MARKER_3_523EA3",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          },
+          {
+            "marker": "ACCEPT_MARKER_4_C6039D",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          },
+          {
+            "marker": "ACCEPT_MARKER_5_8DAE32",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          },
+          {
+            "marker": "ACCEPT_MARKER_6_916BE9",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          },
+          {
+            "marker": "ACCEPT_MARKER_7_1DE08F",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          },
+          {
+            "marker": "ACCEPT_MARKER_8_9AE21E",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          },
+          {
+            "marker": "ACCEPT_MARKER_9_62A88D",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          },
+          {
+            "marker": "ACCEPT_MARKER_10_D4E8A6",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          },
+          {
+            "marker": "ACCEPT_MARKER_11_B51FF0",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          },
+          {
+            "marker": "ACCEPT_MARKER_12_026764",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          },
+          {
+            "marker": "ACCEPT_MARKER_13_66BCC4",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          },
+          {
+            "marker": "ACCEPT_MARKER_14_A60046",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          },
+          {
+            "marker": "ACCEPT_MARKER_15_D90506",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          },
+          {
+            "marker": "ACCEPT_MARKER_16_867F59",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          },
+          {
+            "marker": "ACCEPT_MARKER_17_0CBA1B",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          },
+          {
+            "marker": "ACCEPT_MARKER_18_AC4EAB",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          },
+          {
+            "marker": "ACCEPT_MARKER_19_9C5F7F",
+            "sentCv": null,
+            "latencyMs": null,
+            "dbCommitAt": null,
+            "uiRenderedAt": null,
+            "error": "no telemetry (telemetryCount=undefined)"
+          }
+        ],
+        "note": "latencyMs = browser Date.now() at DOM render - Date.parse(run_messages.created_at); both captured on the same browser clock via recordMessageRendered"
       },
-      "reason": "验证受阻：注入窗口短于工作台打开耗时。已尝试：delay=30000/60000、更大预算、立即注入（注入成功 202，injectedAtStatus=running），但浏览器打开工作台超时（workbench-page 未在 20s 内出现），无法完成同钟打点。agy 在开发服务上通过；本容器栈的注入-渲染链路在 harness 下未跑通。",
-      "samples": null
+      "reason": "会话修复后仍失败：消息注入成功（API 日志 MSG_DEBUG 可见 20 条 POST），但浏览器侧 __messageTelemetryHistory 始终为空（telemetryCount=undefined）、DOM 无 marker。断在渲染/打点层；产物一致性已通过（index-e4ketOVu.js match=true），agy 复现已证 hasCardAtOpen=true，因此本项为 harness/前端交互链路未跑通，非契约或静态产物问题。",
+      "samples": 0
     },
     "4_sse_reconnect": {
       "status": "未验证",
       "raw": {
         "sampleCount": 0
       },
-      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。",
+      "reason": "单点复验跳过；沿用 2026-10-03T18:07:10.390Z 完整运行的结果。",
       "samples": 0
     },
     "6_ui": {
@@ -74034,7 +74456,7 @@
       "raw": {
         "sampleCount": 0
       },
-      "reason": "单点复验跳过且无历史结果，视为未验证。",
+      "reason": "单点复验跳过；沿用 2026-10-03T18:07:10.390Z 完整运行的结果。",
       "samples": 0
     },
     "4_faults": {
@@ -74042,7 +74464,7 @@
       "raw": {
         "sampleCount": 0
       },
-      "reason": "单点复验跳过且无历史结果，视为未验证。",
+      "reason": "单点复验跳过；沿用 2026-10-03T18:07:10.390Z 完整运行的结果。",
       "samples": 0
     },
     "3_four_slots_fairness": {
@@ -74098,66 +74520,66 @@
       "raw": {
         "sampleCount": 0
       },
-      "reason": "前置步骤失败或验证程序未能到达本项",
+      "reason": "未验证：本轮在 5_event_to_ui_p95 消耗完时间后未到达该项；三态真实截图（断线重连/partial/受阻）仍未取得。",
       "samples": 0
     }
   },
   "timings": [
     {
       "label": "compose up postgres",
-      "startAt": "2026-10-03T18:07:10.888Z",
-      "endAt": "2026-10-03T18:07:16.532Z",
-      "ms": 5644,
+      "startAt": "2026-10-03T21:43:43.217Z",
+      "endAt": "2026-10-03T21:43:48.877Z",
+      "ms": 5660,
       "waitReason": "compose start + pg healthcheck"
     },
     {
       "label": "db migrate",
-      "startAt": "2026-10-03T18:07:16.702Z",
-      "endAt": "2026-10-03T18:07:17.131Z",
-      "ms": 429,
+      "startAt": "2026-10-03T21:43:49.035Z",
+      "endAt": "2026-10-03T21:43:49.463Z",
+      "ms": 428,
       "waitReason": null
     },
     {
       "label": "bootstrap admin",
-      "startAt": "2026-10-03T18:07:17.131Z",
-      "endAt": "2026-10-03T18:07:17.691Z",
-      "ms": 560,
+      "startAt": "2026-10-03T21:43:49.463Z",
+      "endAt": "2026-10-03T21:43:49.968Z",
+      "ms": 505,
       "waitReason": null
     },
     {
       "label": "compose up six services",
-      "startAt": "2026-10-03T18:07:17.779Z",
-      "endAt": "2026-10-03T18:07:29.964Z",
-      "ms": 12185,
+      "startAt": "2026-10-03T21:43:50.054Z",
+      "endAt": "2026-10-03T21:44:02.091Z",
+      "ms": 12037,
       "waitReason": "compose start + healthchecks (5 services)"
     },
     {
       "label": "5_event_to_ui_p95",
-      "startAt": "2026-10-03T18:07:51.724Z",
-      "endAt": "2026-10-03T18:11:59.105Z",
-      "ms": 247381
+      "startAt": "2026-10-03T21:44:23.840Z",
+      "endAt": "2026-10-03T22:25:33.484Z",
+      "ms": 2469644
     },
     {
       "label": "compose down + cleanup",
-      "startAt": "2026-10-03T18:11:59.105Z",
-      "endAt": "2026-10-03T18:11:59.332Z",
-      "ms": 227,
+      "startAt": "2026-10-03T22:25:33.485Z",
+      "endAt": "2026-10-03T22:25:34.842Z",
+      "ms": 1357,
       "waitReason": null
     }
   ],
   "timingsSummary": {
-    "totalMs": 266426,
-    "semanticWaitMs": 17829,
-    "otherOverheadMs": 248597,
+    "totalMs": 2489631,
+    "semanticWaitMs": 17697,
+    "otherOverheadMs": 2471934,
     "semanticWaits": [
       {
         "label": "compose up postgres",
-        "ms": 5644,
+        "ms": 5660,
         "waitReason": "compose start + pg healthcheck"
       },
       {
         "label": "compose up six services",
-        "ms": 12185,
+        "ms": 12037,
         "waitReason": "compose start + healthchecks (5 services)"
       }
     ]
@@ -74179,37 +74601,37 @@
     {
       "item": "1_six_services_business",
       "status": "未验证",
-      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。"
+      "reason": "单点复验跳过；沿用 2026-10-03T18:07:10.390Z 完整运行的结果。"
     },
     {
       "item": "3_ten_users_rbac",
       "status": "未验证",
-      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。"
+      "reason": "单点复验跳过；沿用 2026-10-03T18:07:10.390Z 完整运行的结果。"
     },
     {
       "item": "5_api_p95",
       "status": "未验证",
-      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。"
+      "reason": "单点复验跳过；沿用 2026-10-03T18:07:10.390Z 完整运行的结果。"
     },
     {
       "item": "5_event_to_ui_p95",
       "status": "失败",
-      "reason": "本项执行失败，不视作通过"
+      "reason": "同钟打点不足：measured=0/20，P95=null"
     },
     {
       "item": "4_sse_reconnect",
       "status": "未验证",
-      "reason": "单点复验跳过；沿用 2026-10-03T17:48:30.500Z 完整运行的结果。"
+      "reason": "单点复验跳过；沿用 2026-10-03T18:07:10.390Z 完整运行的结果。"
     },
     {
       "item": "6_ui",
       "status": "未验证",
-      "reason": "单点复验跳过且无历史结果，视为未验证。"
+      "reason": "单点复验跳过；沿用 2026-10-03T18:07:10.390Z 完整运行的结果。"
     },
     {
       "item": "4_faults",
       "status": "未验证",
-      "reason": "单点复验跳过且无历史结果，视为未验证。"
+      "reason": "单点复验跳过；沿用 2026-10-03T18:07:10.390Z 完整运行的结果。"
     },
     {
       "item": "3_four_slots_fairness",

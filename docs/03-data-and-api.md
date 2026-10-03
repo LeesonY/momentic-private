@@ -141,18 +141,18 @@ P1 增加用例库版本、回归运行、schedule、CLI key、缓存和修复�
 
 | 接口 | 用途/权限 |
 | --- | --- |
-| GET/POST /projects/{projectId}/saved-cases | 用例库列表与创建（document 或 sourceRunCaseId 二选一）；项目成员可读，owner/operator 可建 |
-| GET /saved-cases/{caseId}/versions | 不可变版本列表（document/hash/reviewStatus/作者/时间）；项目成员可读 |
+| GET/POST /projects/{projectId}/saved-cases | 用例库列表与创建（document 或 sourceRunCaseId 二选一）；viewer 可读，owner/operator 可写 |
+| GET /saved-cases/{caseId}/versions | 不可变版本列表（document/hash/reviewStatus/作者/时间）；viewer 可读 |
 | POST /saved-cases/{caseId}/versions | 新建 draft 版本（expectedVersion+document），不覆盖 approved；owner/operator |
 | POST /saved-case-versions/{versionId}/review-preview | 显示 criteria/动作/风险差异并发放短期确认 token；owner |
 | POST /saved-case-versions/{versionId}/review | 用确认 token 批准或拒绝；owner |
 | POST /regression-runs | 按 caseVersionIds 发起回归运行（同一 Run DTO，跳过自主探索）；operator/owner |
-| GET/POST /projects/{projectId}/schedules | 定时配置列表与创建（cron/timezone/runTemplate/overlapPolicy/missedPolicy/enabled）；owner |
+| GET/POST /projects/{projectId}/schedules | 定时配置列表与创建（cron/timezone/templateKind/runTemplate/overlapPolicy/missedPolicy/enabled）；viewer 可读，owner 可写 |
 | PATCH /schedules/{scheduleId} | 更新定时配置（expectedVersion），不影响已创建运行快照；owner |
 | POST /schedules/{scheduleId}/run-now | 立即触发一次独立 run，受重叠/额度政策约束；operator/owner |
-| GET/POST /projects/{projectId}/api-keys；POST /api-keys/{keyId}/revoke | CLI/CI key 管理；owner/operator 获得不超过自身权限的 scope，明文 token 只在创建时返回一次 |
-| GET /runs/{runId}/cache-stats | 命中/未命中/失效、解析方式、节省的模型调用与耗时；项目成员可读 |
-| GET/POST /saved-cases/{caseId}/repair-proposals | 失败修复建议（diff/验证记录/提议版本），不自动发布新预期；owner/operator |
+| GET/POST /projects/{projectId}/api-keys；POST /api-keys/{keyId}/revoke | CLI/CI key 管理；owner/operator（viewer 不可见），明文 token 只在创建时返回一次 |
+| GET /runs/{runId}/cache-stats | 命中/未命中/失效、解析方式、节省的模型调用与耗时；viewer 可读 |
+| GET/POST /saved-cases/{caseId}/repair-proposals | 失败修复建议（diff/验证记录/提议版本），不自动发布新预期；owner/operator（viewer 不可见） |
 
 P0 既有 61 个操作未改动；新增 17 个 P1 操作，总操作数 78。字段来源均为 docs/06 §3；分页/权限/状态枚举的默认判断见交付报告，需要裁决的点已标注。
 
