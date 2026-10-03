@@ -103,13 +103,19 @@ export function registerRunRoutes(router: Router): void {
       }
 
       const versionRow = (
-        await client.query<{ version: number }>(
-          'SELECT version FROM model_profiles WHERE id = $1',
+        await client.query<{ version: number; status: string }>(
+          `SELECT p.version, v.document->>'status' AS status
+           FROM model_profiles p
+           JOIN model_profile_versions v ON v.profile_id=p.id AND v.version=p.version
+           WHERE p.id = $1`,
           [profileId],
         )
       ).rows[0];
 
       if (!versionRow) {
+        throw new StorageError('MODEL_NOT_CONFIGURED');
+      }
+      if (versionRow.status === 'disabled' || versionRow.status === 'revoked') {
         throw new StorageError('MODEL_NOT_CONFIGURED');
       }
 

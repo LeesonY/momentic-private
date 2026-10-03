@@ -14,6 +14,8 @@ import { fileURLToPath } from 'node:url';
 import https from 'node:https';
 import { setTimeout as delay } from 'node:timers/promises';
 import { resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { mkdtempSync } from 'node:fs';
 import { runAcceptanceExtras } from './acceptance-extra.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
@@ -27,6 +29,20 @@ const evidence = {
   cleanup: {},
 };
 const output = `${root}/docs/validation-results/T09B-acceptance.json`;
+const previous = existsSync(output)
+  ? JSON.parse(readFileSync(output, 'utf8'))
+  : null;
+evidence.history = previous
+  ? [
+      ...(previous.history || []),
+      {
+        recordedAt: previous.recordedAt,
+        categories: previous.categories,
+        releaseDecision: previous.releaseDecision,
+        P0Passed: previous.P0Passed,
+      },
+    ]
+  : [];
 evidence.categories = {};
 evidence.environment = {
   docker: cmd(
@@ -107,8 +123,8 @@ function http(method, path, body, cookie, timeout = 10000) {
         ca: readFileSync(`${deploy}/certs/tls.crt`),
         timeout,
         headers: {
-          Host: 'localqa.internal',
-          Origin: 'https://localqa.internal',
+          Host: '127.0.0.1:18443',
+          Origin: 'https://127.0.0.1:18443',
           ...(cookie ? { Cookie: cookie } : {}),
           ...(body
             ? {
@@ -256,10 +272,12 @@ try {
     `${deploy}/certs/tls.crt`,
     '-subj',
     '/CN=localqa.internal',
+    '-addext',
+    'subjectAltName=DNS:localqa.internal,IP:127.0.0.1',
   ]);
   writeFileSync(
     `${deploy}/.env`,
-    `DATABASE_URL=postgresql://localqa:${password}@postgres:5432/localqa\nPUBLIC_ORIGIN=https://localqa.internal\nDATA_DIR=/var/localqa/data\nMASTER_KEY_FILE=/run/secrets/kek.json\nWORKER_IDENTITY_FILE=/run/secrets/worker_identity.json\nLOCALQA_ALLOW_TEST_STUB=1\nBROWSER_SLOTS=4\nJOB_HEARTBEAT_SECONDS=10\nJOB_LEASE_SECONDS=45\nJOB_POLL_INTERVAL_MS=500\nWORKER_FIXTURE_URL=http://localqa-t09b-fixture:8080/\nLOCALQA_API_IMAGE=localqa-api:latest\nLOCALQA_WORKER_IMAGE=localqa-worker:latest\nLOCALQA_ORCHESTRATOR_IMAGE=localqa-orchestrator:latest\nLOCALQA_WEB_IMAGE=localqa-web:latest\nGATEWAY_HTTP_PORT=18080\nGATEWAY_HTTPS_PORT=18443\n`,
+    `DATABASE_URL=postgresql://localqa:${password}@postgres:5432/localqa\nPUBLIC_ORIGIN=https://127.0.0.1:18443\nDATA_DIR=/var/localqa/data\nMASTER_KEY_FILE=/run/secrets/kek.json\nWORKER_IDENTITY_FILE=/run/secrets/worker_identity.json\nLOCALQA_ALLOW_TEST_STUB=1\nBROWSER_SLOTS=4\nJOB_HEARTBEAT_SECONDS=10\nJOB_LEASE_SECONDS=45\nJOB_POLL_INTERVAL_MS=500\nWORKER_FIXTURE_URL=http://localqa-t09b-fixture:8080/\nLOCALQA_API_IMAGE=localqa-api:latest\nLOCALQA_WORKER_IMAGE=localqa-worker:latest\nLOCALQA_ORCHESTRATOR_IMAGE=localqa-orchestrator:latest\nLOCALQA_WEB_IMAGE=localqa-web:latest\nGATEWAY_HTTP_PORT=18080\nGATEWAY_HTTPS_PORT=18443\n`,
     { mode: 0o600 },
   );
   compose(['config', '--quiet']);
@@ -476,14 +494,91 @@ try {
         cookie,
       )
     : null;
-  const exportDownload = exportCreated.json?.id
-    ? await http(
-        'GET',
-        `/api/v1/exports/${exportCreated.json.id}/download`,
-        null,
-        cookie,
-      )
+  const exportDownload = exportGet?.json?.artifactId
+    ? await new Promise((done, fail) => {
+        const request = https.get(
+          {
+            host: '127.0.0.1',
+            port: 18443,
+            servername: 'localqa.internal',
+            ca: readFileSync(`${deploy}/certs/tls.crt`),
+            path: `/api/v1/artifacts/${exportGet.json.artifactId}/content`,
+            headers: { Host: '127.0.0.1:18443', Cookie: cookie },
+          },
+          (response) => {
+            const parts = [];
+            response.on('data', (part) => parts.push(part));
+            response.on('end', () =>
+              done({
+                status: response.statusCode,
+                headers: response.headers,
+                bytes: Buffer.concat(parts),
+              }),
+            );
+          },
+        );
+        request.on('error', fail);
+      })
     : null;
+  let zipVerification = null;
+  if (exportDownload?.status === 200) {
+    const dir = mkdtempSync(`${tmpdir()}/localqa-export-`);
+    const zipPath = `${dir}/export.zip`;
+    try {
+      writeFileSync(zipPath, exportDownload.bytes);
+      const listing = cmd('unzip', ['-Z1', zipPath], true);
+      const integrity = cmd('unzip', ['-t', zipPath], true);
+      const manifestOutput = cmd(
+        'unzip',
+        ['-p', zipPath, 'manifest.json'],
+        true,
+      );
+      const manifest =
+        manifestOutput.status === 0 ? JSON.parse(manifestOutput.stdout) : null;
+      const entries = listing.stdout.trim().split('\n');
+      const hashes = (manifest?.artifacts || []).map((entry) => {
+        if (entry.status !== 'available' || !entry.relativePath)
+          return { id: entry.id, status: entry.status, included: false };
+        const extracted = spawnSync(
+          'unzip',
+          ['-p', zipPath, entry.relativePath],
+          { maxBuffer: 25 * 1024 * 1024 },
+        );
+        return {
+          id: entry.id,
+          status: entry.status,
+          included: entries.includes(entry.relativePath),
+          sha256:
+            extracted.status === 0
+              ? createHash('sha256').update(extracted.stdout).digest('hex')
+              : null,
+          expectedSha256: entry.sha256,
+        };
+      });
+      zipVerification = {
+        zipSha256: createHash('sha256')
+          .update(exportDownload.bytes)
+          .digest('hex'),
+        zipBytes: exportDownload.bytes.length,
+        unzipStatus: integrity.status,
+        entries,
+        manifest,
+        hashes,
+        valid:
+          integrity.status === 0 &&
+          ['report.json', 'report.md', 'manifest.json'].every((name) =>
+            entries.includes(name),
+          ) &&
+          hashes.every(
+            (entry) =>
+              entry.status !== 'available' ||
+              (entry.included && entry.sha256 === entry.expectedSha256),
+          ),
+      };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
   const cases = await http('GET', `/api/v1/runs/${run.id}/cases`, null, cookie);
   const screenshot = report.json?.artifacts?.find(
     (a) => a.kind === 'screenshot',
@@ -514,8 +609,9 @@ try {
     exportGet: exportGet && { status: exportGet.status, body: exportGet.json },
     exportDownload: exportDownload && {
       status: exportDownload.status,
-      body: exportDownload.json,
+      contentType: exportDownload.headers?.['content-type'],
     },
+    zipVerification,
   };
   const closureOk =
     final.status === 'completed' &&
@@ -526,7 +622,8 @@ try {
     report.json?.summary?.passed === 1 &&
     exportCreated.status === 202 &&
     exportGet?.json?.artifactId &&
-    exportDownload?.status === 200;
+    exportDownload?.status === 200 &&
+    zipVerification?.valid;
   record(
     '2_end_to_end',
     closureOk ? '通过' : '失败',

@@ -1,4 +1,10 @@
 import { randomUUID, createHash } from 'node:crypto';
+import {
+  ReportBuilder,
+  LocalVolumeArtifactStore,
+  ExportService,
+  validateEvidenceReferences,
+} from '@localqa/report';
 import { parseContract, getApiValidator } from '@localqa/contracts';
 import type {
   CaseRecord,
@@ -679,6 +685,8 @@ export function registerExecutionRoutes(router: Router): void {
     const runId = ctx.params.runId!;
     const input = parseContract('ExportInput', ctx.body);
 
+    const store = new LocalVolumeArtifactStore(ctx.api.artifacts.root);
+    const service = new ExportService({ artifactStore: store });
     const exportRecord = await ctx.api.db.actor(ctx.actor!, async (client) => {
       const runRow = (
         await client.query<{ project_id: string }>(
@@ -688,27 +696,59 @@ export function registerExecutionRoutes(router: Router): void {
       ).rows[0];
       if (!runRow) throw new StorageError('NOT_FOUND');
       const projectId = runRow.project_id;
-
-      const exportId = randomUUID();
-      const now = new Date().toISOString();
-      const retainUntil = new Date(Date.now() + 30 * 86400000).toISOString();
-
+      const report = await new ReportBuilder().build(client, projectId, runId, {
+        artifactStore: store,
+      });
+      const refs = await validateEvidenceReferences(
+        projectId,
+        runId,
+        report.artifacts,
+        report.cases.flatMap((c) => (c.verdict ? [c.verdict] : [])),
+        report.findings,
+        report.reproductions,
+        store,
+      );
+      if (input.format === 'zip') {
+        return (await service.exportZip(client, report, refs.manifest))
+          .exportRecord;
+      }
+      const content =
+        input.format === 'json'
+          ? service.exportJson(report).content
+          : service.exportMarkdown(report, refs.manifest).content;
+      const bytes = Buffer.from(content, 'utf8');
+      const artifactId = randomUUID();
+      const artifact = await store.put(
+        {
+          id: artifactId,
+          projectId,
+          runId,
+          kind: 'export',
+          redaction: 'not_needed',
+          bytes: bytes.length,
+          sha256: store.checksum(bytes),
+        },
+        bytes,
+      );
+      await client.query(
+        `INSERT INTO artifacts(id, project_id, run_id, document, retain_until, held)
+         VALUES($1,$2,$3,$4,clock_timestamp()+interval '30 days',false)`,
+        [artifactId, projectId, runId, artifact],
+      );
       const doc: Export = parseContract('Export', {
-        id: exportId,
+        id: randomUUID(),
         runId,
         status: 'ready',
         format: input.format,
-        artifactId: null,
-        snapshotAt: now,
+        artifactId,
+        snapshotAt: new Date().toISOString(),
         error: null,
       });
-
       await client.query(
-        `INSERT INTO exports(id, project_id, run_id, status, document, report_snapshot, artifact_id, retain_until)
-         VALUES($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [exportId, projectId, runId, 'ready', doc, {}, null, retainUntil],
+        `INSERT INTO exports(id, project_id, run_id, status, document, report_snapshot, artifact_id, retain_until, held)
+         VALUES($1,$2,$3,'ready',$4,$5,$6,clock_timestamp()+interval '30 days',false)`,
+        [doc.id, projectId, runId, doc, report, artifactId],
       );
-
       return doc;
     });
 
@@ -802,13 +842,30 @@ export function registerExecutionRoutes(router: Router): void {
         );
       }
 
+      const exportFormat =
+        artifact.kind === 'export'
+          ? await ctx.api.db.actor(
+              ctx.actor!,
+              async (client) =>
+                (
+                  await client.query<{ format: string }>(
+                    "SELECT document->>'format' AS format FROM exports WHERE artifact_id=$1",
+                    [artifactId],
+                  )
+                ).rows[0]?.format,
+            )
+          : null;
       const contentType =
         artifact.kind === 'screenshot'
           ? 'image/png'
           : artifact.kind === 'network' || artifact.kind === 'console'
             ? 'application/json'
             : artifact.kind === 'export'
-              ? 'application/zip'
+              ? exportFormat === 'json'
+                ? 'application/json'
+                : exportFormat === 'markdown'
+                  ? 'text/markdown; charset=utf-8'
+                  : 'application/zip'
               : 'application/octet-stream';
 
       const range = ctx.headers['range'];
@@ -858,7 +915,7 @@ export function registerExecutionRoutes(router: Router): void {
         ...(range === undefined
           ? {}
           : { 'Content-Range': `bytes ${start}-${end}/${bytes.length}` }),
-        'Content-Disposition': `inline; filename="${artifactId}.${artifact.kind === 'screenshot' ? 'png' : 'bin'}"`,
+        'Content-Disposition': `inline; filename="${artifactId}.${artifact.kind === 'screenshot' ? 'png' : exportFormat === 'json' ? 'json' : exportFormat === 'markdown' ? 'md' : exportFormat === 'zip' ? 'zip' : 'bin'}"`,
       });
       ctx.res.end(chunk);
       return undefined;

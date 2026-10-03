@@ -36,6 +36,23 @@ export class Database {
       max: 8,
       options: '-c TimeZone=UTC',
     });
+    // pg emits errors on idle pooled clients when PostgreSQL restarts. Without
+    // a listener Node treats this as an uncaught exception and kills the
+    // Worker/API process, potentially during a separate leased task.
+    this.#pool.on('error', (error: Error & { code?: string }) => {
+      console.error(
+        'Database idle connection lost',
+        error.code ?? 'connection_error',
+      );
+    });
+    this.#pool.on('connect', (client) => {
+      client.on('error', (error: Error & { code?: string }) => {
+        console.error(
+          'Database client connection lost',
+          error.code ?? 'connection_error',
+        );
+      });
+    });
   }
   async close(): Promise<void> {
     await this.#pool.end();
@@ -46,6 +63,13 @@ export class Database {
     work: (client: PoolClient) => Promise<T>,
   ): Promise<T> {
     const client = await this.#pool.connect();
+    let connectionLost = false;
+    const onClientError = () => {
+      connectionLost = true;
+    };
+    // A checked-out client can emit 'error' independently of its current query
+    // when the server is restarted. Pool's idle-client listener does not own it.
+    client.on('error', onClientError);
     try {
       await client.query('BEGIN');
       await client.query("SET LOCAL TIME ZONE 'UTC'");
@@ -56,11 +80,18 @@ export class Database {
       await client.query('COMMIT');
       return result;
     } catch (error) {
-      await client.query('ROLLBACK');
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        connectionLost = true;
+      }
       if (error instanceof StorageError) throw error;
-      mapDatabaseError(error);
+      return mapDatabaseError(error);
     } finally {
-      client.release();
+      client.removeListener('error', onClientError);
+      client.release(
+        connectionLost ? new Error('Database connection lost') : undefined,
+      );
     }
   }
   // Callbacks are trusted server code. SQL is still protected by forced RLS.

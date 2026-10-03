@@ -19,6 +19,7 @@
     "@localqa/domain": "workspace:*",
     "@localqa/storage": "workspace:*",
     "@localqa/orchestrator": "workspace:*",
+    "@localqa/report": "workspace:*",
     "@localqa/model-gateway": "workspace:*",
     "pg": "^8.13.1"
   },

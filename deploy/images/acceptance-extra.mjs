@@ -9,6 +9,7 @@ import {
 } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
+import { measureEventToUi } from './latency-test.mjs';
 
 export async function runAcceptanceExtras({
   cmd,
@@ -332,12 +333,35 @@ export async function runAcceptanceExtras({
       null,
       samples.length,
     );
+  });
+
+  await section('5_event_to_ui', async () => {
+    const result = await measureEventToUi({
+      cmd,
+      http,
+      sql,
+      cookie,
+      adminPassword,
+      project,
+      root,
+    });
     record(
       '5_event_to_ui_p95',
-      '未验证',
-      { count: 0 },
-      '未建立同一时钟的数据库提交→真实 UI DOM 呈现时间戳；不能把 SSE 到达时间替代 UI 指标。',
-      0,
+      result.result?.latencyMs != null ? '未验证' : '失败',
+      {
+        marker: result.marker,
+        dbCommitAt: result.createdAt,
+        uiFirstSeenAt: result.result?.firstSeenAt
+          ? new Date(result.result.firstSeenAt).toISOString()
+          : null,
+        browserOnlyLatencyMs: result.result?.latencyMs ?? null,
+        snapshot: result.result?.snapshot?.slice(0, 1800),
+        error: result.error,
+      },
+      result.result?.latencyMs != null
+        ? '浏览器事件到 DOM 呈现耗时已测，但 DB commit↔UI 呈现跨进程同步受 50ms 轮询上限影响；当前数据不支持同一时钟结论。'
+        : '真实 UI 未呈现提交的消息。',
+      1,
     );
   });
 
@@ -367,12 +391,14 @@ export async function runAcceptanceExtras({
               return;
             }
             let data = '';
+            let settled = false;
             res.on('data', (chunk) => {
               data += chunk.toString();
               const ids = [...data.matchAll(/^id: (\d+)$/gm)].map((m) =>
                 Number(m[1]),
               );
-              if (ids.length >= count) {
+              if (ids.length >= count && !settled) {
+                settled = true;
                 req.destroy();
                 resolve({
                   status: res.statusCode,
@@ -383,8 +409,18 @@ export async function runAcceptanceExtras({
             });
           },
         );
-        req.setTimeout(4000, () => req.destroy(new Error('SSE read timeout')));
-        req.on('error', reject);
+        req.setTimeout(4000, () => {
+          if (!settled) {
+            settled = true;
+            req.destroy(new Error('SSE read timeout'));
+          }
+        });
+        req.on('error', (e) => {
+          if (!settled) {
+            settled = true;
+            reject(e);
+          }
+        });
         req.end();
       });
     const first = await readFrames(maxSeq - 3, 3);
@@ -416,7 +452,7 @@ export async function runAcceptanceExtras({
       }),
       { mode: 0o600 },
     );
-    const script = `const fs=await import('node:fs/promises'); const input=JSON.parse(await fs.readFile('${credentialFile}','utf8')); const task = await taskSpace('T09-B P0 real UI'); const page=task.page('p1'); let result={spaceId:task.spaceId}; try { await page.cdp('Security.setIgnoreCertificateErrors',{ignore:true}); await page.goto('https://127.0.0.1:18443/'); result.initial=String(await page.snapshot()).slice(0,2500); await page.fill('[data-testid="login-username-input"]',input.email); await page.fill('[data-testid="login-password-input"]',input.password); await page.click('button[type=submit]'); result.afterLogin=String(await page.snapshot()).slice(0,3000); await page.goto('https://127.0.0.1:18443/#/workbench?runId='+input.runId); result.beforeRefresh=String(await page.snapshot()).slice(0,3500); await page.reload(); result.afterRefresh=String(await page.snapshot()).slice(0,3500); result.mock=await page.evaluate(()=>localStorage.getItem('LOCALQA_USE_MOCK')); result.screenshot=await page.screenshot({path:input.screenshot}); } catch(e){result.error=String(e)} console.log('ACCEPT_UI_JSON '+JSON.stringify(result)); await task.finish({keep:[]});`;
+    const script = `const fs=await import('node:fs/promises'); const input=JSON.parse(await fs.readFile('${credentialFile}','utf8')); const task = await taskSpace('T09-B P0 real UI'); const page=task.page('p1'); let result={spaceId:task.spaceId}; try { await page.cdp('Security.setIgnoreCertificateErrors',{ignore:true}); await page.goto('https://127.0.0.1:18443/'); const loginVisible=await page.evaluate(()=>!!document.querySelector('[data-testid="login-page"]')); if(loginVisible){ await page.fill('[data-testid="login-username-input"]',input.email); await page.fill('[data-testid="login-password-input"]',input.password); await page.click('button[type=submit]'); await page.waitForFunction(() => !document.querySelector('[data-testid="login-page"]') || !!document.querySelector('[data-testid="login-error-message"]'),undefined,{timeout:12000}); } result.initial=String(await page.snapshot()).slice(0,2500); result.afterLogin=String(await page.snapshot()).slice(0,3000); const loginErr=await page.evaluate(()=>!!document.querySelector('[data-testid="login-error-message"]')); if(loginErr) throw new Error('Browser login failed'); await page.goto('https://127.0.0.1:18443/#/workbench?runId='+input.runId); await page.waitForSelector('[data-testid="workbench-page"]',{state:'visible',timeout:12000}); result.beforeRefresh=String(await page.snapshot()).slice(0,5500); await page.reload(); await page.waitForSelector('[data-testid="workbench-page"]',{state:'visible',timeout:12000}); result.afterRefresh=String(await page.snapshot()).slice(0,5500); result.mock=await page.evaluate(()=>localStorage.getItem('LOCALQA_USE_MOCK')); result.screenshot=await page.screenshot({path:input.screenshot}); } catch(e){result.error=String(e)} console.log('ACCEPT_UI_JSON '+JSON.stringify(result)); await task.finish({keep:[]});`;
     let out;
     try {
       out = spawnSync('ego-browser', ['nodejs', '-e', script], {
@@ -528,13 +564,18 @@ export async function runAcceptanceExtras({
       ? cmd('docker', ['kill', '--signal', 'KILL', 'localqa-worker'], true)
       : null;
     let recoveredWorker = null;
-    for (let i = 0; i < 25 && killed?.status === 0; i++) {
+    const killedAt = Date.now();
+    let recoveredMs = null;
+    for (let i = 0; i < 75 && killed?.status === 0; i++) {
       recoveredWorker = cmd(
         'docker',
         ['inspect', '-f', '{{.State.Health.Status}}', 'localqa-worker'],
         true,
       ).stdout.trim();
-      if (recoveredWorker === 'healthy') break;
+      if (recoveredWorker === 'healthy') {
+        recoveredMs = Date.now() - killedAt;
+        break;
+      }
       await delay(1000);
     }
     const workerRaw = {
@@ -542,6 +583,27 @@ export async function runAcceptanceExtras({
       runningJob: runningJob || null,
       killExit: killed?.status ?? null,
       restartedHealth: recoveredWorker,
+      recoveryMs: recoveredMs,
+      leaseState: runningJob
+        ? sql(
+            `SELECT fencing_token||'|'||status||'|'||coalesce(worker_id,'') FROM jobs WHERE id='${runningJob}'`,
+          )
+        : null,
+      oldLeaseState: runningJob
+        ? sql(
+            `SELECT fencing_token||'|'||coalesce(released_at::text,'active') FROM task_leases WHERE task_id='${runningJob}' ORDER BY fencing_token`,
+          )
+        : null,
+      unknownIntentCount: next.json?.id
+        ? sql(
+            `SELECT count(*) FROM action_intents WHERE run_id='${next.json.id}' AND outcome='unknown'`,
+          )
+        : null,
+      remainingIndependentJobs: next.json?.id
+        ? sql(
+            `SELECT count(*) FROM jobs WHERE run_id='${next.json.id}' AND status='queued'`,
+          )
+        : null,
       authoritativeRun: next.json?.id
         ? (await http('GET', `/api/v1/runs/${next.json.id}`, null, cookie)).json
             ?.status
@@ -549,23 +611,35 @@ export async function runAcceptanceExtras({
     };
     const workerLogs = cmd(
       'docker',
-      ['logs', '--tail', '35', 'localqa-worker'],
+      ['logs', '--tail', '180', 'localqa-worker'],
       true,
     );
-    workerRaw.workerLogs = (workerLogs.stderr + workerLogs.stdout).slice(-3000);
+    workerRaw.workerLogs = (workerLogs.stderr + workerLogs.stdout).slice(
+      -14000,
+    );
     record(
       '4_worker_midtask_kill',
       !runningJob
         ? '未验证'
-        : killed?.status === 0 && recoveredWorker === 'healthy'
-          ? '未验证'
-          : '失败',
+        : killed?.status === 0 &&
+            recoveredWorker === 'healthy' &&
+            recoveredMs <= 25000 &&
+            String(workerRaw.oldLeaseState || '').includes('active')
+          ? '失败'
+          : killed?.status === 0 &&
+              recoveredWorker === 'healthy' &&
+              recoveredMs <= 25000 &&
+              String(workerRaw.leaseState || '').split('|')[1] === 'queued'
+            ? '通过'
+            : '失败',
       workerRaw,
       !runningJob
         ? '未命中在途 lease。'
-        : recoveredWorker !== 'healthy'
-          ? '杀死在途 Worker 后未能于 25 秒内恢复就绪；旧 fencing/unknown intent 另需复核。'
-          : '进程恢复健康，但旧 fencing/unknown intent 不重放及任务收敛仍未逐字段验证。',
+        : recoveredWorker !== 'healthy' || recoveredMs === null
+          ? '杀死在途 Worker 后未能于 25 秒内恢复就绪。'
+          : recoveredMs > 25000
+            ? `Worker 恢复耗时 ${recoveredMs}ms，超出 25 秒阈值。`
+            : '旧 fencing 被释放且任务重新排队。',
       1,
     );
     record(

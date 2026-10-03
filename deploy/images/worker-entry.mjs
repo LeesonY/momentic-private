@@ -14,6 +14,7 @@ import {
 } from '../../packages/orchestrator/dist/index.js';
 import { createStubAdapter } from '../../packages/model-gateway/dist/index.js';
 import { readiness } from './readiness.mjs';
+import { projectOffers } from './project-scheduling.mjs';
 
 if (process.getuid() === 0) throw new Error('Refusing to run browser as root');
 if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL required');
@@ -96,6 +97,7 @@ const options = {
   },
 };
 let running = true;
+let nextProject = 0;
 for (const signal of ['SIGTERM', 'SIGINT'])
   process.once(signal, () => {
     running = false;
@@ -182,36 +184,34 @@ try {
           )
         ).rows.map((r) => r.id),
       );
-      for (const projectId of projects) {
-        for (
-          let slot = 0;
-          slot < slots && running && active.size < slots;
-          slot++
-        ) {
-          const runtime = new RuntimeClient(
-            coordinator,
-            { projectId, workerId: `${workerId}-${slot}` },
-            artifacts,
-            options,
-          );
-          const worker = new Worker({
-            runtime,
-            browser,
-            scratch,
-            pollMs: 500,
-            heartbeatMs: Number(process.env.JOB_HEARTBEAT_SECONDS || 10) * 1000,
-            leaseSeconds: Number(process.env.JOB_LEASE_SECONDS || 45),
-          });
-          await runtime.poll();
-          // A successful DB-backed tick proves the task loop is usable even if no jobs exist.
-          await writeFile(`${scratch}/task-ready`, String(Date.now()));
-          const flight = worker.once().catch((error) => {
-            console.error('Worker leased task failed:', error.message);
-            throw error;
-          });
-          active.add(flight);
-          void flight.finally(() => active.delete(flight)).catch(() => {});
-        }
+      // Spread each round across projects before offering another slot to one
+      // project. Rotate the starting project between rounds to avoid a stable
+      // lexicographic winner when total demand exceeds browser capacity.
+      const offers = projectOffers(projects, slots, nextProject++);
+      for (const [offered, projectId] of offers.entries()) {
+        if (!running || active.size >= slots) break;
+        const runtime = new RuntimeClient(
+          coordinator,
+          { projectId, workerId: `${workerId}-${offered}` },
+          artifacts,
+          options,
+        );
+        const worker = new Worker({
+          runtime,
+          browser,
+          scratch,
+          pollMs: 500,
+          heartbeatMs: Number(process.env.JOB_HEARTBEAT_SECONDS || 10) * 1000,
+          leaseSeconds: Number(process.env.JOB_LEASE_SECONDS || 45),
+        });
+        await runtime.poll();
+        await writeFile(`${scratch}/task-ready`, String(Date.now()));
+        const flight = worker.once().catch((error) => {
+          console.error('Worker leased task failed:', error.message);
+          throw error;
+        });
+        active.add(flight);
+        void flight.finally(() => active.delete(flight)).catch(() => {});
       }
       if (!projects.length && (await readiness()))
         await writeFile(`${scratch}/task-ready`, String(Date.now()));

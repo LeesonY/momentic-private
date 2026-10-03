@@ -247,18 +247,41 @@ export async function createOfflineZipArchive(
           report.run.id,
           entry.id,
         );
-        entries.push({
-          name: entry.relativePath,
-          data: fileBuffer,
-        });
-      } catch (err) {
-        // If file read failed unexpectedly, degrade manifest
+        if (
+          entry.sha256 &&
+          createHash('sha256').update(fileBuffer).digest('hex') !== entry.sha256
+        ) {
+          entry.status = 'degraded';
+          entry.relativePath = null;
+          entry.error = 'Evidence checksum mismatch; binary omitted';
+        } else {
+          entries.push({ name: entry.relativePath, data: fileBuffer });
+        }
+      } catch {
+        // Never advertise an absent or unreadable binary as downloadable.
         entry.status = 'missing';
-        entry.error = String(err);
+        entry.relativePath = null;
+        entry.error = 'Evidence binary unavailable during export';
       }
     }
   }
-
+  manifestDocument.availableArtifacts = manifestEntries.filter(
+    (e) => e.status === 'available',
+  ).length;
+  manifestDocument.missingArtifacts = manifestEntries.filter(
+    (e) => e.status === 'missing',
+  ).length;
+  manifestDocument.degradedArtifacts = manifestEntries.filter(
+    (e) => e.status === 'degraded',
+  ).length;
+  entries[1] = {
+    name: 'report.md',
+    data: Buffer.from(renderMarkdownReport(report, manifest), 'utf8'),
+  };
+  entries[2] = {
+    name: 'manifest.json',
+    data: Buffer.from(JSON.stringify(manifestDocument, null, 2), 'utf8'),
+  };
   const zipBuffer = packZip(entries);
   return { zipBuffer, manifestDocument };
 }

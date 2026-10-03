@@ -342,7 +342,7 @@
     "Use LeaseRepository primitives with a verified project-scoped worker; poll/dispatch policy and complete role-specific verdict/result protocol belong to T05."
   ],
   "contractFollowUp": {
-    "recordedAt": "2026-10-03T04:26:54.922Z",
+    "recordedAt": "2026-10-03T06:45:38.233Z",
     "result": "lease reason split and attempt UTC timestamps passed",
     "P0Passed": false,
     "M0Passed": false,

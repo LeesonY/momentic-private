@@ -37,7 +37,6 @@ const pgContainer = `localqa-t06-pg-${tag}`;
 const envFile = `${testEvidenceDir}/pg.env`;
 const kekFile = `${testEvidenceDir}/kek.json`;
 const pgPassword = randomBytes(24).toString('hex');
-const pgPort = 5433; // Local port mapped to container 5432
 
 writeFileSync(
   envFile,
@@ -1256,6 +1255,62 @@ test('T06-12: Report, Export, and Artifact Lifecycle', async () => {
   );
   assert.equal(exportRes.status, 202);
   const exp = parseContract('Export', exportRes.json);
+  assert.ok(
+    exp.artifactId,
+    'ready JSON export must contain downloadable bytes',
+  );
+  const jsonBytes = await fetch(
+    `${baseUrl}/api/v1/artifacts/${exp.artifactId}/content`,
+    {
+      headers: { Cookie: operatorCookie },
+    },
+  );
+  assert.equal(jsonBytes.status, 200);
+  assert.equal(jsonBytes.headers.get('content-type'), 'application/json');
+  assert.equal((await jsonBytes.json()).run.id, testRun.id);
+
+  const zip = await apiRequest('POST', `/api/v1/runs/${testRun.id}/exports`, {
+    cookie: operatorCookie,
+    body: { format: 'zip' },
+  });
+  assert.equal(zip.status, 202);
+  assert.ok(zip.json.artifactId);
+  const zipResponse = await fetch(
+    `${baseUrl}/api/v1/artifacts/${zip.json.artifactId}/content`,
+    {
+      headers: { Cookie: operatorCookie },
+    },
+  );
+  assert.equal(zipResponse.status, 200);
+  assert.equal(zipResponse.headers.get('content-type'), 'application/zip');
+  const zipPath = `${testEvidenceDir}/export-${tag}.zip`;
+  try {
+    writeFileSync(zipPath, Buffer.from(await zipResponse.arrayBuffer()));
+    const testZip = spawnSync('unzip', ['-t', zipPath], { encoding: 'utf8' });
+    assert.equal(testZip.status, 0, testZip.stderr);
+    const manifest = JSON.parse(
+      spawnSync('unzip', ['-p', zipPath, 'manifest.json'], { encoding: 'utf8' })
+        .stdout,
+    );
+    assert.equal(manifest.runId, testRun.id);
+    for (const entry of manifest.artifacts) {
+      if (entry.status !== 'available') continue;
+      const file = spawnSync('unzip', ['-p', zipPath, entry.relativePath]);
+      assert.equal(file.status, 0);
+      assert.equal(
+        createHash('sha256').update(file.stdout).digest('hex'),
+        entry.sha256,
+      );
+    }
+    for (const name of ['report.json', 'report.md', 'manifest.json']) {
+      assert.ok(
+        spawnSync('unzip', ['-p', zipPath, name]).stdout.length > 0,
+        name,
+      );
+    }
+  } finally {
+    rmSync(zipPath, { force: true });
+  }
 
   // GET /api/v1/exports/{exportId}
   const getExp = await apiRequest('GET', `/api/v1/exports/${exp.id}`, {
@@ -1264,6 +1319,7 @@ test('T06-12: Report, Export, and Artifact Lifecycle', async () => {
   assert.equal(getExp.status, 200);
   assert.equal(getExp.json.id, exp.id);
   parseContract('Export', getExp.json);
+  assert.equal(getExp.json.artifactId, exp.artifactId);
 
   recordTest('report_and_exports', true);
 });

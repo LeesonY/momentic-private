@@ -41,6 +41,9 @@ importers:
       '@localqa/orchestrator':
         specifier: workspace:*
         version: link:../../packages/orchestrator
+      '@localqa/report':
+        specifier: workspace:*
+        version: link:../../packages/report
       '@localqa/storage':
         specifier: workspace:*
         version: link:../../packages/storage
