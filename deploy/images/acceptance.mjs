@@ -67,6 +67,22 @@ evidence.history = previous
     ]
   : [];
 evidence.categories = {};
+evidence.timings = [];
+evidence.timingsSummary = {};
+function timingStart(label, waitReason = null) {
+  return { label, start: Date.now(), waitReason };
+}
+function timingEnd(t, extra = {}) {
+  const end = Date.now();
+  evidence.timings.push({
+    label: t.label,
+    startAt: new Date(t.start).toISOString(),
+    endAt: new Date(end).toISOString(),
+    ms: end - t.start,
+    waitReason: t.waitReason,
+    ...extra,
+  });
+}
 evidence.environment = {
   docker: cmd(
     'docker',
@@ -317,7 +333,9 @@ try {
     { mode: 0o600 },
   );
   compose(['config', '--quiet']);
+  const tPgUp = timingStart('compose up postgres', 'compose start + pg healthcheck');
   compose(['up', '-d', '--wait', 'postgres']);
+  timingEnd(tPgUp);
   cmd('docker', [
     'run',
     '--rm',
@@ -329,6 +347,7 @@ try {
     '1001:1001',
     '/data',
   ]);
+  const tMigrate = timingStart('db migrate');
   compose([
     'run',
     '--rm',
@@ -338,6 +357,8 @@ try {
     'api',
     '/app/deploy/scripts/migrate.mjs',
   ]);
+  timingEnd(tMigrate);
+  const tBootstrap = timingStart('bootstrap admin');
   compose([
     'run',
     '--rm',
@@ -349,6 +370,7 @@ try {
     'api',
     '/app/deploy/scripts/bootstrap-admin.mjs',
   ]);
+  timingEnd(tBootstrap);
   cmd('docker', [
     'run',
     '-d',
@@ -366,6 +388,7 @@ try {
     'node',
     'packages/test-fixture/server.js',
   ]);
+  const tStackUp = timingStart('compose up six services', 'compose start + healthchecks (5 services)');
   compose([
     'up',
     '-d',
@@ -376,6 +399,7 @@ try {
     'worker',
     'gateway',
   ]);
+  timingEnd(tStackUp);
   note('six_services_ready', {
     statuses: containers.slice(0, 6).map((name) => ({
       name,
@@ -746,12 +770,13 @@ try {
     lastEventId: seq,
     heartbeatMs,
     observedWithin22s: heartbeatMs < 22000,
+    waitReason: 'SSE 心跳语义（真实 15s），非性能开销',
   });
   if (heartbeatMs > 22000) throw new Error('SSE buffered or delayed');
   record(
     '1_proxy_sse_unbuffered',
     '通过',
-    { lastEventId: seq, ...heartbeat },
+    { lastEventId: seq, ...heartbeat, waitReason: 'SSE 心跳语义（真实 15s），非性能开销' },
     null,
     1,
   );
@@ -769,13 +794,30 @@ try {
     final,
     sandbox,
     statuses: evidence.checks[0].statuses,
+    timings: evidence.timings,
   });
+  // Summarize wall-clock timings: separate semantic waits from other overhead.
+  // (final compose-down timing is appended in the finally block below.)
+  const semanticWaits = evidence.timings.filter((t) => t.waitReason);
+  const semanticMs = semanticWaits.reduce((s, t) => s + t.ms, 0);
+  const totalMs = evidence.timings.reduce((s, t) => s + t.ms, 0);
+  evidence.timingsSummary = {
+    totalMs,
+    semanticWaitMs: semanticMs,
+    otherOverheadMs: totalMs - semanticMs,
+    semanticWaits: semanticWaits.map((t) => ({
+      label: t.label,
+      ms: t.ms,
+      waitReason: t.waitReason,
+    })),
+  };
   evidence.result = true;
 } catch (error) {
   evidence.result = false;
   evidence.failure = error.message;
   console.error('Stack preflight failed:', error.message);
 } finally {
+  const tDown = timingStart('compose down + cleanup');
   cmd('docker', ['rm', '-f', 'localqa-t09b-fixture'], true);
   const down = cmd(
     'docker',
@@ -791,6 +833,7 @@ try {
   );
   if (down.status !== 0) cleanupError = down.stderr;
   for (const path of owned) rmSync(path, { recursive: true, force: true });
+  timingEnd(tDown);
   evidence.cleanup = {
     containers: containers.filter(
       (name) =>
@@ -829,6 +872,16 @@ try {
         '前置步骤失败或验证程序未能到达本项',
         0,
       );
+  // Recompute summary after compose-down timing has been appended.
+  const semanticWaits2 = evidence.timings.filter((t) => t.waitReason);
+  const semanticMs2 = semanticWaits2.reduce((s, t) => s + t.ms, 0);
+  const totalMs2 = evidence.timings.reduce((s, t) => s + t.ms, 0);
+  evidence.timingsSummary = {
+    totalMs: totalMs2,
+    semanticWaitMs: semanticMs2,
+    otherOverheadMs: totalMs2 - semanticMs2,
+    semanticWaits: semanticWaits2.map((t) => ({ label: t.label, ms: t.ms, waitReason: t.waitReason })),
+  };
   evidence.unverified = Object.entries(evidence.categories)
     .filter(([, item]) => item.status === '未验证')
     .map(([key, item]) => ({ item: key, reason: item.reason }));

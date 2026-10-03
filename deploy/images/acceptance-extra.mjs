@@ -25,6 +25,7 @@ export async function runAcceptanceExtras({
   final,
   sandbox,
   statuses,
+  timings,
 }) {
   const sql = (query) =>
     cmd('docker', [
@@ -41,6 +42,7 @@ export async function runAcceptanceExtras({
       query,
     ]).stdout.trim();
   const section = async (name, work) => {
+    const t0 = Date.now();
     try {
       await work();
     } catch (error) {
@@ -50,6 +52,9 @@ export async function runAcceptanceExtras({
         { error: String(error) },
         '本项执行失败，不视作通过',
       );
+    } finally {
+      const end = Date.now();
+      timings.push({ label: name, startAt: new Date(t0).toISOString(), endAt: new Date(end).toISOString(), ms: end - t0 });
     }
   };
   await section('1_six_services_business', async () => {

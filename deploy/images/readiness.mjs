@@ -28,7 +28,7 @@ export async function readiness({ vault = false, browserMarker = false } = {}) {
   );
   try {
     const result = await pool.query(
-      "SELECT count(*)::integer AS n FROM storage_migrations WHERE name IN ('001_core.sql','002_invariants.sql','003_access.sql','004_hardening.sql','005_project_default_model.sql')",
+      "SELECT count(*)::integer AS n FROM storage_migrations WHERE name IN ('001_core.sql','002_invariants.sql','003_access.sql','004_hardening.sql','005_project_default_model.sql','006_run_messages_redaction.sql')",
     );
     if (result.rows[0]?.n !== 5) return false;
     await access(

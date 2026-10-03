@@ -551,6 +551,40 @@ test('T06-4: Projects, Members, and Strict Cross-Project Isolation (Zero Existen
   assert.equal(viewBeta.status, 404);
   assert.equal(viewBeta.json.code, 'NOT_FOUND');
 
+  // Cross-project isolation: admin creates a run in Beta; Alpha's operator/viewer
+  // must not read it or its messages (no existence leak across projects).
+  const betaDefault = await apiRequest(
+    'PATCH',
+    `/api/v1/projects/${projectBeta.id}`,
+    {
+      cookie: adminCookie,
+      body: {
+        expectedVersion: projectBeta.version,
+        defaultModelProfileId: testModelProfile.id,
+      },
+    },
+  );
+  assert.equal(betaDefault.status, 200);
+  const betaRun = await apiRequest('POST', '/api/v1/runs', {
+    cookie: adminCookie,
+    headers: { 'Idempotency-Key': `beta-${randomUUID()}` },
+    body: { projectId: projectBeta.id, targetUrl: 'http://localhost:8085/' },
+  });
+  assert.equal(betaRun.status, 202);
+  const crossRun = await apiRequest('GET', `/api/v1/runs/${betaRun.json.id}`, {
+    cookie: operatorCookie,
+  });
+  assert.equal(crossRun.status, 404);
+  const crossMessages = await apiRequest(
+    'GET',
+    `/api/v1/runs/${betaRun.json.id}/messages`,
+    {
+      cookie: operatorCookie,
+    },
+  );
+  assert.equal(crossMessages.status, 404);
+  assert.equal(crossMessages.json.code, 'NOT_FOUND');
+
   // A project owner without global admin privileges can bind an existing
   // platform model through PATCH alone, without a private grant endpoint.
   const ownerProject = (
@@ -827,6 +861,103 @@ test('T06-7: Run Messages and Context Version Advancement', async () => {
     assert.equal(sendMsg.status, 202);
     assert.equal(sendMsg.json.contextVersion, 2);
     testRun = parseContract('Run', sendMsg.json);
+
+    // Redaction: secret-looking text is masked at write; DB, API, and events
+    // never contain the original secret. Normal text is not over-redacted.
+    // The literal marker "[REDACTED]" proves replacement happened (a plain
+    // passthrough would keep the raw secret and fail these assertions).
+    const secretMsg = await apiRequest(
+      'POST',
+      `/api/v1/runs/${testRun.id}/messages`,
+      {
+        cookie: operatorCookie,
+        body: {
+          expectedContextVersion: 2,
+          text: 'login with password=Sup3rSecret! and Bearer abcdef012345 token',
+        },
+      },
+    );
+    assert.equal(secretMsg.status, 202, JSON.stringify(secretMsg.json));
+    testRun = parseContract('Run', secretMsg.json);
+    const list2 = await apiRequest(
+      'GET',
+      `/api/v1/runs/${testRun.id}/messages`,
+      {
+        cookie: operatorCookie,
+      },
+    );
+    const msgs = parseContract('RunMessagePage', list2.json).items;
+    const redacted = msgs.find((m) => m.redactedText.includes('login with'));
+    assert.ok(redacted, 'redacted message present');
+    assert.ok(
+      !redacted.redactedText.includes('Sup3rSecret!'),
+      'password not in API response',
+    );
+    assert.ok(
+      !redacted.redactedText.includes('abcdef012345'),
+      'bearer not in API response',
+    );
+    assert.ok(
+      redacted.redactedText.includes('[redacted]'),
+      'redaction marker present in API response',
+    );
+    const dbRow = await db.actor(
+      { userId: adminUser.id },
+      async (client) =>
+        (
+          await client.query(
+            'SELECT redacted_text FROM run_messages WHERE id=$1',
+            [redacted.id],
+          )
+        ).rows[0],
+    );
+    assert.ok(
+      !dbRow.redacted_text.includes('Sup3rSecret!'),
+      'password not in DB',
+    );
+    assert.ok(
+      dbRow.redacted_text.includes('[redacted]'),
+      'redaction marker present in DB',
+    );
+    const normal = await apiRequest(
+      'POST',
+      `/api/v1/runs/${testRun.id}/messages`,
+      {
+        cookie: operatorCookie,
+        body: {
+          expectedContextVersion: testRun.contextVersion,
+          text: 'check the footer navigation',
+        },
+      },
+    );
+    assert.equal(normal.status, 202);
+    const list3 = await apiRequest(
+      'GET',
+      `/api/v1/runs/${testRun.id}/messages`,
+      { cookie: operatorCookie },
+    );
+    assert.ok(
+      parseContract('RunMessagePage', list3.json).items.some(
+        (m) => m.redactedText === 'check the footer navigation',
+      ),
+      'normal text not over-redacted',
+    );
+
+    // GET messages (approved contract addition): member can read own run's messages.
+    const list = await apiRequest(
+      'GET',
+      `/api/v1/runs/${testRun.id}/messages`,
+      {
+        cookie: operatorCookie,
+      },
+    );
+    assert.equal(list.status, 200);
+    const page = parseContract('RunMessagePage', list.json);
+    assert.ok(
+      page.items.some(
+        (m) => m.redactedText === 'Prioritize exploring navigation links',
+      ),
+    );
 
     recordTest('run_messages_and_context_version', true);
   } catch (err) {

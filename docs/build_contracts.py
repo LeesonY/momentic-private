@@ -76,6 +76,7 @@ D["Report"] = obj({"schemaVersion": {"const": 1}, "example": BOOL, "generatedAt"
 D["InputRequest"] = obj({"id": UUID, "runId": UUID, "kind": enum("auth_profile", "one_time_code", "clarification", "scope_extension", "write_action"), "status": enum("pending", "resolved", "rejected", "expired"), "prompt": text(2000), "expiresAt": DATE, "version": VER})
 D["InputResponse"] = obj({"expectedVersion": VER, "decision": enum("provide", "approve", "reject"), "authProfileId": UUID, "text": text(4000), "oneTimeCode": text(32, minLength=4, writeOnly=True), "allowedOrigins": arr(URI, 30)}, ["expectedVersion", "decision"])
 D["MessageInput"] = obj({"text": text(4000, minLength=1), "expectedContextVersion": VER})
+D["RunMessage"] = obj({"id": UUID, "runId": UUID, "actorId": UUID, "contextVersion": VER, "redactedText": text(4000), "createdAt": DATE})
 D["TriageInput"] = obj({"expectedVersion": VER, "disposition": enum("accepted", "duplicate", "works_as_intended", "cannot_reproduce", "closed"), "reason": text(2000, minLength=1)})
 D["TriagePreview"] = obj({"findingId": UUID, "expectedVersion": VER, "disposition": D["TriageInput"]["properties"]["disposition"], "reason": text(2000), "confirmationToken": text(1000), "expiresAt": DATE})
 D["TriageCommit"] = obj({**copy.deepcopy(D["TriageInput"]["properties"]), "confirmationToken": text(1000, minLength=1)})
@@ -144,7 +145,7 @@ event_payloads = {
     "run.finished": ref("Run"),
 }
 D["RunEvent"]["allOf"] = [{"if": {"properties": {"type": {"const": name}}, "required": ["type"]}, "then": {"properties": {"payload": schema}}} for name, schema in event_payloads.items()]
-for name in ["User", "Project", "Environment", "AuthProfile", "Knowledge", "ModelProfile", "Run", "CaseRecord", "CaseAttempt", "Step", "RunEvent", "Task", "Finding", "Member"]:
+for name in ["User", "Project", "Environment", "AuthProfile", "Knowledge", "ModelProfile", "Run", "CaseRecord", "CaseAttempt", "Step", "RunEvent", "Task", "Finding", "Member", "RunMessage"]:
     D[name + "Page"] = obj({"items": arr(ref(name), 100), "nextCursor": nullable(text(2000))})
 
 tools = {}
@@ -222,6 +223,7 @@ operation(P+"/runs", "get", "listRuns", "RunPage", queries=[("projectId", True, 
 operation(P+"/runs/{runId}", "get", "getRun", "Run")
 operation(P+"/runs/{runId}/cancel", "post", "cancelRun", "Run", status=202)
 operation(P+"/runs/{runId}/messages", "post", "sendRunMessage", "Run", "MessageInput", 202)
+operation(P+"/runs/{runId}/messages", "get", "listRunMessages", "RunMessagePage", queries=[("cursor", False, text(2000)), ("limit", False, integer(1, 100))])
 operation(P+"/runs/{runId}/inputs/{inputId}/respond", "post", "respondToInput", "InputRequest", "InputResponse")
 operation(P+"/runs/{runId}/events", "get", "streamEvents", "RunEvent", media="text/event-stream")
 paths[P+"/runs/{runId}/events"]["get"]["parameters"].append({"name": "Last-Event-ID", "in": "header", "required": False, "schema": text(30, pattern="^[0-9]+$")})

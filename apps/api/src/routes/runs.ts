@@ -3,6 +3,7 @@ import { parseContract } from '@localqa/contracts';
 import type { Run, RunConfig, InputRequest } from '@localqa/contracts';
 import { StorageError, appendEvent, runDTO } from '@localqa/storage';
 import { DEFAULT_LIMITS, TERMINAL } from '@localqa/domain';
+import { sanitizeUserText } from '../redact.js';
 import { ApiError } from '../errors.js';
 import { requireAuth } from '../auth.js';
 import { parsePagination, paginate, type Router } from '../router.js';
@@ -259,6 +260,47 @@ export function registerRunRoutes(router: Router): void {
     return parseContract('Run', run);
   });
 
+  // GET /api/v1/runs/{runId}/messages
+  router.get('/api/v1/runs/{runId}/messages', async (ctx: RequestContext) => {
+    await requireAuth(ctx);
+    const runId = ctx.params.runId!;
+    const messages = await ctx.api.db.actor(ctx.actor!, async (client) => {
+      const runRow = (
+        await client.query<{ project_id: string }>(
+          'SELECT project_id FROM runs WHERE id = $1',
+          [runId],
+        )
+      ).rows[0];
+      if (!runRow) throw new StorageError('NOT_FOUND');
+      const rows = await client.query<{
+        id: string;
+        project_id: string;
+        run_id: string;
+        actor_id: string;
+        context_version: number;
+        redacted_text: string;
+        created_at: Date;
+      }>(
+        'SELECT id, project_id, run_id, actor_id, context_version, redacted_text, created_at FROM run_messages WHERE run_id = $1 AND project_id = $2 ORDER BY created_at ASC, id ASC',
+        [runId, runRow.project_id],
+      );
+      return rows.rows.map((r) =>
+        parseContract('RunMessage', {
+          id: r.id,
+          runId: r.run_id,
+          actorId: r.actor_id,
+          contextVersion: r.context_version,
+          redactedText: r.redacted_text,
+          createdAt: r.created_at.toISOString(),
+        }),
+      );
+    });
+    const { limit, offset } = parsePagination(ctx.query);
+    const page = paginate(messages, limit, offset);
+    ctx.res.statusCode = 200;
+    return parseContract('RunMessagePage', page);
+  });
+
   // POST /api/v1/runs/{runId}/messages
   router.post('/api/v1/runs/{runId}/messages', async (ctx: RequestContext) => {
     await requireAuth(ctx);
@@ -294,6 +336,9 @@ export function registerRunRoutes(router: Router): void {
 
       // Record message
       const messageId = randomUUID();
+      // Record message after redaction: user-supplied text can contain
+      // passwords/tokens and flows into model context; never persist raw.
+      const redactedText = sanitizeUserText(input.text);
       await client.query(
         'INSERT INTO run_messages(id, project_id, run_id, actor_id, context_version, redacted_text) VALUES($1, $2, $3, $4, $5, $6)',
         [
@@ -302,7 +347,7 @@ export function registerRunRoutes(router: Router): void {
           runId,
           ctx.actor!.userId,
           nextContextVersion,
-          input.text,
+          redactedText,
         ],
       );
 

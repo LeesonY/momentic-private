@@ -207,7 +207,7 @@ test('PostgreSQL 18 and all explicit migrations applied; no ORM schema sync', as
   const migrations = (
     await pool.query('SELECT name,sha256 FROM storage_migrations ORDER BY name')
   ).rows;
-  assert.equal(migrations.length, 5);
+  assert.equal(migrations.length, 6);
   console.log(JSON.stringify({ postgresVersion: version, migrations }));
   const required = [
     'users',

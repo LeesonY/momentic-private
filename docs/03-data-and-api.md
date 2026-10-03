@@ -115,6 +115,7 @@ UI 使用“通过”“已判定”“已尝试”三个不同名称。控件�
 | GET/POST /runs；GET /runs/{runId} | 按项目列运行、仅 URL 发起、状态与 effective config |
 | POST /runs/{runId}/cancel | operator/owner；重复取消幂等；停止所有子任务派发 |
 | POST /runs/{runId}/messages | 补充说明；持久化并推进上下文版本，不直接执行任意指令 |
+| GET /runs/{runId}/messages | 读取运行消息（分页）；项目成员可读（viewer 可读），非成员返回 404 不泄露存在性 |
 | POST /runs/{runId}/inputs/{inputId}/respond | 回应具体 InputRequest；验证当前状态、权限和范围 |
 | GET /runs/{runId}/events | SSE；按 Last-Event-ID 恢复，project viewer 可读 |
 | GET /runs/{runId}/cases；GET /cases/{caseId} | 固定计划、最终结果与历次尝试 |
