@@ -34,6 +34,7 @@ import type {
   Run,
   RunCreate,
   RunPage,
+  RunMessagePage,
   TaskPage,
   CaseRecord,
   CaseRecordPage,
@@ -400,6 +401,13 @@ export class MockApiClient implements ApiClient {
   ): Promise<Run> {
     const run = this.runs.find((r) => r.id === runId);
     return run || this.runs[0];
+  }
+
+  public async listRunMessages(
+    _runId: string,
+    _query?: PaginationQuery,
+  ): Promise<RunMessagePage> {
+    return { items: [], nextCursor: null };
   }
 
   public async respondToInput(

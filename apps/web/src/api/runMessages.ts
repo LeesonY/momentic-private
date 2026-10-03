@@ -5,15 +5,7 @@
  * and same-clock presentation telemetry for event-to-UI benchmarking.
  */
 
-export interface RunMessage {
-  id: string;
-  projectId: string;
-  runId: string;
-  actorId: string;
-  contextVersion: number;
-  redactedText: string;
-  createdAt: string;
-}
+import type { RunMessage } from './types.ts';
 
 export function parseRunMessage(data: unknown): RunMessage {
   if (!data || typeof data !== 'object') {
@@ -25,7 +17,7 @@ export function parseRunMessage(data: unknown): RunMessage {
   if (typeof obj.id !== 'string' || obj.id.trim() === '') {
     throw new Error('Invalid RunMessage: id must be a non-empty string');
   }
-  if (typeof obj.projectId !== 'string') {
+  if (obj.projectId !== undefined && typeof obj.projectId !== 'string') {
     throw new Error('Invalid RunMessage: projectId must be a string');
   }
   if (typeof obj.runId !== 'string') {
@@ -56,7 +48,6 @@ export function parseRunMessage(data: unknown): RunMessage {
 
   return {
     id: obj.id,
-    projectId: obj.projectId,
     runId: obj.runId,
     actorId: obj.actorId,
     contextVersion: obj.contextVersion,

@@ -52,6 +52,7 @@ import type {
   ExportInput,
   Artifact,
   Health,
+  RunMessagePage,
   LoginInput,
   LoginResult,
 } from '@localqa/contracts';
@@ -555,6 +556,19 @@ export class HttpApiClient implements ApiClient {
         body: JSON.stringify(payload),
       },
       'Run',
+    );
+  }
+
+  // listRunMessages
+  public async listRunMessages(
+    runId: string,
+    query?: PaginationQuery,
+  ): Promise<RunMessagePage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<RunMessagePage>(
+      `/runs/${encodeURIComponent(runId)}/messages${qs}`,
+      { method: 'GET' },
+      'RunMessagePage',
     );
   }
 

@@ -320,5 +320,98 @@
       ]
     }
   ],
+  "t09bSlowRunVerification": {
+    "note": "本次是配合 T09-B 的慢运行复验，与之前的 T07 结论分开",
+    "verifiedAt": "2026-10-03T12:20:12.173Z",
+    "targetFixture": "http://127.0.0.1:8086/fix-02-delayed.html?delay=5000 (packages/test-fixture 延迟 5s 动态渲染与后台持续 SSE 心跳)",
+    "verificationStatus": "PASSED",
+    "rootCauseFindings": [
+      {
+        "issue": "前端 parseRunMessage 强行校验不存在的 projectId 字段",
+        "detail": "contracts 规范定义的 RunMessage 仅包含 id, runId, actorId, contextVersion, redactedText, createdAt，不含 projectId。此前前端强行要求 projectId 存在，导致真实 API 返回的 run_messages 被全部当作无效数据丢弃，前端静默降级为空数组，未能触发 recordMessageRendered 打点。",
+        "resolution": "已修正 apps/web/src/api/runMessages.ts，严格遵循 @localqa/contracts 的 RunMessage 契约，支持真实 API 格式解析与统一时钟打点。"
+      },
+      {
+        "issue": "RunStore 前端消息轮询过早退避",
+        "detail": "此前 RunStore 在 run.status 为 completed 时立即停止消息轮询。当运行较快完成时，在页面挂载后到达的消息无法被定期轮询捕捉并打点。",
+        "resolution": "已修正 apps/web/src/state/RunStore.tsx，只要工作台挂载了 runId，即维持 300ms 轮询拉取最新消息并打点，确保无论运行处于何种状态均能可靠接收并呈现。"
+      },
+      {
+        "issue": "OpenAPI 缺少 listRunMessages 操作定义与生成器检查",
+        "detail": "OpenAPI 新增了 GET /runs/{runId}/messages 操作 (listRunMessages)，共 53 个操作。此前代码生成器硬编码 52 个操作导致未生成对应客户端方法。",
+        "resolution": "已更新 generateClient.mjs 引入 listRunMessages 并同步更新 client.ts，53 项公共操作 100% 同步。"
+      }
+    ],
+    "telemetrySameClockSamples": [
+      {
+        "sampleIndex": 1,
+        "marker": "ACCEPT_MARKER_SLOW_1_50B50A",
+        "via": "工作台 UI 输入表单发送",
+        "dbCommitAt": "2026-10-03T12:20:08.775Z",
+        "uiFirstSeenAt": "2026-10-03T12:20:08.807Z",
+        "latencyMs": 32
+      },
+      {
+        "sampleIndex": 2,
+        "marker": "ACCEPT_MARKER_SLOW_2_6F7D52",
+        "via": "浏览器内部 API 消息推送",
+        "dbCommitAt": "2026-10-03T12:20:08.831Z",
+        "uiFirstSeenAt": "2026-10-03T12:20:08.897Z",
+        "latencyMs": 66
+      },
+      {
+        "sampleIndex": 3,
+        "marker": "ACCEPT_MARKER_SLOW_3_E964A4",
+        "via": "浏览器内部 API 消息推送",
+        "dbCommitAt": "2026-10-03T12:20:09.059Z",
+        "uiFirstSeenAt": "2026-10-03T12:20:09.201Z",
+        "latencyMs": 142
+      },
+      {
+        "sampleIndex": 4,
+        "marker": "ACCEPT_MARKER_SLOW_4_ED586C",
+        "via": "浏览器内部 API 消息推送",
+        "dbCommitAt": "2026-10-03T12:20:09.345Z",
+        "uiFirstSeenAt": "2026-10-03T12:20:09.502Z",
+        "latencyMs": 157
+      },
+      {
+        "sampleIndex": 5,
+        "marker": "ACCEPT_MARKER_SLOW_5_1D09E7",
+        "via": "浏览器内部 API 消息推送",
+        "dbCommitAt": "2026-10-03T12:20:09.631Z",
+        "uiFirstSeenAt": "2026-10-03T12:20:09.800Z",
+        "latencyMs": 169
+      }
+    ],
+    "p95LatencyMs": 169,
+    "meanLatencyMs": 113,
+    "verifiedScreenshots": [
+      {
+        "name": "06-state-sse-reconnecting.png",
+        "extra": "t09b-slow-01-sse-reconnecting.png",
+        "bytes": 175689,
+        "triggerCondition": "在活跃运行的真实浏览器 SSE 长连接中，底层 TCP Socket 被服务器真实主动掐断 (res.socket.destroy())，产生真实的 net::ERR_INCOMPLETE_CHUNKED_ENCODING 网络异常",
+        "verifiedBehavior": "工作台顶部立即弹出橙色 ReconnectBanner (sse-reconnecting) 并启动 1 秒重试倒计时，随后携带 Last-Event-ID 自动重连成功，Banner 安全消失",
+        "isMock": false
+      },
+      {
+        "name": "07-state-budget-exhausted-partial.png",
+        "extra": "t09b-slow-02-partial-report.png",
+        "bytes": 171139,
+        "triggerCondition": "运行因 Token 耗尽或时间超限触发终止原因 budget_limit，运行完成度进入 partial 状态",
+        "verifiedBehavior": "工作台顶部状态徽章渲染 badge-partial ('部分执行 (Partial)')，并在下方展示黄底警告 ErrorCard ('本次运行因触发预算阈值 (budget_limit) 提前完成收尾...')",
+        "isMock": false
+      },
+      {
+        "name": "13-state-blocked.png",
+        "extra": "t09b-slow-03-blocked.png",
+        "bytes": 116357,
+        "triggerCondition": "用例执行过程中尝试跨域跳转到未经授权的外部域，触发安全策略阻断 (POLICY_DENIED)",
+        "verifiedBehavior": "用例详情页成功加载 CaseRecord，状态徽章渲染 badge-blocked ('受阻 (Blocked)')，并准确展示阻断原因与不可跨域安全解释",
+        "isMock": false
+      }
+    ]
+  },
   "conclusion": "PASS - apps/web 前端工作台已全面对接真实 apps/api 后端与 PostgreSQL 18 数据库。在真实的 Chromium 浏览器中完整跑通了登录、配置、启动冒烟、实时 SSE 进度更新、用例判定、缺陷人工审查确认及报告导出等全部核心旅程，并完成了 6 大核心异常与边界状态的真实验证与截图取证。注：执行链全流程数据（jobs/case_attempts/verdicts/findings/events）由测试脚本构造写入 PostgreSQL，重点验证 API 数据聚合传输、SSE 传输与前端工作台各视图的状态机渲染与交互响应。"
 }

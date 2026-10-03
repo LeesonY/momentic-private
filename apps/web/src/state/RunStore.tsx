@@ -125,8 +125,7 @@ export function RunStoreProvider({
 
   // Periodic polling for messages while run is active
   useEffect(() => {
-    if (!run || ['completed', 'failed', 'cancelled'].includes(run.status))
-      return;
+    if (!runId) return;
     const interval = setInterval(() => {
       fetchRunMessages('/api/v1', runId)
         .then((newMsgs) => {
@@ -148,7 +147,7 @@ export function RunStoreProvider({
         .catch(() => {});
     }, 300);
     return () => clearInterval(interval);
-  }, [runId, run?.status]);
+  }, [runId]);
 
   // 2. Event projection handler
   const handleEvent = useCallback((event: RunEvent) => {

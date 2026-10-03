@@ -52,8 +52,8 @@ for (const [path, methods] of Object.entries(openApi.paths)) {
   }
 }
 
-if (operations.length !== 52) {
-  throw new Error(`Expected 52 public operations, found ${operations.length}`);
+if (operations.length !== 53) {
+  throw new Error(`Expected 53 public operations, found ${operations.length}`);
 }
 
 const opNames = operations.map((op) => op.operationId);
@@ -114,9 +114,13 @@ import type {
   ExportInput,
   Artifact,
   Health,
+  RunMessage,
+  RunMessagePage,
   LoginInput,
   LoginResult,
 } from '@localqa/contracts';
+
+export type { RunMessage, RunMessagePage };
 
 export type PublicOperationName =
 ${opNames.map((name) => `  | '${name}'`).join('\n')};
@@ -201,6 +205,10 @@ export interface ApiClient {
     messageOrInput: string | MessageInput,
     expectedContextVersion?: number,
   ): Promise<Run>;
+  listRunMessages(
+    runId: string,
+    query?: PaginationQuery,
+  ): Promise<RunMessagePage>;
   respondToInput(
     runId: string,
     inputId: string,
@@ -303,6 +311,7 @@ import type {
   ExportInput,
   Artifact,
   Health,
+  RunMessagePage,
   LoginInput,
   LoginResult,
 } from '@localqa/contracts';
@@ -748,6 +757,19 @@ export class HttpApiClient implements ApiClient {
     );
   }
 
+  // listRunMessages
+  public async listRunMessages(
+    runId: string,
+    query?: PaginationQuery,
+  ): Promise<RunMessagePage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<RunMessagePage>(
+      \`/runs/\${encodeURIComponent(runId)}/messages\${qs}\`,
+      { method: 'GET' },
+      'RunMessagePage',
+    );
+  }
+
   // 33. respondToInput
   public async respondToInput(
     runId: string,
@@ -999,12 +1021,12 @@ if (checkMode) {
     );
   }
   console.log(
-    'Contract check passed: 52 public operations in sync with openapi.json',
+    'Contract check passed: 53 public operations in sync with openapi.json',
   );
 } else {
   await writeFile(targetTypes, typesContent, 'utf8');
   await writeFile(targetClient, clientContent, 'utf8');
   console.log(
-    'Successfully generated apps/web/src/api/types.ts and apps/web/src/api/client.ts (52 operations).',
+    'Successfully generated apps/web/src/api/types.ts and apps/web/src/api/client.ts (53 operations).',
   );
 }

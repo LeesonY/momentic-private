@@ -53,9 +53,13 @@ import type {
   ExportInput,
   Artifact,
   Health,
+  RunMessage,
+  RunMessagePage,
   LoginInput,
   LoginResult,
 } from '@localqa/contracts';
+
+export type { RunMessage, RunMessagePage };
 
 export type PublicOperationName =
   | 'login'
@@ -90,6 +94,7 @@ export type PublicOperationName =
   | 'getRun'
   | 'cancelRun'
   | 'sendRunMessage'
+  | 'listRunMessages'
   | 'respondToInput'
   | 'streamEvents'
   | 'listRunCases'
@@ -227,6 +232,10 @@ export interface ApiClient {
     messageOrInput: string | MessageInput,
     expectedContextVersion?: number,
   ): Promise<Run>;
+  listRunMessages(
+    runId: string,
+    query?: PaginationQuery,
+  ): Promise<RunMessagePage>;
   respondToInput(
     runId: string,
     inputId: string,
