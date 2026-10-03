@@ -55,6 +55,16 @@ evidence.baseRunCategories = only
       ]),
     )
   : null;
+function shouldRun(name) {
+  return !only || only.includes(name);
+}
+function gatedRecord(category, status, raw, reason = null, samples = null) {
+  if (!shouldRun(category)) {
+    recordSkipped(category, previous?.recordedAt ?? null);
+    return;
+  }
+  record(category, status, raw, reason, samples);
+}
 evidence.history = previous
   ? [
       ...(previous.history || []),
@@ -114,6 +124,8 @@ function recordSkipped(category, carriedFrom) {
   };
   console.log(`[${category}] 跳过(沿用 ${carriedFrom || '无历史'})`);
 }
+evidence.prerequisites = [];
+evidence.targetChecks = only ?? 'all';
 const owned = ['.env', 'secrets', 'certs', 'ca'].map(
   (name) => `${deploy}/${name}`,
 );
@@ -160,7 +172,7 @@ function compose(args) {
   return cmd('docker', ['compose', '-f', 'deploy/docker-compose.yml', ...args]);
 }
 function note(name, detail) {
-  evidence.checks.push({ name, ...detail });
+  evidence.checks.push({ name, ...detail, kind: 'prerequisite' });
   console.log(name, JSON.stringify(detail));
 }
 function http(method, path, body, cookie, timeout = 10000) {
@@ -333,7 +345,10 @@ try {
     { mode: 0o600 },
   );
   compose(['config', '--quiet']);
-  const tPgUp = timingStart('compose up postgres', 'compose start + pg healthcheck');
+  const tPgUp = timingStart(
+    'compose up postgres',
+    'compose start + pg healthcheck',
+  );
   compose(['up', '-d', '--wait', 'postgres']);
   timingEnd(tPgUp);
   cmd('docker', [
@@ -388,7 +403,10 @@ try {
     'node',
     'packages/test-fixture/server.js',
   ]);
-  const tStackUp = timingStart('compose up six services', 'compose start + healthchecks (5 services)');
+  const tStackUp = timingStart(
+    'compose up six services',
+    'compose start + healthchecks (5 services)',
+  );
   compose([
     'up',
     '-d',
@@ -684,71 +702,85 @@ try {
     exportGet?.json?.artifactId &&
     exportDownload?.status === 200 &&
     zipVerification?.valid;
-  record(
-    '2_end_to_end',
-    closureOk ? '通过' : '失败',
-    rawClosure,
-    closureOk
-      ? null
-      : '运行和 verdict/证据已落库，但导出必须有真实可下载的 ZIP；不能将 status=ready + artifactId=null 视为完成。',
-    1,
-  );
+  if (shouldRun('2_end_to_end'))
+    record(
+      '2_end_to_end',
+      closureOk ? '通过' : '失败',
+      rawClosure,
+      closureOk
+        ? null
+        : '运行和 verdict/证据已落库，但导出必须有真实可下载的 ZIP；不能将 status=ready + artifactId=null 视为完成。',
+      1,
+    );
+  const twoSlotsActive = shouldRun('3_four_slots_fairness');
+  let reservationIds = [];
+  let uuid = () => '';
   // Deterministic admission test: four reserved browser slots, then another
   // request must fail with 429; artificial reservations are released afterwards.
-  const reservationIds = Array.from({ length: 4 }, () =>
-    randomBytes(16).toString('hex'),
-  );
-  const uuid = (hex) =>
-    `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
-  const occupancy = reservationIds
-    .map(
-      (hex) =>
-        `INSERT INTO budget_reservations(id,project_id,run_id,request_id,kind,reserved,status) VALUES('${uuid(hex)}','${project.id}','${run.id}','${uuid(randomBytes(16).toString('hex'))}','concurrency','{}','reserved');`,
-    )
-    .join(' ');
-  cmd('docker', [
-    'exec',
-    'localqa-postgres',
-    'psql',
-    '-v',
-    'ON_ERROR_STOP=1',
-    '-U',
-    'localqa',
-    '-d',
-    'localqa',
-    '-c',
-    occupancy,
-  ]);
-  const denied = await http(
-    'POST',
-    '/api/v1/runs',
-    { projectId: project.id, targetUrl: 'http://localqa-t09b-fixture:8080/' },
-    cookie,
-  );
-  note('two_slots_admission', {
-    configured: 2,
-    thirdStatus: denied.status,
-    code: denied.json.code,
-    retryAfter: denied.headers['retry-after'],
-    occupancy: 'test-reservations',
-  });
-  cmd('docker', [
-    'exec',
-    'localqa-postgres',
-    'psql',
-    '-v',
-    'ON_ERROR_STOP=1',
-    '-U',
-    'localqa',
-    '-d',
-    'localqa',
-    '-c',
-    `UPDATE budget_reservations SET status='released' WHERE id IN ('${reservationIds.map(uuid).join("','")}')`,
-  ]);
+  if (twoSlotsActive) {
+    reservationIds = Array.from({ length: 4 }, () =>
+      randomBytes(16).toString('hex'),
+    );
+    uuid = (hex) =>
+      `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+    const occupancy = reservationIds
+      .map(
+        (hex) =>
+          `INSERT INTO budget_reservations(id,project_id,run_id,request_id,kind,reserved,status) VALUES('${uuid(hex)}','${project.id}','${run.id}','${uuid(randomBytes(16).toString('hex'))}','concurrency','{}','reserved');`,
+      )
+      .join(' ');
+    cmd('docker', [
+      'exec',
+      'localqa-postgres',
+      'psql',
+      '-v',
+      'ON_ERROR_STOP=1',
+      '-U',
+      'localqa',
+      '-d',
+      'localqa',
+      '-c',
+      occupancy,
+    ]);
+  }
+  const denied = twoSlotsActive
+    ? await http(
+        'POST',
+        '/api/v1/runs',
+        {
+          projectId: project.id,
+          targetUrl: 'http://localqa-t09b-fixture:8080/',
+        },
+        cookie,
+      )
+    : { status: 'skipped', json: {}, headers: {} };
+  if (twoSlotsActive)
+    note('two_slots_admission', {
+      configured: 2,
+      thirdStatus: denied.status,
+      code: denied.json.code,
+      retryAfter: denied.headers['retry-after'],
+      occupancy: 'test-reservations',
+    });
+  if (twoSlotsActive)
+    cmd('docker', [
+      'exec',
+      'localqa-postgres',
+      'psql',
+      '-v',
+      'ON_ERROR_STOP=1',
+      '-U',
+      'localqa',
+      '-d',
+      'localqa',
+      '-c',
+      `UPDATE budget_reservations SET status='released' WHERE id IN ('${reservationIds.map(uuid).join("','")}')`,
+    ]);
   if (
-    denied.status !== 429 ||
-    denied.json.code !== 'RATE_LIMITED' ||
-    denied.headers['retry-after'] !== '1'
+    twoSlotsActive &&
+    (denied.status !== 429 ||
+      denied.json.code !== 'RATE_LIMITED' ||
+      denied.headers['retry-after'] !== '1')
   )
     throw new Error('Two-slot admission did not return 429');
   const seq = Number(
@@ -776,7 +808,11 @@ try {
   record(
     '1_proxy_sse_unbuffered',
     '通过',
-    { lastEventId: seq, ...heartbeat, waitReason: 'SSE 心跳语义（真实 15s），非性能开销' },
+    {
+      lastEventId: seq,
+      ...heartbeat,
+      waitReason: 'SSE 心跳语义（真实 15s），非性能开销',
+    },
     null,
     1,
   );
@@ -795,6 +831,9 @@ try {
     sandbox,
     statuses: evidence.checks[0].statuses,
     timings: evidence.timings,
+    only,
+    previousCategories: previous?.categories || {},
+    previousRecordedAt: previous?.recordedAt ?? null,
   });
   // Summarize wall-clock timings: separate semantic waits from other overhead.
   // (final compose-down timing is appended in the finally block below.)
@@ -880,7 +919,11 @@ try {
     totalMs: totalMs2,
     semanticWaitMs: semanticMs2,
     otherOverheadMs: totalMs2 - semanticMs2,
-    semanticWaits: semanticWaits2.map((t) => ({ label: t.label, ms: t.ms, waitReason: t.waitReason })),
+    semanticWaits: semanticWaits2.map((t) => ({
+      label: t.label,
+      ms: t.ms,
+      waitReason: t.waitReason,
+    })),
   };
   evidence.unverified = Object.entries(evidence.categories)
     .filter(([, item]) => item.status === '未验证')

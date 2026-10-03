@@ -26,7 +26,33 @@ export async function runAcceptanceExtras({
   sandbox,
   statuses,
   timings,
+  only,
+  previousCategories,
+  previousRecordedAt,
 }) {
+  const shouldRun = (key) => !only || only.includes(key);
+  const recordOrSkip = (
+    category,
+    status,
+    raw,
+    reason = null,
+    samples = null,
+  ) => {
+    if (!shouldRun(category)) {
+      const carried = previousCategories[category];
+      record(
+        category,
+        carried?.status ?? '未验证',
+        carried?.raw ?? { sampleCount: 0 },
+        carried
+          ? `单点复验跳过；沿用 ${previousRecordedAt} 完整运行的结果。`
+          : '单点复验跳过且无历史结果，视为未验证。',
+        carried?.samples ?? 0,
+      );
+      return;
+    }
+    record(category, status, raw, reason, samples);
+  };
   const sql = (query) =>
     cmd('docker', [
       'exec',
@@ -42,6 +68,19 @@ export async function runAcceptanceExtras({
       query,
     ]).stdout.trim();
   const section = async (name, work) => {
+    if (!shouldRun(name)) {
+      const carried = previousCategories[name];
+      record(
+        name,
+        carried?.status ?? '未验证',
+        carried?.raw ?? { sampleCount: 0 },
+        carried
+          ? `单点复验跳过；沿用 ${previousRecordedAt} 完整运行的结果。`
+          : '单点复验跳过且无历史结果，视为未验证。',
+        carried?.samples ?? 0,
+      );
+      return;
+    }
     const t0 = Date.now();
     try {
       await work();
@@ -54,7 +93,12 @@ export async function runAcceptanceExtras({
       );
     } finally {
       const end = Date.now();
-      timings.push({ label: name, startAt: new Date(t0).toISOString(), endAt: new Date(end).toISOString(), ms: end - t0 });
+      timings.push({
+        label: name,
+        startAt: new Date(t0).toISOString(),
+        endAt: new Date(end).toISOString(),
+        ms: end - t0,
+      });
     }
   };
   await section('1_six_services_business', async () => {
@@ -88,7 +132,7 @@ export async function runAcceptanceExtras({
       Number(raw.orchestratorJobCount) >= 4 &&
       Number(raw.workerLeasedJobCount) >= 4 &&
       sandbox.processes.every((p) => p.seccomp === 2 && !p.noSandbox);
-    record(
+    recordOrSkip(
       '1_six_services_business',
       passed ? '通过' : '失败',
       raw,
@@ -98,7 +142,7 @@ export async function runAcceptanceExtras({
   });
 
   let users = [];
-  await section('3_multi_user_quota', async () => {
+  await section('3_ten_users_rbac', async () => {
     const roles = Array.from({ length: 9 }, (_, i) =>
       i < 3 ? 'owner' : i < 6 ? 'operator' : 'viewer',
     );
@@ -239,7 +283,7 @@ export async function runAcceptanceExtras({
           (r.role === 'admin' || r.beta === 404),
       ) &&
       deniedRun?.status === 403;
-    record(
+    recordOrSkip(
       '3_ten_users_rbac',
       rbac ? '通过' : '失败',
       raw,
@@ -344,7 +388,7 @@ export async function runAcceptanceExtras({
       !started.some((r) => r.status !== 202) &&
       queueTimings.length > 0 &&
       Object.keys(byProject).length === 2;
-    record(
+    recordOrSkip(
       '3_four_slots_fairness',
       fairnessOk
         ? '通过'
@@ -361,7 +405,7 @@ export async function runAcceptanceExtras({
     );
   });
 
-  await section('5_performance', async () => {
+  await section('5_api_p95', async () => {
     const samples = [];
     for (let i = 0; i < 100; i++) {
       const begin = performance.now();
@@ -378,7 +422,7 @@ export async function runAcceptanceExtras({
     }
     const sorted = samples.map((s) => s.ms).sort((a, b) => a - b);
     const p95 = sorted[Math.ceil(sorted.length * 0.95) - 1];
-    record(
+    recordOrSkip(
       '5_api_p95',
       samples.every((s) => s.status === 200) && p95 <= 500 ? '通过' : '失败',
       {
@@ -395,7 +439,7 @@ export async function runAcceptanceExtras({
     );
   });
 
-  await section('5_event_to_ui', async () => {
+  await section('5_event_to_ui_p95', async () => {
     const result = await measureEventToUi({
       cmd,
       http,
@@ -407,7 +451,7 @@ export async function runAcceptanceExtras({
     });
     const pass =
       result.measured >= 15 && result.p95Ms !== null && result.p95Ms <= 2000;
-    record(
+    recordOrSkip(
       '5_event_to_ui_p95',
       pass ? '通过' : '失败',
       result,
@@ -481,7 +525,7 @@ export async function runAcceptanceExtras({
     const ok =
       first.ids.join(',') === [maxSeq - 2, maxSeq - 1, maxSeq].join(',') &&
       second.ids[0] === maxSeq;
-    record(
+    recordOrSkip(
       '4_sse_reconnect',
       ok ? '通过' : '失败',
       { maxSeq, first, second },
@@ -539,14 +583,14 @@ export async function runAcceptanceExtras({
       !result?.error &&
       result?.mock !== 'true' &&
       result?.afterRefresh?.includes(run.id);
-    record(
+    recordOrSkip(
       '6_ui_refresh',
       valid ? '通过' : '失败',
       raw,
       valid ? null : '不能用截图存在替代刷新位置、真实后端与 SSE 恢复断言。',
       1,
     );
-    record(
+    recordOrSkip(
       '6_ui_sse_partial_blocked',
       '未验证',
       {
@@ -585,7 +629,7 @@ export async function runAcceptanceExtras({
       after: recovered?.status,
       persistedStatus: recovered?.json?.status,
     };
-    record(
+    recordOrSkip(
       '4_db_restart',
       before.status === 200 &&
         restart.status === 0 &&
@@ -771,7 +815,7 @@ export async function runAcceptanceExtras({
               : recoveredMs > 25000
                 ? `Worker 恢复耗时 ${recoveredMs}ms，超出 25 秒阈值。`
                 : '旧 fencing 被释放且任务重新排队；就绪以任务循环标记+容器运行为准。';
-    record(
+    recordOrSkip(
       '4_worker_midtask_kill',
       !runningJob
         ? '未验证'
@@ -821,7 +865,7 @@ export async function runAcceptanceExtras({
       const explicit =
         /No space left/i.test(diskFullRaw.overflowResult) ||
         overflow.status !== 0;
-      record(
+      recordOrSkip(
         '4_disk_full',
         explicit ? '通过' : '失败',
         diskFullRaw,
@@ -831,7 +875,7 @@ export async function runAcceptanceExtras({
         1,
       );
     } catch (e) {
-      record(
+      recordOrSkip(
         '4_disk_full',
         '失败',
         { ...diskFullRaw, error: String(e) },
@@ -878,7 +922,7 @@ export async function runAcceptanceExtras({
       },
       observedStatus: state?.json?.status,
     };
-    record(
+    recordOrSkip(
       '4_credential_revocation',
       patch.status === 200 &&
         disabledRun.status !== 202 &&
