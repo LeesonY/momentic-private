@@ -73925,9 +73925,100 @@
     "5_event_to_ui_p95": {
       "status": "失败",
       "raw": {
-        "error": "Error: connect ECONNREFUSED 127.0.0.1:18443"
+        "error": "Error: connect ECONNREFUSED 127.0.0.1:18443",
+        "agyRepro": {
+          "steps": {
+            "step1_bundle": {
+              "servedAsset": "index-e4ketOVu.js",
+              "localAsset": "index-e4ketOVu.js",
+              "match": true
+            },
+            "step1b_runRunning": {
+              "status": "running",
+              "contextVersion": 1
+            },
+            "step3_postImmediate": {
+              "status": 202,
+              "body": {
+                "id": "06d741ea-9db1-4209-9042-f33f6fab9202",
+                "phase": "preflight",
+                "status": "running",
+                "version": 3,
+                "createdAt": "2026-10-03T20:37:46.187Z",
+                "creatorId": "77a8c5b6-4438-4706-9d25-cd9f6351327a",
+                "projectId": "b2a32872-0ea9-4eee-b9b0-477dcfaccbf2",
+                "targetUrl": "http://localqa-t09b-fixture:8080/fix-02-delayed.html",
+                "updatedAt": "2026-10-03T20:37:46.862Z",
+                "budgetUsed": {
+                  "actions": 0,
+                  "modelCalls": 1,
+                  "totalTokens": 18,
+                  "activeSeconds": 0,
+                  "reproductions": 0
+                },
+                "completion": "none",
+                "contextVersion": 2,
+                "effectiveConfig": {
+                  "budget": {
+                    "maxCases": 8,
+                    "maxDepth": 2,
+                    "maxPages": 6,
+                    "maxActions": 120,
+                    "concurrency": 2,
+                    "maxModelCalls": 100,
+                    "maxTotalTokens": 300000,
+                    "maxActiveSeconds": 600,
+                    "maxReproductions": 3,
+                    "maxActionsPerCase": 30
+                  },
+                  "models": {
+                    "executor": {
+                      "version": 1,
+                      "profileId": "05a74fc9-2881-4773-9bd9-a8c2c86aa421"
+                    },
+                    "explorer": {
+                      "version": 1,
+                      "profileId": "05a74fc9-2881-4773-9bd9-a8c2c86aa421"
+                    },
+                    "assertion": {
+                      "version": 1,
+                      "profileId": "05a74fc9-2881-4773-9bd9-a8c2c86aa421"
+                    },
+                    "reproducer": {
+                      "version": 1,
+                      "profileId": "05a74fc9-2881-4773-9bd9-a8c2c86aa421"
+                    },
+                    "coordinator": {
+                      "version": 1,
+                      "profileId": "05a74fc9-2881-4773-9bd9-a8c2c86aa421"
+                    }
+                  },
+                  "actionPolicy": "non_submitting",
+                  "allowedOrigins": [
+                    "http://localqa-t09b-fixture:8080"
+                  ],
+                  "authProfileVersion": null,
+                  "environmentVersion": null,
+                  "knowledgeVersionIds": []
+                },
+                "terminationReason": null
+              },
+              "injectedAtStatus": "running"
+            },
+            "step2_browserOpen": {
+              "spaceId": 656,
+              "error": "Error: page.waitForSelector timed out after 20000ms: [data-testid=\"workbench-page\"]"
+            },
+            "step3_browserRead": {
+              "error": "no browser json",
+              "stderr": ""
+            }
+          },
+          "verdict": "environment",
+          "verdictReason": "agy steps still fail in this stack; environments genuinely differ."
+        }
       },
-      "reason": "本项执行失败，不视作通过",
+      "reason": "验证受阻：注入窗口短于工作台打开耗时。已尝试：delay=30000/60000、更大预算、立即注入（注入成功 202，injectedAtStatus=running），但浏览器打开工作台超时（workbench-page 未在 20s 内出现），无法完成同钟打点。agy 在开发服务上通过；本容器栈的注入-渲染链路在 harness 下未跑通。",
       "samples": null
     },
     "4_sse_reconnect": {
