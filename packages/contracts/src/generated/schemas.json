@@ -2597,6 +2597,44 @@
         ],
         "additionalProperties": false
       },
+      "RunMessage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "contextVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "redactedText": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "runId",
+          "actorId",
+          "contextVersion",
+          "redactedText",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
       "TriageInput": {
         "type": "object",
         "properties": {
@@ -4683,6 +4721,35 @@
             "type": "array",
             "items": {
               "$ref": "#/$defs/Member"
+            },
+            "maxItems": 100,
+            "minItems": 0
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "RunMessagePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/RunMessage"
             },
             "maxItems": 100,
             "minItems": 0
@@ -8799,6 +8866,70 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MessageInput"
+                }
+              }
+            }
+          }
+        },
+        "get": {
+          "operationId": "listRunMessages",
+          "tags": [
+            "P0"
+          ],
+          "summary": "listRunMessages",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "runId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "cursor",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "maxLength": 2000
+              }
+            },
+            {
+              "name": "limit",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "listRunMessages",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/RunMessagePage"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
                 }
               }
             }
@@ -13019,6 +13150,44 @@
           ],
           "additionalProperties": false
         },
+        "RunMessage": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "runId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "actorId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "contextVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "redactedText": {
+              "type": "string",
+              "maxLength": 4000
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "id",
+            "runId",
+            "actorId",
+            "contextVersion",
+            "redactedText",
+            "createdAt"
+          ],
+          "additionalProperties": false
+        },
         "TriageInput": {
           "type": "object",
           "properties": {
@@ -15105,6 +15274,35 @@
               "type": "array",
               "items": {
                 "$ref": "#/components/schemas/Member"
+              },
+              "maxItems": 100,
+              "minItems": 0
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        },
+        "RunMessagePage": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/RunMessage"
               },
               "maxItems": 100,
               "minItems": 0

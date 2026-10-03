@@ -81,6 +81,8 @@ export type Contract =
   | RunCreate
   | RunEvent
   | RunEventPage
+  | RunMessage
+  | RunMessagePage
   | RunPage
   | SnapshotNode
   | Step
@@ -1146,6 +1148,22 @@ export interface RunEventPage {
   items: RunEvent[];
   nextCursor: string | null;
 }
+export interface RunMessage {
+  id: string;
+  runId: string;
+  actorId: string;
+  contextVersion: number;
+  redactedText: string;
+  createdAt: string;
+}
+export interface RunMessagePage {
+  /**
+   * @minItems 0
+   * @maxItems 100
+   */
+  items: RunMessage[];
+  nextCursor: string | null;
+}
 export interface RunPage {
   /**
    * @minItems 0
@@ -1336,6 +1354,8 @@ export interface ContractTypes {
   RunCreate: RunCreate;
   RunEvent: RunEvent;
   RunEventPage: RunEventPage;
+  RunMessage: RunMessage;
+  RunMessagePage: RunMessagePage;
   RunPage: RunPage;
   SnapshotNode: SnapshotNode;
   Step: Step;

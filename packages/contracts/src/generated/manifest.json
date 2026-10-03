@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "sourceHashes": {
-    "domain.schema.json": "03da1053ba021897f97677a2b2024b57bc571371560b24120e1308cc96129bae",
+    "domain.schema.json": "78e87822673a8d5c15d3c5aeb01ac1af1056e268bca7dd252c32eecf09330202",
     "events.schema.json": "11cbfd7c4f612929831b5f3da9b647e496317a6bd3f128e0889e5c05ef24aeea",
-    "openapi.json": "e61d40c584ab02e884f38cb767d87731915cbebda463cd6b4811354f22881046",
+    "openapi.json": "bfebe739f24b4c6fbfc07b1e842db22179ec1869c154b2b223de32da278d08cf",
     "regression.schema.json": "b5df5b59a42a69126ff807f775f27979aa36e601309308bff7aa88475c3f25c6",
     "report.schema.json": "514e640de06f34c4ce357aeef48242a97974833986e4dd797ead55e1ff26450d",
     "tools.schema.json": "e424d2937d5739b577bfda1bb4b3100f544298fbebf0732e87cd3b0616da4bac"
@@ -89,6 +89,8 @@
     "RunCreate",
     "RunEvent",
     "RunEventPage",
+    "RunMessage",
+    "RunMessagePage",
     "RunPage",
     "SnapshotNode",
     "Step",
