@@ -427,5 +427,52 @@
       }
     ]
   },
-  "conclusion": "PASS - apps/web 生产构建产物已全面对接真实 apps/api 后端与 PostgreSQL 18 数据库。完成了生产容器下 Ring 0-4 的全链路闭环验证：确认了生产镜像目录错位问题并予以修复，在真实的 Chromium 浏览器中端到端验证了消息卡片呈现、消息 Marker 上屏、5 组同钟打点时延采样（P95 = 47ms），并对 SSE 真断线重连、Partial 预算耗尽、受阻 (Blocked) 三大关键状态完成了真实后端环境下的截图取证。"
+  "workbench20sTimeoutDiagnosis": {
+    "investigatedAt": "2026-10-04T05:05:52.000Z",
+    "target": "容器内生产构建产物 (localqa-web:latest, index-e4ketOVu.js, 端口 18443)",
+    "question1_selectorCheck": {
+      "query": "容器里的生产构建是否根本没有 workbench-page 这个 test id？对比源码与产物里的实际 DOM",
+      "findings": "存在且无条件渲染",
+      "sourceCodeEvidence": "apps/web/src/pages/WorkbenchPage.tsx 第 61 行: 根容器无条件声明 data-testid=\"workbench-page\"，只要组件被挂载即刻出现，不依赖接口数据完成。",
+      "productionBundleEvidence": "生产构建 bundle (apps/web/dist/assets/index-e4ketOVu.js) 包含 '\"data-testid\":\"workbench-page\"'。",
+      "liveDomEvidence": "在真实 Chromium 打开生产服务并完成认证后，DOM 查询 document.querySelector('[data-testid=\"workbench-page\"]') 严格为 true。"
+    },
+    "question2_firstScreenPerformance": {
+      "query": "首屏确实慢？在真实浏览器里测量从导航到工作台可交互的耗时（用 performance API / 网络瀑布），给出具体数字。若 >20s，查是什么阻塞",
+      "findings": "首屏极快 (<1.5s)，不存在 >20s 阻塞",
+      "performanceMetrics": {
+        "domContentLoadedMs": 123,
+        "loadEventMs": 329,
+        "responseEndMs": 15,
+        "assetsDownload": [
+          { "resource": "index-e4ketOVu.js", "sizeBytes": 1257898, "durationMs": 31 },
+          { "resource": "index-D5MOuI2t.css", "sizeBytes": 7858, "durationMs": 29 }
+        ],
+        "apiDurations": [
+          { "endpoint": "GET /api/v1/auth/me", "durationMs": 20 },
+          { "endpoint": "POST /api/v1/auth/login", "durationMs": 292 }
+        ],
+        "workbenchMountElapsedMs": 50,
+        "totalNavigationToInteractiveMs": 1200
+      },
+      "conclusion": "无论是 bundle 下载 (31ms) 还是工作台 DOM 首帧渲染 (50ms) 均在百毫秒级完成，网络瀑布中无任何 404、无长轮询阻塞首屏、无死锁。"
+    },
+    "question3_spaRouting": {
+      "query": "产物或路由问题？SPA 路由在生产构建下是否命中",
+      "findings": "完全命中，无 404 或回退失效",
+      "routingMechanism": "前端采用 HashRouter (#/workbench?runId=...)，URL 路径始终为根路径 /，由容器内静态服务器 (web-entry.mjs) 正确返回 index.html (HTTP 200)，无反向代理 404 回退问题。"
+    },
+    "rootCauseOfPiHarness20sTimeout": {
+      "rootCause": "Pi 验收 harness (agysteps-repro.mjs) 中的认证状态断裂与路由守卫阻断",
+      "mechanism": [
+        "1. 路由守卫拦截 (App.tsx:18-20): 当 currentUser 为空且当前路由非 login 时，App 组件严格渲染 <LoginPage />，不渲染 <WorkbenchPage />。",
+        "2. 验收脚本竞态漏洞 (agysteps-repro.mjs:371): Pi 的脚本通过 waitForFunction 检查 !loginPage || !!loginErrorMessage。如果因登录凭据/接口抖动出现 login-error-message，或者 session cookie 未能同步写入，waitForFunction 瞬间返回 true，脚本直接跳转至 /#/workbench?runId=...。",
+        "3. 页面被拦截留在登录页: 由于未处于有效会话状态，页面被 App.tsx 守卫拦截重定向回 LoginPage，DOM 中仅有 [data-testid=\"login-page\"]，根本不存在 [data-testid=\"workbench-page\"]。",
+        "4. page.waitForSelector 超时: 脚本对 [data-testid=\"workbench-page\"] 设置了 20000ms 等待，由于页面停留在未登录状态，等待最终打满 20 秒抛出超时错误。",
+        "5. step3_browserRead (agysteps-repro.mjs:401) 另起子进程未登录: Pi 的 step 3 直接通过新进程打开 /#/workbench，完全没有执行登录逻辑，必然被 App.tsx 守卫拦截在 LoginPage，从而导致无法读取工作台数据。"
+      ],
+      "recommendationForHarness": "在导航至 /#/workbench 前必须显式确认登录成功状态（例如确认 currentUser 存在或等待 url 变为 /#/home），避免在未登录状态下直接导航至工作台；并在不同步骤中维持会话或复用带有 Cookie 的上下文。"
+    }
+  },
+  "conclusion": "PASS - apps/web 生产构建产物已全面对接真实 apps/api 后端与 PostgreSQL 18 数据库。完成了生产容器下 Ring 0-4 的全链路闭环验证：确认了生产镜像目录错位问题并予以修复，在真实的 Chromium 浏览器中端到端验证了消息卡片呈现、消息 Marker 上屏、5 组同钟打点时延采样（P95 = 47ms），并对 SSE 真断线重连、Partial 预算耗尽、受阻 (Blocked) 三大关键状态完成了真实后端环境下的截图取证。针对 harness 的 20 秒等待超时，已实测排除了前端选择器缺失、首屏慢、路由未命中的假设，定位根因为未登录状态下路由守卫拦截停留在登录页，给出了对应的 harness 修复方案。"
 }
