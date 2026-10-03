@@ -938,6 +938,5 @@
       }
     }
   ],
-  "evidenceSha256": "52e5a43c2b6662bc06a47f52262b744eb6ee186602b193473c85942032d65173",
-  "cleanupStatus": "本轮没有容器、卷或一次性脚本。未删 postgres:18-alpine 与 mcr.microsoft.com/playwright:v1.63.0-noble，未跑 builder prune。"
+  "evidenceSha256": "52e5a43c2b6662bc06a47f52262b744eb6ee186602b193473c85942032d65173"
 }

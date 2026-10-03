@@ -18,7 +18,6 @@ import {
   Database,
   AccountsRepository,
   ProjectRepository,
-  ModelRepository,
   SecretVault,
   migrate,
 } from '@localqa/storage';
@@ -438,12 +437,25 @@ test('T06-4: Projects, Members, and Strict Cross-Project Isolation (Zero Existen
   assert.equal(betaRes.status, 201);
   projectBeta = parseContract('Project', betaRes.json);
 
-  // Grant model profile to Alpha and configure as default
-  await new ModelRepository(db, vault).grant(
-    { userId: adminUser.id },
-    projectAlpha.id,
-    testModelProfile.id,
+  // No separate grant API exists: owner PATCH must atomically bind the model.
+  const deniedDefault = await apiRequest(
+    'PATCH',
+    `/api/v1/projects/${projectAlpha.id}`,
+    {
+      cookie: operatorCookie,
+      body: { expectedVersion: 1, defaultModelProfileId: testModelProfile.id },
+    },
   );
+  assert.equal(deniedDefault.status, 404); // non-member: no project existence leak
+  const unknownDefault = await apiRequest(
+    'PATCH',
+    `/api/v1/projects/${projectAlpha.id}`,
+    {
+      cookie: adminCookie,
+      body: { expectedVersion: 1, defaultModelProfileId: randomUUID() },
+    },
+  );
+  assert.equal(unknownDefault.status, 404);
   const patchAlpha = await apiRequest(
     'PATCH',
     `/api/v1/projects/${projectAlpha.id}`,
@@ -454,6 +466,14 @@ test('T06-4: Projects, Members, and Strict Cross-Project Isolation (Zero Existen
   );
   assert.equal(patchAlpha.status, 200);
   projectAlpha = parseContract('Project', patchAlpha.json);
+  assert.equal(projectAlpha.defaultModelProfileId, testModelProfile.id);
+  const bound = await db.actor({ userId: adminUser.id }, async (client) =>
+    client.query(
+      'SELECT profile_id FROM model_profile_grants WHERE project_id=$1',
+      [projectAlpha.id],
+    ),
+  );
+  assert.equal(bound.rows[0]?.profile_id, testModelProfile.id);
 
   // Configure Alpha members: admin is owner, operatorUser is operator, viewerUser is viewer
   const replaceMembers = await apiRequest(
@@ -472,6 +492,30 @@ test('T06-4: Projects, Members, and Strict Cross-Project Isolation (Zero Existen
     },
   );
   assert.equal(replaceMembers.status, 200);
+  const deniedOperator = await apiRequest(
+    'PATCH',
+    `/api/v1/projects/${projectAlpha.id}`,
+    {
+      cookie: operatorCookie,
+      body: {
+        expectedVersion: replaceMembers.json.version,
+        defaultModelProfileId: testModelProfile.id,
+      },
+    },
+  );
+  assert.equal(deniedOperator.status, 404); // forced RLS hides the writable row
+  const deniedViewer = await apiRequest(
+    'PATCH',
+    `/api/v1/projects/${projectAlpha.id}`,
+    {
+      cookie: viewerCookie,
+      body: {
+        expectedVersion: replaceMembers.json.version,
+        defaultModelProfileId: testModelProfile.id,
+      },
+    },
+  );
+  assert.equal(deniedViewer.status, 404);
 
   // List members
   const membersRes = await apiRequest(
@@ -508,6 +552,49 @@ test('T06-4: Projects, Members, and Strict Cross-Project Isolation (Zero Existen
   assert.equal(viewBeta.status, 404);
   assert.equal(viewBeta.json.code, 'NOT_FOUND');
 
+  // A project owner without global admin privileges can bind an existing
+  // platform model through PATCH alone, without a private grant endpoint.
+  const ownerProject = (
+    await apiRequest('POST', '/api/v1/projects', {
+      cookie: adminCookie,
+      body: { name: 'Owner-only default model test' },
+    })
+  ).json;
+  const ownerMembers = await apiRequest(
+    'PUT',
+    `/api/v1/projects/${ownerProject.id}/members`,
+    {
+      cookie: adminCookie,
+      body: {
+        expectedVersion: 1,
+        members: [
+          { userId: adminUser.id, role: 'owner' },
+          { userId: operatorUser.id, role: 'owner' },
+        ],
+      },
+    },
+  );
+  assert.equal(ownerMembers.status, 200);
+  const ownerPatch = await apiRequest(
+    'PATCH',
+    `/api/v1/projects/${ownerProject.id}`,
+    {
+      cookie: operatorCookie,
+      body: {
+        expectedVersion: ownerMembers.json.version,
+        defaultModelProfileId: testModelProfile.id,
+      },
+    },
+  );
+  assert.equal(ownerPatch.status, 200);
+  assert.equal(ownerPatch.json.defaultModelProfileId, testModelProfile.id);
+  const ownerRun = await apiRequest('POST', '/api/v1/runs', {
+    cookie: operatorCookie,
+    headers: { 'Idempotency-Key': randomUUID() },
+    body: { projectId: ownerProject.id, targetUrl: 'http://localhost:8085/' },
+  });
+  assert.equal(ownerRun.status, 202);
+  assert.notEqual(ownerRun.json.id, null);
   recordTest('project_membership_and_isolation', true);
 });
 
@@ -648,6 +735,29 @@ test('T06-6: Run Creation, Idempotency-Key Deduplication & Conflict', async () =
   testRun = parseContract('Run', create1.json);
   assert.equal(testRun.status, 'queued');
   assert.equal(testRun.contextVersion, 1);
+
+  // Saturated admission returns 429 + Retry-After without persisting a new run.
+  await db.actor({ userId: adminUser.id }, async (client) => {
+    for (let i = 0; i < apiContext.coordinator.platformSlots; i++)
+      await client.query(
+        "INSERT INTO budget_reservations(id,project_id,run_id,request_id,kind,reserved,status) VALUES($1,$2,$3,$4,'concurrency','{}','reserved')",
+        [randomUUID(), projectAlpha.id, testRun.id, randomUUID()],
+      );
+  });
+  const saturated = await apiRequest('POST', '/api/v1/runs', {
+    cookie: operatorCookie,
+    headers: { 'Idempotency-Key': `saturated-${randomUUID()}` },
+    body: runPayload,
+  });
+  assert.equal(saturated.status, 429);
+  assert.equal(saturated.json.code, 'RATE_LIMITED');
+  assert.equal(saturated.headers.get('retry-after'), '1');
+  await db.actor({ userId: adminUser.id }, async (client) =>
+    client.query(
+      "UPDATE budget_reservations SET status='released' WHERE run_id=$1 AND kind='concurrency' AND status='reserved'",
+      [testRun.id],
+    ),
+  );
 
   // 2. Exact duplicate idempotency request -> Returns existing Run (202)
   const create2 = await apiRequest('POST', '/api/v1/runs', {

@@ -1,6 +1,6 @@
 {
   "task": "T05",
-  "recordedAt": "2026-10-02T13:31:17.147Z",
+  "recordedAt": "2026-10-02T17:26:14.333Z",
   "result": "verified first vertical slice and selected faults",
   "P0Passed": false,
   "G2Passed": false,
@@ -137,14 +137,14 @@
       "command": "node --test packages/domain/test/domain.test.mjs",
       "exitCode": 0,
       "signal": null,
-      "stdout": "✔ status matrix: draft (0.797666ms)\n✔ status matrix: queued (0.058625ms)\n✔ status matrix: running (0.064459ms)\n✔ status matrix: awaiting_input (0.040459ms)\n✔ status matrix: cancelling (0.060792ms)\n✔ status matrix: completed (0.05125ms)\n✔ status matrix: cancelled (0.053875ms)\n✔ status matrix: failed (0.053709ms)\n✔ all phase ordering and saved waiting phase (0.161208ms)\n✔ reservation boundary: exact limit, over limit, held reservations, negative/noninteger/unknown (0.651667ms)\n✔ exact scheme/host/port scope and no userinfo/metadata/side effects/arbitrary tools (15.347875ms)\n✔ criteria hashes canonical key ordering and retain all original criteria (0.515875ms)\n✔ verdict semantics: all passed, credible failed, blocked, unknown and fake evidence (1.909792ms)\n✔ all result counts and zero denominators; completion independent of success (1.787208ms)\n✔ truncated, unsupported and child-frame observations cannot prove a sourced main-frame failure or pass (0.735041ms)\n✔ graph URL/structure dedup, maxPages and maxDepth (0.141167ms)\nℹ tests 16\nℹ suites 0\nℹ pass 16\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 143.565334\n",
+      "stdout": "✔ status matrix: draft (0.706417ms)\n✔ status matrix: queued (0.058541ms)\n✔ status matrix: running (0.048792ms)\n✔ status matrix: awaiting_input (0.039083ms)\n✔ status matrix: cancelling (0.051334ms)\n✔ status matrix: completed (0.046166ms)\n✔ status matrix: cancelled (0.048416ms)\n✔ status matrix: failed (0.046ms)\n✔ all phase ordering and saved waiting phase (0.143375ms)\n✔ reservation boundary: exact limit, over limit, held reservations, negative/noninteger/unknown (0.637542ms)\n✔ exact scheme/host/port scope and no userinfo/metadata/side effects/arbitrary tools (14.335125ms)\n✔ criteria hashes canonical key ordering and retain all original criteria (0.465125ms)\n✔ verdict semantics: all passed, credible failed, blocked, unknown and fake evidence (1.733667ms)\n✔ all result counts and zero denominators; completion independent of success (1.639583ms)\n✔ truncated, unsupported and child-frame observations cannot prove a sourced main-frame failure or pass (0.603458ms)\n✔ graph URL/structure dedup, maxPages and maxDepth (0.117666ms)\nℹ tests 16\nℹ suites 0\nℹ pass 16\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 135.352166\n",
       "stderr": ""
     },
     {
       "command": "node --test packages/orchestrator/test/boundary.test.mjs",
       "exitCode": 0,
       "signal": null,
-      "stdout": "✔ RuntimeClient has no enumerable/reflection-readable DB, actor, KEK, scope or adapter state (1.138958ms)\n✔ criteria hash matches accepted storage canonical algorithm (4.469709ms)\n✔ invalid platform/project slot policy is rejected (0.151458ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 128.0605\n",
+      "stdout": "✔ RuntimeClient has no enumerable/reflection-readable DB, actor, KEK, scope or adapter state (1.106333ms)\n✔ criteria hash matches accepted storage canonical algorithm (4.016125ms)\n✔ invalid platform/project slot policy is rejected (0.144834ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 122.251542\n",
       "stderr": ""
     },
     {
@@ -155,130 +155,130 @@
       "stderr": ""
     },
     {
-      "command": "docker network create localqa-t05-1b00c2b0",
+      "command": "docker network create localqa-t05-8943f014",
       "exitCode": 0,
       "signal": null,
-      "stdout": "9fc11c92cdfb398474b27cfc959bd1869dbc2fdbc60ceaf5992aab2d8670d70d\n",
+      "stdout": "485a9950ebc275ddbc9d926ad161faf2c978a027d42ed7a948a82877140189f9\n",
       "stderr": ""
     },
     {
-      "command": "docker run --detach --name localqa-t05-pg-1b00c2b0 --network localqa-t05-1b00c2b0 --env-file /Users/dcp/Documents/公司/momentic/apps/worker/.evidence/postgres.env postgres:18-alpine",
+      "command": "docker run --detach --name localqa-t05-pg-8943f014 --network localqa-t05-8943f014 --env-file /Users/dcp/Documents/公司/momentic/apps/worker/.evidence/postgres.env postgres:18-alpine",
       "exitCode": 0,
       "signal": null,
-      "stdout": "3993d6607e6c9857259a62f8cd399b11284d1ef9bcbacc5af4c886c0a97b5e80\n",
+      "stdout": "fa439d4340d479b45983afb6eaa3174a1558d85abc86f480d0e20fdac6629ad1\n",
       "stderr": ""
     },
     {
-      "command": "docker inspect localqa-t05-pg-1b00c2b0 --format {{json .Mounts}}",
+      "command": "docker inspect localqa-t05-pg-8943f014 --format {{json .Mounts}}",
       "exitCode": 0,
       "signal": null,
-      "stdout": "[{\"Type\":\"volume\",\"Name\":\"0fbcc3d7965e7902f61ac33dc413558048dcefdacf436067ef5f2de74c6152d7\",\"Source\":\"/var/lib/docker/volumes/0fbcc3d7965e7902f61ac33dc413558048dcefdacf436067ef5f2de74c6152d7/_data\",\"Destination\":\"/var/lib/postgresql\",\"Driver\":\"local\",\"Mode\":\"\",\"RW\":true,\"Propagation\":\"\"}]\n",
+      "stdout": "[{\"Type\":\"volume\",\"Name\":\"1377347986cab489a1ccf68cbc225269215beb9ab00667faca7964f8a632d68a\",\"Source\":\"/var/lib/docker/volumes/1377347986cab489a1ccf68cbc225269215beb9ab00667faca7964f8a632d68a/_data\",\"Destination\":\"/var/lib/postgresql\",\"Driver\":\"local\",\"Mode\":\"\",\"RW\":true,\"Propagation\":\"\"}]\n",
       "stderr": ""
     },
     {
-      "command": "docker exec localqa-t05-pg-1b00c2b0 pg_isready -U localqa -d localqa",
+      "command": "docker exec localqa-t05-pg-8943f014 pg_isready -U localqa -d localqa",
       "exitCode": 2,
       "signal": null,
-      "stdout": "localqa-t05-pg-1b00c2b0:5432 - no response\n",
+      "stdout": "localqa-t05-pg-8943f014:5432 - no response\n",
       "stderr": ""
     },
     {
-      "command": "docker exec localqa-t05-pg-1b00c2b0 pg_isready -U localqa -d localqa",
+      "command": "docker exec localqa-t05-pg-8943f014 pg_isready -U localqa -d localqa",
       "exitCode": 2,
       "signal": null,
-      "stdout": "localqa-t05-pg-1b00c2b0:5432 - no response\n",
+      "stdout": "localqa-t05-pg-8943f014:5432 - no response\n",
       "stderr": ""
     },
     {
-      "command": "docker exec localqa-t05-pg-1b00c2b0 pg_isready -U localqa -d localqa",
+      "command": "docker exec localqa-t05-pg-8943f014 pg_isready -U localqa -d localqa",
       "exitCode": 2,
       "signal": null,
-      "stdout": "localqa-t05-pg-1b00c2b0:5432 - no response\n",
+      "stdout": "localqa-t05-pg-8943f014:5432 - no response\n",
       "stderr": ""
     },
     {
-      "command": "docker exec localqa-t05-pg-1b00c2b0 pg_isready -U localqa -d localqa",
-      "exitCode": 2,
+      "command": "docker exec localqa-t05-pg-8943f014 pg_isready -U localqa -d localqa",
+      "exitCode": 1,
       "signal": null,
-      "stdout": "localqa-t05-pg-1b00c2b0:5432 - no response\n",
+      "stdout": "localqa-t05-pg-8943f014:5432 - rejecting connections\n",
       "stderr": ""
     },
     {
-      "command": "docker exec localqa-t05-pg-1b00c2b0 pg_isready -U localqa -d localqa",
+      "command": "docker exec localqa-t05-pg-8943f014 pg_isready -U localqa -d localqa",
       "exitCode": 0,
       "signal": null,
-      "stdout": "localqa-t05-pg-1b00c2b0:5432 - accepting connections\n",
+      "stdout": "localqa-t05-pg-8943f014:5432 - accepting connections\n",
       "stderr": ""
     },
     {
-      "command": "docker run --name localqa-t05-browser-1b00c2b0 --network localqa-t05-1b00c2b0 --user 501:20 --cap-add=SYS_ADMIN --shm-size=256m --memory=2g --cpus=2 --pids-limit=512 --volume /Users/dcp/Documents/公司/momentic/:/work:ro --volume /Users/dcp/Documents/公司/momentic/apps/worker/.evidence:/work/apps/worker/.evidence:rw --volume /Users/dcp/Documents/公司/momentic/packages/orchestrator/.artifacts:/work/packages/orchestrator/.artifacts:rw --env HOME=/work/apps/worker/.evidence/home --env TMPDIR=/work/apps/worker/.evidence/tmp --env XDG_CACHE_HOME=/work/apps/worker/.evidence/cache --env PLAYWRIGHT_BROWSERS_PATH=/ms-playwright --workdir /work mcr.microsoft.com/playwright:v1.63.0-noble node --test --test-timeout=120000 apps/worker/test/integration.test.mjs",
+      "command": "docker run --name localqa-t05-browser-8943f014 --network localqa-t05-8943f014 --user 501:20 --cap-add=SYS_ADMIN --shm-size=256m --memory=2g --cpus=2 --pids-limit=512 --volume /Users/dcp/Documents/公司/momentic/:/work:ro --volume /Users/dcp/Documents/公司/momentic/apps/worker/.evidence:/work/apps/worker/.evidence:rw --volume /Users/dcp/Documents/公司/momentic/packages/orchestrator/.artifacts:/work/packages/orchestrator/.artifacts:rw --env HOME=/work/apps/worker/.evidence/home --env TMPDIR=/work/apps/worker/.evidence/tmp --env XDG_CACHE_HOME=/work/apps/worker/.evidence/cache --env PLAYWRIGHT_BROWSERS_PATH=/ms-playwright --workdir /work mcr.microsoft.com/playwright:v1.63.0-noble node --test --test-timeout=120000 apps/worker/test/integration.test.mjs",
       "exitCode": 0,
       "signal": null,
-      "stdout": "unknown format \"uuid\" ignored in schema at path \"#/oneOf/0/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/0/properties/args/properties/pageId\"\nunknown format \"uri\" ignored in schema at path \"#/oneOf/1/properties/args/properties/url\"\nunknown format \"uri\" ignored in schema at path \"#/oneOf/1/properties/args/properties/url\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/6/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/6/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/7/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/7/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/9/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/9/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/10/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/10/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/caseId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/caseId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/evidenceRefs/items\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/evidenceRefs/items\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/14/properties/args/properties/evidenceRefs/items\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/14/properties/args/properties/evidenceRefs/items\"\n{\"verticalSlice\":\"real_browser_passed\",\"runId\":\"fa4c1fe4-24de-4fc8-9d7a-48eab658448f\",\"summary\":{\"passed\":1,\"issueFound\":0,\"blocked\":0,\"inconclusive\":0,\"notRun\":0,\"planned\":1,\"evaluated\":1,\"attempted\":1,\"passRate\":1,\"attemptRate\":1},\"eventCount\":50,\"evidenceSha256\":\"b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb\"}\n✔ first vertical slice: Run+Job+event -> leased Worker -> real browser -> evidence/verdict -> sequential events (1419.805974ms)\n✔ create idempotency, duplicate job key and transaction rollback leave no second dispatch (21.043187ms)\n✔ atomic reservations: competing final call slot, settlements/idempotency and missing usage estimation (94.298233ms)\n✔ cancel <=2s: signal closes active real browser and no later intent/model dispatch (492.368089ms)\n✔ expired lease and old fencing denied; actionless preparation can safely requeue (1163.044238ms)\n✔ crash after persisted intent: unknown action never replayed; original interrupted and recovery verdict preserves facts (1361.189683ms)\n✔ budget exhaustion prevents extra provider requests and false completion (152.461743ms)\n✔ NOTIFY discarded: polling alone recovers all stages without listener (532.494779ms)\n✔ awaiting_input only with no other runnable task; deadline expires to partial/blocked result (139.077458ms)\n✔ runtime binding rejects forged run/task/lease IDs, forbidden roles/tools and foreign project proof (21.443065ms)\n✔ independent reproduction: original suspected, fresh context/same criteria/real new evidence required for confirmed (433.706782ms)\n✔ interrupted case is not replayed; another independent case runs in a fresh real context (1700.38261ms)\n✔ platform/project/run slots reserve atomically and rollback quota-denied claims (60.07196ms)\n✔ SIGKILL after real browser action before outcome: unknown intent retained and never replayed (1873.814637ms)\n✔ expired model reservation is charged conservatively; late reported usage is audit-only and old result rejected (1141.423874ms)\n✔ clarification CAS resumes saved phase without changing fixed criteria or replaying actions (38.300638ms)\n✔ budget stop after plan preserves original tried result and independent not_run projection (324.018311ms)\n✔ one case input deadline blocks only that case; another queued independent case completes with real evidence (603.474962ms)\nℹ tests 18\nℹ suites 0\nℹ pass 18\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 11917.21426\n",
+      "stdout": "unknown format \"uuid\" ignored in schema at path \"#/oneOf/0/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/0/properties/args/properties/pageId\"\nunknown format \"uri\" ignored in schema at path \"#/oneOf/1/properties/args/properties/url\"\nunknown format \"uri\" ignored in schema at path \"#/oneOf/1/properties/args/properties/url\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/6/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/6/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/7/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/7/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/9/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/9/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/10/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/10/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/caseId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/caseId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/evidenceRefs/items\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/evidenceRefs/items\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/14/properties/args/properties/evidenceRefs/items\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/14/properties/args/properties/evidenceRefs/items\"\n{\"verticalSlice\":\"real_browser_passed\",\"runId\":\"a892547e-7897-4fc8-ba08-7713834b1b76\",\"summary\":{\"passed\":1,\"issueFound\":0,\"blocked\":0,\"inconclusive\":0,\"notRun\":0,\"planned\":1,\"evaluated\":1,\"attempted\":1,\"passRate\":1,\"attemptRate\":1},\"eventCount\":50,\"evidenceSha256\":\"b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb\"}\n✔ first vertical slice: Run+Job+event -> leased Worker -> real browser -> evidence/verdict -> sequential events (1064.934871ms)\n✔ create idempotency, duplicate job key and transaction rollback leave no second dispatch (16.248072ms)\n✔ atomic reservations: competing final call slot, settlements/idempotency and missing usage estimation (66.500118ms)\n✔ cancel <=2s: signal closes active real browser and no later intent/model dispatch (477.23374ms)\n✔ expired lease and old fencing denied; actionless preparation can safely requeue (1155.826326ms)\n✔ crash after persisted intent: unknown action never replayed; original interrupted and recovery verdict preserves facts (1375.552193ms)\n✔ budget exhaustion prevents extra provider requests and false completion (139.152536ms)\n✔ NOTIFY discarded: polling alone recovers all stages without listener (441.311757ms)\n✔ awaiting_input only with no other runnable task; deadline expires to partial/blocked result (129.502108ms)\n✔ runtime binding rejects forged run/task/lease IDs, forbidden roles/tools and foreign project proof (21.166308ms)\n✔ independent reproduction: original suspected, fresh context/same criteria/real new evidence required for confirmed (388.219053ms)\n✔ interrupted case is not replayed; another independent case runs in a fresh real context (1600.01295ms)\n✔ platform/project/run slots reserve atomically and rollback quota-denied claims (65.921237ms)\n✔ SIGKILL after real browser action before outcome: unknown intent retained and never replayed (1777.43355ms)\n✔ expired model reservation is charged conservatively; late reported usage is audit-only and old result rejected (1160.31066ms)\n✔ clarification CAS resumes saved phase without changing fixed criteria or replaying actions (37.663968ms)\n✔ budget stop after plan preserves original tried result and independent not_run projection (277.808165ms)\n✔ one case input deadline blocks only that case; another queued independent case completes with real evidence (556.786755ms)\nℹ tests 18\nℹ suites 0\nℹ pass 18\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 11053.660004\n",
       "stderr": ""
     },
     {
-      "command": "docker logs localqa-t05-pg-1b00c2b0",
+      "command": "docker logs localqa-t05-pg-8943f014",
       "exitCode": 0,
       "signal": null,
-      "stdout": "The files belonging to this database system will be owned by user \"postgres\".\nThis user must also own the server process.\n\nThe database cluster will be initialized with locale \"en_US.utf8\".\nThe default database encoding has accordingly been set to \"UTF8\".\nThe default text search configuration will be set to \"english\".\n\nData page checksums are enabled.\n\nfixing permissions on existing directory /var/lib/postgresql/18/docker ... ok\ncreating subdirectories ... ok\nselecting dynamic shared memory implementation ... posix\nselecting default \"max_connections\" ... 100\nselecting default \"shared_buffers\" ... 128MB\nselecting default time zone ... UTC\ncreating configuration files ... ok\nrunning bootstrap script ... ok\nperforming post-bootstrap initialization ... ok\nsyncing data to disk ... ok\n\n\nSuccess. You can now start the database server using:\n\n    pg_ctl -D /var/lib/postgresql/18/docker -l logfile start\n\nwaiting for server to start....2026-10-02 13:31:04.333 UTC [57] LOG:  starting PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit\n2026-10-02 13:31:04.333 UTC [57] LOG:  listening on Unix socket \"/var/run/postgresql/.s.PGSQL.5432\"\n2026-10-02 13:31:04.335 UTC [63] LOG:  database system was shut down at 2026-10-02 13:31:04 UTC\n2026-10-02 13:31:04.336 UTC [57] LOG:  database system is ready to accept connections\n done\nserver started\nCREATE DATABASE\n\n\n/usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*\n\nwaiting for server to shut down...2026-10-02 13:31:04.463 UTC [57] LOG:  received fast shutdown request\n.2026-10-02 13:31:04.464 UTC [57] LOG:  aborting any active transactions\n2026-10-02 13:31:04.465 UTC [57] LOG:  background worker \"logical replication launcher\" (PID 66) exited with exit code 1\n2026-10-02 13:31:04.465 UTC [61] LOG:  shutting down\n2026-10-02 13:31:04.465 UTC [61] LOG:  checkpoint starting: shutdown immediate\n2026-10-02 13:31:04.487 UTC [61] LOG:  checkpoint complete: wrote 943 buffers (5.8%), wrote 3 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.006 s, sync=0.016 s, total=0.022 s; sync files=303, longest=0.003 s, average=0.001 s; distance=4362 kB, estimate=4362 kB; lsn=0/1BA8880, redo lsn=0/1BA8880\n2026-10-02 13:31:04.492 UTC [57] LOG:  database system is shut down\n done\nserver stopped\n\nPostgreSQL init process complete; ready for start up.\n\n",
-      "stderr": "sh: locale: not found\n2026-10-02 13:31:04.131 UTC [45] WARNING:  no usable system locales were found\ninitdb: warning: enabling \"trust\" authentication for local connections\ninitdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.\n2026-10-02 13:31:04.573 UTC [1] LOG:  starting PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit\n2026-10-02 13:31:04.573 UTC [1] LOG:  listening on IPv4 address \"0.0.0.0\", port 5432\n2026-10-02 13:31:04.573 UTC [1] LOG:  listening on IPv6 address \"::\", port 5432\n2026-10-02 13:31:04.574 UTC [1] LOG:  listening on Unix socket \"/var/run/postgresql/.s.PGSQL.5432\"\n2026-10-02 13:31:04.575 UTC [91] LOG:  database system was shut down at 2026-10-02 13:31:04 UTC\n2026-10-02 13:31:04.577 UTC [1] LOG:  database system is ready to accept connections\n2026-10-02 13:31:06.578 UTC [102] ERROR:  duplicate key value violates unique constraint \"jobs_unique_key_key\"\n2026-10-02 13:31:06.578 UTC [102] DETAIL:  Key (unique_key)=(7db8e3fb-cf5b-4250-a410-1ae1a3d13fa2:coordinator:preflight:prepare:v1:1) already exists.\n2026-10-02 13:31:06.578 UTC [102] STATEMENT:  INSERT INTO jobs(id,project_id,run_id,unique_key,role,document) VALUES($1,$2,$3,$4,$5,$6)\n2026-10-02 13:31:06.584 UTC [105] ERROR:  new row for relation \"runs\" violates check constraint \"runs_check\"\n2026-10-02 13:31:06.584 UTC [105] STATEMENT:  INSERT INTO runs(id,project_id,creator_id,display_url,raw_url_secret_id,raw_url_secret_version,status,phase,completion,termination_reason,effective_config,budget_used,environment_id,environment_version,auth_profile_id,auth_profile_version,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,'queued','preflight','none',NULL,$7,$8,$9,$10,$11,$12,$13,$13)\n"
+      "stdout": "The files belonging to this database system will be owned by user \"postgres\".\nThis user must also own the server process.\n\nThe database cluster will be initialized with locale \"en_US.utf8\".\nThe default database encoding has accordingly been set to \"UTF8\".\nThe default text search configuration will be set to \"english\".\n\nData page checksums are enabled.\n\nfixing permissions on existing directory /var/lib/postgresql/18/docker ... ok\ncreating subdirectories ... ok\nselecting dynamic shared memory implementation ... posix\nselecting default \"max_connections\" ... 100\nselecting default \"shared_buffers\" ... 128MB\nselecting default time zone ... UTC\ncreating configuration files ... ok\nrunning bootstrap script ... ok\nperforming post-bootstrap initialization ... ok\nsyncing data to disk ... ok\n\n\nSuccess. You can now start the database server using:\n\n    pg_ctl -D /var/lib/postgresql/18/docker -l logfile start\n\nwaiting for server to start....2026-10-02 17:26:02.407 UTC [57] LOG:  starting PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit\n2026-10-02 17:26:02.408 UTC [57] LOG:  listening on Unix socket \"/var/run/postgresql/.s.PGSQL.5432\"\n2026-10-02 17:26:02.410 UTC [63] LOG:  database system was shut down at 2026-10-02 17:26:02 UTC\n2026-10-02 17:26:02.411 UTC [57] LOG:  database system is ready to accept connections\n done\nserver started\nCREATE DATABASE\n\n\n/usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*\n\nwaiting for server to shut down....2026-10-02 17:26:02.530 UTC [57] LOG:  received fast shutdown request\n2026-10-02 17:26:02.531 UTC [57] LOG:  aborting any active transactions\n2026-10-02 17:26:02.532 UTC [57] LOG:  background worker \"logical replication launcher\" (PID 66) exited with exit code 1\n2026-10-02 17:26:02.532 UTC [61] LOG:  shutting down\n2026-10-02 17:26:02.533 UTC [61] LOG:  checkpoint starting: shutdown immediate\n2026-10-02 17:26:02.552 UTC [61] LOG:  checkpoint complete: wrote 943 buffers (5.8%), wrote 3 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.005 s, sync=0.014 s, total=0.020 s; sync files=303, longest=0.006 s, average=0.001 s; distance=4362 kB, estimate=4362 kB; lsn=0/1BA8880, redo lsn=0/1BA8880\n2026-10-02 17:26:02.556 UTC [57] LOG:  database system is shut down\n done\nserver stopped\n\nPostgreSQL init process complete; ready for start up.\n\n",
+      "stderr": "sh: locale: not found\n2026-10-02 17:26:02.225 UTC [45] WARNING:  no usable system locales were found\ninitdb: warning: enabling \"trust\" authentication for local connections\ninitdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.\n2026-10-02 17:26:02.640 UTC [1] LOG:  starting PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit\n2026-10-02 17:26:02.640 UTC [1] LOG:  listening on IPv4 address \"0.0.0.0\", port 5432\n2026-10-02 17:26:02.641 UTC [1] LOG:  listening on IPv6 address \"::\", port 5432\n2026-10-02 17:26:02.642 UTC [1] LOG:  listening on Unix socket \"/var/run/postgresql/.s.PGSQL.5432\"\n2026-10-02 17:26:02.646 UTC [91] LOG:  database system was shut down at 2026-10-02 17:26:02 UTC\n2026-10-02 17:26:02.646 UTC [92] FATAL:  the database system is starting up\n2026-10-02 17:26:02.647 UTC [1] LOG:  database system is ready to accept connections\n2026-10-02 17:26:04.251 UTC [103] ERROR:  duplicate key value violates unique constraint \"jobs_unique_key_key\"\n2026-10-02 17:26:04.251 UTC [103] DETAIL:  Key (unique_key)=(822f41d4-edc6-4dd9-82a8-8a7cf5733ff7:coordinator:preflight:prepare:v1:1) already exists.\n2026-10-02 17:26:04.251 UTC [103] STATEMENT:  INSERT INTO jobs(id,project_id,run_id,unique_key,role,document) VALUES($1,$2,$3,$4,$5,$6)\n2026-10-02 17:26:04.255 UTC [107] ERROR:  new row for relation \"runs\" violates check constraint \"runs_check\"\n2026-10-02 17:26:04.255 UTC [107] STATEMENT:  INSERT INTO runs(id,project_id,creator_id,display_url,raw_url_secret_id,raw_url_secret_version,status,phase,completion,termination_reason,effective_config,budget_used,environment_id,environment_version,auth_profile_id,auth_profile_version,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,'queued','preflight','none',NULL,$7,$8,$9,$10,$11,$12,$13,$13)\n"
     },
     {
-      "command": "docker rm --force --volumes localqa-t05-pg-1b00c2b0",
+      "command": "docker rm --force --volumes localqa-t05-pg-8943f014",
       "exitCode": 0,
       "signal": null,
-      "stdout": "localqa-t05-pg-1b00c2b0\n",
+      "stdout": "localqa-t05-pg-8943f014\n",
       "stderr": ""
     },
     {
-      "command": "docker inspect localqa-t05-pg-1b00c2b0",
+      "command": "docker inspect localqa-t05-pg-8943f014",
       "exitCode": 1,
       "signal": null,
       "stdout": "[]\n",
-      "stderr": "error: no such object: localqa-t05-pg-1b00c2b0\n"
+      "stderr": "error: no such object: localqa-t05-pg-8943f014\n"
     },
     {
-      "command": "docker logs localqa-t05-browser-1b00c2b0",
+      "command": "docker logs localqa-t05-browser-8943f014",
       "exitCode": 0,
       "signal": null,
-      "stdout": "unknown format \"uuid\" ignored in schema at path \"#/oneOf/0/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/0/properties/args/properties/pageId\"\nunknown format \"uri\" ignored in schema at path \"#/oneOf/1/properties/args/properties/url\"\nunknown format \"uri\" ignored in schema at path \"#/oneOf/1/properties/args/properties/url\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/6/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/6/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/7/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/7/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/9/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/9/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/10/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/10/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/caseId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/caseId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/evidenceRefs/items\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/evidenceRefs/items\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/14/properties/args/properties/evidenceRefs/items\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/14/properties/args/properties/evidenceRefs/items\"\n{\"verticalSlice\":\"real_browser_passed\",\"runId\":\"fa4c1fe4-24de-4fc8-9d7a-48eab658448f\",\"summary\":{\"passed\":1,\"issueFound\":0,\"blocked\":0,\"inconclusive\":0,\"notRun\":0,\"planned\":1,\"evaluated\":1,\"attempted\":1,\"passRate\":1,\"attemptRate\":1},\"eventCount\":50,\"evidenceSha256\":\"b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb\"}\n✔ first vertical slice: Run+Job+event -> leased Worker -> real browser -> evidence/verdict -> sequential events (1419.805974ms)\n✔ create idempotency, duplicate job key and transaction rollback leave no second dispatch (21.043187ms)\n✔ atomic reservations: competing final call slot, settlements/idempotency and missing usage estimation (94.298233ms)\n✔ cancel <=2s: signal closes active real browser and no later intent/model dispatch (492.368089ms)\n✔ expired lease and old fencing denied; actionless preparation can safely requeue (1163.044238ms)\n✔ crash after persisted intent: unknown action never replayed; original interrupted and recovery verdict preserves facts (1361.189683ms)\n✔ budget exhaustion prevents extra provider requests and false completion (152.461743ms)\n✔ NOTIFY discarded: polling alone recovers all stages without listener (532.494779ms)\n✔ awaiting_input only with no other runnable task; deadline expires to partial/blocked result (139.077458ms)\n✔ runtime binding rejects forged run/task/lease IDs, forbidden roles/tools and foreign project proof (21.443065ms)\n✔ independent reproduction: original suspected, fresh context/same criteria/real new evidence required for confirmed (433.706782ms)\n✔ interrupted case is not replayed; another independent case runs in a fresh real context (1700.38261ms)\n✔ platform/project/run slots reserve atomically and rollback quota-denied claims (60.07196ms)\n✔ SIGKILL after real browser action before outcome: unknown intent retained and never replayed (1873.814637ms)\n✔ expired model reservation is charged conservatively; late reported usage is audit-only and old result rejected (1141.423874ms)\n✔ clarification CAS resumes saved phase without changing fixed criteria or replaying actions (38.300638ms)\n✔ budget stop after plan preserves original tried result and independent not_run projection (324.018311ms)\n✔ one case input deadline blocks only that case; another queued independent case completes with real evidence (603.474962ms)\nℹ tests 18\nℹ suites 0\nℹ pass 18\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 11917.21426\n",
+      "stdout": "unknown format \"uuid\" ignored in schema at path \"#/oneOf/0/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/0/properties/args/properties/pageId\"\nunknown format \"uri\" ignored in schema at path \"#/oneOf/1/properties/args/properties/url\"\nunknown format \"uri\" ignored in schema at path \"#/oneOf/1/properties/args/properties/url\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/6/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/6/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/7/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/7/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/snapshotId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/$defs/NodeTarget/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/9/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/9/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/10/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/10/properties/args/properties/pageId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/caseId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/caseId\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/evidenceRefs/items\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/12/properties/args/properties/evidenceRefs/items\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/14/properties/args/properties/evidenceRefs/items\"\nunknown format \"uuid\" ignored in schema at path \"#/oneOf/14/properties/args/properties/evidenceRefs/items\"\n{\"verticalSlice\":\"real_browser_passed\",\"runId\":\"a892547e-7897-4fc8-ba08-7713834b1b76\",\"summary\":{\"passed\":1,\"issueFound\":0,\"blocked\":0,\"inconclusive\":0,\"notRun\":0,\"planned\":1,\"evaluated\":1,\"attempted\":1,\"passRate\":1,\"attemptRate\":1},\"eventCount\":50,\"evidenceSha256\":\"b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb\"}\n✔ first vertical slice: Run+Job+event -> leased Worker -> real browser -> evidence/verdict -> sequential events (1064.934871ms)\n✔ create idempotency, duplicate job key and transaction rollback leave no second dispatch (16.248072ms)\n✔ atomic reservations: competing final call slot, settlements/idempotency and missing usage estimation (66.500118ms)\n✔ cancel <=2s: signal closes active real browser and no later intent/model dispatch (477.23374ms)\n✔ expired lease and old fencing denied; actionless preparation can safely requeue (1155.826326ms)\n✔ crash after persisted intent: unknown action never replayed; original interrupted and recovery verdict preserves facts (1375.552193ms)\n✔ budget exhaustion prevents extra provider requests and false completion (139.152536ms)\n✔ NOTIFY discarded: polling alone recovers all stages without listener (441.311757ms)\n✔ awaiting_input only with no other runnable task; deadline expires to partial/blocked result (129.502108ms)\n✔ runtime binding rejects forged run/task/lease IDs, forbidden roles/tools and foreign project proof (21.166308ms)\n✔ independent reproduction: original suspected, fresh context/same criteria/real new evidence required for confirmed (388.219053ms)\n✔ interrupted case is not replayed; another independent case runs in a fresh real context (1600.01295ms)\n✔ platform/project/run slots reserve atomically and rollback quota-denied claims (65.921237ms)\n✔ SIGKILL after real browser action before outcome: unknown intent retained and never replayed (1777.43355ms)\n✔ expired model reservation is charged conservatively; late reported usage is audit-only and old result rejected (1160.31066ms)\n✔ clarification CAS resumes saved phase without changing fixed criteria or replaying actions (37.663968ms)\n✔ budget stop after plan preserves original tried result and independent not_run projection (277.808165ms)\n✔ one case input deadline blocks only that case; another queued independent case completes with real evidence (556.786755ms)\nℹ tests 18\nℹ suites 0\nℹ pass 18\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 11053.660004\n",
       "stderr": ""
     },
     {
-      "command": "docker rm --force --volumes localqa-t05-browser-1b00c2b0",
+      "command": "docker rm --force --volumes localqa-t05-browser-8943f014",
       "exitCode": 0,
       "signal": null,
-      "stdout": "localqa-t05-browser-1b00c2b0\n",
+      "stdout": "localqa-t05-browser-8943f014\n",
       "stderr": ""
     },
     {
-      "command": "docker inspect localqa-t05-browser-1b00c2b0",
+      "command": "docker inspect localqa-t05-browser-8943f014",
       "exitCode": 1,
       "signal": null,
       "stdout": "[]\n",
-      "stderr": "error: no such object: localqa-t05-browser-1b00c2b0\n"
+      "stderr": "error: no such object: localqa-t05-browser-8943f014\n"
     },
     {
-      "command": "docker volume inspect 0fbcc3d7965e7902f61ac33dc413558048dcefdacf436067ef5f2de74c6152d7",
+      "command": "docker volume inspect 1377347986cab489a1ccf68cbc225269215beb9ab00667faca7964f8a632d68a",
       "exitCode": 1,
       "signal": null,
       "stdout": "[]\n",
-      "stderr": "Error response from daemon: get 0fbcc3d7965e7902f61ac33dc413558048dcefdacf436067ef5f2de74c6152d7: no such volume\n"
+      "stderr": "Error response from daemon: get 1377347986cab489a1ccf68cbc225269215beb9ab00667faca7964f8a632d68a: no such volume\n"
     },
     {
-      "command": "docker network rm localqa-t05-1b00c2b0",
+      "command": "docker network rm localqa-t05-8943f014",
       "exitCode": 0,
       "signal": null,
-      "stdout": "localqa-t05-1b00c2b0\n",
+      "stdout": "localqa-t05-8943f014\n",
       "stderr": ""
     },
     {
-      "command": "docker network inspect localqa-t05-1b00c2b0",
+      "command": "docker network inspect localqa-t05-8943f014",
       "exitCode": 1,
       "signal": null,
       "stdout": "[]\n",
-      "stderr": "Error response from daemon: network localqa-t05-1b00c2b0 not found\n"
+      "stderr": "Error response from daemon: network localqa-t05-8943f014 not found\n"
     }
   ],
   "installation": {
@@ -297,7 +297,7 @@
     "tests": [
       {
         "name": "cancel",
-        "elapsedMs": 271.6794399999999,
+        "elapsedMs": 281.625356,
         "status": "cancelled"
       },
       {
@@ -307,7 +307,7 @@
       },
       {
         "name": "crash-recovery",
-        "originalAttempt": "2b9055ae-a314-4525-ba51-23a35b5187e5",
+        "originalAttempt": "5f3bac62-9d59-457e-9968-0cb898744160",
         "replayed": false
       },
       {
@@ -323,14 +323,14 @@
       {
         "name": "independent-reproduction",
         "finding": {
-          "id": "4a74e36b-b5a1-4f7f-8028-f8035e2a0052",
+          "id": "2e4d8a4d-2dea-44f4-82b7-dcc7f6428f63",
           "kind": "functional",
-          "runId": "1034c8c1-9d42-411b-b99e-0ef9d77ebc2e",
+          "runId": "3942ee63-3e31-460a-b350-2f5bdb9412fa",
           "title": "Expected main",
           "actual": "Fixed sourced criterion failed",
           "status": "confirmed",
           "caseIds": [
-            "39df1ac6-ec8b-4dfd-a9e7-48f42bafa3a3"
+            "eb57968d-6353-4e6c-b652-64816fbd42af"
           ],
           "version": 2,
           "expected": "Expected main",
@@ -340,37 +340,37 @@
             "Observe visible primary content"
           ],
           "evidenceRefs": [
-            "c464d988-aee6-4431-8edb-040e53b86dd3"
+            "d53a9a2c-1ecc-4bc2-90d8-e0284723aaf7"
           ],
           "expectedSource": "user_spec",
-          "reproductionRef": "9ebef1a2-7e4d-4dc9-b8e5-706ab39a8163",
+          "reproductionRef": "86271958-441a-4b48-af21-2a235620ea5d",
           "triageDisposition": "open"
         },
         "reproduction": {
-          "id": "9ebef1a2-7e4d-4dc9-b8e5-706ab39a8163",
-          "taskId": "068c8e56-8a0f-4ff1-99f3-bf938194bd00",
+          "id": "86271958-441a-4b48-af21-2a235620ea5d",
+          "taskId": "02e2b5bd-b59c-489c-8c61-f05c208aa503",
           "outcome": "reproduced",
           "summary": "Independent reproduction: reproduced",
-          "createdAt": "2026-10-02T13:31:10.942Z",
-          "findingId": "4a74e36b-b5a1-4f7f-8028-f8035e2a0052",
+          "createdAt": "2026-10-02T17:26:08.422Z",
+          "findingId": "2e4d8a4d-2dea-44f4-82b7-dcc7f6428f63",
           "evidenceRefs": [
-            "fe9e08cb-6eaa-4ae6-9a9e-383d8272c642"
+            "c5240a44-6534-4966-bcc4-d6dd2f7ffd29"
           ],
           "freshContext": true
         },
         "contexts": [
           {
-            "context_id": "a6da5296-7cc2-4f20-a086-51a28e89140a"
+            "context_id": "79c957a5-2b1f-4a15-864f-b97830733f85"
           },
           {
-            "context_id": "98c16b83-1354-48b9-827a-9ab855c6c079"
+            "context_id": "b612e0cb-cb62-4f1f-8ab7-eca96c73c34f"
           }
         ],
         "sameCriteria": true
       },
       {
         "name": "independent-after-crash",
-        "interrupted": "f7883fd1-8efe-466f-b5c5-021067829a6f",
+        "interrupted": "e2e48207-5ef2-4478-b275-e912864742b9",
         "summary": {
           "passed": 1,
           "issueFound": 0,
@@ -385,15 +385,15 @@
         },
         "contexts": [
           {
-            "context_id": "387719c5-9795-4394-9d9b-5689f0dd2f05",
+            "context_id": "8dab0641-8ee2-491f-8b2f-764825531a9f",
             "status": "interrupted"
           },
           {
-            "context_id": "d524568a-ddbf-4462-a27b-5ee2bac92507",
+            "context_id": "4ce13b7d-d8b5-4c51-997e-576cb0f25453",
             "status": "completed"
           },
           {
-            "context_id": "91743d3f-3f1d-4cf6-85a5-c216eca8687e",
+            "context_id": "518c7d5b-39f6-495c-9033-8bd106796787",
             "status": "completed"
           }
         ]
@@ -415,7 +415,7 @@
           "event": "browserActionExecuted",
           "kind": "navigate",
           "responseStatus": 200,
-          "snapshotId": "113e95ba-2d4d-44f4-927d-ec2c25baf500",
+          "snapshotId": "8f05f4bd-b980-4bf3-8803-fc8ae7c165b8",
           "pid": 219
         },
         "logs": "",
@@ -432,7 +432,7 @@
         },
         "lateAudit": {
           "role": "coordinator",
-          "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344",
+          "profileId": "375f2714-cfa6-43b0-8df2-c79767859940",
           "inputTokens": 11,
           "usageSource": "unknown",
           "outputTokens": 7,
@@ -477,15 +477,15 @@
     ],
     "verticalSlice": {
       "run": {
-        "id": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+        "id": "a892547e-7897-4fc8-ba08-7713834b1b76",
         "phase": "finalize",
         "status": "completed",
         "version": 8,
-        "createdAt": "2026-10-02T13:31:05.749Z",
-        "creatorId": "08cb88a0-06bd-460d-a18f-c5d506d28df5",
-        "projectId": "f005e9c5-5afc-45c6-9dc9-52ada173d05e",
+        "createdAt": "2026-10-02T17:26:03.614Z",
+        "creatorId": "d257213d-040a-4ba0-b90c-0a3c573c4141",
+        "projectId": "d99d8649-3d16-4623-b99d-93949aca36df",
         "targetUrl": "http://localhost:8080/",
-        "updatedAt": "2026-10-02T13:31:06.553Z",
+        "updatedAt": "2026-10-02T17:26:04.230Z",
         "budgetUsed": {
           "actions": 5,
           "modelCalls": 7,
@@ -511,23 +511,23 @@
           "models": {
             "executor": {
               "version": 1,
-              "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+              "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
             },
             "explorer": {
               "version": 1,
-              "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+              "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
             },
             "assertion": {
               "version": 1,
-              "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+              "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
             },
             "reproducer": {
               "version": 1,
-              "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+              "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
             },
             "coordinator": {
               "version": 1,
-              "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+              "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
             }
           },
           "actionPolicy": "non_submitting",
@@ -553,13 +553,13 @@
         "attemptRate": 1
       },
       "verdict": {
-        "id": "41af7d60-c74a-4d8c-ad2b-d2edc6858be2",
+        "id": "91a32e8c-02bb-4ca0-91a1-c10a5f0903ff",
         "gaps": [],
-        "caseId": "a95c7170-9f7c-45af-9615-6c9242ea9429",
+        "caseId": "a4152b1a-7ca3-4009-ba4a-b985ff184519",
         "status": "passed",
         "summary": "Fixed criteria evaluated against owned observations",
-        "attemptId": "c4222c7a-d7e3-4ee6-af07-1d4c6f6f9fd2",
-        "createdAt": "2026-10-02T13:31:06.521Z",
+        "attemptId": "596e7f86-12e0-4640-98f2-b542ac147c10",
+        "createdAt": "2026-10-02T17:26:04.202Z",
         "reasonCode": "OBSERVED",
         "criterionResults": [
           {
@@ -567,7 +567,7 @@
             "result": "passed",
             "criterionId": "smoke.http",
             "evidenceRefs": [
-              "330a04d1-c7a3-4b17-aef6-0af027f98793"
+              "a34f4461-9ec0-48cf-9bce-53926f0de69c"
             ]
           },
           {
@@ -575,46 +575,46 @@
             "result": "passed",
             "criterionId": "smoke.visible",
             "evidenceRefs": [
-              "330a04d1-c7a3-4b17-aef6-0af027f98793"
+              "a34f4461-9ec0-48cf-9bce-53926f0de69c"
             ]
           }
         ]
       },
       "material": {
-        "id": "330a04d1-c7a3-4b17-aef6-0af027f98793",
+        "id": "a34f4461-9ec0-48cf-9bce-53926f0de69c",
         "kind": "screenshot",
         "bytes": 265850,
         "error": null,
-        "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
-        "caseId": "a95c7170-9f7c-45af-9615-6c9242ea9429",
+        "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
+        "caseId": "a4152b1a-7ca3-4009-ba4a-b985ff184519",
         "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
         "status": "available",
-        "stepId": "d2b8b593-4a44-4fe8-85a5-6ab0d88ba739",
-        "taskId": "964cd61b-21f7-478b-8db3-4696665f3ed4",
-        "createdAt": "2026-10-02T13:31:06.482Z",
-        "projectId": "f005e9c5-5afc-45c6-9dc9-52ada173d05e",
+        "stepId": "66cffda1-9226-45e2-ad53-1749710a1eac",
+        "taskId": "b7c4acd5-0701-4d98-a486-d4abe7163487",
+        "createdAt": "2026-10-02T17:26:04.174Z",
+        "projectId": "d99d8649-3d16-4623-b99d-93949aca36df",
         "redaction": "not_needed",
-        "contentUrl": "/api/v1/projects/f005e9c5-5afc-45c6-9dc9-52ada173d05e/runs/fa4c1fe4-24de-4fc8-9d7a-48eab658448f/artifacts/330a04d1-c7a3-4b17-aef6-0af027f98793/content",
+        "contentUrl": "/api/v1/projects/d99d8649-3d16-4623-b99d-93949aca36df/runs/a892547e-7897-4fc8-ba08-7713834b1b76/artifacts/a34f4461-9ec0-48cf-9bce-53926f0de69c/content",
         "snapshotId": null
       },
       "events": [
         {
           "schemaVersion": 1,
           "id": "1",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 1,
           "type": "run.updated",
-          "at": "2026-10-02T13:31:05.745Z",
+          "at": "2026-10-02T17:26:03.613Z",
           "payload": {
-            "id": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "id": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "phase": "preflight",
             "status": "queued",
             "version": 1,
-            "createdAt": "2026-10-02T13:31:05.749Z",
-            "creatorId": "08cb88a0-06bd-460d-a18f-c5d506d28df5",
-            "projectId": "f005e9c5-5afc-45c6-9dc9-52ada173d05e",
+            "createdAt": "2026-10-02T17:26:03.614Z",
+            "creatorId": "d257213d-040a-4ba0-b90c-0a3c573c4141",
+            "projectId": "d99d8649-3d16-4623-b99d-93949aca36df",
             "targetUrl": "http://localhost:8080/",
-            "updatedAt": "2026-10-02T13:31:05.749Z",
+            "updatedAt": "2026-10-02T17:26:03.614Z",
             "budgetUsed": {
               "actions": 0,
               "modelCalls": 0,
@@ -640,23 +640,23 @@
               "models": {
                 "executor": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "explorer": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "assertion": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "reproducer": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "coordinator": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 }
               },
               "actionPolicy": "non_submitting",
@@ -673,14 +673,14 @@
         {
           "schemaVersion": 1,
           "id": "2",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 2,
           "type": "task.updated",
-          "at": "2026-10-02T13:31:05.745Z",
+          "at": "2026-10-02T17:26:03.613Z",
           "payload": {
-            "id": "b7bb9e65-2de3-445c-9bef-2de34cf699fe",
+            "id": "a56ee4a0-1923-4672-860b-d89a06840ba6",
             "role": "coordinator",
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "caseId": null,
             "status": "queued",
             "attempt": 1,
@@ -691,20 +691,20 @@
         {
           "schemaVersion": 1,
           "id": "3",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 3,
           "type": "run.updated",
-          "at": "2026-10-02T13:31:05.805Z",
+          "at": "2026-10-02T17:26:03.655Z",
           "payload": {
-            "id": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "id": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "phase": "preflight",
             "status": "running",
             "version": 2,
-            "createdAt": "2026-10-02T13:31:05.749Z",
-            "creatorId": "08cb88a0-06bd-460d-a18f-c5d506d28df5",
-            "projectId": "f005e9c5-5afc-45c6-9dc9-52ada173d05e",
+            "createdAt": "2026-10-02T17:26:03.614Z",
+            "creatorId": "d257213d-040a-4ba0-b90c-0a3c573c4141",
+            "projectId": "d99d8649-3d16-4623-b99d-93949aca36df",
             "targetUrl": "http://localhost:8080/",
-            "updatedAt": "2026-10-02T13:31:05.810Z",
+            "updatedAt": "2026-10-02T17:26:03.659Z",
             "budgetUsed": {
               "actions": 0,
               "modelCalls": 0,
@@ -730,23 +730,23 @@
               "models": {
                 "executor": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "explorer": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "assertion": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "reproducer": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "coordinator": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 }
               },
               "actionPolicy": "non_submitting",
@@ -763,10 +763,10 @@
         {
           "schemaVersion": 1,
           "id": "4",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 4,
           "type": "budget.updated",
-          "at": "2026-10-02T13:31:05.842Z",
+          "at": "2026-10-02T17:26:03.683Z",
           "payload": {
             "used": {
               "actions": 0,
@@ -792,14 +792,14 @@
         {
           "schemaVersion": 1,
           "id": "5",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 5,
           "type": "task.updated",
-          "at": "2026-10-02T13:31:05.847Z",
+          "at": "2026-10-02T17:26:03.687Z",
           "payload": {
-            "id": "b7bb9e65-2de3-445c-9bef-2de34cf699fe",
+            "id": "a56ee4a0-1923-4672-860b-d89a06840ba6",
             "role": "coordinator",
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "caseId": null,
             "status": "succeeded",
             "attempt": 1,
@@ -810,10 +810,10 @@
         {
           "schemaVersion": 1,
           "id": "6",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 6,
           "type": "phase.changed",
-          "at": "2026-10-02T13:31:05.852Z",
+          "at": "2026-10-02T17:26:03.691Z",
           "payload": {
             "phase": "auth",
             "contextVersion": 1
@@ -822,20 +822,20 @@
         {
           "schemaVersion": 1,
           "id": "7",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 7,
           "type": "run.updated",
-          "at": "2026-10-02T13:31:05.852Z",
+          "at": "2026-10-02T17:26:03.691Z",
           "payload": {
-            "id": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "id": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "phase": "auth",
             "status": "running",
             "version": 3,
-            "createdAt": "2026-10-02T13:31:05.749Z",
-            "creatorId": "08cb88a0-06bd-460d-a18f-c5d506d28df5",
-            "projectId": "f005e9c5-5afc-45c6-9dc9-52ada173d05e",
+            "createdAt": "2026-10-02T17:26:03.614Z",
+            "creatorId": "d257213d-040a-4ba0-b90c-0a3c573c4141",
+            "projectId": "d99d8649-3d16-4623-b99d-93949aca36df",
             "targetUrl": "http://localhost:8080/",
-            "updatedAt": "2026-10-02T13:31:05.854Z",
+            "updatedAt": "2026-10-02T17:26:03.693Z",
             "budgetUsed": {
               "actions": 0,
               "modelCalls": 1,
@@ -861,23 +861,23 @@
               "models": {
                 "executor": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "explorer": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "assertion": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "reproducer": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "coordinator": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 }
               },
               "actionPolicy": "non_submitting",
@@ -894,10 +894,10 @@
         {
           "schemaVersion": 1,
           "id": "8",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 8,
           "type": "phase.changed",
-          "at": "2026-10-02T13:31:05.852Z",
+          "at": "2026-10-02T17:26:03.691Z",
           "payload": {
             "phase": "explore",
             "contextVersion": 1
@@ -906,20 +906,20 @@
         {
           "schemaVersion": 1,
           "id": "9",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 9,
           "type": "run.updated",
-          "at": "2026-10-02T13:31:05.852Z",
+          "at": "2026-10-02T17:26:03.691Z",
           "payload": {
-            "id": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "id": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "phase": "explore",
             "status": "running",
             "version": 4,
-            "createdAt": "2026-10-02T13:31:05.749Z",
-            "creatorId": "08cb88a0-06bd-460d-a18f-c5d506d28df5",
-            "projectId": "f005e9c5-5afc-45c6-9dc9-52ada173d05e",
+            "createdAt": "2026-10-02T17:26:03.614Z",
+            "creatorId": "d257213d-040a-4ba0-b90c-0a3c573c4141",
+            "projectId": "d99d8649-3d16-4623-b99d-93949aca36df",
             "targetUrl": "http://localhost:8080/",
-            "updatedAt": "2026-10-02T13:31:05.857Z",
+            "updatedAt": "2026-10-02T17:26:03.694Z",
             "budgetUsed": {
               "actions": 0,
               "modelCalls": 1,
@@ -945,23 +945,23 @@
               "models": {
                 "executor": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "explorer": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "assertion": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "reproducer": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "coordinator": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 }
               },
               "actionPolicy": "non_submitting",
@@ -978,14 +978,14 @@
         {
           "schemaVersion": 1,
           "id": "10",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 10,
           "type": "task.updated",
-          "at": "2026-10-02T13:31:05.852Z",
+          "at": "2026-10-02T17:26:03.691Z",
           "payload": {
-            "id": "f5575657-2c56-454b-8434-2f433be8f304",
+            "id": "80292a17-ad38-4e07-a892-4ca7710ae2d5",
             "role": "explorer",
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "caseId": null,
             "status": "queued",
             "attempt": 1,
@@ -996,20 +996,20 @@
         {
           "schemaVersion": 1,
           "id": "11",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 11,
           "type": "step.recorded",
-          "at": "2026-10-02T13:31:05.993Z",
+          "at": "2026-10-02T17:26:03.788Z",
           "payload": {
-            "id": "1aedcf19-9129-4c36-96bc-68800d647845",
+            "id": "782a2f81-283c-4f24-88c3-bd5990ebd802",
             "seq": 1,
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "caseId": null,
             "status": "running",
-            "taskId": "f5575657-2c56-454b-8434-2f433be8f304",
+            "taskId": "80292a17-ad38-4e07-a892-4ca7710ae2d5",
             "summary": "Action intent persisted before execution",
             "toolName": "navigate",
-            "createdAt": "2026-10-02T13:31:06.005Z",
+            "createdAt": "2026-10-02T17:26:03.795Z",
             "finishedAt": null,
             "evidenceRefs": [],
             "targetDescription": "navigate"
@@ -1018,10 +1018,10 @@
         {
           "schemaVersion": 1,
           "id": "12",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 12,
           "type": "budget.updated",
-          "at": "2026-10-02T13:31:06.116Z",
+          "at": "2026-10-02T17:26:03.866Z",
           "payload": {
             "used": {
               "actions": 1,
@@ -1047,21 +1047,21 @@
         {
           "schemaVersion": 1,
           "id": "13",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 13,
           "type": "step.recorded",
-          "at": "2026-10-02T13:31:06.116Z",
+          "at": "2026-10-02T17:26:03.866Z",
           "payload": {
-            "id": "1aedcf19-9129-4c36-96bc-68800d647845",
+            "id": "782a2f81-283c-4f24-88c3-bd5990ebd802",
             "seq": 1,
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "caseId": null,
             "status": "succeeded",
-            "taskId": "f5575657-2c56-454b-8434-2f433be8f304",
+            "taskId": "80292a17-ad38-4e07-a892-4ca7710ae2d5",
             "summary": "Browser succeeded",
             "toolName": "navigate",
-            "createdAt": "2026-10-02T13:31:06.005Z",
-            "finishedAt": "2026-10-02T13:31:06.127Z",
+            "createdAt": "2026-10-02T17:26:03.795Z",
+            "finishedAt": "2026-10-02T17:26:03.875Z",
             "evidenceRefs": [],
             "targetDescription": "navigate"
           }
@@ -1069,10 +1069,10 @@
         {
           "schemaVersion": 1,
           "id": "14",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 14,
           "type": "budget.updated",
-          "at": "2026-10-02T13:31:06.140Z",
+          "at": "2026-10-02T17:26:03.884Z",
           "payload": {
             "used": {
               "actions": 1,
@@ -1098,20 +1098,20 @@
         {
           "schemaVersion": 1,
           "id": "15",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 15,
           "type": "step.recorded",
-          "at": "2026-10-02T13:31:06.148Z",
+          "at": "2026-10-02T17:26:03.894Z",
           "payload": {
-            "id": "6229435c-fde8-433b-95b9-9b8a146866b5",
+            "id": "148be856-f5a2-431e-8d6d-7fe8e389884a",
             "seq": 2,
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "caseId": null,
             "status": "running",
-            "taskId": "f5575657-2c56-454b-8434-2f433be8f304",
+            "taskId": "80292a17-ad38-4e07-a892-4ca7710ae2d5",
             "summary": "Action intent persisted before execution",
             "toolName": "observe",
-            "createdAt": "2026-10-02T13:31:06.151Z",
+            "createdAt": "2026-10-02T17:26:03.897Z",
             "finishedAt": null,
             "evidenceRefs": [],
             "targetDescription": "observe"
@@ -1120,10 +1120,10 @@
         {
           "schemaVersion": 1,
           "id": "16",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 16,
           "type": "budget.updated",
-          "at": "2026-10-02T13:31:06.164Z",
+          "at": "2026-10-02T17:26:03.913Z",
           "payload": {
             "used": {
               "actions": 2,
@@ -1149,21 +1149,21 @@
         {
           "schemaVersion": 1,
           "id": "17",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 17,
           "type": "step.recorded",
-          "at": "2026-10-02T13:31:06.164Z",
+          "at": "2026-10-02T17:26:03.913Z",
           "payload": {
-            "id": "6229435c-fde8-433b-95b9-9b8a146866b5",
+            "id": "148be856-f5a2-431e-8d6d-7fe8e389884a",
             "seq": 2,
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "caseId": null,
             "status": "succeeded",
-            "taskId": "f5575657-2c56-454b-8434-2f433be8f304",
+            "taskId": "80292a17-ad38-4e07-a892-4ca7710ae2d5",
             "summary": "Browser succeeded",
             "toolName": "observe",
-            "createdAt": "2026-10-02T13:31:06.151Z",
-            "finishedAt": "2026-10-02T13:31:06.169Z",
+            "createdAt": "2026-10-02T17:26:03.897Z",
+            "finishedAt": "2026-10-02T17:26:03.920Z",
             "evidenceRefs": [],
             "targetDescription": "observe"
           }
@@ -1171,10 +1171,10 @@
         {
           "schemaVersion": 1,
           "id": "18",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 18,
           "type": "budget.updated",
-          "at": "2026-10-02T13:31:06.177Z",
+          "at": "2026-10-02T17:26:03.926Z",
           "payload": {
             "used": {
               "actions": 2,
@@ -1200,14 +1200,14 @@
         {
           "schemaVersion": 1,
           "id": "19",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 19,
           "type": "task.updated",
-          "at": "2026-10-02T13:31:06.181Z",
+          "at": "2026-10-02T17:26:03.929Z",
           "payload": {
-            "id": "f5575657-2c56-454b-8434-2f433be8f304",
+            "id": "80292a17-ad38-4e07-a892-4ca7710ae2d5",
             "role": "explorer",
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "caseId": null,
             "status": "succeeded",
             "attempt": 1,
@@ -1218,10 +1218,10 @@
         {
           "schemaVersion": 1,
           "id": "20",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 20,
           "type": "phase.changed",
-          "at": "2026-10-02T13:31:06.192Z",
+          "at": "2026-10-02T17:26:03.939Z",
           "payload": {
             "phase": "plan",
             "contextVersion": 1
@@ -1230,20 +1230,20 @@
         {
           "schemaVersion": 1,
           "id": "21",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 21,
           "type": "run.updated",
-          "at": "2026-10-02T13:31:06.192Z",
+          "at": "2026-10-02T17:26:03.939Z",
           "payload": {
-            "id": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "id": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "phase": "plan",
             "status": "running",
             "version": 5,
-            "createdAt": "2026-10-02T13:31:05.749Z",
-            "creatorId": "08cb88a0-06bd-460d-a18f-c5d506d28df5",
-            "projectId": "f005e9c5-5afc-45c6-9dc9-52ada173d05e",
+            "createdAt": "2026-10-02T17:26:03.614Z",
+            "creatorId": "d257213d-040a-4ba0-b90c-0a3c573c4141",
+            "projectId": "d99d8649-3d16-4623-b99d-93949aca36df",
             "targetUrl": "http://localhost:8080/",
-            "updatedAt": "2026-10-02T13:31:06.197Z",
+            "updatedAt": "2026-10-02T17:26:03.942Z",
             "budgetUsed": {
               "actions": 2,
               "modelCalls": 3,
@@ -1269,23 +1269,23 @@
               "models": {
                 "executor": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "explorer": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "assertion": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "reproducer": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "coordinator": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 }
               },
               "actionPolicy": "non_submitting",
@@ -1302,14 +1302,14 @@
         {
           "schemaVersion": 1,
           "id": "22",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 22,
           "type": "task.updated",
-          "at": "2026-10-02T13:31:06.192Z",
+          "at": "2026-10-02T17:26:03.939Z",
           "payload": {
-            "id": "a3c1afd5-2616-42d5-a31c-969ac86896e1",
+            "id": "fbf9bb48-f642-4956-9294-4a654a1229bb",
             "role": "coordinator",
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "caseId": null,
             "status": "queued",
             "attempt": 1,
@@ -1320,10 +1320,10 @@
         {
           "schemaVersion": 1,
           "id": "23",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 23,
           "type": "budget.updated",
-          "at": "2026-10-02T13:31:06.207Z",
+          "at": "2026-10-02T17:26:03.952Z",
           "payload": {
             "used": {
               "actions": 2,
@@ -1349,14 +1349,14 @@
         {
           "schemaVersion": 1,
           "id": "24",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 24,
           "type": "task.updated",
-          "at": "2026-10-02T13:31:06.211Z",
+          "at": "2026-10-02T17:26:03.956Z",
           "payload": {
-            "id": "a3c1afd5-2616-42d5-a31c-969ac86896e1",
+            "id": "fbf9bb48-f642-4956-9294-4a654a1229bb",
             "role": "coordinator",
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "caseId": null,
             "status": "succeeded",
             "attempt": 1,
@@ -1367,13 +1367,13 @@
         {
           "schemaVersion": 1,
           "id": "25",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 25,
           "type": "case.created",
-          "at": "2026-10-02T13:31:06.214Z",
+          "at": "2026-10-02T17:26:03.959Z",
           "payload": {
-            "id": "a95c7170-9f7c-45af-9615-6c9242ea9429",
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "id": "a4152b1a-7ca3-4009-ba4a-b985ff184519",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "title": "Entry smoke 1",
             "outline": [
               "Navigate http://localhost:8080/",
@@ -1405,7 +1405,7 @@
                 "description": "Visible primary content"
               }
             ],
-            "projectId": "f005e9c5-5afc-45c6-9dc9-52ada173d05e",
+            "projectId": "d99d8649-3d16-4623-b99d-93949aca36df",
             "preconditions": [
               "Fresh context; approved authentication only"
             ]
@@ -1414,10 +1414,10 @@
         {
           "schemaVersion": 1,
           "id": "26",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 26,
           "type": "phase.changed",
-          "at": "2026-10-02T13:31:06.214Z",
+          "at": "2026-10-02T17:26:03.959Z",
           "payload": {
             "phase": "execute",
             "contextVersion": 1
@@ -1426,20 +1426,20 @@
         {
           "schemaVersion": 1,
           "id": "27",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 27,
           "type": "run.updated",
-          "at": "2026-10-02T13:31:06.214Z",
+          "at": "2026-10-02T17:26:03.959Z",
           "payload": {
-            "id": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "id": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "phase": "execute",
             "status": "running",
             "version": 6,
-            "createdAt": "2026-10-02T13:31:05.749Z",
-            "creatorId": "08cb88a0-06bd-460d-a18f-c5d506d28df5",
-            "projectId": "f005e9c5-5afc-45c6-9dc9-52ada173d05e",
+            "createdAt": "2026-10-02T17:26:03.614Z",
+            "creatorId": "d257213d-040a-4ba0-b90c-0a3c573c4141",
+            "projectId": "d99d8649-3d16-4623-b99d-93949aca36df",
             "targetUrl": "http://localhost:8080/",
-            "updatedAt": "2026-10-02T13:31:06.222Z",
+            "updatedAt": "2026-10-02T17:26:03.965Z",
             "budgetUsed": {
               "actions": 2,
               "modelCalls": 4,
@@ -1465,23 +1465,23 @@
               "models": {
                 "executor": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "explorer": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "assertion": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "reproducer": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "coordinator": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 }
               },
               "actionPolicy": "non_submitting",
@@ -1498,15 +1498,15 @@
         {
           "schemaVersion": 1,
           "id": "28",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 28,
           "type": "task.updated",
-          "at": "2026-10-02T13:31:06.214Z",
+          "at": "2026-10-02T17:26:03.959Z",
           "payload": {
-            "id": "964cd61b-21f7-478b-8db3-4696665f3ed4",
+            "id": "b7c4acd5-0701-4d98-a486-d4abe7163487",
             "role": "executor",
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
-            "caseId": "a95c7170-9f7c-45af-9615-6c9242ea9429",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
+            "caseId": "a4152b1a-7ca3-4009-ba4a-b985ff184519",
             "status": "queued",
             "attempt": 1,
             "summary": "execute",
@@ -1516,20 +1516,20 @@
         {
           "schemaVersion": 1,
           "id": "29",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 29,
           "type": "step.recorded",
-          "at": "2026-10-02T13:31:06.256Z",
+          "at": "2026-10-02T17:26:03.987Z",
           "payload": {
-            "id": "819b7d2b-1cb3-456f-9244-7a8cf2354fcb",
+            "id": "2ff62f47-e526-43cd-a52a-19afb9ce9e57",
             "seq": 1,
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
-            "caseId": "a95c7170-9f7c-45af-9615-6c9242ea9429",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
+            "caseId": "a4152b1a-7ca3-4009-ba4a-b985ff184519",
             "status": "running",
-            "taskId": "964cd61b-21f7-478b-8db3-4696665f3ed4",
+            "taskId": "b7c4acd5-0701-4d98-a486-d4abe7163487",
             "summary": "Action intent persisted before execution",
             "toolName": "navigate",
-            "createdAt": "2026-10-02T13:31:06.260Z",
+            "createdAt": "2026-10-02T17:26:03.990Z",
             "finishedAt": null,
             "evidenceRefs": [],
             "targetDescription": "navigate"
@@ -1538,10 +1538,10 @@
         {
           "schemaVersion": 1,
           "id": "30",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 30,
           "type": "budget.updated",
-          "at": "2026-10-02T13:31:06.307Z",
+          "at": "2026-10-02T17:26:04.030Z",
           "payload": {
             "used": {
               "actions": 3,
@@ -1567,21 +1567,21 @@
         {
           "schemaVersion": 1,
           "id": "31",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 31,
           "type": "step.recorded",
-          "at": "2026-10-02T13:31:06.307Z",
+          "at": "2026-10-02T17:26:04.030Z",
           "payload": {
-            "id": "819b7d2b-1cb3-456f-9244-7a8cf2354fcb",
+            "id": "2ff62f47-e526-43cd-a52a-19afb9ce9e57",
             "seq": 1,
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
-            "caseId": "a95c7170-9f7c-45af-9615-6c9242ea9429",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
+            "caseId": "a4152b1a-7ca3-4009-ba4a-b985ff184519",
             "status": "succeeded",
-            "taskId": "964cd61b-21f7-478b-8db3-4696665f3ed4",
+            "taskId": "b7c4acd5-0701-4d98-a486-d4abe7163487",
             "summary": "Browser succeeded",
             "toolName": "navigate",
-            "createdAt": "2026-10-02T13:31:06.260Z",
-            "finishedAt": "2026-10-02T13:31:06.314Z",
+            "createdAt": "2026-10-02T17:26:03.990Z",
+            "finishedAt": "2026-10-02T17:26:04.036Z",
             "evidenceRefs": [],
             "targetDescription": "navigate"
           }
@@ -1589,10 +1589,10 @@
         {
           "schemaVersion": 1,
           "id": "32",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 32,
           "type": "budget.updated",
-          "at": "2026-10-02T13:31:06.325Z",
+          "at": "2026-10-02T17:26:04.046Z",
           "payload": {
             "used": {
               "actions": 3,
@@ -1618,20 +1618,20 @@
         {
           "schemaVersion": 1,
           "id": "33",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 33,
           "type": "step.recorded",
-          "at": "2026-10-02T13:31:06.329Z",
+          "at": "2026-10-02T17:26:04.050Z",
           "payload": {
-            "id": "e68ba638-7167-47d5-a4cd-a879a89d239d",
+            "id": "1abbd9b5-9d56-42db-9eb8-87f1276f206f",
             "seq": 2,
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
-            "caseId": "a95c7170-9f7c-45af-9615-6c9242ea9429",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
+            "caseId": "a4152b1a-7ca3-4009-ba4a-b985ff184519",
             "status": "running",
-            "taskId": "964cd61b-21f7-478b-8db3-4696665f3ed4",
+            "taskId": "b7c4acd5-0701-4d98-a486-d4abe7163487",
             "summary": "Action intent persisted before execution",
             "toolName": "observe",
-            "createdAt": "2026-10-02T13:31:06.332Z",
+            "createdAt": "2026-10-02T17:26:04.054Z",
             "finishedAt": null,
             "evidenceRefs": [],
             "targetDescription": "observe"
@@ -1640,10 +1640,10 @@
         {
           "schemaVersion": 1,
           "id": "34",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 34,
           "type": "budget.updated",
-          "at": "2026-10-02T13:31:06.344Z",
+          "at": "2026-10-02T17:26:04.065Z",
           "payload": {
             "used": {
               "actions": 4,
@@ -1669,21 +1669,21 @@
         {
           "schemaVersion": 1,
           "id": "35",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 35,
           "type": "step.recorded",
-          "at": "2026-10-02T13:31:06.344Z",
+          "at": "2026-10-02T17:26:04.065Z",
           "payload": {
-            "id": "e68ba638-7167-47d5-a4cd-a879a89d239d",
+            "id": "1abbd9b5-9d56-42db-9eb8-87f1276f206f",
             "seq": 2,
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
-            "caseId": "a95c7170-9f7c-45af-9615-6c9242ea9429",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
+            "caseId": "a4152b1a-7ca3-4009-ba4a-b985ff184519",
             "status": "succeeded",
-            "taskId": "964cd61b-21f7-478b-8db3-4696665f3ed4",
+            "taskId": "b7c4acd5-0701-4d98-a486-d4abe7163487",
             "summary": "Browser succeeded",
             "toolName": "observe",
-            "createdAt": "2026-10-02T13:31:06.332Z",
-            "finishedAt": "2026-10-02T13:31:06.351Z",
+            "createdAt": "2026-10-02T17:26:04.054Z",
+            "finishedAt": "2026-10-02T17:26:04.071Z",
             "evidenceRefs": [],
             "targetDescription": "observe"
           }
@@ -1691,10 +1691,10 @@
         {
           "schemaVersion": 1,
           "id": "36",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 36,
           "type": "budget.updated",
-          "at": "2026-10-02T13:31:06.358Z",
+          "at": "2026-10-02T17:26:04.077Z",
           "payload": {
             "used": {
               "actions": 4,
@@ -1720,20 +1720,20 @@
         {
           "schemaVersion": 1,
           "id": "37",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 37,
           "type": "step.recorded",
-          "at": "2026-10-02T13:31:06.362Z",
+          "at": "2026-10-02T17:26:04.080Z",
           "payload": {
-            "id": "d2b8b593-4a44-4fe8-85a5-6ab0d88ba739",
+            "id": "66cffda1-9226-45e2-ad53-1749710a1eac",
             "seq": 3,
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
-            "caseId": "a95c7170-9f7c-45af-9615-6c9242ea9429",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
+            "caseId": "a4152b1a-7ca3-4009-ba4a-b985ff184519",
             "status": "running",
-            "taskId": "964cd61b-21f7-478b-8db3-4696665f3ed4",
+            "taskId": "b7c4acd5-0701-4d98-a486-d4abe7163487",
             "summary": "Action intent persisted before execution",
             "toolName": "capture",
-            "createdAt": "2026-10-02T13:31:06.364Z",
+            "createdAt": "2026-10-02T17:26:04.081Z",
             "finishedAt": null,
             "evidenceRefs": [],
             "targetDescription": "capture"
@@ -1742,35 +1742,35 @@
         {
           "schemaVersion": 1,
           "id": "38",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 38,
           "type": "artifact.updated",
-          "at": "2026-10-02T13:31:06.506Z",
+          "at": "2026-10-02T17:26:04.188Z",
           "payload": {
-            "id": "330a04d1-c7a3-4b17-aef6-0af027f98793",
+            "id": "a34f4461-9ec0-48cf-9bce-53926f0de69c",
             "kind": "screenshot",
             "bytes": 265850,
             "error": null,
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
-            "caseId": "a95c7170-9f7c-45af-9615-6c9242ea9429",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
+            "caseId": "a4152b1a-7ca3-4009-ba4a-b985ff184519",
             "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
             "status": "available",
-            "stepId": "d2b8b593-4a44-4fe8-85a5-6ab0d88ba739",
-            "taskId": "964cd61b-21f7-478b-8db3-4696665f3ed4",
-            "createdAt": "2026-10-02T13:31:06.482Z",
-            "projectId": "f005e9c5-5afc-45c6-9dc9-52ada173d05e",
+            "stepId": "66cffda1-9226-45e2-ad53-1749710a1eac",
+            "taskId": "b7c4acd5-0701-4d98-a486-d4abe7163487",
+            "createdAt": "2026-10-02T17:26:04.174Z",
+            "projectId": "d99d8649-3d16-4623-b99d-93949aca36df",
             "redaction": "not_needed",
-            "contentUrl": "/api/v1/projects/f005e9c5-5afc-45c6-9dc9-52ada173d05e/runs/fa4c1fe4-24de-4fc8-9d7a-48eab658448f/artifacts/330a04d1-c7a3-4b17-aef6-0af027f98793/content",
+            "contentUrl": "/api/v1/projects/d99d8649-3d16-4623-b99d-93949aca36df/runs/a892547e-7897-4fc8-ba08-7713834b1b76/artifacts/a34f4461-9ec0-48cf-9bce-53926f0de69c/content",
             "snapshotId": null
           }
         },
         {
           "schemaVersion": 1,
           "id": "39",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 39,
           "type": "budget.updated",
-          "at": "2026-10-02T13:31:06.508Z",
+          "at": "2026-10-02T17:26:04.190Z",
           "payload": {
             "used": {
               "actions": 5,
@@ -1796,23 +1796,23 @@
         {
           "schemaVersion": 1,
           "id": "40",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 40,
           "type": "step.recorded",
-          "at": "2026-10-02T13:31:06.508Z",
+          "at": "2026-10-02T17:26:04.190Z",
           "payload": {
-            "id": "d2b8b593-4a44-4fe8-85a5-6ab0d88ba739",
+            "id": "66cffda1-9226-45e2-ad53-1749710a1eac",
             "seq": 3,
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
-            "caseId": "a95c7170-9f7c-45af-9615-6c9242ea9429",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
+            "caseId": "a4152b1a-7ca3-4009-ba4a-b985ff184519",
             "status": "succeeded",
-            "taskId": "964cd61b-21f7-478b-8db3-4696665f3ed4",
+            "taskId": "b7c4acd5-0701-4d98-a486-d4abe7163487",
             "summary": "Browser succeeded",
             "toolName": "capture",
-            "createdAt": "2026-10-02T13:31:06.364Z",
-            "finishedAt": "2026-10-02T13:31:06.509Z",
+            "createdAt": "2026-10-02T17:26:04.081Z",
+            "finishedAt": "2026-10-02T17:26:04.191Z",
             "evidenceRefs": [
-              "330a04d1-c7a3-4b17-aef6-0af027f98793"
+              "a34f4461-9ec0-48cf-9bce-53926f0de69c"
             ],
             "targetDescription": "capture"
           }
@@ -1820,10 +1820,10 @@
         {
           "schemaVersion": 1,
           "id": "41",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 41,
           "type": "budget.updated",
-          "at": "2026-10-02T13:31:06.517Z",
+          "at": "2026-10-02T17:26:04.198Z",
           "payload": {
             "used": {
               "actions": 5,
@@ -1849,20 +1849,20 @@
         {
           "schemaVersion": 1,
           "id": "42",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 42,
           "type": "case.result",
-          "at": "2026-10-02T13:31:06.520Z",
+          "at": "2026-10-02T17:26:04.201Z",
           "payload": {
             "outcome": "passed",
             "verdict": {
-              "id": "41af7d60-c74a-4d8c-ad2b-d2edc6858be2",
+              "id": "91a32e8c-02bb-4ca0-91a1-c10a5f0903ff",
               "gaps": [],
-              "caseId": "a95c7170-9f7c-45af-9615-6c9242ea9429",
+              "caseId": "a4152b1a-7ca3-4009-ba4a-b985ff184519",
               "status": "passed",
               "summary": "Fixed criteria evaluated against owned observations",
-              "attemptId": "c4222c7a-d7e3-4ee6-af07-1d4c6f6f9fd2",
-              "createdAt": "2026-10-02T13:31:06.521Z",
+              "attemptId": "596e7f86-12e0-4640-98f2-b542ac147c10",
+              "createdAt": "2026-10-02T17:26:04.202Z",
               "reasonCode": "OBSERVED",
               "criterionResults": [
                 {
@@ -1870,7 +1870,7 @@
                   "result": "passed",
                   "criterionId": "smoke.http",
                   "evidenceRefs": [
-                    "330a04d1-c7a3-4b17-aef6-0af027f98793"
+                    "a34f4461-9ec0-48cf-9bce-53926f0de69c"
                   ]
                 },
                 {
@@ -1878,14 +1878,14 @@
                   "result": "passed",
                   "criterionId": "smoke.visible",
                   "evidenceRefs": [
-                    "330a04d1-c7a3-4b17-aef6-0af027f98793"
+                    "a34f4461-9ec0-48cf-9bce-53926f0de69c"
                   ]
                 }
               ]
             },
             "definition": {
-              "id": "a95c7170-9f7c-45af-9615-6c9242ea9429",
-              "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+              "id": "a4152b1a-7ca3-4009-ba4a-b985ff184519",
+              "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
               "title": "Entry smoke 1",
               "outline": [
                 "Navigate http://localhost:8080/",
@@ -1917,7 +1917,7 @@
                   "description": "Visible primary content"
                 }
               ],
-              "projectId": "f005e9c5-5afc-45c6-9dc9-52ada173d05e",
+              "projectId": "d99d8649-3d16-4623-b99d-93949aca36df",
               "preconditions": [
                 "Fresh context; approved authentication only"
               ]
@@ -1927,15 +1927,15 @@
         {
           "schemaVersion": 1,
           "id": "43",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 43,
           "type": "task.updated",
-          "at": "2026-10-02T13:31:06.520Z",
+          "at": "2026-10-02T17:26:04.201Z",
           "payload": {
-            "id": "964cd61b-21f7-478b-8db3-4696665f3ed4",
+            "id": "b7c4acd5-0701-4d98-a486-d4abe7163487",
             "role": "executor",
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
-            "caseId": "a95c7170-9f7c-45af-9615-6c9242ea9429",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
+            "caseId": "a4152b1a-7ca3-4009-ba4a-b985ff184519",
             "status": "succeeded",
             "attempt": 1,
             "summary": "execute",
@@ -1945,10 +1945,10 @@
         {
           "schemaVersion": 1,
           "id": "44",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 44,
           "type": "phase.changed",
-          "at": "2026-10-02T13:31:06.534Z",
+          "at": "2026-10-02T17:26:04.214Z",
           "payload": {
             "phase": "finalize",
             "contextVersion": 1
@@ -1957,20 +1957,20 @@
         {
           "schemaVersion": 1,
           "id": "45",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 45,
           "type": "run.updated",
-          "at": "2026-10-02T13:31:06.534Z",
+          "at": "2026-10-02T17:26:04.214Z",
           "payload": {
-            "id": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "id": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "phase": "finalize",
             "status": "running",
             "version": 7,
-            "createdAt": "2026-10-02T13:31:05.749Z",
-            "creatorId": "08cb88a0-06bd-460d-a18f-c5d506d28df5",
-            "projectId": "f005e9c5-5afc-45c6-9dc9-52ada173d05e",
+            "createdAt": "2026-10-02T17:26:03.614Z",
+            "creatorId": "d257213d-040a-4ba0-b90c-0a3c573c4141",
+            "projectId": "d99d8649-3d16-4623-b99d-93949aca36df",
             "targetUrl": "http://localhost:8080/",
-            "updatedAt": "2026-10-02T13:31:06.538Z",
+            "updatedAt": "2026-10-02T17:26:04.216Z",
             "budgetUsed": {
               "actions": 5,
               "modelCalls": 7,
@@ -1996,23 +1996,23 @@
               "models": {
                 "executor": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "explorer": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "assertion": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "reproducer": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "coordinator": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 }
               },
               "actionPolicy": "non_submitting",
@@ -2029,14 +2029,14 @@
         {
           "schemaVersion": 1,
           "id": "46",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 46,
           "type": "task.updated",
-          "at": "2026-10-02T13:31:06.534Z",
+          "at": "2026-10-02T17:26:04.214Z",
           "payload": {
-            "id": "74e5197e-f3f6-4c7c-b005-97f0072e69f4",
+            "id": "4987760c-a0db-41b2-9443-627356fd957b",
             "role": "finalizer",
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "caseId": null,
             "status": "queued",
             "attempt": 1,
@@ -2047,14 +2047,14 @@
         {
           "schemaVersion": 1,
           "id": "47",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 47,
           "type": "task.updated",
-          "at": "2026-10-02T13:31:06.545Z",
+          "at": "2026-10-02T17:26:04.223Z",
           "payload": {
-            "id": "74e5197e-f3f6-4c7c-b005-97f0072e69f4",
+            "id": "4987760c-a0db-41b2-9443-627356fd957b",
             "role": "finalizer",
-            "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "caseId": null,
             "status": "succeeded",
             "attempt": 1,
@@ -2065,20 +2065,20 @@
         {
           "schemaVersion": 1,
           "id": "48",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 48,
           "type": "run.updated",
-          "at": "2026-10-02T13:31:06.548Z",
+          "at": "2026-10-02T17:26:04.226Z",
           "payload": {
-            "id": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "id": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "phase": "finalize",
             "status": "completed",
             "version": 8,
-            "createdAt": "2026-10-02T13:31:05.749Z",
-            "creatorId": "08cb88a0-06bd-460d-a18f-c5d506d28df5",
-            "projectId": "f005e9c5-5afc-45c6-9dc9-52ada173d05e",
+            "createdAt": "2026-10-02T17:26:03.614Z",
+            "creatorId": "d257213d-040a-4ba0-b90c-0a3c573c4141",
+            "projectId": "d99d8649-3d16-4623-b99d-93949aca36df",
             "targetUrl": "http://localhost:8080/",
-            "updatedAt": "2026-10-02T13:31:06.553Z",
+            "updatedAt": "2026-10-02T17:26:04.230Z",
             "budgetUsed": {
               "actions": 5,
               "modelCalls": 7,
@@ -2104,23 +2104,23 @@
               "models": {
                 "executor": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "explorer": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "assertion": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "reproducer": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "coordinator": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 }
               },
               "actionPolicy": "non_submitting",
@@ -2137,12 +2137,12 @@
         {
           "schemaVersion": 1,
           "id": "49",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 49,
           "type": "report.ready",
-          "at": "2026-10-02T13:31:06.548Z",
+          "at": "2026-10-02T17:26:04.226Z",
           "payload": {
-            "generatedAt": "2026-10-02T13:31:06.554Z",
+            "generatedAt": "2026-10-02T17:26:04.231Z",
             "reportVersion": 8,
             "schemaVersion": 1
           }
@@ -2150,20 +2150,20 @@
         {
           "schemaVersion": 1,
           "id": "50",
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
           "seq": 50,
           "type": "run.finished",
-          "at": "2026-10-02T13:31:06.548Z",
+          "at": "2026-10-02T17:26:04.226Z",
           "payload": {
-            "id": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+            "id": "a892547e-7897-4fc8-ba08-7713834b1b76",
             "phase": "finalize",
             "status": "completed",
             "version": 8,
-            "createdAt": "2026-10-02T13:31:05.749Z",
-            "creatorId": "08cb88a0-06bd-460d-a18f-c5d506d28df5",
-            "projectId": "f005e9c5-5afc-45c6-9dc9-52ada173d05e",
+            "createdAt": "2026-10-02T17:26:03.614Z",
+            "creatorId": "d257213d-040a-4ba0-b90c-0a3c573c4141",
+            "projectId": "d99d8649-3d16-4623-b99d-93949aca36df",
             "targetUrl": "http://localhost:8080/",
-            "updatedAt": "2026-10-02T13:31:06.553Z",
+            "updatedAt": "2026-10-02T17:26:04.230Z",
             "budgetUsed": {
               "actions": 5,
               "modelCalls": 7,
@@ -2189,23 +2189,23 @@
               "models": {
                 "executor": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "explorer": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "assertion": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "reproducer": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 },
                 "coordinator": {
                   "version": 1,
-                  "profileId": "dfd1f6bc-44fe-45bf-b86d-399aefb56344"
+                  "profileId": "375f2714-cfa6-43b0-8df2-c79767859940"
                 }
               },
               "actionPolicy": "non_submitting",
@@ -2222,7 +2222,7 @@
       ],
       "browserContextIds": [
         {
-          "context_id": "c16205e4-b494-43f7-97d1-5020e66c1ebb"
+          "context_id": "b9f5b275-16ef-4ade-bb5d-ba914cd1e8ff"
         }
       ],
       "stubAssertionRejected": {
@@ -2293,7 +2293,7 @@
             "--hide-scrollbars",
             "--mute-audio",
             "--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4",
-            "--user-data-dir=/work/apps/worker/.evidence/tmp/playwright_chromiumdev_profile-sj6Z8b",
+            "--user-data-dir=/work/apps/worker/.evidence/tmp/playwright_chromiumdev_profile-U5wAHZ",
             "--remote-debugging-pipe",
             "--no-startup-window"
           ],
@@ -2307,134 +2307,134 @@
     "stubProviderCalls": 55,
     "allMaterialHashes": [
       {
-        "id": "330a04d1-c7a3-4b17-aef6-0af027f98793",
-        "project_id": "f005e9c5-5afc-45c6-9dc9-52ada173d05e",
-        "run_id": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
+        "id": "46686ddc-07ee-411c-b73b-ff219d2c5cef",
+        "project_id": "03cbfa89-2464-4cdc-8a85-e67e248cfc43",
+        "run_id": "1ec7cce2-2c5b-4477-bb84-6efce0bc59c8",
         "document": {
-          "id": "330a04d1-c7a3-4b17-aef6-0af027f98793",
+          "id": "46686ddc-07ee-411c-b73b-ff219d2c5cef",
           "kind": "screenshot",
           "bytes": 265850,
           "error": null,
-          "runId": "fa4c1fe4-24de-4fc8-9d7a-48eab658448f",
-          "caseId": "a95c7170-9f7c-45af-9615-6c9242ea9429",
+          "runId": "1ec7cce2-2c5b-4477-bb84-6efce0bc59c8",
+          "caseId": "45666be3-fa49-438a-89fe-dcfa70525195",
           "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
           "status": "available",
-          "stepId": "d2b8b593-4a44-4fe8-85a5-6ab0d88ba739",
-          "taskId": "964cd61b-21f7-478b-8db3-4696665f3ed4",
-          "createdAt": "2026-10-02T13:31:06.482Z",
-          "projectId": "f005e9c5-5afc-45c6-9dc9-52ada173d05e",
+          "stepId": "1645b894-957e-48d4-8e11-9bf8d234c910",
+          "taskId": "66098786-7c85-467b-b1e3-06b73f45a2e9",
+          "createdAt": "2026-10-02T17:26:09.990Z",
+          "projectId": "03cbfa89-2464-4cdc-8a85-e67e248cfc43",
           "redaction": "not_needed",
-          "contentUrl": "/api/v1/projects/f005e9c5-5afc-45c6-9dc9-52ada173d05e/runs/fa4c1fe4-24de-4fc8-9d7a-48eab658448f/artifacts/330a04d1-c7a3-4b17-aef6-0af027f98793/content",
+          "contentUrl": "/api/v1/projects/03cbfa89-2464-4cdc-8a85-e67e248cfc43/runs/1ec7cce2-2c5b-4477-bb84-6efce0bc59c8/artifacts/46686ddc-07ee-411c-b73b-ff219d2c5cef/content",
           "snapshotId": null
         }
       },
       {
-        "id": "39226aa1-913f-46cf-85a5-f3c764224e50",
-        "project_id": "7f9bb34e-1e67-4992-96f8-a65f2620ece3",
-        "run_id": "731d9616-30a2-43e1-8fc4-0d8ff49eee61",
+        "id": "4d0cbf7a-65ca-4e87-920d-12566a03579f",
+        "project_id": "235b6bbf-b699-441a-b069-611315c5dc2c",
+        "run_id": "fb6c63cc-6fb9-456c-a6d0-8689765dcea8",
         "document": {
-          "id": "39226aa1-913f-46cf-85a5-f3c764224e50",
+          "id": "4d0cbf7a-65ca-4e87-920d-12566a03579f",
           "kind": "screenshot",
           "bytes": 265850,
           "error": null,
-          "runId": "731d9616-30a2-43e1-8fc4-0d8ff49eee61",
-          "caseId": "4ba9e7af-e73e-4a85-8862-2792e5e8aaeb",
+          "runId": "fb6c63cc-6fb9-456c-a6d0-8689765dcea8",
+          "caseId": "eb277d4b-60a4-4b00-a1de-4f377e4378a5",
           "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
           "status": "available",
-          "stepId": "0cdf7c3a-a3e3-47d5-9036-7001d16fc88b",
-          "taskId": "87ed4254-2322-4919-99f3-7ce8ff16a704",
-          "createdAt": "2026-10-02T13:31:16.662Z",
-          "projectId": "7f9bb34e-1e67-4992-96f8-a65f2620ece3",
+          "stepId": "f6e3f4dc-b6ea-4f8d-84ac-7f499af01e93",
+          "taskId": "ac1d38d7-186d-48a1-a37e-d4bb4652cff4",
+          "createdAt": "2026-10-02T17:26:07.864Z",
+          "projectId": "235b6bbf-b699-441a-b069-611315c5dc2c",
           "redaction": "not_needed",
-          "contentUrl": "/api/v1/projects/7f9bb34e-1e67-4992-96f8-a65f2620ece3/runs/731d9616-30a2-43e1-8fc4-0d8ff49eee61/artifacts/39226aa1-913f-46cf-85a5-f3c764224e50/content",
+          "contentUrl": "/api/v1/projects/235b6bbf-b699-441a-b069-611315c5dc2c/runs/fb6c63cc-6fb9-456c-a6d0-8689765dcea8/artifacts/4d0cbf7a-65ca-4e87-920d-12566a03579f/content",
           "snapshotId": null
         }
       },
       {
-        "id": "b377bbc1-e47e-4f8c-8677-529404d63955",
-        "project_id": "8358af84-f3c4-4f97-978a-56c5c51d4a31",
-        "run_id": "4c5c0c98-da97-426b-a54d-12183f21048b",
+        "id": "a34f4461-9ec0-48cf-9bce-53926f0de69c",
+        "project_id": "d99d8649-3d16-4623-b99d-93949aca36df",
+        "run_id": "a892547e-7897-4fc8-ba08-7713834b1b76",
         "document": {
-          "id": "b377bbc1-e47e-4f8c-8677-529404d63955",
+          "id": "a34f4461-9ec0-48cf-9bce-53926f0de69c",
           "kind": "screenshot",
           "bytes": 265850,
           "error": null,
-          "runId": "4c5c0c98-da97-426b-a54d-12183f21048b",
-          "caseId": "30b20342-a788-4a94-9019-7949773686a0",
+          "runId": "a892547e-7897-4fc8-ba08-7713834b1b76",
+          "caseId": "a4152b1a-7ca3-4009-ba4a-b985ff184519",
           "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
           "status": "available",
-          "stepId": "1f4e825a-ad5c-42a2-a745-085852649e59",
-          "taskId": "6d8022f3-6229-431f-8f87-a9e30c8b9787",
-          "createdAt": "2026-10-02T13:31:10.327Z",
-          "projectId": "8358af84-f3c4-4f97-978a-56c5c51d4a31",
+          "stepId": "66cffda1-9226-45e2-ad53-1749710a1eac",
+          "taskId": "b7c4acd5-0701-4d98-a486-d4abe7163487",
+          "createdAt": "2026-10-02T17:26:04.174Z",
+          "projectId": "d99d8649-3d16-4623-b99d-93949aca36df",
           "redaction": "not_needed",
-          "contentUrl": "/api/v1/projects/8358af84-f3c4-4f97-978a-56c5c51d4a31/runs/4c5c0c98-da97-426b-a54d-12183f21048b/artifacts/b377bbc1-e47e-4f8c-8677-529404d63955/content",
+          "contentUrl": "/api/v1/projects/d99d8649-3d16-4623-b99d-93949aca36df/runs/a892547e-7897-4fc8-ba08-7713834b1b76/artifacts/a34f4461-9ec0-48cf-9bce-53926f0de69c/content",
           "snapshotId": null
         }
       },
       {
-        "id": "c464d988-aee6-4431-8edb-040e53b86dd3",
-        "project_id": "e69eac51-158f-441c-8162-fa4db2d38f04",
-        "run_id": "1034c8c1-9d42-411b-b99e-0ef9d77ebc2e",
+        "id": "b04c5108-84f1-4ac1-91e3-baedcddf62d2",
+        "project_id": "02dbb984-1fd1-4913-965d-e764f2edd963",
+        "run_id": "9008921c-d17d-47cd-b510-0e775f1afe99",
         "document": {
-          "id": "c464d988-aee6-4431-8edb-040e53b86dd3",
+          "id": "b04c5108-84f1-4ac1-91e3-baedcddf62d2",
+          "kind": "screenshot",
+          "bytes": 265850,
+          "error": null,
+          "runId": "9008921c-d17d-47cd-b510-0e775f1afe99",
+          "caseId": "e8bdeb29-33a8-4ea6-b693-afe37008ebcf",
+          "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
+          "status": "available",
+          "stepId": "cb37c9a1-ca83-44f0-a852-53efa3f172ef",
+          "taskId": "ff952bb9-2213-472d-ac4b-d4ea6e88949f",
+          "createdAt": "2026-10-02T17:26:13.860Z",
+          "projectId": "02dbb984-1fd1-4913-965d-e764f2edd963",
+          "redaction": "not_needed",
+          "contentUrl": "/api/v1/projects/02dbb984-1fd1-4913-965d-e764f2edd963/runs/9008921c-d17d-47cd-b510-0e775f1afe99/artifacts/b04c5108-84f1-4ac1-91e3-baedcddf62d2/content",
+          "snapshotId": null
+        }
+      },
+      {
+        "id": "c5240a44-6534-4966-bcc4-d6dd2f7ffd29",
+        "project_id": "816cc12d-2f1c-4b85-abd9-347615ecf514",
+        "run_id": "3942ee63-3e31-460a-b350-2f5bdb9412fa",
+        "document": {
+          "id": "c5240a44-6534-4966-bcc4-d6dd2f7ffd29",
           "kind": "screenshot",
           "bytes": 4254,
           "error": null,
-          "runId": "1034c8c1-9d42-411b-b99e-0ef9d77ebc2e",
-          "caseId": "39df1ac6-ec8b-4dfd-a9e7-48f42bafa3a3",
+          "runId": "3942ee63-3e31-460a-b350-2f5bdb9412fa",
+          "caseId": "eb57968d-6353-4e6c-b652-64816fbd42af",
           "sha256": "3878570f4a62a0d65f57cf1754e0269e56ec797f4e36e26b44c172eb6e800401",
           "status": "available",
-          "stepId": "3facd18f-1b14-4eea-99a6-b26a3af32110",
-          "taskId": "aa174312-e4b1-438c-93aa-f6ec1ab34775",
-          "createdAt": "2026-10-02T13:31:10.768Z",
-          "projectId": "e69eac51-158f-441c-8162-fa4db2d38f04",
+          "stepId": "abb1eebe-48a0-42b9-a9a3-f66f51a278c7",
+          "taskId": "02e2b5bd-b59c-489c-8c61-f05c208aa503",
+          "createdAt": "2026-10-02T17:26:08.406Z",
+          "projectId": "816cc12d-2f1c-4b85-abd9-347615ecf514",
           "redaction": "not_needed",
-          "contentUrl": "/api/v1/projects/e69eac51-158f-441c-8162-fa4db2d38f04/runs/1034c8c1-9d42-411b-b99e-0ef9d77ebc2e/artifacts/c464d988-aee6-4431-8edb-040e53b86dd3/content",
+          "contentUrl": "/api/v1/projects/816cc12d-2f1c-4b85-abd9-347615ecf514/runs/3942ee63-3e31-460a-b350-2f5bdb9412fa/artifacts/c5240a44-6534-4966-bcc4-d6dd2f7ffd29/content",
           "snapshotId": null
         }
       },
       {
-        "id": "db5a2ecc-3e7f-40e3-be0d-84b8ba42d036",
-        "project_id": "4ba1aefa-cbba-4be1-9c32-801e8967c1fb",
-        "run_id": "b95f01de-0194-43a1-8c40-e1f1db347237",
+        "id": "d53a9a2c-1ecc-4bc2-90d8-e0284723aaf7",
+        "project_id": "816cc12d-2f1c-4b85-abd9-347615ecf514",
+        "run_id": "3942ee63-3e31-460a-b350-2f5bdb9412fa",
         "document": {
-          "id": "db5a2ecc-3e7f-40e3-be0d-84b8ba42d036",
-          "kind": "screenshot",
-          "bytes": 265850,
-          "error": null,
-          "runId": "b95f01de-0194-43a1-8c40-e1f1db347237",
-          "caseId": "7793f64c-16bc-4cfd-89b7-5b9f2a11c13e",
-          "sha256": "b40ec1df23afdfecc287212e243e73886b792305e4ec7e5ab493cb9ce8d506bb",
-          "status": "available",
-          "stepId": "467dc281-4cae-4c56-ac5e-799549685248",
-          "taskId": "e7cc569e-8ea2-421a-89ad-b80629a9f3b8",
-          "createdAt": "2026-10-02T13:31:12.598Z",
-          "projectId": "4ba1aefa-cbba-4be1-9c32-801e8967c1fb",
-          "redaction": "not_needed",
-          "contentUrl": "/api/v1/projects/4ba1aefa-cbba-4be1-9c32-801e8967c1fb/runs/b95f01de-0194-43a1-8c40-e1f1db347237/artifacts/db5a2ecc-3e7f-40e3-be0d-84b8ba42d036/content",
-          "snapshotId": null
-        }
-      },
-      {
-        "id": "fe9e08cb-6eaa-4ae6-9a9e-383d8272c642",
-        "project_id": "e69eac51-158f-441c-8162-fa4db2d38f04",
-        "run_id": "1034c8c1-9d42-411b-b99e-0ef9d77ebc2e",
-        "document": {
-          "id": "fe9e08cb-6eaa-4ae6-9a9e-383d8272c642",
+          "id": "d53a9a2c-1ecc-4bc2-90d8-e0284723aaf7",
           "kind": "screenshot",
           "bytes": 4254,
           "error": null,
-          "runId": "1034c8c1-9d42-411b-b99e-0ef9d77ebc2e",
-          "caseId": "39df1ac6-ec8b-4dfd-a9e7-48f42bafa3a3",
+          "runId": "3942ee63-3e31-460a-b350-2f5bdb9412fa",
+          "caseId": "eb57968d-6353-4e6c-b652-64816fbd42af",
           "sha256": "3878570f4a62a0d65f57cf1754e0269e56ec797f4e36e26b44c172eb6e800401",
           "status": "available",
-          "stepId": "a79f793c-90a3-4c77-a56f-ced88de1df7c",
-          "taskId": "068c8e56-8a0f-4ff1-99f3-bf938194bd00",
-          "createdAt": "2026-10-02T13:31:10.923Z",
-          "projectId": "e69eac51-158f-441c-8162-fa4db2d38f04",
+          "stepId": "76178d0a-60e3-465b-9fb5-a92271a50e57",
+          "taskId": "5e60d75e-3961-4692-82b4-c9f87b593428",
+          "createdAt": "2026-10-02T17:26:08.265Z",
+          "projectId": "816cc12d-2f1c-4b85-abd9-347615ecf514",
           "redaction": "not_needed",
-          "contentUrl": "/api/v1/projects/e69eac51-158f-441c-8162-fa4db2d38f04/runs/1034c8c1-9d42-411b-b99e-0ef9d77ebc2e/artifacts/fe9e08cb-6eaa-4ae6-9a9e-383d8272c642/content",
+          "contentUrl": "/api/v1/projects/816cc12d-2f1c-4b85-abd9-347615ecf514/runs/3942ee63-3e31-460a-b350-2f5bdb9412fa/artifacts/d53a9a2c-1ecc-4bc2-90d8-e0284723aaf7/content",
           "snapshotId": null
         }
       }
@@ -3248,22 +3248,22 @@
   "cleanup": {
     "containers": [
       {
-        "name": "localqa-t05-pg-1b00c2b0",
+        "name": "localqa-t05-pg-8943f014",
         "absent": true
       },
       {
-        "name": "localqa-t05-browser-1b00c2b0",
+        "name": "localqa-t05-browser-8943f014",
         "absent": true
       }
     ],
     "volumes": [
       {
-        "name": "0fbcc3d7965e7902f61ac33dc413558048dcefdacf436067ef5f2de74c6152d7",
+        "name": "1377347986cab489a1ccf68cbc225269215beb9ab00667faca7964f8a632d68a",
         "absent": true
       }
     ],
     "network": {
-      "name": "localqa-t05-1b00c2b0",
+      "name": "localqa-t05-8943f014",
       "absent": true
     },
     "credentialsAbsent": true

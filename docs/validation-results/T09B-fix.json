@@ -1,0 +1,96 @@
+{
+  "task": "T09-B",
+  "recordedAt": "2026-10-03T03:56:32.032Z",
+  "P0Passed": false,
+  "images": {
+    "api": { "tag": "localqa-api:latest", "id": "sha256:7769de826a056b58ef48fed898130e802c29212e07b471076822f7b249c0642b", "sizeBytes": 114713244, "node": "v24.21.0", "uid": 1001, "home": "/home/localqa" },
+    "worker": { "tag": "localqa-worker:latest", "id": "sha256:5b68831ee7fd7e987183c74b22072a546fe983803c7ca73eada4690bb611ef2d", "sizeBytes": 970707127, "node": "v24.20.0", "playwright": "1.63.0", "chromium": "153.0.8010.12", "uid": 1001, "home": "/var/localqa/scratch", "sandbox": "seccomp 2; no --no-sandbox" },
+    "orchestrator": { "tag": "localqa-orchestrator:latest", "id": "sha256:5f65aca6c0ce48520d016c2bfd9348cf9334e1122c50e37152ebe06abfefb503", "sizeBytes": 114679696, "node": "v24.21.0", "uid": 1001, "home": "/home/localqa" },
+    "web": { "tag": "localqa-web:latest", "id": "sha256:4f09b08db8d43e9bbf0b4c36bc7e73b8ccf30c8ea6acda70f561a307272526c8", "sizeBytes": 80857451, "node": "v24.21.0", "uid": 1001, "home": "/home/localqa" },
+    "digestNote": "Local image IDs/RepoDigests; not pushed registry digests. All four images rebuilt on Node 24 basis."
+  },
+  "tests": { "apiRealPostgres": "14/14", "storageRealPostgres": "32/32 (T02 contractFollowUp; initial T02 summary is historical 29/29, four migrations; current fresh run applied five)", "reportRealPostgresChromium": "5/5", "orchestratorBoundary": "3/3", "kekPermissions": "1/1", "stack": "six healthy; model default->202; five completed leased jobs; two navigate steps; screenshot; injected 2-slot admission 429; SSE ping 15.012s" },
+  "checks": [
+    {
+      "name": "six_services_ready",
+      "statuses": [
+        {
+          "name": "localqa-gateway",
+          "health": "healthy"
+        },
+        {
+          "name": "localqa-web",
+          "health": "healthy"
+        },
+        {
+          "name": "localqa-api",
+          "health": "healthy"
+        },
+        {
+          "name": "localqa-orchestrator",
+          "health": "healthy"
+        },
+        {
+          "name": "localqa-worker",
+          "health": "healthy"
+        },
+        {
+          "name": "localqa-postgres",
+          "health": "healthy"
+        }
+      ]
+    },
+    {
+      "name": "worker_sandbox",
+      "uid": 1001,
+      "node": "v24.20.0",
+      "playwright": "1.63.0",
+      "chromium": "153.0.8010.12",
+      "seccompModes": [
+        2
+      ],
+      "noSandbox": false
+    },
+    {
+      "name": "model_default_to_run",
+      "projectId": "9d5d1bd5-daa5-4ba3-a00f-87d13db8ec12",
+      "modelId": "698f90f8-0f09-4b72-b4f9-3a7e25fb0e6d",
+      "runId": "a86c0d8f-787a-4da8-a794-bfca5cda4b72",
+      "status": "queued"
+    },
+    {
+      "name": "leased_worker_browser_result",
+      "status": "completed",
+      "completion": "complete",
+      "jobs": 5,
+      "navigate": 2,
+      "artifacts": 1
+    },
+    {
+      "name": "two_slots_admission",
+      "configured": 2,
+      "thirdStatus": 429,
+      "code": "RATE_LIMITED",
+      "retryAfter": "1",
+      "occupancy": "test-reservations"
+    },
+    {
+      "name": "nginx_sse_heartbeat",
+      "lastEventId": 50,
+      "heartbeatMs": 15012,
+      "observedWithin22s": true
+    }
+  ],
+  "unverified": [
+    "Real model provider, production Worker service identity isolation (worker temporarily holds DB/KEK), host CA and certificate chain, concurrent three-run fairness (only deterministic occupied-slot admission tested), in-flight 10-second worker heartbeat on slow task, load/performance and chaos tests, P0/G2/G3"
+  ],
+  "cleanup": {
+    "containers": [],
+    "volumes": [],
+    "networks": [],
+    "credentialsPresent": false,
+    "downError": null,
+    "status": "Deleted own six stack containers, fixture, two named volumes, two networks and ephemeral .env/secrets/certs/ca; docker ps -a / volume ls recheck contains no T09-B resources. Removed four temporary t09b-current tags, four superseded preflight images and 30 scoped dangling build intermediates; only four tagged localqa-*:latest delivery images remain; postgres:18-alpine and playwright:v1.63.0-noble preserved. One unattributed pre-existing anonymous volume (79e6b625...) was not removed without ownership evidence; T07 resources belong to another owner and were not touched."
+  },
+  "result": true
+}

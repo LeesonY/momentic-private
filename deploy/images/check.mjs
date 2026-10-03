@@ -8,14 +8,24 @@ try {
   if (target === 'api' || target === 'web') {
     const port = target === 'api' ? 3000 : 8080;
     const path = mode === 'live' ? 'healthz' : 'readyz';
-    ok = (await fetch(`http://127.0.0.1:${port}/${path}`,{signal:AbortSignal.timeout(3000)})).ok;
+    ok = (
+      await fetch(`http://127.0.0.1:${port}/${path}`, {
+        signal: AbortSignal.timeout(3000),
+      })
+    ).ok;
   } else if (mode === 'live') {
     ok = process.getuid() !== 0;
   } else if (target === 'worker') {
-    ok = await readiness({browserMarker:true});
+    const taskMarker = await stat('/var/localqa/scratch/task-ready');
+    ok =
+      Date.now() - taskMarker.mtimeMs < 60000 &&
+      (await readiness({ browserMarker: true }));
   } else if (target === 'orchestrator') {
     const marker = await stat('/tmp/orchestrator-ready');
-    ok = Date.now() - marker.mtimeMs < 60000 && await readiness({vault:true});
+    ok =
+      Date.now() - marker.mtimeMs < 60000 && (await readiness({ vault: true }));
   }
-} catch { ok = false; }
+} catch {
+  ok = false;
+}
 process.exit(ok ? 0 : 1);

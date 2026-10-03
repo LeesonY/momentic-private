@@ -1,6 +1,6 @@
 # LocalQA 部署骨架与演练指南 (T09-A)
 
-> T09-B1 已提供四个多阶段应用镜像和 entrypoint；真实启动验证覆盖 API、Web、Orchestrator 的基础就绪与 Worker 浏览器容量检查。**Worker 当前 entrypoint 不领取业务任务**：内部任务身份/传输和模型 provider 与 Worker 运行时的部署接线尚未交付，不应把浏览器容量绿色误作可执行运行。TLS 网关和完整 P0 端到端仍未验证。
+> T09-B 增加 Worker 租约领取/心跳/执行/提交的部署入口，浏览器容量 (`browser-ready`) 与任务循环 (`task-ready`) 分别观测；就绪需要两者。**当前仅支持显式 `LOCALQA_ALLOW_TEST_STUB=1` 隔离验证模式，真实模型 provider 未接通，不得在生产启用。Worker 暂时直接持有 DB/KEK 并使用进程内 Coordinator；内部 HTTP 身份边界未替换该路径，须在生产上线前隔离改造。**TLS 网关和完整 P0 端到端仍未验证。
 
 本指南针对 LocalQA 内网多用户生产环境（Linux 6.8+ / aarch64 & x86_64, Docker 27+, Docker Compose 2.30+）。
 
@@ -61,10 +61,10 @@ nginx 仅 `/api/v1/runs/{runId}/events` SSE location 禁用 `proxy_buffering`（
 # BuildKit 不可用时 Docker legacy builder 亦可使用；可显式设置构建 registry mirror。
 docker compose -f deploy/docker-compose.yml build api worker orchestrator web
 # 就绪/存活：API GET /readyz、/healthz；Web GET /readyz、/healthz；
-# Orchestrator DB/schema/Vault 与成功 tick 时间戳；Worker DB/schema 与沙箱探针时间戳。
+# Orchestrator DB/schema/Vault 与成功 tick 时间戳；Worker DB/schema、沙箱容量及任务循环时间戳。
 ```
 
-镜像运行 UID/GID 默认为 1001:1001；运行镜像创建 `localqa` 系统账号（Playwright 基镜像的 `pwuser` 同 UID 时重命名），`HOME` 与 passwd 中的目录一致。自定义 LOCALQA_UID/GID 须用 Compose 同值重建镜像；容器根只读，API/Web/Orchestrator HOME 及 Worker HOME/scratch 与 `/tmp` 为 tmpfs。数据库/材料位于命名卷。首次挂载命名卷需确认 UID 1001 对材料卷可写。构建缓存先按 lockfile `pnpm fetch`，再安装 workspace 并构建依赖闭包；`deploy/images/*.Dockerfile.dockerignore` 供 BuildKit 使用，根目录 `.dockerignore` 供 legacy builder 使用，两者排除本地凭据/证据。`T09-images.json` 里的本地镜像 ID/digest 不等同于推送后注册表多架构 digest。默认 Playwright worker 镜像 `v1.63.0-noble`，运行时 Node 24；没有 `--no-sandbox`。Worker 健康是**浏览器容量**而非可领取任务。API 就绪不依赖模型配置，使管理员能够进入设置；启动仍需 DB 迁移、KEK 和 Worker 身份文件。
+镜像运行 UID/GID 默认为 1001:1001；运行镜像创建 `localqa` 系统账号（Playwright 基镜像的 `pwuser` 同 UID 时重命名），`HOME` 与 passwd 中的目录一致。自定义 LOCALQA_UID/GID 须用 Compose 同值重建镜像；容器根只读，API/Web/Orchestrator HOME 及 Worker HOME/scratch 与 `/tmp` 为 tmpfs。数据库/材料位于命名卷。首次挂载命名卷需确认 UID 1001 对材料卷可写。构建缓存先按 lockfile `pnpm fetch`，再安装 workspace 并构建依赖闭包；`deploy/images/*.Dockerfile.dockerignore` 供 BuildKit 使用，根目录 `.dockerignore` 供 legacy builder 使用，两者排除本地凭据/证据。`T09-images.json` 里的本地镜像 ID/digest 不等同于推送后注册表多架构 digest。默认 Playwright worker 镜像 `v1.63.0-noble`，运行时 Node 24；没有 `--no-sandbox`。Worker 就绪需**浏览器容量与已成功进入任务轮询循环**；仍不证明真实模型 provider 或生产安全边界。API 就绪不依赖模型配置，使管理员能够进入设置；启动仍需 DB 迁移、KEK 和 Worker 身份文件。项目 owner 可用现有 PATCH /projects/{id} 的 defaultModelProfileId 绑定全局已存在模型，后台同事务建立项目 grant；不增设对外 grant 路由。当前 BROWSER_SLOTS 同时限制平台与项目租约数；满槽新建运行返回 429 + Retry-After: 1，先前入队的运行保持排队。仅固定 stub 集成测试可在隔离环境显式启用 LOCALQA_ALLOW_TEST_STUB=1，生产严禁此开关。
 
 ---
 
@@ -133,19 +133,19 @@ docker compose -f deploy/docker-compose.yml build api worker orchestrator web
 docker compose -f deploy/docker-compose.yml up -d postgres
 
 # 5. 在能够访问 backend 网络、包含仓库构建输出与 Node 依赖的应用镜像中运行
-# 显式 Migrations (001_core -> 002_invariants -> 003_access -> 004_hardening)
+# 显式 Migrations (001_core -> 002_invariants -> 003_access -> 004_hardening -> 005_project_default_model)
 # DATABASE_URL 必须指向 postgres:5432；宿主机默认不能访问内部 DB。
-docker compose -f deploy/docker-compose.yml run --rm --no-deps api node /app/deploy/scripts/migrate.mjs
+docker compose -f deploy/docker-compose.yml run --rm --no-deps --entrypoint node api /app/deploy/scripts/migrate.mjs
 
 # 6. 一次性初始化平台管理员账号 (受保护入口，完成后永久关闭)
 # 以 UID/GID 1001 可读且其他用户不可读的受保护文件提供初始口令：
 # deploy/secrets/admin_initial_password (0400，所有者 1001)
 export ADMIN_INITIAL_EMAIL="admin@yourcompany.internal"
-docker compose -f deploy/docker-compose.yml run --rm --no-deps -e ADMIN_INITIAL_EMAIL api node /app/deploy/scripts/bootstrap-admin.mjs
+docker compose -f deploy/docker-compose.yml run --rm --no-deps -e ADMIN_INITIAL_EMAIL --entrypoint node api /app/deploy/scripts/bootstrap-admin.mjs
 # 成功后撤销/销毁初始管理员口令文件；数据库状态拒绝重复初始化。
 
-# 7. 仅在 Worker 领取任务接线和 TLS 检查完成后开放业务运行；
-# 当前 B1 可启动做容量检查，但不应接收真实运行请求。
+# 7. 仅在 TLS、服务身份隔离与真实模型接线审查完成后开放生产业务运行；
+# 隔离预演必须显式设置 LOCALQA_ALLOW_TEST_STUB=1（仅固定测试 stub）。
 docker compose -f deploy/docker-compose.yml up -d
 ```
 
@@ -164,7 +164,7 @@ docker compose -f deploy/docker-compose.yml up -d
 - **就绪探针 (Readiness)**：
   ```sh
   node deploy/scripts/health-probe.mjs --ready
-  # 验证数据库连接、全部 4 个 migration 版本、Vault KEK 挂载与数据目录可写性
+  # 验证数据库连接、全部 5 个 migration 版本、Vault KEK 挂载与数据目录可写性
   ```
 
 ### 5.2 磁盘容量与清理状态
@@ -177,7 +177,7 @@ node deploy/scripts/disk-status.mjs
 
 ### 5.3 稳态下线 (Graceful Drain Shutdown)
 
-系统维护或升级前，**先由 Worker 运行时停止领取新任务**，再等待在途任务收敛。脚本只观察数据库，不发送停止领取信号；超时且仍有任务时返回码 2，禁止继续关闭或直接篡改活跃租约。当前运行时接线未验证：
+系统维护或升级前，**先由 Worker 运行时停止领取新任务**，再等待在途任务收敛。脚本只观察数据库，不发送停止领取信号；超时且仍有任务时返回码 2，禁止继续关闭或直接篡改活跃租约。部署入口收到 SIGTERM 后停止继续轮询，但该脚本尚未与 Worker 建立远程 drain 信号，生产稳态下线仍未验证：
 
 ```sh
 node deploy/scripts/graceful-shutdown.mjs && docker compose -f deploy/docker-compose.yml stop

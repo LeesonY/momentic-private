@@ -1,0 +1,113 @@
+{
+  "measured_at": "2026-10-03T11:32:07.478428+08:00",
+  "scope": "macOS development storage investigation; no cleanup performed",
+  "recent_window": "2026-10-02 00:00 through measurement time, Asia/Taipei",
+  "method": "du allocated blocks; regular file st_blocks*512 deduplicated by device/inode; birthtime for newly created files; Docker system df; read-only Colima SSH du/df",
+  "primary_finding": {
+    "directory": "/Users/dcp/.colima",
+    "allocated_bytes": 16407261184,
+    "all_regular_files_created_on_or_after": "2026-10-02",
+    "disks": [
+      {
+        "path": "/Users/dcp/.colima/_lima/_disks/colima/datadisk",
+        "created_at": "2026-10-02T16:11:27+08:00",
+        "allocated_bytes": 14892834816,
+        "logical_capacity_bytes": 107374182400
+      },
+      {
+        "path": "/Users/dcp/.colima/_lima/colima/disk",
+        "created_at": "2026-10-02T16:17:35+08:00",
+        "allocated_bytes": 1493049344,
+        "logical_capacity_bytes": 21474836480
+      }
+    ],
+    "containerd_snapshot_allocated_kib": 7776880,
+    "containerd_compressed_content_allocated_kib": 2129552,
+    "docker_volume_allocated_kib": 772788,
+    "docker_system_df": {
+      "images": {
+        "count": 41,
+        "size_decimal_gb": 10.14,
+        "reported_reclaimable_decimal_gb": 5.613,
+        "visible_dangling_count": 28
+      },
+      "volumes": {
+        "count": 15,
+        "in_use_count": 2,
+        "size_decimal_mb": 788.5,
+        "reported_reclaimable_decimal_mb": 650.9,
+        "all_created_on": "2026-10-02"
+      },
+      "containers": {
+        "count": 3,
+        "running_count": 2,
+        "writable_layer_total_bytes_approx": 86020
+      },
+      "buildkit_cache_bytes": 0,
+      "all_image_records_including_intermediates": 123,
+      "untagged_image_records_including_intermediates": 110
+    },
+    "localqa_image_build_window": "2026-10-02 22:39 through 23:58 Asia/Taipei",
+    "base_browser_image": "mcr.microsoft.com/playwright:v1.63.0-noble",
+    "base_browser_image_docker_df_size_decimal_gb": 3.48,
+    "running_containers": [
+      "localqa-t07-pg-59446607",
+      "localqa-t07-pg-9cc88d79"
+    ]
+  },
+  "other_measured_directories": [
+    {
+      "path": "/Users/dcp/Documents/公司/momentic",
+      "allocated_bytes": 617127936,
+      "new_file_allocated_bytes": 617127936,
+      "breakdown_kib": {
+        "project_pnpm_cache": 354420,
+        "node_modules": 172588
+      }
+    },
+    {
+      "path": "/Users/dcp/.npm",
+      "allocated_bytes": 9333514240,
+      "new_file_allocated_bytes": 435843072,
+      "note": "Most npm cache predates the investigation window"
+    },
+    {
+      "path": "/Users/dcp/Library/pnpm",
+      "allocated_bytes": 1235668992,
+      "new_file_allocated_bytes": 125902848
+    },
+    {
+      "path": "/Users/dcp/.codex",
+      "allocated_bytes": 2168037376,
+      "new_file_allocated_bytes": 1047920640,
+      "note": "New app-server releases, plugin CLI and catalog data dominate; not attributable solely to this project"
+    },
+    {
+      "path": "/opt/homebrew",
+      "allocated_bytes": 2742181888,
+      "new_file_allocated_bytes": 1026580480,
+      "new_global_node_modules_bytes": 1013100544,
+      "note": "Mainly globally installed or updated Codex, Claude Code and pi-coding-agent; not attributable solely to this project"
+    },
+    {
+      "path": "/Users/dcp/Library/Application Support/Citro Labs",
+      "allocated_bytes": 1548103680,
+      "new_file_allocated_bytes": 573083648,
+      "note": "Ego browser components and profiles; not attributable solely to this project"
+    },
+    {
+      "path": "/Users/dcp/.cache",
+      "allocated_bytes": 3867828224,
+      "new_file_allocated_bytes": 0
+    }
+  ],
+  "host_available_gib_approx": 84,
+  "limitations": [
+    "No full-disk baseline from yesterday; new file allocated totals are evidence of recent allocations, not an exact whole-disk delta",
+    "APFS cloned/shared extents can make per-file allocation totals differ from net device allocation",
+    "Virtual disk host allocation exceeds current guest file usage; historical writes, guest filesystem overhead and discard behavior were not separately quantified",
+    "Docker reclaimable figures do not guarantee equal immediate host disk recovery; no image/volume deletion, TRIM, compaction or container shutdown was attempted",
+    "No broad full-disk scan or APFS snapshot audit was performed; project, developer tools, browser caches and container storage were examined"
+  ],
+  "cleanup_performed": false
+}

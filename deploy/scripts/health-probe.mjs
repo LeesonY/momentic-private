@@ -40,9 +40,9 @@ async function probe() {
 
     // 2. Check Migrations
     const res = await client.query(
-      "SELECT count(*)::integer n FROM storage_migrations WHERE name IN ('001_core.sql','002_invariants.sql','003_access.sql','004_hardening.sql')",
+      "SELECT count(*)::integer n FROM storage_migrations WHERE name IN ('001_core.sql','002_invariants.sql','003_access.sql','004_hardening.sql','005_project_default_model.sql')",
     );
-    if (res.rows[0]?.n === 4) {
+    if (res.rows[0]?.n === 5) {
       checks.migrations = true;
     }
   } catch (err) {

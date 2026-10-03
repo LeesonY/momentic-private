@@ -144,6 +144,7 @@ export function createRequestHandler(api: ApiContext, router = createRouter()) {
       if (!res.writableEnded) {
         const { status, body } = toApiErrorResponse(error, requestId);
         res.statusCode = status;
+        if (status === 429) res.setHeader('Retry-After', '1');
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.end(JSON.stringify(body));
       }

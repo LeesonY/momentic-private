@@ -271,16 +271,21 @@ export class ProjectRepository {
       ).rows[0];
       if (!old) throw new StorageError('NOT_FOUND');
       await authorize(client, id, 'config.write');
-      if (
-        data.defaultModelProfileId &&
-        !(
+      if (data.defaultModelProfileId) {
+        // Assigning a default is the contract's owner-only authorization boundary.
+        // A grant is also required by run_model_bindings and the worker's model lookup.
+        // The FK proves the profile exists even when it is not yet visible under RLS.
+        try {
           await client.query(
-            'SELECT 1 FROM model_profile_grants WHERE project_id=$1 AND profile_id=$2',
+            'INSERT INTO model_profile_grants(project_id,profile_id) VALUES($1,$2) ON CONFLICT DO NOTHING',
             [id, data.defaultModelProfileId],
-          )
-        ).rowCount
-      )
-        throw new StorageError('NOT_FOUND');
+          );
+        } catch (error) {
+          if ((error as { code?: string }).code === '23503')
+            throw new StorageError('NOT_FOUND');
+          throw error;
+        }
+      }
       const row = (
         await client.query<ProjectRow>(
           'UPDATE projects SET name=$3,status=$4,default_model_profile_id=$5,version=version+1 WHERE id=$1 AND version=$2 RETURNING *',
