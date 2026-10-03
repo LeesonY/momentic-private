@@ -12,8 +12,20 @@ export async function readiness({ vault = false, browserMarker = false } = {}) {
   });
   // A restart can sever an idle readiness connection between query and end.
   // Never allow a probe's background event to crash the long-lived Worker.
-  pool.on('error', (error) => console.error('Readiness DB connection lost', error.code ?? 'connection_error'));
-  pool.on('connect', (client) => client.on('error', (error) => console.error('Readiness client connection lost', error.code ?? 'connection_error')));
+  pool.on('error', (error) =>
+    console.error(
+      'Readiness DB connection lost',
+      error.code ?? 'connection_error',
+    ),
+  );
+  pool.on('connect', (client) =>
+    client.on('error', (error) =>
+      console.error(
+        'Readiness client connection lost',
+        error.code ?? 'connection_error',
+      ),
+    ),
+  );
   try {
     const result = await pool.query(
       "SELECT count(*)::integer AS n FROM storage_migrations WHERE name IN ('001_core.sql','002_invariants.sql','003_access.sql','004_hardening.sql','005_project_default_model.sql')",

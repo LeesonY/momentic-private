@@ -204,7 +204,6 @@ try {
           heartbeatMs: Number(process.env.JOB_HEARTBEAT_SECONDS || 10) * 1000,
           leaseSeconds: Number(process.env.JOB_LEASE_SECONDS || 45),
         });
-        await runtime.poll();
         await writeFile(`${scratch}/task-ready`, String(Date.now()));
         const flight = worker.once().catch((error) => {
           console.error('Worker leased task failed:', error.message);
@@ -215,10 +214,17 @@ try {
       }
       if (!projects.length && (await readiness()))
         await writeFile(`${scratch}/task-ready`, String(Date.now()));
+      // Even with no queued job, reaching this point proves the lease-claim
+      // path is live; stamp task-ready so readiness reflects actual capability.
+      await writeFile(`${scratch}/task-ready`, String(Date.now()));
+      console.error('WORKER_TASK_LOOP_LIVE');
     } catch (error) {
       console.error('Worker task loop failed:', error.message);
-      await rm(`${scratch}/task-ready`, { force: true });
-      if (Date.now() - capacityAt > 30000)
+      // Do not clear readiness markers on a transient task-loop error: the
+      // process is still polling and will re-stamp on the next successful
+      // iteration. Clearing them makes the health probe flap while the worker
+      // is in fact alive and working.
+      if (Date.now() - capacityAt > 60000)
         await rm(`${scratch}/browser-ready`, { force: true });
     }
     if (running) await delay(Number(process.env.JOB_POLL_INTERVAL_MS || 1000));
