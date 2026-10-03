@@ -217,7 +217,6 @@ try {
       // Even with no queued job, reaching this point proves the lease-claim
       // path is live; stamp task-ready so readiness reflects actual capability.
       await writeFile(`${scratch}/task-ready`, String(Date.now()));
-      console.error('WORKER_TASK_LOOP_LIVE');
     } catch (error) {
       console.error('Worker task loop failed:', error.message);
       // Do not clear readiness markers on a transient task-loop error: the

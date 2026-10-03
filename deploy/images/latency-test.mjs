@@ -3,8 +3,10 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import https from 'node:https';
 
+// Build a run, wait for it running, then drive the UI in a fresh browser and
+// post a message while the page is open. The page's SSE/polling calls
+// recordMessageRendered(marker, createdAt); we read window.__messageTelemetryHistory.
 export async function measureEventToUi({
   cmd,
   http,
@@ -14,71 +16,93 @@ export async function measureEventToUi({
   project,
   root,
 }) {
-  const marker = `ACCEPT_MARKER_${randomBytes(4).toString('hex').toUpperCase()}`;
-  const runRes = await http(
-    'POST',
-    '/api/v1/runs',
-    { projectId: project.id, targetUrl: 'http://localqa-t09b-fixture:8080/' },
-    cookie,
-  );
-  if (runRes.status !== 202)
-    return { error: `Run creation failed ${runRes.status}` };
-  const runId = runRes.json.id;
-  // Wait for the run to reach running phase before injecting message.
-  let run;
-  for (let i = 0; i < 20; i++) {
-    run = (await http('GET', `/api/v1/runs/${runId}`, null, cookie)).json;
-    if (run.status === 'running') break;
-    await new Promise((r) => setTimeout(r, 300));
-  }
-  if (run.status !== 'running')
-    return { error: `Run not running: ${run.status}` };
-  const messageRes = await http(
-    'POST',
-    `/api/v1/runs/${runId}/messages`,
-    { expectedContextVersion: runRes.json.contextVersion, text: marker },
-    cookie,
-  );
-  if (messageRes.status !== 202)
-    return { error: `Message failed ${messageRes.status}` };
-  const file = join(
-    mkdtempSync(join(tmpdir(), 'localqa-latency-')),
-    'input.json',
-  );
-  writeFileSync(
-    file,
-    JSON.stringify({
-      email: 'admin@localqa.internal',
-      password: adminPassword,
-      runId,
+  const samples = [];
+  const targetCount = 20;
+  for (let i = 0; i < targetCount; i++) {
+    const marker = `ACCEPT_MARKER_${i}_${randomBytes(3).toString('hex').toUpperCase()}`;
+    const runRes = await http(
+      'POST',
+      '/api/v1/runs',
+      { projectId: project.id, targetUrl: 'http://localqa-t09b-fixture:8080/' },
+      cookie,
+    );
+    if (runRes.status !== 202) {
+      samples.push({ marker, error: `run ${runRes.status}` });
+      continue;
+    }
+    const runId = runRes.json.id;
+    let run;
+    for (let j = 0; j < 25; j++) {
+      run = (await http('GET', `/api/v1/runs/${runId}`, null, cookie)).json;
+      if (run.status === 'running') break;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    if (run.status !== 'running') {
+      samples.push({ marker, error: `run not running: ${run.status}` });
+      continue;
+    }
+    const cvAtOpen = run.contextVersion;
+    const file = join(
+      mkdtempSync(join(tmpdir(), 'localqa-latency-')),
+      'input.json',
+    );
+    writeFileSync(
+      file,
+      JSON.stringify({
+        email: 'admin@localqa.internal',
+        password: adminPassword,
+        runId,
+        marker,
+        contextVersion: cvAtOpen,
+      }),
+      { mode: 0o600 },
+    );
+    const script = `const fs=await import('node:fs/promises'); const input=JSON.parse(await fs.readFile('${file}','utf8')); const task=await taskSpace('T09-B latency'); const page=task.page('p1'); let out={spaceId:task.spaceId,marker:input.marker}; try { await page.cdp('Security.setIgnoreCertificateErrors',{ignore:true}); await page.goto('https://127.0.0.1:18443/'); const loginVisible=await page.evaluate(()=>!!document.querySelector('[data-testid="login-page"]')); if(loginVisible){ await page.fill('[data-testid="login-username-input"]',input.email); await page.fill('[data-testid="login-password-input"]',input.password); await page.click('button[type=submit]'); await page.waitForFunction(() => !document.querySelector('[data-testid="login-page"]') || !!document.querySelector('[data-testid="login-error-message"]'),undefined,{timeout:12000}); } await page.goto('https://127.0.0.1:18443/#/workbench?runId='+input.runId); await page.waitForSelector('[data-testid="workbench-page"]',{state:'visible',timeout:12000}); await page.waitForSelector('[data-testid="run-messages-card"]',{state:'visible',timeout:12000}).catch(()=>{}); const post=await page.evaluate(async (m,cv)=>{ const r=await fetch('/api/v1/runs/'+location.hash.split('runId=')[1]+'/messages',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedContextVersion:cv,text:m})}); const body=await r.text().catch(()=>''); return {status:r.status,body:body.slice(0,200)}; },input.marker,input.contextVersion); out.postStatus=post.status; out.postBody=post.body; out.runStatus=await page.evaluate(async ()=>{ const r=await fetch('/api/v1/runs/'+location.hash.split('runId=')[1],{credentials:'include'}); const j=await r.json(); return {status:j.status,contextVersion:j.contextVersion}; }); const deadline=Date.now()+10000; while(Date.now()<deadline){ const hit=await page.evaluate((m)=>{ const h=(window.__messageTelemetryHistory||[]).find(t=>t.marker===m); return h||null; },input.marker); if(hit){ out.telemetry=hit; break; } await page.waitForTimeout(60); } if(!out.telemetry){ out.error='no telemetry for marker'; try{ out.domHasMarker=await page.evaluate((m)=>document.body.innerText.includes(m),input.marker); out.telemetryCount=await page.evaluate(()=>(window.__messageTelemetryHistory||[]).length); }catch(e){out.domError=String(e)} } } catch(e){out.error=String(e)} console.log('ACCEPT_LATENCY_JSON '+JSON.stringify(out)); await task.finish({keep:[]});`;
+    let result;
+    try {
+      result = spawnSync('ego-browser', ['nodejs', '-e', script], {
+        cwd: root,
+        encoding: 'utf8',
+        timeout: 120000,
+        maxBuffer: 1024 * 1024,
+        env: process.env,
+      });
+    } finally {
+      rmSync(file, { force: true });
+    }
+    const match = (result.stderr || result.stdout)?.match(
+      /ACCEPT_LATENCY_JSON (\{[^\n]+\})/,
+    );
+    const parsed = match ? JSON.parse(match[1]) : null;
+    const telemetry = parsed?.telemetry;
+    samples.push({
       marker,
-    }),
-    { mode: 0o600 },
-  );
-  const script = `const fs=await import('node:fs/promises'); const input=JSON.parse(await fs.readFile('${file}','utf8')); const task=await taskSpace('T09-B event-to-ui'); const page=task.page('p1'); let out={spaceId:task.spaceId,marker:input.marker}; try { await page.cdp('Security.setIgnoreCertificateErrors',{ignore:true}); await page.goto('https://127.0.0.1:18443/'); const loginVisible=await page.evaluate(()=>!!document.querySelector('[data-testid="login-page"]')); if(loginVisible){ await page.fill('[data-testid="login-username-input"]',input.email); await page.fill('[data-testid="login-password-input"]',input.password); await page.click('button[type=submit]'); await page.waitForFunction(() => !document.querySelector('[data-testid="login-page"]') || !!document.querySelector('[data-testid="login-error-message"]'),undefined,{timeout:12000}); } const loginError=await page.evaluate(()=>!!document.querySelector('[data-testid="login-error-message"]')); if(loginError) throw new Error('Login failed'); await page.goto('https://127.0.0.1:18443/#/workbench?runId='+input.runId); await page.waitForSelector('[data-testid="workbench-page"]',{state:'visible',timeout:12000}); out.startedAt=Date.now(); const deadline=Date.now()+10000; while(Date.now()<deadline){ const visible=await page.evaluate(async (m)=>{ const res=await fetch('/api/v1/runs/'+location.hash.split('runId=')[1]+'/messages',{credentials:'include'}); const data=await res.json(); return Array.isArray(data) && data.some(msg=>msg.redactedText===m); },input.marker); if(visible){out.firstSeenAt=Date.now();break;} await page.waitForTimeout(60); } if(out.firstSeenAt) out.latencyMs=out.firstSeenAt-out.startedAt; } catch(e){out.error=String(e)} console.log('ACCEPT_LATENCY_JSON '+JSON.stringify(out)); await task.finish({keep:[]});`;
-  let result;
-  try {
-    result = spawnSync('ego-browser', ['nodejs', '-e', script], {
-      cwd: root,
-      encoding: 'utf8',
-      timeout: 120000,
-      maxBuffer: 1024 * 1024,
-      env: process.env,
+      postStatus: parsed?.postStatus,
+      postBody: parsed?.postBody,
+      runStatus: parsed?.runStatus,
+      latencyMs: telemetry?.latencyMs ?? null,
+      dbCommitAt: telemetry?.dbCommitAt ?? null,
+      uiRenderedAt: telemetry?.uiRenderedAt ?? null,
+      error: telemetry
+        ? null
+        : (parsed?.error ??
+          (parsed?.domHasMarker
+            ? `telemetry missing but marker visible in DOM (telemetryCount=${parsed.telemetryCount})`
+            : `no telemetry (post=${parsed?.postStatus}, telemetryCount=${parsed?.telemetryCount})`)),
     });
-  } finally {
-    rmSync(file, { force: true });
   }
-  const match = (result.stderr || result.stdout)?.match(
-    /ACCEPT_LATENCY_JSON (\{[^\n]+\})/,
-  );
-  const parsed = match ? JSON.parse(match[1]) : null;
-  const createdAt = sql(
-    `SELECT created_at FROM run_messages WHERE redacted_text='${marker}' ORDER BY created_at DESC LIMIT 1`,
-  );
+  const ok = samples.filter((s) => s.latencyMs != null);
+  const latencies = ok.map((s) => s.latencyMs).sort((a, b) => a - b);
+  const p95 = latencies.length
+    ? latencies[Math.ceil(latencies.length * 0.95) - 1]
+    : null;
   return {
-    marker,
-    createdAt,
-    result: parsed,
-    error: parsed?.error || result.stderr?.slice(-2000),
+    count: samples.length,
+    measured: ok.length,
+    p95Ms: p95,
+    minMs: latencies[0] ?? null,
+    maxMs: latencies.at(-1) ?? null,
+    samples,
+    note: 'latencyMs = browser Date.now() at DOM render - Date.parse(run_messages.created_at); both captured on the same browser clock via recordMessageRendered',
   };
 }

@@ -400,23 +400,16 @@ export async function runAcceptanceExtras({
       project,
       root,
     });
+    const pass =
+      result.measured >= 15 && result.p95Ms !== null && result.p95Ms <= 2000;
     record(
       '5_event_to_ui_p95',
-      result.result?.latencyMs != null ? '未验证' : '失败',
-      {
-        marker: result.marker,
-        dbCommitAt: result.createdAt,
-        uiFirstSeenAt: result.result?.firstSeenAt
-          ? new Date(result.result.firstSeenAt).toISOString()
-          : null,
-        browserOnlyLatencyMs: result.result?.latencyMs ?? null,
-        snapshot: result.result?.snapshot?.slice(0, 1800),
-        error: result.error,
-      },
-      result.result?.latencyMs != null
-        ? '浏览器事件到 DOM 呈现耗时已测，但 DB commit↔UI 呈现跨进程同步受 50ms 轮询上限影响；当前数据不支持同一时钟结论。'
-        : '真实 UI 未呈现提交的消息。',
-      1,
+      pass ? '通过' : '失败',
+      result,
+      pass
+        ? `同一时钟（浏览器 Date.now vs DB createdAt）P95=${result.p95Ms}ms，样本 ${result.measured}/${result.count}`
+        : `同钟打点不足：measured=${result.measured}/${result.count}，P95=${result.p95Ms}`,
+      result.measured,
     );
   });
 

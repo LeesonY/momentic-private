@@ -18,6 +18,17 @@ import { tmpdir } from 'node:os';
 import { mkdtempSync } from 'node:fs';
 import { runAcceptanceExtras } from './acceptance-extra.mjs';
 
+const argv = process.argv.slice(2);
+const onlyArg = argv.find((a) => a.startsWith('--only='));
+const noBuild = argv.includes('--no-build');
+const only = onlyArg
+  ? onlyArg
+      .slice('--only='.length)
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+  : null;
+
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const deploy = `${root}/deploy`;
 const evidence = {
@@ -31,6 +42,18 @@ const evidence = {
 const output = `${root}/docs/validation-results/T09B-acceptance.json`;
 const previous = existsSync(output)
   ? JSON.parse(readFileSync(output, 'utf8'))
+  : null;
+evidence.runScope = only ? 'partial' : 'full';
+evidence.only = only;
+evidence.noBuild = noBuild;
+evidence.baseRun = only ? previous?.recordedAt : null;
+evidence.baseRunCategories = only
+  ? Object.fromEntries(
+      Object.entries(previous?.categories || {}).map(([k, v]) => [
+        k,
+        { status: v.status, recordedAt: previous?.recordedAt },
+      ]),
+    )
   : null;
 evidence.history = previous
   ? [
@@ -61,6 +84,19 @@ evidence.environment = {
 function record(category, status, raw, reason = null, samples = null) {
   evidence.categories[category] = { status, raw, reason, samples };
   console.log(`[${category}] ${status} ${reason || ''}`);
+}
+function recordSkipped(category, carriedFrom) {
+  const carried = previous?.categories?.[category];
+  evidence.categories[category] = {
+    status: carried?.status ?? '未验证',
+    raw: carried?.raw ?? { sampleCount: 0 },
+    reason: carried
+      ? `单点复验跳过；沿用 ${carriedFrom} 完整运行的结果。`
+      : '单点复验跳过且无历史结果，视为未验证。',
+    samples: carried?.samples ?? 0,
+    carriedFrom: carried ? carriedFrom : null,
+  };
+  console.log(`[${category}] 跳过(沿用 ${carriedFrom || '无历史'})`);
 }
 const owned = ['.env', 'secrets', 'certs', 'ca'].map(
   (name) => `${deploy}/${name}`,
