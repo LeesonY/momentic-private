@@ -1,0 +1,190 @@
+{
+  "title": "第四轮契约一致性审计（契约增量、messages 读端点、worker 租约、连接池销毁）",
+  "date": "2026-10-03",
+  "mode": "report-only",
+  "changedPackages": false,
+  "claims": {
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalled": false,
+    "postgresUsed": false,
+    "playwrightLaunched": false
+  },
+  "host": {
+    "node": "v26.3.0",
+    "platform": "darwin",
+    "probedAt": "2026-10-03T12:13:31.544Z"
+  },
+  "method": "只读源码，并用已安装的 @localqa/contracts（packages/contracts/dist/index.js 的 validateContract / getApiValidator）以及 apps/api/dist/router.js 的 parsePagination / paginate 做实测。临时脚本曾放在 spikes/audit4/check.mjs，跑完已删除。契约检查跑的是 packages/contracts/scripts/check.mjs（把生成器复制到临时目录再比对，没有在 docs/ 里执行 python）和 generate.mjs --check。只增不破用 T01-engineering-contracts.json 记录的历史 SHA-256 做减法对照，没有改那份证据。未改产品代码，未跑 git，未安装依赖，未连 Postgres，未发 HTTP，未开浏览器，未为本轮启动容器。设计条款只在冻结 schema 没有对应约束时引用。前三轮已关闭的不符合项没有重测。",
+  "contracts": [
+    "docs/build_contracts.py",
+    "docs/contracts/openapi.json listRunMessages、RunMessage、RunMessagePage、Error",
+    "docs/contracts/domain.schema.json",
+    "packages/contracts/src/generated/manifest.json sourceHashes",
+    "docs/validation-results/T01-engineering-contracts.json 历史哈希（只作对照，未改）",
+    "docs/03-data-and-api.md §4.1 第 96、117、118 行",
+    "docs/02-technical-design.md §8.3 第 173 行",
+    "packages/storage/migrations/001_core.sql、002_invariants.sql、003_access.sql"
+  ],
+  "counts": {
+    "符合": 11,
+    "不符合": 2,
+    "无法判定": 0
+  },
+  "items": [
+    {
+      "id": "contracts.generator-match",
+      "package": "docs",
+      "checkpoint": "生成器与六份契约、五份示例是否一致",
+      "conclusion": "符合",
+      "summary": "check.mjs 在临时目录重跑 docs/build_contracts.py，再与仓库里的六份 docs/contracts/*.json 和五份示例做字节比较，结果通过。打印为 Generated 101 shared schemas, 49 API paths and five fictional JSON examples。结果对象含 result=passed、generatorFilesCompared=11、operations=61、apiSchemas=222。临时目录在脚本 finally 中删除，.localqa-t01 里原有的 logs/ 与 record-evidence.py 仍在，本轮没有动它们。",
+      "location": "docs/build_contracts.py:226",
+      "contract": "packages/contracts/scripts/check.mjs 的检查就是生成物与仓库文件字节相同。新增调用是 operation(P+\"/runs/{runId}/messages\", \"get\", \"listRunMessages\", \"RunMessagePage\", queries=[(\"cursor\", False, text(2000)), (\"limit\", False, integer(1, 100))])。",
+      "repro": "node packages/contracts/scripts/check.mjs 退出码 0。没有在 docs/ 目录内执行 python，因此没有改写契约文件。",
+      "validator": "check.mjs result=passed；generatorFilesCompared=11；operations=61；apiSchemas=222。"
+    },
+    {
+      "id": "contracts.hashes",
+      "package": "packages/contracts",
+      "checkpoint": "contracts:check 的源哈希是否与当前契约文件一致",
+      "conclusion": "符合",
+      "summary": "manifest.json 的 sourceHashes 与六份契约文件的 SHA-256 相同。generate.mjs --check 退出码 0，打印 check=true，比对 types.ts、schemas.json、manifest.json，发现漂移会抛 Generated file drift 且不写文件。domain 与 openapi 相对 T01 记录值已变；events、regression、report、tools 与 T01 记录值相同。",
+      "location": "packages/contracts/src/generated/manifest.json:3",
+      "contract": "generate.mjs 对 docs/contracts 六个 JSON 的原始字节做 SHA-256，写入 manifest.sourceHashes，--check 只比较不改写。当前 domain 为 78e87822673a8d5c15d3c5aeb01ac1af1056e268bca7dd252c32eecf09330202，openapi 为 bfebe739f24b4c6fbfc07b1e842db22179ec1869c154b2b223de32da278d08cf。events 11cbfd7c4f612929831b5f3da9b647e496317a6bd3f128e0889e5c05ef24aeea，regression b5df5b59a42a69126ff807f775f27979aa36e601309308bff7aa88475c3f25c6，report 514e640de06f34c4ce357aeef48242a97974833986e4dd797ead55e1ff26450d，tools e424d2937d5739b577bfda1bb4b3100f544298fbebf0732e87cd3b0616da4bac。",
+      "repro": "对六份文件计算 sha256，与 manifest.sourceHashes 逐项相等（manifestMatchesFiles=true）。node packages/contracts/scripts/generate.mjs --check 退出码 0。",
+      "validator": "manifestMatchesFiles=true；generate.mjs --check 的 check=true。"
+    },
+    {
+      "id": "contracts.additive",
+      "package": "docs",
+      "checkpoint": "相对 T01 的 60 个 P0 操作是否只增不改",
+      "conclusion": "符合",
+      "summary": "当前 domain 与 openapi 用 json.dumps(ensure_ascii=False, indent=2) 加换行后与文件字节相同，说明减法用的是生成器同一套排版。删掉 domain 与 openapi 里的 RunMessage、RunMessagePage，并删掉 openapi 路径 /api/v1/runs/{runId}/messages 的 get 之后，重排得到的哈希等于 T01 记录的 domain 03da1053ba021897f97677a2b2024b57bc571371560b24120e1308cc96129bae 与 openapi e61d40c584ab02e884f38cb767d87731915cbebda463cd6b4811354f22881046。events、regression、report、tools 文件哈希与 T01 相同。计数从 definitions 99、operations 60、apiSchemas 217 变为 101、61、222；paths 仍是 49。新增的操作只有 listRunMessages，紧接在 sendRunMessage 之后。既有 60 个操作的其余 JSON 与 T01 字节等价。",
+      "location": "docs/build_contracts.py:79",
+      "contract": "T01-engineering-contracts.json 第 486 行 rawOutput 记录的 sourceHashes 与 operations=60、domainDefinitions=99、apiSchemas=217。本轮对照的是那次生成留下的哈希，不是把 T01 文件当作仍应匹配的现行清单。",
+      "repro": "Python 删除上述两个 schema 和 messages.get 后 domainMatchesT01=true、openapiMatchesT01=true。其余四份契约哈希与 T01 逐字相同。操作 id 集合比 T01 的 60 个多出 listRunMessages。",
+      "validator": "domainMatchesT01=true；openapiMatchesT01=true。未使用 git。"
+    },
+    {
+      "id": "contracts.list-schema",
+      "package": "docs",
+      "checkpoint": "listRunMessages 的成功体、查询参数和错误响应是否自洽",
+      "conclusion": "符合",
+      "summary": "生成器的 operation() 对每个操作都写成功响应和 default Error，没有具名 401/403/404/422。listRunMessages 的 200 是 RunMessagePage，default 是 Error。RunMessage 必填 id、runId、actorId、contextVersion（integer，minimum 1）、redactedText（string，maxLength 4000，无 minLength、format、pattern、description）、createdAt（date-time），additionalProperties false。RunMessagePage 必填 items（RunMessage 数组，maxItems 100）和 nextCursor（string 或 null）。查询参数 cursor 可选、maxLength 2000；limit 可选、integer 1–100。路径 runId 为 uuid 且必填，安全方案是 cookieAuth。getApiValidator('listRunMessages', {kind:'response', status:'404'}) 抛 No content schema，因为 404 不在具名响应里；同一份 {code:'NOT_FOUND', message:'NOT_FOUND', requestId} 能通过 default Error。这与其余 operation() 的错误写法相同。redactedText 没有脱敏约束，行为见 api.messages-redaction。",
+      "location": "docs/contracts/openapi.json:1601",
+      "contract": "docs/build_contracts.py:185–194 的 operation() 写 str(status) 与 default Error。openapi.json:1601–1664 为 GET。RunMessage 在 5880–5917 行，RunMessagePage 在 8026–8054 行。domain.schema.json 同步含 RunMessage（2599 行起）。",
+      "repro": "getApiValidator('listRunMessages') 的 200 接受含一条 RunMessage 且 nextCursor 为 null 的页，拒绝缺少 nextCursor 的对象。query 校验 limit=20 为 true，limit=0 与 limit=101 为 false。status 404 抛 No content schema。default Error 接受 NOT_FOUND 信封。",
+      "validator": "list200=true；缺 nextCursor 的错误为 must have required property 'nextCursor'；query limit 20/0/101 = true/false/false；404 无 content schema；default Error 接受 {code:'NOT_FOUND', message:'NOT_FOUND', requestId}。"
+    },
+    {
+      "id": "contracts.docs-routes",
+      "package": "apps/api",
+      "checkpoint": "docs/03 §4.1 与实际路由、openapi 操作是否对得上",
+      "conclusion": "符合",
+      "summary": "docs/03 第 118 行是 GET /runs/{runId}/messages，语义为分页读取，项目成员含 viewer 可读，非成员 404 且不泄露存在性。第 117 行的 POST 仍在。apps/api/src/routes 里 router.get/post/patch/put/delete 的方法加路径共 61 条，与 openapi 的 61 个 method+path 集合相同，只在路由里或只在契约里的差集都是空。旧表其余单元格没有逐格重读。",
+      "location": "docs/03-data-and-api.md:118",
+      "contract": "docs/03-data-and-api.md 第 118 行。openapi.json:1602 operationId listRunMessages，路径 /api/v1/runs/{runId}/messages 的 get。实现入口 apps/api/src/routes/runs.ts:263。",
+      "repro": "对 apps/api/src/routes 用 router.(get|post|patch|put|delete)('path' 计数，得到 61，与 openapi 的 61 个方法加路径做集合比较：onlyRoutes=[]，onlyContract=[]。",
+      "validator": "routeCount=61；operationCount=61；差集为空。旧散文单元格未逐格重读。"
+    },
+    {
+      "id": "api.messages-auth",
+      "package": "apps/api",
+      "checkpoint": "viewer 是否可读、是否要求项目成员、跨项目是否 NOT_FOUND",
+      "conclusion": "符合",
+      "summary": "GET 先 requireAuth，再在 db.actor 里按当前用户的 SET ROLE localqa_app 查询。003 对 run_messages 和 runs 都建了 member_read：SELECT 使用 can_project(project_id, 'viewer')。can_project 在 minimum 为 viewer 时接受 owner、operator、viewer，admin 也通过。找不到 runs 行就抛 StorageError('NOT_FOUND')，errors.ts 把它映射为 404 和 Error 信封，此时还不会查询消息。非成员或只存在于其他项目的 run id，在 FORCE RLS 下 SELECT runs 得不到行，因此同样是 NOT_FOUND，响应不带该 run 是否存在的额外字段。这是策略与控制流，没有连库执行。viewer 的 INSERT 走 operator 档，不是这条 GET 的问题。",
+      "location": "apps/api/src/routes/runs.ts:263",
+      "contract": "docs/03-data-and-api.md 第 118 行：项目成员可读（viewer 可读），非成员返回 404 不泄露存在性。003_access.sql 第 10–11 行 can_project；第 44–48 行把 run_messages 纳入循环，member_read 的档位除 secret_versions 外为 viewer。apps/api/src/errors.ts:21 与 51–57 行把 StorageError NOT_FOUND 映射为 404。openapi 没有具名 404，错误体走 default Error，见 contracts.list-schema。",
+      "repro": "runs.ts:269–273：SELECT project_id FROM runs WHERE id=$1，无行则 throw new StorageError('NOT_FOUND')。003:48 的 USING 是 can_project(project_id, 'viewer')。没有用非成员或跨项目身份对 Postgres 发查询。",
+      "validator": "未运行数据库。default Error 能接受 NOT_FOUND 信封，见 contracts.list-schema。"
+    },
+    {
+      "id": "api.messages-page",
+      "package": "apps/api",
+      "checkpoint": "超过 20 条时的分页语义",
+      "conclusion": "符合",
+      "summary": "GET 先按 created_at、id 升序取出该 run 的全部消息，再 parsePagination + paginate。默认 limit 是 20。limit 用 listEventHistory 的 query 校验器，边界是 integer 1–100，与 listRunMessages 的 limit 相同。非法或越界 limit 抛 ApiError 422，消息为 Invalid limit。游标是十进制偏移的 base64url。实测 21 条：第一页 20 条，nextCursor 为 MjA（\"20\" 的 base64url），第二页 1 条且 nextCursor 为 null。偏移超过末尾得到空 items 和 null。超过 20 条不会被丢掉。先全表取出再在内存切片是实现事实，不违反 RunMessagePage 的形状。",
+      "location": "apps/api/src/router.ts:73",
+      "contract": "docs/03-data-and-api.md 第 96 行：数组以 {items,nextCursor} 返回，默认 20、最多 100。第 118 行要求分页。openapi.json:1631–1639 limit minimum 1 maximum 100。RunMessagePage 必填 items 与 nextCursor。",
+      "repro": "对 21 个元素调用 parsePagination({}) 与 paginate：defaultLimit=20，firstCount=20，firstCursor=\"MjA\"，再用该游标取第二页，secondCount=1，secondCursor=null。limit=0 或非整数在 parsePagination 得到 Invalid limit。",
+      "validator": "defaultLimit=20；firstCount=20；firstCursor=MjA；secondCount=1；secondCursor=null；invalidLimit=Invalid limit。"
+    },
+    {
+      "id": "api.messages-dto",
+      "package": "apps/api",
+      "checkpoint": "响应 DTO 是否与 RunMessage / RunMessagePage 等价",
+      "conclusion": "符合",
+      "summary": "每行映射为 id、runId、actorId、contextVersion、redactedText、createdAt，字段集合与 RunMessage 的 required 相同，并经 parseContract('RunMessage')。页再经 parseContract('RunMessagePage')。createdAt 用 Date.toISOString()。没有额外字段。redactedText 的值是否脱敏见下一条；本条只核字段与校验器是否接受这一形状。",
+      "location": "apps/api/src/routes/runs.ts:286",
+      "contract": "openapi.json RunMessage required 为 id、runId、actorId、contextVersion、redactedText、createdAt（5908–5915 行）。RunMessagePage required 为 items、nextCursor（8049–8052 行）。additionalProperties false。",
+      "repro": "validateContract('RunMessagePage', {items:[一条合法 RunMessage], nextCursor:null}) 成功。去掉 nextCursor 失败。getApiValidator('listRunMessages') 的 200 接受该页。把单条 RunMessage 交给页校验器则失败，因为缺 items 与 nextCursor。",
+      "validator": "page ok=true；缺 nextCursor ok=false；list200=true。"
+    },
+    {
+      "id": "api.messages-redaction",
+      "package": "apps/api",
+      "checkpoint": "redactedText 是否做了脱敏",
+      "conclusion": "不符合",
+      "summary": "没有脱敏。POST 把 MessageInput.text 原样写入 run_messages.redacted_text。GET 把该列原样放进 redactedText。apps/api 的消息路径没有 redact 调用。001 的列是 text NOT NULL，没有 CHECK。002 的 reject_secret_keys 加在 run_events.payload、audit_log、model_requests 等 jsonb 上，没有加在 run_messages.redacted_text。冻结 schema 只约束 maxLength 4000，没有 pattern 或 description。docs/03 第 118 行也没有脱敏算法。因此校验器接受 redactedText 为 password=hunter2 token=abc 的 RunMessage。字段名和列名表示已脱敏，存进去和读出来的都是原文。",
+      "location": "apps/api/src/routes/runs.ts:338",
+      "contract": "openapi.json:5899–5902 redactedText 仅为 type string、maxLength 4000。docs/build_contracts.py:9 的 text() 只加 maxLength；第 79 行 RunMessage 没有额外约束。docs/03-data-and-api.md 第 45 行把 run_messages 标为补充输入，第 118 行只要求分页读取和成员可见性，没有写替换规则。001_core.sql:247–250。002_invariants.sql:166–180 的 reject_secret_keys 未作用于该列。",
+      "repro": "runs.ts:338–347 的 INSERT 第六个参数是 input.text。runs.ts:292 赋值 redactedText: r.redacted_text。validateContract('RunMessage', {..., redactedText:'password=hunter2 token=abc', ...}) 成功。没有触发器把该列改写为脱敏文本；此判断来自迁移全文检索，没有连库。",
+      "validator": "secretText ok=true。schema 接受含 password= 与 token= 的字符串。"
+    },
+    {
+      "id": "worker.claim-fencing",
+      "package": "packages/orchestrator",
+      "checkpoint": "claim 改走 leases.claim 后，fencing、心跳与完成幂等是否仍由 storage 约束",
+      "conclusion": "符合",
+      "summary": "Coordinator.claim 先调用 this.leases.claim，即 LeaseRepository.claim，再进入 db.worker 执行 claimTask。claimTask 在 status 仍为 queued 时把 fencing_token 加 1（列类型 bigint，001:137），并插入 task_leases 的 token_hash，返回的 Lease 含明文 token。心跳与完成仍走 LeaseRepository：currentLease 要求 status=running、fencing 相等、token_hash 相等、released_at IS NULL，心跳更新还要求 released_at IS NULL。complete 对已终态且 status 与 resultHash 一致的重复提交返回原任务，不一致则 IDEMPOTENCY_CONFLICT。记账失败后的释放把 job 置回 queued 并写 released_at，因此这份明文租约不能再心跳或完成。fencing 在释放后保持已加一的值，下次 claimTask 再加一。本条没有重开 AUDIT3 里 Coordinator.finish 仍用自定义 SQL 的问题。没有连库执行。",
+      "location": "packages/orchestrator/src/core.ts:453",
+      "contract": "packages/storage/src/leases.ts:42–89 claimTask；第 99 行 currentLease 的谓词含 fencing、token_hash、released_at IS NULL、status=running；第 149 行心跳更新要求 released_at IS NULL；第 159–207 行 complete 的幂等与释放。001_core.sql:137 fencing_token bigint，第 142–144 行 task_leases。003_access.sql:58 GRANT SELECT,INSERT,UPDATE ON jobs,task_leases TO localqa_worker。",
+      "repro": "core.ts:453 为 const lease = await this.leases.claim(scope, seconds)。leases.ts:66 的 UPDATE 含 fencing_token=fencing_token+1 AND status='queued'。释放后的行不再满足 currentLease。没有对 Postgres 领取、心跳或重复完成。",
+      "validator": "未运行数据库。判断来自 SQL 谓词与调用顺序。"
+    },
+    {
+      "id": "worker.claim-release",
+      "package": "packages/orchestrator",
+      "checkpoint": "槽位记账失败时是否立即释放刚领到的租约",
+      "conclusion": "符合",
+      "summary": "leases.claim 成功并提交之后，槽位事务若抛错，catch 会马上再开一个 db.worker 事务：把该 job 从 running 改回 queued（匹配 fencing_token）并把对应 task_leases.released_at 写成 clock_timestamp()，然后把原错误抛出。外层把 RATE_LIMITED 变成 return null，其他错误继续抛。调用方拿不到明文租约。限制：这两条 UPDATE 没有检查 rowCount；释放与领取不在同一事务；领取提交后、释放提交前若进程退出，job 会停在 running 直到租约到期（默认 45 秒）再由既有 recoverExpired 处理；释放事务自己失败时，原错误被这次失败替换，释放不会执行；释放条件用 fencing_token，不用 token_hash，也不清空 jobs.lease_until。released_at 已写入时，currentLease 与心跳更新都不再接受该行。没有连库执行这些失败路径。槽位检查本身不再持有全局锁，见 worker.claim-slots；那是另一条不符合，本条只回答失败后有没有写释放语句。",
+      "location": "packages/orchestrator/src/core.ts:485",
+      "contract": "core.ts:485–499 的注释写明记账失败要立即释放，避免任务停在 running 且没有 worker。leases.ts:99 与 149 要求 released_at IS NULL 才能心跳。租约秒数默认 45，见 claim 的参数 seconds = 45。",
+      "repro": "在 this.tx 的槽位检查或 INSERT 抛错后，执行顺序是 core.ts:490–497 的两条 UPDATE，然后 throw error；RATE_LIMITED 在 502–503 行变为 null。没有构造 RATE_LIMITED 或让释放事务失败的数据库实验。",
+      "validator": "未运行数据库。释放语句在源码的 catch 中、位于 rethrow 之前。"
+    },
+    {
+      "id": "worker.claim-slots",
+      "package": "packages/orchestrator",
+      "checkpoint": "并发槽位是否仍与创建运行同一把锁下原子预约",
+      "conclusion": "不符合",
+      "summary": "创建运行仍在事务里执行 pg_advisory_xact_lock(741005)，注释写 Admission under the same global lock as lease claim。claim() 改走 leases.claim 之后，这段函数里已经没有 741005。两个 worker 可以 SKIP LOCKED 领到不同任务，然后各自读 budget_reservations 的 reserved 计数；若当时计数都是 limit-1，两边都通过比较并各自 INSERT，谁也不抛 RATE_LIMITED，所以上一条的释放路径不会运行。同一函数还有一个窗口：claimTask 提交后 FOR SHARE 已释放，后续事务只在 run.status==='queued' 时调用 change 到 running；若取消已把 run 改成 cancelling，该事务仍会插入 concurrency 预约并返回租约。取消入口在 core.ts:1291 一带。两处都没有连库复现。",
+      "location": "packages/orchestrator/src/core.ts:447",
+      "contract": "docs/02-technical-design.md 第 173 行：在锁定 budget 行的事务中检查 counters+reservation≤limit；actions、reproductions 和并发同样原子预约/释放。core.ts:196–199 仍声明创建运行与租约领取共用 741005。claim 的计数与插入在 core.ts:458–481，且不在 claimTask 的事务内。",
+      "repro": "两个 worker、slots 剩余 1、两个 queued job。两边都通过 leases.ts:52 的 SKIP LOCKED，再都读到 counts 小于上限并执行 core.ts:471 的 INSERT。源码中 claim() 没有 pg_advisory_xact_lock(741005)。取消窗口：core.ts:470 仅在 status==='queued' 时改状态，471 行的 INSERT 不受该 if 保护。未执行。",
+      "validator": "未运行数据库。不符合来自锁调用已从 claim() 消失，以及计数与插入不在领取事务内。"
+    },
+    {
+      "id": "storage.pool-destroy",
+      "package": "packages/storage",
+      "checkpoint": "坏连接销毁是否误杀健康连接，并发是否重复销毁同一连接",
+      "conclusion": "符合",
+      "summary": "池最大 8。pool 的 error 和 connect 时挂上的 client error 只打日志，不销毁连接。#transaction 对当次 checkout 再挂一个监听，出错时把 connectionLost 设为 true；finally 先摘掉这个监听，再 client.release(connectionLost ? Error : undefined)，每次 checkout 只 release 一次。pg 8.23.1 的 _handleErrorMessage：查询进行中时把 SQL 错误交给 activeQuery.handleError，不 emit('error')，也不把 _queryable 设为 false。因此约束失败和 StorageError 不会把连接标成丢失；ROLLBACK 成功后 release(undefined)，连接回到池。真正的套接字错误走 _handleErrorEvent，置 _queryable=false 并 emit('error')。checkout 时 pg-pool 3.14.0 已摘掉 idleListener（index.js:344），所以这次错误由应用监听记下来，finally 的 release(err) 走 _remove → client.end()。_releaseOnce 对同一次 checkout 的第二次 release 抛 Release called on client which has already been released to the pool。两次 #transaction 各拿各的 client，不会释放对方的连接。已知边界：_release 在带 err 时会先把 idleListener 挂回去再 _remove；idleListener 在调用 _remove 之前又挂了一个只打日志的 error 监听。若 end() 里的 stream.destroy() 同步再抛 error，可能对已经不可查询的同一 client 再进一次 end()。那是已死连接上的重入，不是两个业务事务销毁一条健康连接。Node 对已 destroy 的 socket 再 destroy 通常无操作。没有做活连接实验。",
+      "location": "packages/storage/src/database.ts:90",
+      "contract": "database.ts:42–54 只记录 pool/connect 错误。database.ts:66–94 按 connectionLost 决定 release 参数。pg lib/client.js:426–441 区分 SQL 错误与连接错误；416–422 行 _handleErrorEvent 置 _queryable=false。pg-pool index.js:27–28 与 369–379 禁止同一次 checkout 二次 release；384–397 行仅在 err 或连接已不可用时 _remove；172–187 行 _remove 调用 client.end()。client.js:799–814 在 !_queryable 时 stream.destroy()。",
+      "repro": "阅读上述分支：查询中的 ErrorResponse 不进入 client.emit('error')，connectionLost 保持 false，release 不带错误。两个并发 #transaction 来自两次 pool.connect。第二次 release 由 pg-pool 的 released 标志拒绝。没有拔掉数据库或并发打错误事件。",
+      "validator": "未运行数据库。结论来自 database.ts 与已安装的 pg@8.23.1、pg-pool@3.14.0 源码。"
+    }
+  ],
+  "本次未覆盖的范围": [
+    "没有对运行中的 API 发 HTTP，没有用 Postgres 执行 RLS、领取、释放或连接销毁，没有开浏览器。审计结束时旁边已有一套 compose 栈在运行，本轮没有使用它，也没有停它。",
+    "viewer、非成员和跨项目的 404 来自 003 的 member_read 与 runs.ts 的无行抛错，没有用真实会话执行。",
+    "槽位失败后的 UPDATE 没有检查 rowCount，也没有做崩溃窗口或释放事务失败的实验。两个 worker 同时穿过 limit-1 的计数没有执行。取消把 run 改成 cancelling 之后仍返回租约，只写在 worker.claim-slots，没有执行。",
+    "连接池的二次 end() 只按 pg-pool 与 pg 的源码顺序判断。没有对健康连接注入错误，也没有对已死 socket 做第二次 destroy。",
+    "docs/03 §4.1 只核对了消息行与 61 个 method+path 的集合。表内其余单元格没有逐格重读。",
+    "GET /runs/{id}/report 仍可能在 apps/api 把 cleanupStatus 写成 succeeded。migrations/002 的 guard_verdict 与仓库层 SCOPE_CHANGED、模型网关仍可能返回的 FAKE_EVIDENCE，不在本轮四个对象内，没有重测。",
+    "前三轮已经关闭的不符合项没有重测。web 不在本轮对象内。Coordinator.finish 仍使用自定义 SQL 是 AUDIT3 的不符合，本轮没有把它再开一条。",
+    "本机探测到的 Node 是 v26.3.0。没有声称设计文档里的 Node 24。"
+  ],
+  "清理状态": "已删除 spikes/audit4/check.mjs，spikes/audit4 不在。本轮未创建容器、卷、网络或镜像。回查时别人的栈仍在运行，没有启动、停止或删除它们：localqa-gateway、localqa-worker、localqa-orchestrator、localqa-api、localqa-web、localqa-t09b-fixture、localqa-postgres 均为 Up。卷仍是 localqa-data、localqa-pgdata，以及匿名卷 79e6b62585a476cb1d73128a4304fe0556d3526fda92d40302434fde82407472、0a1318c57537266248d067e7df4bf0f5402c6e11bf76b3ef7cd0841e316a1b69、82e1138d9eddf7ffc97e2612c7cb1b491a9808b250f2b58ae9d1eb6837699a59、a57ae0051defefc8791fa72d384575f050f3b1a9c1ff8525932f01b4855e9f52。镜像未删，含 localqa-*:latest、node:24-bookworm-slim、postgres:18-alpine、mcr.microsoft.com/playwright:v1.63.0-noble、hello-world、nginx:1.27-alpine。.localqa-t01 里原有的 logs/ 与 record-evidence.py 保留。未跑 git。"
+}
