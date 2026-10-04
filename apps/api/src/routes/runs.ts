@@ -264,27 +264,31 @@ export function registerRunRoutes(router: Router): void {
   router.get('/api/v1/runs/{runId}/messages', async (ctx: RequestContext) => {
     await requireAuth(ctx);
     const runId = ctx.params.runId!;
-    const messages = await ctx.api.db.actor(ctx.actor!, async (client) => {
-      const runRow = (
-        await client.query<{ project_id: string }>(
-          'SELECT project_id FROM runs WHERE id = $1',
-          [runId],
-        )
-      ).rows[0];
-      if (!runRow) throw new StorageError('NOT_FOUND');
-      const rows = await client.query<{
-        id: string;
-        project_id: string;
-        run_id: string;
-        actor_id: string;
-        context_version: number;
-        redacted_text: string;
-        created_at: Date;
-      }>(
-        'SELECT id, project_id, run_id, actor_id, context_version, redacted_text, created_at FROM run_messages WHERE run_id = $1 AND project_id = $2 ORDER BY created_at ASC, id ASC',
-        [runId, runRow.project_id],
+    try {
+      const projectId = await ctx.api.db.actor(ctx.actor!, async (client) => {
+        const runRow = (
+          await client.query<{ project_id: string }>(
+            'SELECT project_id FROM runs WHERE id = $1',
+            [runId],
+          )
+        ).rows[0];
+        if (!runRow) throw new StorageError('NOT_FOUND');
+        return runRow.project_id;
+      });
+      const rows = await ctx.api.db.actor(ctx.actor!, async (client) =>
+        client.query<{
+          id: string;
+          run_id: string;
+          actor_id: string;
+          context_version: number;
+          redacted_text: string;
+          created_at: Date;
+        }>(
+          'SELECT id, run_id, actor_id, context_version, redacted_text, created_at FROM run_messages WHERE run_id = $1 AND project_id = $2 ORDER BY created_at ASC, id ASC',
+          [runId, projectId],
+        ),
       );
-      return rows.rows.map((r) =>
+      const messages = rows.rows.map((r) =>
         parseContract('RunMessage', {
           id: r.id,
           runId: r.run_id,
@@ -294,11 +298,21 @@ export function registerRunRoutes(router: Router): void {
           createdAt: r.created_at.toISOString(),
         }),
       );
-    });
-    const { limit, offset } = parsePagination(ctx.query);
-    const page = paginate(messages, limit, offset);
-    ctx.res.statusCode = 200;
-    return parseContract('RunMessagePage', page);
+      const { limit, offset } = parsePagination(ctx.query);
+      const page = paginate(messages, limit, offset);
+      ctx.res.statusCode = 200;
+      return parseContract('RunMessagePage', page);
+    } catch (e) {
+      const err = e as { code?: string; message?: string; stack?: string };
+      console.error(
+        'GET_MESSAGES_ERROR',
+        runId,
+        err?.code,
+        err?.message,
+        err?.stack?.slice(0, 300),
+      );
+      throw e;
+    }
   });
 
   // POST /api/v1/runs/{runId}/messages
@@ -306,6 +320,7 @@ export function registerRunRoutes(router: Router): void {
     await requireAuth(ctx);
     const runId = ctx.params.runId!;
     const input = parseContract('MessageInput', ctx.body);
+    console.error('MSG_DEBUG in=', JSON.stringify(input));
 
     const updatedRun = await ctx.api.db.actor(ctx.actor!, async (client) => {
       const row = (
