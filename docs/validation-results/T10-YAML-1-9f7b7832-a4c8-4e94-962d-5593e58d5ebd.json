@@ -1,0 +1,60 @@
+{
+  "task": "T10-YAML-1",
+  "tag": "9f7b7832-a4c8-4e94-962d-5593e58d5ebd",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-yaml-JEQgXG",
+  "tests": [
+    {
+      "name": "valid Chinese text, variables, all five canonical locator strategies, and module refs roundtrip",
+      "passed": true
+    },
+    {
+      "name": "HTTP viewer and cross-project isolation for import and export",
+      "passed": true
+    },
+    {
+      "name": "parser negative cases: duplicate keys, multi-docs, dangerous keys, tags, depth, anchors, unknown fields/steps/version/locators and zero persistence",
+      "passed": true
+    },
+    {
+      "name": "imported draft cannot be executed in regression; approved review allows execution with unchanged SHA",
+      "passed": true
+    },
+    {
+      "name": "JSON-saved document with deep semantic criterion (>32 levels) explicitly fails YAML export with 422 while retaining original document and SHA",
+      "passed": true
+    }
+  ],
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "cab402c76ecf7ac7858439eb3cb8ec36f411122b385e6afb125d116c2835a100",
+    "volumes": [
+      "52bb48c3e4155752a2f600f8b9d2dfa4767972382c169fe527b8e83b16ea5724"
+    ],
+    "pgPort": 33276,
+    "apiPort": 52885,
+    "apiPid": 51234,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "52bb48c3e4155752a2f600f8b9d2dfa4767972382c169fe527b8e83b16ea5724",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "PG/API admission only; no browser, Worker.once, worker-entry or real model",
+    "Import creates draft only; execution blocked until approved review",
+    "FakeBrowser and real model acceptance still unverified; P0=false"
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0
+  }
+}

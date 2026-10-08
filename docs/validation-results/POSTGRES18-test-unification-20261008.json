@@ -1,0 +1,120 @@
+{
+  "at": "2026-10-08T03:09:30.144972+00:00",
+  "task": "Unify active T10 integration tests on PostgreSQL18 and remove the obsolete PostgreSQL16 image",
+  "baseCommit": "04bb7830a348dff860938bea3f03ab25a40e6449",
+  "changes": [
+    {
+      "path": "apps/api/test/t10-b4-regression.test.mjs",
+      "beforeSha256": "f2ca58132971e4af49ba2551d1bb79c2d099cb5f7ef50ae3bf36a22f9606231f",
+      "afterSha256": "66be163824f84ae8fb3c132b506d18291718a117ca7d94de33bd740895e85f61"
+    },
+    {
+      "path": "apps/worker/test/t10-b5-fakebrowser.test.mjs",
+      "beforeSha256": "1d6b32024ff0bd7cf8e0f93d249ec6e536a5e9a1ec8bd27a3323c03b035c8920",
+      "afterSha256": "210209b3c13a71b691daa48384cb3b289f604227f689a3e298d4abeb353e5217"
+    },
+    {
+      "path": "apps/api/test/t10-yaml.test.mjs",
+      "beforeSha256": "e0ebfe3e4efd90618c10b857543254ab2d1acef35f7967d63e21550eea66c475",
+      "afterSha256": "e11e0b4ec0decb8252c4f2870de25f1d1b2ff9725eeabbd54b87f9c09783c58e"
+    },
+    {
+      "path": "apps/api/test/t10-auth-binding.test.mjs",
+      "beforeSha256": "44b054bfcd3ca97e401af3c3f9be5bfcddaf91be041a40fc08f5b71db93ac04a",
+      "afterSha256": "d74d612819a87902c6f6842654a05eebe3bee418108ebf824106481735349a33"
+    }
+  ],
+  "databaseImage": {
+    "id": "sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873",
+    "tags": [
+      "postgres:18-alpine"
+    ],
+    "pgMajor": [
+      "PG_MAJOR=18"
+    ]
+  },
+  "verification": {
+    "command": "node --test --test-concurrency=1 apps/api/test/t10-b4-regression.test.mjs apps/api/test/t10-yaml.test.mjs apps/api/test/t10-auth-binding.test.mjs apps/worker/test/t10-b5-fakebrowser.test.mjs",
+    "passed": 37,
+    "failed": 0,
+    "bySuite": {
+      "authBinding": 8,
+      "B4RegressionApi": 7,
+      "yaml": 5,
+      "B5WorkerFakeBrowser": 17
+    },
+    "scope": "Real isolated PostgreSQL18 containers, migrations, API, Runtime/Worker.once and injected FakeBrowser/model responses; no real browser or external model calls",
+    "formatCheckPassed": true,
+    "eslintPassed": true,
+    "diffCheckPassed": true,
+    "currentAppPackageDeployPg16References": 0,
+    "logSha256": "ed72f071e26d202d064eba13f277d50f894eeb6282afee0ff35e6c947e817110",
+    "detailedReports": [
+      {
+        "path": "docs/validation-results/T10-AUTH-1-72b030b2-f50e-451e-b1ec-42792fa85cef.json",
+        "sha256": "31a35c9306275bf8414167a6d9aebcdcccd3468d6a0c65630ebc74f5ad4589fb",
+        "summary": {
+          "passed": 8,
+          "failed": 0
+        },
+        "containerId": "eef2c7c988b938f147f53bc95fcdcc2ca09de8a1b7d5870b16917358ad3a3b3b",
+        "cleanup": {
+          "apiClosed": true,
+          "removeStatus": 0,
+          "containerAbsent": true,
+          "volumes": [
+            {
+              "id": "6ce7c7b13557d07c2967f83fefb29ef5d3b35c8deb6d7339e51e56a91cf6cb5d",
+              "absent": true
+            }
+          ],
+          "credentialsAbsent": true,
+          "pgPortClosed": true,
+          "apiPortClosed": true
+        }
+      },
+      {
+        "path": "docs/validation-results/T10-YAML-1-9f7b7832-a4c8-4e94-962d-5593e58d5ebd.json",
+        "sha256": "2f30a2555b839a55c303593c4d1e2a0fcd8c5ac9e05d62b8013ecfbf4e16675b",
+        "summary": {
+          "passed": 5,
+          "failed": 0
+        },
+        "containerId": "cab402c76ecf7ac7858439eb3cb8ec36f411122b385e6afb125d116c2835a100",
+        "cleanup": {
+          "apiClosed": true,
+          "removeStatus": 0,
+          "containerAbsent": true,
+          "volumes": [
+            {
+              "id": "52bb48c3e4155752a2f600f8b9d2dfa4767972382c169fe527b8e83b16ea5724",
+              "absent": true
+            }
+          ],
+          "credentialsAbsent": true,
+          "pgPortClosed": true,
+          "apiPortClosed": true
+        }
+      }
+    ]
+  },
+  "cleanup": {
+    "containersMatchPreexistingBaseline": true,
+    "volumeNamesMatchPreexistingBaseline": true,
+    "preservedVolumeNames": [
+      "79e6b62585a476cb1d73128a4304fe0556d3526fda92d40302434fde82407472"
+    ],
+    "postgres16ImageAbsent": true,
+    "postgres18ImageUnchanged": true,
+    "credentialsIndependentlyAbsent": [
+      "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-auth-W9zQnG/pg.env",
+      "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-auth-W9zQnG/kek.json",
+      "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-yaml-JEQgXG/pg.env",
+      "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-yaml-JEQgXG/kek.json"
+    ],
+    "retained": "AUTH/YAML reports, owned temporary evidence directories and the local ignored verification log are retained for audit. B4/B5 fixtures removed their own temporary directories."
+  },
+  "P0Passed": false,
+  "G3Passed": false,
+  "browserPaused": true
+}

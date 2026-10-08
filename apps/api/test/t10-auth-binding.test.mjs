@@ -215,7 +215,7 @@ before(async () => {
       '127.0.0.1::5432',
       '--env-file',
       envFile,
-      'postgres:16-alpine',
+      'postgres:18-alpine',
     ],
     { encoding: 'utf8' },
   );
