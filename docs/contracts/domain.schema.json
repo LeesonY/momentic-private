@@ -844,6 +844,9 @@
           },
           "maxItems": 20,
           "minItems": 1
+        },
+        "regression": {
+          "$ref": "#/$defs/RegressionBinding"
         }
       },
       "required": [
@@ -1311,6 +1314,14 @@
         "version": {
           "type": "integer",
           "minimum": 1
+        },
+        "responseFormat": {
+          "type": "string",
+          "enum": [
+            "json_schema",
+            "json_object",
+            "native_tools"
+          ]
         }
       },
       "required": [
@@ -1362,6 +1373,14 @@
           "type": "string",
           "maxLength": 1000,
           "writeOnly": true
+        },
+        "responseFormat": {
+          "type": "string",
+          "enum": [
+            "json_schema",
+            "json_object",
+            "native_tools"
+          ]
         }
       },
       "required": [
@@ -1614,6 +1633,13 @@
         "version": {
           "type": "integer",
           "minimum": 1
+        },
+        "executionMode": {
+          "type": "string",
+          "enum": [
+            "smoke",
+            "regression"
+          ]
         }
       },
       "required": [
@@ -3373,6 +3399,9 @@
         },
         "toolCall": {
           "$ref": "#/$defs/ToolCall"
+        },
+        "regressionSource": {
+          "$ref": "#/$defs/RegressionStepSource"
         }
       },
       "required": [
@@ -3555,6 +3584,11 @@
         },
         "outputSchema": {
           "type": "object"
+        },
+        "criterionId": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_.-]+$"
         }
       },
       "required": [
@@ -3807,6 +3841,14 @@
             "disabled",
             "untested"
           ]
+        },
+        "responseFormat": {
+          "type": "string",
+          "enum": [
+            "json_schema",
+            "json_object",
+            "native_tools"
+          ]
         }
       },
       "required": [
@@ -3936,6 +3978,9 @@
               "type": "null"
             }
           ]
+        },
+        "regressionSource": {
+          "$ref": "#/$defs/RegressionStepSource"
         }
       },
       "required": [
@@ -5698,7 +5743,7 @@
             },
             "ref": {
               "type": "string",
-              "maxLength": 120,
+              "maxLength": 131,
               "pattern": "^[a-zA-Z0-9_./-]+@[1-9][0-9]*$"
             },
             "arguments": {
@@ -5795,6 +5840,423 @@
       ],
       "additionalProperties": false
     },
+    "RegressionModuleVersion": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 120,
+          "pattern": "^[a-zA-Z0-9_./-]+$"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "document": {
+          "$ref": "#/$defs/RegressionDocument"
+        },
+        "reviewStatus": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "approved",
+            "rejected"
+          ]
+        }
+      },
+      "required": [
+        "projectId",
+        "name",
+        "version",
+        "sha256",
+        "document",
+        "reviewStatus"
+      ],
+      "additionalProperties": false
+    },
+    "RegressionModuleCreate": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^(?!\\.{1,2}(?:/|$))(?!.*?/\\.{1,2}(?:/|$))[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*$"
+        },
+        "document": {
+          "$ref": "#/$defs/RegressionDocument"
+        },
+        "expectedVersion": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        }
+      },
+      "required": [
+        "name",
+        "document"
+      ],
+      "additionalProperties": false
+    },
+    "RegressionModuleRecord": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 120,
+          "pattern": "^[a-zA-Z0-9_./-]+$"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "sha256": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "document": {
+          "$ref": "#/$defs/RegressionDocument"
+        },
+        "reviewStatus": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "approved",
+            "rejected"
+          ]
+        },
+        "createdBy": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "createdAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reviewedBy": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reviewedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "projectId",
+        "name",
+        "version",
+        "sha256",
+        "document",
+        "reviewStatus",
+        "createdBy",
+        "createdAt",
+        "reviewedBy",
+        "reviewedAt"
+      ],
+      "additionalProperties": false
+    },
+    "RegressionModuleRecordPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RegressionModuleRecord"
+          },
+          "maxItems": 100,
+          "minItems": 0
+        },
+        "nextCursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 2000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "nextCursor"
+      ],
+      "additionalProperties": false
+    },
+    "RegressionModuleReviewPreviewInput": {
+      "type": "object",
+      "properties": {
+        "expectedVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "reject"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 2000,
+          "minLength": 1
+        }
+      },
+      "required": [
+        "expectedVersion",
+        "decision",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "RegressionModuleReviewPreview": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "moduleName": {
+          "type": "string",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^(?!\\.{1,2}(?:/|$))(?!.*?/\\.{1,2}(?:/|$))[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*$"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "documentSha256": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "expectedVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "reject"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 2000,
+          "minLength": 1
+        },
+        "diff": {
+          "type": "string",
+          "maxLength": 20000
+        },
+        "risks": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "maxItems": 20,
+          "minItems": 0
+        },
+        "confirmationToken": {
+          "type": "string",
+          "maxLength": 1000,
+          "minLength": 1
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "projectId",
+        "moduleName",
+        "version",
+        "documentSha256",
+        "expectedVersion",
+        "decision",
+        "reason",
+        "diff",
+        "risks",
+        "confirmationToken",
+        "expiresAt"
+      ],
+      "additionalProperties": false
+    },
+    "RegressionModuleReviewCommit": {
+      "type": "object",
+      "properties": {
+        "expectedVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "reject"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 2000,
+          "minLength": 1
+        },
+        "confirmationToken": {
+          "type": "string",
+          "maxLength": 1000,
+          "minLength": 1
+        }
+      },
+      "required": [
+        "expectedVersion",
+        "decision",
+        "reason",
+        "confirmationToken"
+      ],
+      "additionalProperties": false
+    },
+    "RegressionBinding": {
+      "type": "object",
+      "properties": {
+        "sourceVersionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sourceDocumentSha256": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "document": {
+          "$ref": "#/$defs/RegressionDocument"
+        },
+        "moduleSnapshots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RegressionModuleVersion"
+          },
+          "maxItems": 100,
+          "minItems": 0
+        },
+        "snapshotDocumentSha256": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "sourceVersionId",
+        "sourceDocumentSha256",
+        "document",
+        "moduleSnapshots"
+      ],
+      "additionalProperties": false
+    },
+    "RegressionStepSource": {
+      "type": "object",
+      "properties": {
+        "documentId": {
+          "type": "string",
+          "maxLength": 120,
+          "pattern": "^[a-zA-Z0-9_.-]+$"
+        },
+        "stepIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 99
+        },
+        "modulePath": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "type": "string",
+                "maxLength": 131,
+                "pattern": "^[a-zA-Z0-9_./-]+@[1-9][0-9]*$"
+              },
+              "sha256": {
+                "type": "string",
+                "maxLength": 64,
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "invocationStepIndex": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 99
+              }
+            },
+            "required": [
+              "ref",
+              "sha256",
+              "invocationStepIndex"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 8,
+          "minItems": 0
+        }
+      },
+      "required": [
+        "documentId",
+        "stepIndex",
+        "modulePath"
+      ],
+      "additionalProperties": false
+    },
     "SavedCase": {
       "type": "object",
       "properties": {
@@ -5879,6 +6341,114 @@
       "required": [
         "slug",
         "name"
+      ],
+      "additionalProperties": false
+    },
+    "SavedCaseArchiveInput": {
+      "type": "object",
+      "properties": {
+        "expectedVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        }
+      },
+      "required": [
+        "expectedVersion"
+      ],
+      "additionalProperties": false
+    },
+    "SavedCaseRestoreInput": {
+      "type": "object",
+      "properties": {
+        "expectedVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        }
+      },
+      "required": [
+        "expectedVersion"
+      ],
+      "additionalProperties": false
+    },
+    "SavedCaseDuplicateInput": {
+      "type": "object",
+      "properties": {
+        "targetProjectId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "newSlug": {
+          "type": "string",
+          "maxLength": 120,
+          "pattern": "^[a-zA-Z0-9_.-]+$"
+        },
+        "newName": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 1
+        },
+        "sourceVersionId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "newSlug",
+        "newName",
+        "sourceVersionId"
+      ],
+      "additionalProperties": false
+    },
+    "SavedCaseYamlImport": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "maxLength": 120,
+          "pattern": "^[a-zA-Z0-9_.-]+$"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 1
+        },
+        "yaml": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 1
+        }
+      },
+      "required": [
+        "slug",
+        "name",
+        "yaml"
+      ],
+      "additionalProperties": false
+    },
+    "SavedCaseYamlExport": {
+      "type": "object",
+      "properties": {
+        "versionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sourceDocumentSha256": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "yaml": {
+          "type": "string",
+          "maxLength": 262144,
+          "minLength": 1
+        }
+      },
+      "required": [
+        "versionId",
+        "sourceDocumentSha256",
+        "yaml"
       ],
       "additionalProperties": false
     },
@@ -5975,12 +6545,55 @@
       ],
       "additionalProperties": false
     },
+    "ReviewPreviewInput": {
+      "type": "object",
+      "properties": {
+        "expectedVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "reject"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 2000,
+          "minLength": 1
+        }
+      },
+      "required": [
+        "expectedVersion",
+        "decision",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
     "ReviewPreview": {
       "type": "object",
       "properties": {
         "versionId": {
           "type": "string",
           "format": "uuid"
+        },
+        "expectedVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "reject"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 2000,
+          "minLength": 1
         },
         "diff": {
           "type": "string",
@@ -6006,6 +6619,9 @@
       },
       "required": [
         "versionId",
+        "expectedVersion",
+        "decision",
+        "reason",
         "diff",
         "risks",
         "confirmationToken",
@@ -6029,7 +6645,8 @@
         },
         "reason": {
           "type": "string",
-          "maxLength": 2000
+          "maxLength": 2000,
+          "minLength": 1
         },
         "confirmationToken": {
           "type": "string",

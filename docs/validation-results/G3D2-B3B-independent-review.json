@@ -1,0 +1,57 @@
+{
+  "task": "G3D2-and-B3B-independent-review",
+  "recordedAt": "2026-10-05T05:59:34.690517+00:00",
+  "G3D2": {
+    "command": "node --test apps/api/test/g3d2-lease-ledger.test.mjs",
+    "passed": 11,
+    "failed": 0,
+    "durationMs": 10017.255917,
+    "scope": "Unique PostgreSQL and injected local Response; real lease, budget and model request ledger."
+  },
+  "B3B": {
+    "command": "node --test apps/worker/test/regression-replay.test.mjs",
+    "passed": 15,
+    "failed": 0,
+    "durationMs": 188.589959,
+    "scope": "Local fake ports, no browser or DB."
+  },
+  "webHelpers": {
+    "passed": 29,
+    "scope": "Pure guards and unverified accounting only."
+  },
+  "unverified": [
+    "HTTP explicit criterion freeze pending G3-D3",
+    "Actual worker approved DSL integration and report",
+    "Real UI and fixture model composition pending repairs",
+    "Real provider/images/G3 baseline"
+  ],
+  "browserUsed": false,
+  "realSupplierCalls": 0,
+  "T10Passed": false,
+  "P0Passed": false,
+  "sourceHashes": {
+    "apps/worker/src/regression-replay.ts": "c04aff343b39129a4249445b3a7701bf800e4bda4a4b037308ac5d85439a25d1",
+    "apps/worker/test/regression-replay.test.mjs": "fc7f473bd9e9ded0d61494a31ef97bbe94e23c4426897392a68db776fa334d49",
+    "apps/api/test/g3d2-lease-ledger.test.mjs": "3a18b8803e30cc290d3a4c2660fa74cb161cce43db7e40a1980ca4962404a9b5",
+    "packages/orchestrator/src/model.ts": "061372e5a77471a054f15403fc3d6f277cdef23004d3b80694002bb9279f4167"
+  },
+  "sourceHashesMeaning": "Captured when this record was written; concurrent G3-D3 source edits may postdate the executed G3-D2 fixture. This record does not accept D3 assertion semantics.",
+  "fixtureLifecycle": {
+    "command": "node apps/web/scripts/testT10FixtureLifecycle.mjs",
+    "passed": 23,
+    "failed": 0,
+    "scope": "Independent local PG/API/HTML, injected model transport; normal and failed-prepare cleanup. Exact model binding version still pending."
+  },
+  "assertionWireReproduction": {
+    "realSupplierCalls": 0,
+    "requestResult": "inconclusive",
+    "returnedDataResult": "passed",
+    "errorCode": null,
+    "status": "Verified local reproduction; G3-D4 assigned"
+  },
+  "canonicalIncrement": [
+    "Optional ModelRequest.criterionId with canonical Criterion.id constraints",
+    "RegressionBinding, RegressionModuleVersion, RegressionStepSource; optional mode/source fields; 127 schemas; generation/check/build pass"
+  ],
+  "updatedAt": "2026-10-05T06:16:17.357856+00:00"
+}

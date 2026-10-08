@@ -1,0 +1,47 @@
+{
+  "task": "T10-B4",
+  "latestResult": {"newPGAPITests": {"passed": 7, "failed": 0, "skipped": 0}, "existingSavedCaseTests": {"passed": 9, "failed": 0}},
+  "commands": [
+    {"command": "npx --yes pnpm@10.34.0 --filter @localqa/api... build", "exitCode": 0},
+    {"command": "node --test apps/api/test/t10-b4-regression.test.mjs", "exitCode": 0},
+    {"command": "node --test apps/api/test/t10-saved-cases.test.mjs", "exitCode": 0},
+    {"command": "./node_modules/.bin/eslint packages/orchestrator/src/core.ts packages/orchestrator/src/regression-plan.ts apps/api/src/routes/savedCases.ts apps/api/test/t10-b4-regression.test.mjs", "exitCode": 0},
+    {"command": "./node_modules/.bin/prettier --check packages/orchestrator/src/core.ts packages/orchestrator/src/regression-plan.ts apps/api/src/routes/savedCases.ts apps/api/test/t10-b4-regression.test.mjs", "exitCode": 0}
+  ],
+  "coverage": [
+    "Two explicitly approved versions in one run; requested order proven by case.created event sequence",
+    "Full canonical source document and source version SHA plus canonical snapshot SHA persisted in run_cases and typed immutable binding table",
+    "Same-key identical retry returns same run; reordered source versions conflict",
+    "Forged frozen criteria and source/body/snapshot hashes rejected by Coordinator.start; forged original SHA rejected by binding SQL guard",
+    "Draft/cross-project source rejection; wrong-project, unknown, unapproved and wrong-SHA registry modules rejected",
+    "Approved legacy JSON.stringify source SHA survives JSONB reordering without rewriting; new snapshot hash is canonical hashPayload",
+    "Missing snapshot fallback still checks canonical source SHA, not an unchecked legacy bypass",
+    "Legal 64-character original criterion IDs produce stable 64-character scoped IDs; 65-character original IDs remain invalid",
+    "Unused declared criteria remain in case baseline and explicit unevaluatedCriterionIds",
+    "Registry module sibling reuse with distinct arguments yields distinct scoped IDs and resolved criterion descriptions",
+    "True registered A-B-A cycle, eight/nine module layer boundary and global static expansion cap",
+    "Frozen BASE_URL from environment version; current environment update cannot alter prior run environment, same-key changed config conflicts",
+    "Missing env variables, disallowed resolved origins and unresolved fixtureRefs reject admission",
+    "Real PG lease claim/work retrieval returns complete regressionPlan matching the frozen definition",
+    "Post-preflight regression tick schedules executors without explorer/planner; P0 smoke tick still schedules explorer",
+    "Run mode, case definition, module registry versions and binding snapshots resist mutation; privileged PG mutation tests verify triggers, not just RLS denial"
+  ],
+  "handoff": [
+    "Root to export packages/orchestrator/src/regression-plan.ts via index; API currently imports its dist file relatively until export is available",
+    "Root to update readiness and fixed migration-count assertions for 009_regression_bindings.sql",
+    "Worker should consume Work.regressionPlan.steps via B3B replay core; criterion IDs must come from createRegressionPlan, never independently regenerated",
+    "Worker must explicitly return not_evaluated for unevaluatedCriterionIds; unused declarations are not pass evidence",
+    "Root owns grant/record regressionSource propagation, actual browser replay and report persistence"
+  ],
+  "limitations": [
+    "No browser, worker process, worker-entry, real model or actual DSL tool execution started; PG scheduling/work retrieval is not a completed rerun",
+    "No runtime action/token/time budget or fencing tool execution end-to-end verification; only existing claim and work lease boundary used",
+    "env exposes only frozen BASE_URL; no server process.env access",
+    "Explicit/default auth profiles are rejected pending authentication execution integration; fixtureRefs remain fail closed",
+    "Unreferenced declarations retain original snapshot wording and explicit unverified semantics; only referenced criteria receive compiler-resolved execution associations",
+    "Expanded criteria retain existing canonical CaseDefinition limits; oversized baselines reject rather than truncate",
+    "Legacy source original SHA is proven against the immutable approved DB record; lost pre-JSONB serialization is not reconstructed or rehashed",
+    "Full P0/storage/orchestrator suites were not run in this stage; smoke scheduling branch and saved-case regression suite were verified"
+  ],
+  "resources": "Unique localqa-b4-* PostgreSQL containers with --volumes and exact mkdtemp directories removed in after hook; final name-filtered docker check returned no B4 containers. No broad /tmp deletion or git commands."
+}

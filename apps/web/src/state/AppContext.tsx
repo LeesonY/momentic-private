@@ -7,6 +7,9 @@ export type AppRoute =
   | 'workbench'
   | 'case-detail'
   | 'finding-detail'
+  | 'saved-cases'
+  | 'saved-case-detail'
+  | 'modules'
   | 'environments'
   | 'knowledge'
   | 'models'
@@ -20,6 +23,7 @@ interface AppContextValue {
   currentRoute: AppRoute;
   routeParams: Record<string, string>;
   isMock: boolean;
+  sessionLoading: boolean;
   setRoute: (route: AppRoute, params?: Record<string, string>) => void;
   setCurrentProject: (project: Project) => void;
   toggleMock: (enabled: boolean) => void;
@@ -36,6 +40,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(
     isUsingMock() ? mockCurrentUser : null,
   );
+  const [sessionLoading, setSessionLoading] = useState<boolean>(!isUsingMock());
   const [projects, setProjects] = useState<Project[]>(
     isUsingMock() ? [mockProject] : [],
   );
@@ -96,10 +101,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (err) {
         console.warn('Initial session fetch failed:', err);
+      } finally {
+        setSessionLoading(false);
       }
     }
     init();
   }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (
+        window as unknown as {
+          __LOCALQA_CURRENT_PROJECT__?: Project | null;
+        }
+      ).__LOCALQA_CURRENT_PROJECT__ = currentProject;
+    }
+  }, [currentProject]);
 
   const login = async (username: string, password = '') => {
     const res = await defaultApiClient.login({
@@ -138,6 +155,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         currentRoute,
         routeParams,
         isMock,
+        sessionLoading,
         setRoute,
         setCurrentProject,
         toggleMock: setUseMock,

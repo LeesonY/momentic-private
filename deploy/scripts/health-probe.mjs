@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, statSync, accessSync, constants } from 'node:fs';
+import { existsSync, accessSync, constants } from 'node:fs';
 import pg from '../../packages/storage/node_modules/pg/lib/index.js';
 import { SecretVault } from '../../packages/storage/dist/index.js';
 
@@ -40,9 +40,9 @@ async function probe() {
 
     // 2. Check Migrations
     const res = await client.query(
-      "SELECT count(*)::integer n FROM storage_migrations WHERE name IN ('001_core.sql','002_invariants.sql','003_access.sql','004_hardening.sql','005_project_default_model.sql','006_run_messages_redaction.sql')",
+      "SELECT count(*)::integer n FROM storage_migrations WHERE name IN ('001_core.sql','002_invariants.sql','003_access.sql','004_hardening.sql','005_project_default_model.sql','006_run_messages_redaction.sql','007_p1_saved_cases.sql','008_saved_case_review_previews.sql','009_regression_bindings.sql','010_regression_module_reviews.sql')",
     );
-    if (res.rows[0]?.n === 5) {
+    if (res.rows[0]?.n === 10) {
       checks.migrations = true;
     }
   } catch (err) {

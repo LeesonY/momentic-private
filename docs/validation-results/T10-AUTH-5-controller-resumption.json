@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-07T13:17:46.635734+00:00",
+  "event": "auth5_resumed_after_user_continuation",
+  "workspace": "wF",
+  "scope": "docs/validation-results/T10-AUTH-5-controller-scope.md",
+  "agentsObservedWorking": {
+    "wF:p2": 2396,
+    "wF:p4": 2397,
+    "wF:p3": 2398
+  },
+  "browserPaused": true,
+  "P0Passed": false,
+  "singleMonitorPid": 67723,
+  "secondMonitorStarted": false,
+  "independentAcceptancePending": true
+}

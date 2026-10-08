@@ -1,0 +1,282 @@
+{
+  "at": "2026-10-08T02:14:05.506160+00:00",
+  "workspace": "wF",
+  "rootIndependent": true,
+  "tests": {
+    "isolatedT06Api": {
+      "passed": 14,
+      "failed": 0,
+      "evidence": "T06-controller-independent-review.json"
+    },
+    "formatOriginalNegatives": {
+      "passed": 3,
+      "failed": 0,
+      "evidence": "G3F-R-format-independent-review.json"
+    },
+    "schemaDataNegativesAndPositives": {
+      "passed": 6,
+      "failed": 0,
+      "evidence": "G3F-R-schema-data-independent-review.json"
+    },
+    "affectedModelAndWorkerRegressions": {
+      "passed": 70,
+      "failed": 0,
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "packages/model-gateway/test/g3f-output-format.test.mjs",
+        "packages/model-gateway/test/g3d4-assert-complete.test.mjs",
+        "packages/model-gateway/test/g3e-image-assert.test.mjs",
+        "packages/orchestrator/test/g3c-bound-model.test.mjs",
+        "packages/orchestrator/test/g3d-process-model.test.mjs",
+        "apps/api/test/g3d-process-wiring.test.mjs",
+        "apps/api/test/g3d2-lease-ledger.test.mjs",
+        "apps/worker/test/t10-b5-fakebrowser.test.mjs"
+      ],
+      "log": "G3F-R-controller-regression.log"
+    }
+  },
+  "build": {
+    "modelGateway": true,
+    "typecheck": true,
+    "lint": true,
+    "diffCheck": true
+  },
+  "sourceSha256": {
+    "apps/api/test/api.test.mjs": "2deec0fae0c961f8bac7425f027b2f5e7d6da907bc75867f266b2bd9b5679b7b",
+    "apps/api/test/t06-fixture-wrapper.mjs": "aff800cc17043644950162f0c512ce21cd94f59c7db471d6bc1ff96b90035d26",
+    "packages/model-gateway/src/gateway.ts": "ff3d6508aa106294c3b1261cf8dec36cf44f11ebbc16aa159ea3bf87d74aa982",
+    "packages/model-gateway/dist/gateway.js": "a1a800069c6a704e4e3a39c449cf7d8d78e3b66acfc212f2a55da5f7700bf437",
+    "packages/model-gateway/test/g3f-output-format.test.mjs": "48cc8e7a8197067f3e9630a9e9bfc5009c8a98b66fdd3be7957ddd41140033da",
+    "packages/model-gateway/package.json": "ebeff712a79393882494470d5b857f14ec1a5d50f5a3104d07c481eeae6ecfbd",
+    "pnpm-lock.yaml": "f2efcaeb49319ff745b28098085cba1214740e4b52e6c89c50f4d55b5a305437",
+    "apps/worker/test/t10-b5-fakebrowser.test.mjs": "0566e1144e3bea2bab7063db1b9256ddcdb3734d046f75888aea63e22e4ed69e",
+    "packages/orchestrator/src/model.ts": "fddba4f59e0cf514669d5701133c140cfcdbfe5ec363de54dcdcae678baf5aaa",
+    "packages/orchestrator/src/core.ts": "914cff3973875971c1a6a9d199eddf0a85f363f81e7069dedc6f314a17057b57",
+    "apps/worker/src/index.ts": "72b724d3729f56d1187529085691e3d33efe1df7aec966ddf0d1a1c5fae2bcf3"
+  },
+  "scope": "Actual own PostgreSQL/API/frozen lease/budget ledger/Worker.once; injected local model responses and FakeBrowser observations. No browser or worker-entry process, no external model.",
+  "cleanup": {
+    "T06": "Exact owned containers/volumes absent, API/fixture PIDs exited, random ports closed, pg.env/kek.json removed; old T06 report SHA and 70 artifact SHAs unchanged.",
+    "regressionContainers": "No matching localqa-g3d4-pg-* or localqa-b5-* remains. Matching containers completed before resource audit; per-container IDs were not captured in this run. Existing volume 79e6b62585a476cb1d73128a4304fe0556d3526fda92d40302434fde82407472 remains.",
+    "retained": "Test evidence directories, all initial/failure/repair reports and repro scripts retained intentionally."
+  },
+  "notVerified": [
+    "Real supplier/model validation of the latest implementation",
+    "Real browser, UI and live regression workflow",
+    "Full P1 acceptance",
+    "Draft2020-only output schema semantics; existing draft07 behavior unchanged"
+  ],
+  "browserPaused": true,
+  "P0Passed": false,
+  "G3Passed": false,
+  "singleMonitorPid": 14113,
+  "secondMonitorStarted": false,
+  "agents": {
+    "pi": "Idle2572, same delivered AUTH9A result, no new output; full Root PG acceptance pending",
+    "agy": "Quota exhausted, user transferred work to pi; no active assignment",
+    "claude": "p4 unavailable_or_replaced owned=false; actual identity unconfirmed, no rebind or dispatch"
+  },
+  "currentContinuation": {
+    "workspace": "wF",
+    "moduleBackendAcceptance": "T10-modules-controller-api-acceptance.json",
+    "moduleUiAccepted": true,
+    "moduleUiCurrentChecks": {
+      "mockPublic": 6,
+      "scopeChecks": 8,
+      "offline": 39,
+      "build": "passed",
+      "lint": "passed",
+      "evidence": "T10-modules-controller-ui-acceptance.json",
+      "scope": "Local offline and static SSR; no browser/hydration"
+    },
+    "existingRegression": {
+      "initialJoint": {
+        "passed": 56,
+        "failed": 1,
+        "tests": 57
+      },
+      "cause": "obsolete fixture attempted app INSERT approved, correctly rejected by010",
+      "workerFixtureCorrectedAndRerun": {
+        "passed": 17,
+        "failed": 0
+      }
+    },
+    "inFlight": {
+      "pi": "Idle2572, same delivered AUTH9A result, no new output; full Root PG acceptance pending",
+      "agy": "Quota exhausted, user transferred work to pi; no active assignment",
+      "claude": "p4 unavailable_or_replaced owned=false; actual identity unconfirmed, no rebind or dispatch"
+    },
+    "browserPaused": true,
+    "P0Passed": false,
+    "singleMonitorPid": 14113,
+    "auth4A": {
+      "acceptedLocally": true,
+      "packageTests": 20,
+      "rootExportChecks": 5,
+      "evidence": "T10-AUTH-4A-controller-acceptance.json",
+      "fullAuthExecutionAccepted": false
+    },
+    "lifecycle": {
+      "backendAcceptedLocally": true,
+      "pgChecksAcrossSeparateRuns": 24,
+      "existingRegressionPassed": 45,
+      "apiEvidence": "T10-lifecycle-controller-api-acceptance.json",
+      "uiAccepted": false,
+      "uiMethodChecks": 10,
+      "uiPendingFailures": {},
+      "runtimeBrowserAccepted": false,
+      "fileOwnership": {
+        "agy": "SavedCase pages/modals and UI tests",
+        "grok": "lifecycleScope.ts and testLifecycleScopeOffline.mjs"
+      },
+      "uiAcceptedLocally": true,
+      "uiEvidence": "T10-lifecycle-controller-ui-acceptance.json",
+      "uiRootCallbackChecks": 7,
+      "uiOfflineChecks": 24
+    },
+    "auth4B": {
+      "readOnlyReviewed": true,
+      "fullAuthDesignFrozen": false,
+      "evidence": "T10-AUTH-4B-controller-design-review.json"
+    },
+    "acceptanceMatrix": "T10-current-acceptance-matrix.md",
+    "auth4C": {
+      "readonlyReviewed": true,
+      "fullDesignFrozen": false,
+      "evidence": "T10-AUTH-4C-controller-design-review.json",
+      "authImplementationAuthorized": true,
+      "authorizationScope": "AUTH-5 foundational scope only; historical readonly review retained"
+    },
+    "internalHttpActionResult": {
+      "acceptedLocally": true,
+      "pgHttpChecks": 18,
+      "runtimeRegression": 55,
+      "t06ApiRegression": 14,
+      "evidence": "docs/validation-results/T10-internal-action-controller-acceptance.json",
+      "fullAuthImplemented": false
+    },
+    "auth5": {
+      "scope": "docs/validation-results/T10-AUTH-5-controller-scope.md",
+      "foundationDesignFrozen": true,
+      "implementationAuthorized": true,
+      "agentsWorking": {
+        "wF:p2": 2396,
+        "wF:p4": 2397,
+        "wF:p3": 2398
+      },
+      "accepted": false,
+      "browserPaused": true,
+      "inputBoundaryAcceptedLocally": true,
+      "inputEvidence": "T10-AUTH5-input-controller-acceptance.json",
+      "privatePortInitialRootFailures": 4,
+      "foundationsAcceptedLocally": true,
+      "evidence": "T10-AUTH5-controller-acceptance.json",
+      "fullAuthImplemented": false
+    },
+    "auth6": {
+      "scope": "T10-AUTH-6-controller-scope.md",
+      "implementationActive": true,
+      "accepted": false,
+      "initialLedgerAcceptance": {
+        "accepted": false,
+        "passed": 6,
+        "failed": 9,
+        "repairActive": true,
+        "evidence": "T10-AUTH6-actions-controller-review.json"
+      },
+      "acceptedLocally": true,
+      "evidence": "T10-AUTH6-controller-acceptance.json",
+      "pgPassed": 18,
+      "realApiClientPassed": 17,
+      "legacyRegressionPassed": 55
+    },
+    "agentReplacement": {
+      "from": "grok",
+      "to": "claude",
+      "pane": "wF:p4",
+      "userAuthorized": true,
+      "handoffComplete": true
+    },
+    "realApiNodeClient": {
+      "acceptedLocally": true,
+      "passed": 15,
+      "evidence": "T10-real-api-node-controller-acceptance.json",
+      "browserAccepted": false
+    },
+    "agyTasksTransferredToPi": {
+      "userAuthorized": true,
+      "evidence": "T10-agy-to-pi-handoff.json",
+      "observedWorkingSeq": 2531
+    },
+    "clarificationProvide": {
+      "acceptedLocally": true,
+      "passed": 16,
+      "t06Passed": 14,
+      "evidence": "T10-clarification-controller-acceptance.json"
+    },
+    "auth7": {
+      "scope": "T10-AUTH-7-controller-scope.md",
+      "active": true,
+      "accepted": false
+    }
+  },
+  "historicalValidationAt": "2026-10-06T01:17:47.111985+00:00",
+  "previousMonitorPid": 67723,
+  "currentAccess": {
+    "herdr": true,
+    "docker": true,
+    "sandbox": "danger-full-access",
+    "approval": "never"
+  },
+  "overallComplete": false,
+  "pi": "Idle2572, same delivered AUTH9A result, no new output; full Root PG acceptance pending",
+  "claude": "p4 unavailable_or_replaced owned=false; actual identity unconfirmed, no rebind or dispatch",
+  "root": "AUTH9B local importer implemented; new9 and affected46 pure checks, build/types/lint passed; real PG/main entry still pending",
+  "auth7Current": {
+    "acceptedLocally": true,
+    "evidence": "T10-AUTH8-controller-acceptance.json",
+    "initialRootFailureEvidence": "T10-AUTH7-STATE-ROOT-1369e344-aa12-4319-bf29-49caa3326d75.json",
+    "scope": "Private capture/finish backend only; full auth incomplete"
+  },
+  "auth8Current": {
+    "rootPg": {
+      "passed": 37,
+      "failed": 0,
+      "evidence": "T10-AUTH8-controller-acceptance.json"
+    },
+    "backendAcceptedLocally": true,
+    "fullAuthAccepted": false,
+    "piQuotaBlocked": false,
+    "claude": "AUTH8C active2552: strict fresh-snapshot handshake + real finish Runtime adapter; no browser/Worker.once",
+    "regression": {
+      "passed": 91,
+      "failed": 0,
+      "log": "T10-AUTH8-controller-ledger-regression.log"
+    }
+  },
+  "auth8CReview": "T10-AUTH8C-controller-review.json",
+  "currentPermissionsBlock": {
+    "herdrCli": true,
+    "docker": true,
+    "nativeTerminalUi": true,
+    "localNodeStillAvailable": true
+  },
+  "auth9Current": {
+    "report": "T10-AUTH9-controller-progress.json",
+    "acceptedLocally": false,
+    "rootCryptoChecks": 10,
+    "piPgChecks": 20,
+    "workerTaskReady": "T10-AUTH-9B-controller-ready.md",
+    "workerTaskDispatched": false
+  },
+  "apiPolicyFix": "T10-AUTH9-policy-error-controller-acceptance.json",
+  "auth9BCurrent": {
+    "acceptedLocally": true,
+    "report": "T10-AUTH9B-controller-acceptance.json",
+    "fullAuthAccepted": false,
+    "implementedBy": "Root"
+  },
+  "p4IdentityReview": "T10-controller-p4-unavailable-review.json"
+}

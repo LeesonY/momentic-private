@@ -1,0 +1,109 @@
+{
+  "title": "G3-D4 assert 规范化判定（独立 Postgres 与纯 gateway，本地 Response，不是 G3/P0 放行）",
+  "date": "2026-10-05",
+  "task": "G3-D4",
+  "claims": {
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalledThisRound": false,
+    "playwrightLaunched": false,
+    "workerEntryExecuted": false,
+    "workerImageRebuilt": false,
+    "egoUsed": false,
+    "contractFieldAdded": false
+  },
+  "rule": {
+    "source": "复用 assessCriterionOutput 与 canonical CriterionResult。purpose=assert 的对外 data 必须是该评估的 CriterionResult。provider 原文只留在脱敏诊断，不能把 evidenceRefs 为空或未知引用时的 raw passed 交给调用方。完整冻结 Criterion 来自当前租约的已冻结 RunCase，不从 messages 取 expectedValue。knownEvidenceIds 是当前 task 的 artifact id。",
+    "implementation": "loadFrozen 对命中的准则只保留 id、kind、description、sourceKind、sourceRef，以及存在时的 locator、expectedValue，再用 Criterion 校验；缺必填则为 NOT_FOUND。gateway.complete 把这份准则和 bound.evidence 传入同一次校验。purpose=assert 且准则通过 Criterion 校验时，在输入预算失败返回之前追加 user 消息 frozenCriterion 加该对象的 JSON。messages 原样转发，不从中解析预期。无 errorCode 且已有 provider data 时，对外 ModelResult.data 改为 CriterionResult：criterionId、assessment.criterionResult、reasonCode、acceptedEvidenceRefs。CriterionResult 校验失败则 data 置空、errorCode VALIDATION_ERROR、requestResult malformed，不回退 raw。rawOutput 仍是脱敏后的 provider 文本。visual 且 imageInput 为 false 仍在发送前返回 MODEL_CAPABILITY_MISSING。",
+    "contract": "未改 shared contracts，也未新增字段。Criterion 与 CriterionResult 已存在，ModelResult.data 已是 JsonValue。无需 Root 补字段。",
+    "statuses": "空引用或未知引用：provider 已调用，HTTP 200，errorCode null，data.result 为 not_evaluated，evidenceRefs 为空。当前 task 拥有的 uuid 可以是 passed，evidenceRefs 只含该 id。visual 缺图片能力：HTTP 500 MODEL_CAPABILITY_MISSING，provider 0，账本 0。原 22 项的 422/404/403/409/500 与零调用断言未改。"
+  },
+  "preserved": {
+    "docs/validation-results/G3-model-minimal.json": "1ed2904b1beda6d68494cd5db37be8d2758aa69a9e5605d0be066e25baa14469",
+    "docs/validation-results/G3A-model-gateway.json": "82e8e300c1c37c9a5aa4de5a92c5e94e09fbbb128d14f5e058fa86f5bc3f70ae",
+    "docs/validation-results/G3A-independent-review.json": "4e3a79b0111876b179a96c43352f005dee386c51951028a8784e34375da23cca",
+    "docs/validation-results/G3A-independent-T04.json": "9012324e7b33dccf506aa2321dd75e878af52f8b2308160c82815fb7371386ca",
+    "docs/validation-results/G3B-model-gateway.json": "0b067a0d44fbc54e3e868daed4440c09274c4390136836607973448d55bcc029",
+    "docs/validation-results/G3B-independent-review.json": "ea652e5d4ad7bd48421e47fc4e2b6aeea3fa4c1bd941214ce09ef3f2fdba8837",
+    "docs/validation-results/G3B-independent-T04.json": "db73444cd113aaab6889d4673faf66451f213d111242e2fa103955fab984203e",
+    "docs/validation-results/G3B-agent-T04-snapshot.json": "db73444cd113aaab6889d4673faf66451f213d111242e2fa103955fab984203e",
+    "docs/validation-results/G3C-contract-increment.json": "afc7b6083c0a68ebfa82495bce29f6f74c7a519512e5e27b4905f93d15d71851",
+    "docs/validation-results/G3C-model-wiring.json": "8bdb093e241573513b8415d042ff484c5fd8dfa68d836e5722c0cb40e3fb512c",
+    "docs/validation-results/G3D-process-wiring.json": "0efc3e164061b42faa71b83ba59109e7435093e8a2dcd4b692f81ea00e4994e1",
+    "docs/validation-results/G3D2-lease-ledger.json": "25d7a2fc909e1bded6264d60444c1a88d1e6c03ed1fc926a3a3b24524b19b6cb",
+    "docs/validation-results/G3D3-frozen-criterion.json": "2ddb5762f748af5aa4589485c11cf4069e0839e94e1abecd5ba96d946d9eb42d",
+    "docs/validation-results/T04-model.json": "f7def1515e0ed949cbe3fd3bb06d266e3c11e81f4e7ab18f46a580e85ba839e1",
+    "note": "本轮没有改这些文件，没有重放真实样本，没有跑 verify.mjs、api.test.mjs、probe-live 或 worker-entry。T06-api.json 本轮未写，当前全文哈希是 e39fec2893260a68a039538b8f009465a703d0c03fd24a6ed58179dc7e70f95d。G3-D3 证据仍描述当时的 {id,kind} 冻结，本文件不改写它。"
+  },
+  "host": {
+    "node": "v26.3.0",
+    "platform": "darwin",
+    "node24Image": "node:24-bookworm-slim",
+    "node24Version": "v24.21.0",
+    "node24Network": "none",
+    "postgresImage": "postgres:18-alpine"
+  },
+  "red": {
+    "meaning": "产品源码仍是 G3-D3。新反例先对当前 dist 运行，失败后再改 gateway 与 model。传输是注入的本地 Response。",
+    "gateway": {
+      "duration_ms": 124.005875,
+      "result": "4 项里 1 通过、3 失败。visual 且 imageInput 为 false 已是 provider 0、MODEL_CAPABILITY_MISSING。",
+      "emptyRefs": "requestResult 已是 inconclusive，对外 data.result 仍是 passed，断言停在 not_evaluated。",
+      "unknownRef": "对外 data.result 仍是 passed，断言停在 not_evaluated。",
+      "ownedRef": "对外 reason 仍是 provider claims pass，不是 OBSERVED。"
+    },
+    "postgres": {
+      "container": "localqa-g3d4-pg-119f1640",
+      "port": 32880,
+      "duration_ms": 9948.533166,
+      "result": "27 项里 23 通过、4 失败。通过含原 22 项，以及 visual 缺能力。",
+      "emptyAndUnknown": "G3D4-MISS 与 G3D4-FAKE 的 HTTP data.result 是 passed，期望 not_evaluated。",
+      "owned": "G3D4-OWNED 的 HTTP data.reason 是 provider claims pass，期望 OBSERVED。",
+      "storedValue": "G3D4-VALUE 的发出文本不含 expectedValue stored-green。断言停在这里，尚未检查对外 result。"
+    }
+  },
+  "green": {
+    "gateway": {
+      "duration_ms": 149.693833,
+      "tests": "4/4",
+      "emptyRefs": "provider 1。requestResult inconclusive，reasonCode NO_OBSERVATION_REF，errorCode null。对外 result not_evaluated，reason NO_OBSERVATION_REF，evidenceRefs 空，criterionId case.semantic。对外 JSON 不含 provider claims pass。rawOutput 仍含 passed。发出文本含存储的 description、sourceKind user_spec、sourceRef g3d4-fixture、expectedValue stored-green，不含 JSON 形式的 expectedValue message-blue。",
+      "unknownRef": "requestResult fake_evidence，reasonCode FAKE_EVIDENCE，errorCode null。对外 result not_evaluated，evidenceRefs 空，不含未知 uuid，不含 provider claims pass。",
+      "ownedRef": "requestResult passed，reasonCode OBSERVED。对外 result passed，reason OBSERVED，evidenceRefs 仅含当前已知 uuid。rawOutput 仍含 passed。对外 JSON 不含 provider claims pass。",
+      "visual": "providerCalls 0，errorCode MODEL_CAPABILITY_MISSING，requestResult capability_missing。对外 result 不是 passed。"
+    },
+    "postgres": {
+      "container": "localqa-g3d4-pg-3ca93a5a",
+      "port": 32883,
+      "bind": "127.0.0.1 random port, not 5432 or 8085",
+      "duration_ms": 9927.558625,
+      "tests": "27/27",
+      "prior22": "原 22 项仍通过：5 个租约拒绝 HTTP 409 LEASE_EXPIRED；modelCalls 与 totalTokens 用尽 HTTP 500 BUDGET_EXCEEDED，provider 0，两类账本行 0。合法 decide 仍结算 reported totalTokens 15，绑定 version 2 而不是最新 version 3。供应商 HTTP 400 仍是 API 422，账本 settled 且 usageSource estimated。并发仍是状态 200 与 500、provider 1、used.modelCalls 1。未 grant 的 BoundModel.call 仍是 NOT_FOUND、provider 0、账本 0。缺 criterionId 422，未知、另一 case、另一项目、未冻结 404，decide 带 criterionId 422，非 executor assert 403，错误 profile 409。以上拒绝项 provider 0，账本 0。B4 额外字段仍是 422，provider 0，账本 0。存储的 regression 绑定仍不进入 body，也不跳过预算。",
+      "existingAssert": "provider 仍返回 {ok:true}，输出 schema 仍是 {ok:boolean}。HTTP 200 的 data 现在是 CriterionResult：criterionId 为当前冻结 id，result not_evaluated，reason CRITERION_MISMATCH，evidenceRefs 空，没有 ok。这是同一评估，不是放宽。provider 1，model g3d2-model-v1，json_schema，没有 tools。版本 2 凭据匹配为 true，版本 3 为 false。发出文本含完整存储准则的 id、kind semantic、description、sourceKind user_spec、sourceRef g3d3-fixture，也含原样转发的 decoy，不含另一 case、另一项目和 smoke.visible。账本一条 settled，role assertion，profileVersion 2，totalTokens 15。账本与发出文本都不含凭据值。",
+      "missingRefs": "G3D4-MISS：provider 返回正确 criterionId、result passed、evidenceRefs 空。HTTP 200，data.result not_evaluated，reason NO_OBSERVATION_REF，evidenceRefs 空，不含 provider claims pass。provider 1，账本 settled。",
+      "unknownRefs": "G3D4-FAKE：provider 的 evidenceRefs 含一个不属于当前 task 的 uuid。HTTP 200，data.result not_evaluated，reason FAKE_EVIDENCE，evidenceRefs 空，对外 JSON 不含该 uuid。provider 1，账本 settled。",
+      "ownedRefs": "只给 G3D4-OWNED 的当前 task 插入一条 artifact。HTTP 200，data.result passed，reason OBSERVED，evidenceRefs 仅含该 uuid。发出文本含冻结 id 与 sourceRef g3d3-fixture。provider 1，账本 settled，role assertion。",
+      "storedValue": "消息文本是 expectedValue=message-blue。存储准则的 expectedValue 是 stored-green，并带 description、sourceKind、sourceRef 与 locator。发出文本含这些存储字段，不含 JSON 形式的 expectedValue message-blue。因为引用仍为空，对外 result 是 not_evaluated，reason NO_OBSERVATION_REF。provider 1，账本 settled。",
+      "visual": "冻结 kind 为 visual，profile imageInput 为 false。HTTP 500，code MODEL_CAPABILITY_MISSING，provider 0，budget_reservations 0，model_requests 0。响应不是文字 passed。"
+    }
+  },
+  "otherTests": {
+    "host14": "g3c-model-wiring、g3d-process-wiring、g3c-bound-model、g3d-process-model 共 14/14，duration_ms 794.098542。原有 422、调用次数、json_object、无 tools、model id、409、预算、超时和凭据隔离断言都保留。假查询中的冻结准则补齐了 description、sourceKind、sourceRef，发出 body 含这些存储字段且不含 smoke.visible。",
+    "node24": "上述 14 项加 4 项纯 gateway 反例，在 node:24-bookworm-slim、--network none 上 18/18，duration_ms 827.366703。镜像内 node -v 为 v24.21.0。Postgres fixture 没有放进该镜像。"
+  },
+  "source": {
+    "gatewaySha256": "2671c3ba6d938c839190e188ea0cd98f1d9700c95cc0cd6d5bcb5a8746d73d99",
+    "modelSha256": "ac8993c4f805d76f0f9db327394827227a4fa6368466a5d0c86cc032787dfa61",
+    "edited": "packages/model-gateway/src/gateway.ts；packages/orchestrator/src/model.ts；packages/model-gateway/test/g3d4-assert-complete.test.mjs；apps/api/test/g3d2-lease-ledger.test.mjs；apps/api/test/g3d-process-wiring.test.mjs；本证据文件。dist 已按这三处源码重建。",
+    "notEdited": "contracts、生成器、core.ts、runtime.ts、repositories.ts、index.ts、internal.ts、迁移、web、worker 源码未改。complete() 仍不传 maxInputTokens。",
+    "notNormalized": "BoundModel.call 的 assertion 仍走 evaluateCriterion。该 CallRecord.data 仍是通过 outputSchema 的 provider 对象，判定在 assessment。HTTP complete 的 ModelResult.data 才换成 CriterionResult。本轮没有改 worker 这条返回。"
+  },
+  "unverified": [
+    "真实供应商、付费模型、probe-live",
+    "worker-entry 进程与 localqa-*:latest 重建",
+    "抓包证明零出站；结论来自注入的 Response、假端点，以及 node:24 使用 --network none",
+    "verify.mjs 与 T04 计数",
+    "worker evaluateCriterion 的 data 字段规范化",
+    "Playwright、浏览器、Ego"
+  ],
+  "secretScan": false
+}

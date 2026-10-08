@@ -1,0 +1,40 @@
+{
+  "rootIndependent": true,
+  "results": [
+    {
+      "name": "infinite",
+      "expected": "reject",
+      "accepted": false,
+      "errorCode": "VALIDATION_ERROR",
+      "passed": true
+    },
+    {
+      "name": "nan",
+      "expected": "reject",
+      "accepted": false,
+      "errorCode": "VALIDATION_ERROR",
+      "passed": true
+    },
+    {
+      "name": "non-core binary",
+      "expected": "reject",
+      "accepted": false,
+      "errorCode": "VALIDATION_ERROR",
+      "passed": true
+    },
+    {
+      "name": "over-depth export must roundtrip or reject export",
+      "passed": false,
+      "exportRejected": false,
+      "importRejected": true,
+      "errorCode": "VALIDATION_ERROR"
+    },
+    {
+      "name": "valid quoted/literal ampersand and star Chinese document",
+      "passed": true
+    }
+  ],
+  "scope": "Actual built parser and serializer, no PG/browser/provider",
+  "P0Passed": false,
+  "auditNote": "The first over-depth variables object is invalid under RegressionDocument scalar variables. Its failure is NOT a product bug. The valid deep criterion expectedValue counterexample is independently recorded in T10-yaml-valid-source-roundtrip-pre-fix.json and has now been fixed."
+}

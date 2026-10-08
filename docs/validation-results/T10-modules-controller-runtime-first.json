@@ -1,0 +1,8 @@
+{
+  "fixtureFile": "apps/api/test/.root-modules-121f0a72.mjs",
+  "sourceSha256": "c525731dcca296179eedbbae2827907cacb3579b950696bde368eb940c4ed87b",
+  "createdFor": "Root independent PG/API rerun; module agent fixture unchanged",
+  "P0Passed": false,
+  "exitCode": 1,
+  "rootFixtureFileRemoved": true
+}

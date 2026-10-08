@@ -1,21 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import type { CaseRecord, Step, CaseAttempt } from '@localqa/contracts';
+import type { CaseRecord, Step, CaseAttempt, Run } from '@localqa/contracts';
 import { useAppContext } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
 import { AppHeader } from '../components/layout/AppHeader.tsx';
 import { StatusBadge } from '../components/ui/Badge.tsx';
 import { ErrorCard } from '../components/ui/ErrorCard.tsx';
+import { SaveToLibraryModal } from '../components/saved-cases/SaveToLibraryModal.tsx';
+import { getRegressionProvenanceStatus } from '../utils/provenance.ts';
 
 export const CaseDetailPage: React.FC = () => {
-  const { routeParams, setRoute } = useAppContext();
+  const { routeParams, setRoute, currentProject } = useAppContext();
   const caseId = routeParams.caseId;
   const runId = routeParams.runId;
 
   const [caseRecord, setCaseRecord] = useState<CaseRecord | null>(null);
   const [steps, setSteps] = useState<Step[]>([]);
   const [attempts, setAttempts] = useState<CaseAttempt[]>([]);
+  const [run, setRun] = useState<Run | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
 
   useEffect(() => {
     if (!caseId) return;
@@ -28,12 +32,16 @@ export const CaseDetailPage: React.FC = () => {
       defaultApiClient.getCase(caseId),
       defaultApiClient.listTaskSteps(caseId).catch(() => ({ items: [] })),
       defaultApiClient.listCaseAttempts(caseId).catch(() => ({ items: [] })),
+      runId
+        ? defaultApiClient.getRun(runId).catch(() => null)
+        : Promise.resolve(null),
     ])
-      .then(([c, st, att]) => {
+      .then(([c, st, att, r]) => {
         if (!mounted) return;
         setCaseRecord(c);
         setSteps(st.items);
         setAttempts(att.items);
+        setRun(r);
       })
       .catch((err) => {
         if (!mounted) return;
@@ -46,7 +54,7 @@ export const CaseDetailPage: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [caseId]);
+  }, [caseId, runId]);
 
   if (loading) {
     return (
@@ -89,6 +97,13 @@ export const CaseDetailPage: React.FC = () => {
     );
   }
 
+  const isNotRun = caseRecord.outcome === 'not_run' || !caseRecord.verdict;
+  const verdictStatus = caseRecord.verdict ? caseRecord.verdict.status : null;
+  const isRegressionCase =
+    !!caseRecord.definition.regression || run?.executionMode === 'regression';
+  const regression = caseRecord.definition.regression;
+  const provenanceStatus = getRegressionProvenanceStatus(regression);
+
   return (
     <div className="app-container" data-testid="case-detail-page">
       <AppHeader />
@@ -122,18 +137,49 @@ export const CaseDetailPage: React.FC = () => {
               >
                 用例编号: <code>{caseRecord.definition.id}</code>
               </span>
-              <StatusBadge status={caseRecord.outcome} />
-              <span className="badge badge-neutral">
-                来源:{' '}
-                {caseRecord.definition.criteria[0]?.sourceKind ||
-                  'generic_smoke'}
+              {isNotRun ? (
+                <StatusBadge status="not_run" label="未执行 (Not Run)" />
+              ) : (
+                <StatusBadge status={verdictStatus!} />
+              )}
+              {isRegressionCase ? (
+                <span
+                  className="badge badge-primary"
+                  data-testid="badge-case-type"
+                >
+                  回归用例 (Regression)
+                </span>
+              ) : (
+                <span
+                  className="badge badge-neutral"
+                  data-testid="badge-case-type"
+                >
+                  冒烟用例 (Smoke)
+                </span>
+              )}
+              {isNotRun && (
+                <span
+                  className="badge badge-neutral"
+                  data-testid="notice-replay-state"
+                >
+                  排队中 / 未执行 (非已完成回放)
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => setSaveModalOpen(true)}
+                data-testid="btn-save-to-library"
+              >
+                💾 保存到用例库
+              </button>
+              <span
+                style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}
+              >
+                执行尝试次数: <strong>{attempts.length}</strong>
               </span>
             </div>
-            <span
-              style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}
-            >
-              执行尝试次数: <strong>{attempts.length || 1}</strong>
-            </span>
           </div>
 
           <h2
@@ -158,7 +204,13 @@ export const CaseDetailPage: React.FC = () => {
               padding: '12px 16px',
               backgroundColor: 'var(--color-bg-subtle)',
               borderRadius: 'var(--radius-md)',
-              borderLeft: '4px solid var(--color-primary)',
+              borderLeft: `4px solid ${
+                verdictStatus === 'passed'
+                  ? 'var(--color-success)'
+                  : isNotRun
+                    ? 'var(--color-border)'
+                    : 'var(--color-warning)'
+              }`,
             }}
           >
             <div
@@ -176,11 +228,276 @@ export const CaseDetailPage: React.FC = () => {
                 color: 'var(--color-text-main)',
                 marginTop: '4px',
               }}
+              data-testid="verdict-summary-text"
             >
-              {caseRecord.verdict?.summary || '尚未生成终态裁决总结'}
+              {caseRecord.verdict?.summary ||
+                '尚未生成终态裁决总结 (用例处于未执行/排队状态)'}
             </div>
           </div>
         </div>
+
+        {/* Auditable Regression Provenance Card (when regression case) */}
+        {isRegressionCase && (
+          <div
+            className="card"
+            style={{ marginBottom: '20px' }}
+            data-testid="regression-provenance-card"
+          >
+            <div
+              className="card-header"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <h3 className="card-title">
+                  冻结基线版本与用例库来源说明 (Frozen Baseline & Provenance)
+                </h3>
+                <div
+                  style={{
+                    fontSize: '0.75rem',
+                    color: 'var(--color-text-subtle)',
+                    marginTop: '2px',
+                  }}
+                >
+                  注:
+                  来源说明仅表明基线绑定与契约规范合规性，未验证状态不代表用例判定裁决
+                  (Verdict)
+                </div>
+              </div>
+              <span
+                className={`badge badge-${provenanceStatus.badgeVariant}`}
+                data-testid={
+                  provenanceStatus.isComplete
+                    ? 'badge-provenance-complete'
+                    : 'badge-provenance-unverified'
+                }
+              >
+                {provenanceStatus.statusLabel}
+              </span>
+            </div>
+
+            {regression ? (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}
+              >
+                {!provenanceStatus.isComplete &&
+                  provenanceStatus.missingFields.length > 0 && (
+                    <div
+                      style={{
+                        padding: '10px 14px',
+                        backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                        border: '1px solid var(--color-danger, #ef4444)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.8rem',
+                        color: 'var(--color-danger, #ef4444)',
+                      }}
+                      data-testid="provenance-validation-errors"
+                    >
+                      <strong>⚠️ 来源信息未通过规范校验 (未验证):</strong>
+                      <ul style={{ margin: '4px 0 0 18px', padding: 0 }}>
+                        {provenanceStatus.missingFields.map((err, idx) => (
+                          <li key={idx}>{err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                    gap: '12px',
+                    backgroundColor: 'var(--color-bg-subtle)',
+                    padding: '14px',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        color: 'var(--color-text-muted)',
+                        fontSize: '0.75rem',
+                        marginBottom: '2px',
+                      }}
+                    >
+                      源用例版本 ID (Source Version ID):
+                    </div>
+                    {regression.sourceVersionId ? (
+                      <code data-testid="provenance-source-version">
+                        {regression.sourceVersionId}
+                      </code>
+                    ) : (
+                      <span
+                        className="badge badge-danger"
+                        data-testid="provenance-source-version-missing"
+                      >
+                        未验证
+                      </span>
+                    )}
+                  </div>
+
+                  <div>
+                    <div
+                      style={{
+                        color: 'var(--color-text-muted)',
+                        fontSize: '0.75rem',
+                        marginBottom: '2px',
+                      }}
+                    >
+                      原文档 SHA-256 (Source Document SHA):
+                    </div>
+                    {regression.sourceDocumentSha256 ? (
+                      <code data-testid="provenance-source-sha">
+                        {regression.sourceDocumentSha256}
+                      </code>
+                    ) : (
+                      <span
+                        className="badge badge-danger"
+                        data-testid="provenance-source-sha-missing"
+                      >
+                        未验证
+                      </span>
+                    )}
+                  </div>
+
+                  <div>
+                    <div
+                      style={{
+                        color: 'var(--color-text-muted)',
+                        fontSize: '0.75rem',
+                        marginBottom: '2px',
+                      }}
+                    >
+                      快照文档 SHA-256 (Snapshot SHA):
+                    </div>
+                    {regression.snapshotDocumentSha256 ? (
+                      <code data-testid="provenance-snapshot-sha">
+                        {regression.snapshotDocumentSha256}
+                      </code>
+                    ) : (
+                      <span
+                        style={{ color: 'var(--color-text-muted)' }}
+                        data-testid="provenance-snapshot-sha-empty"
+                      >
+                        未生成快照 (可选)
+                      </span>
+                    )}
+                  </div>
+
+                  <div>
+                    <div
+                      style={{
+                        color: 'var(--color-text-muted)',
+                        fontSize: '0.75rem',
+                        marginBottom: '2px',
+                      }}
+                    >
+                      契约 Schema 版本 (Schema Version):
+                    </div>
+                    {regression.document?.schemaVersion ? (
+                      <span data-testid="provenance-schema-version">
+                        v{regression.document.schemaVersion} (
+                        {regression.document.kind || 'localqa/test'})
+                      </span>
+                    ) : (
+                      <span
+                        className="badge badge-warning"
+                        data-testid="provenance-schema-version-missing"
+                      >
+                        未验证
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Module Snapshots */}
+                <div style={{ marginTop: '4px' }}>
+                  <h4
+                    style={{
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      marginBottom: '6px',
+                    }}
+                  >
+                    模块版本快照清单 (Module Snapshots:{' '}
+                    {regression.moduleSnapshots?.length ?? 0})
+                  </h4>
+                  {regression.moduleSnapshots &&
+                  regression.moduleSnapshots.length > 0 ? (
+                    <div className="table-container">
+                      <table
+                        className="data-table"
+                        data-testid="module-snapshots-table"
+                      >
+                        <thead>
+                          <tr>
+                            <th>模块名称</th>
+                            <th style={{ width: '80px' }}>版本</th>
+                            <th>SHA-256 审计指纹</th>
+                            <th style={{ width: '100px' }}>审查状态</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {regression.moduleSnapshots.map((m, idx) => (
+                            <tr
+                              key={idx}
+                              data-testid={`module-snapshot-row-${idx}`}
+                            >
+                              <td>
+                                <strong>{m.name}</strong>
+                              </td>
+                              <td>v{m.version}</td>
+                              <td>
+                                <code>{m.sha256}</code>
+                              </td>
+                              <td>
+                                <StatusBadge
+                                  status={m.reviewStatus}
+                                  size="sm"
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : regression.moduleSnapshots ? (
+                    <div
+                      style={{
+                        fontSize: '0.8rem',
+                        color: 'var(--color-text-muted)',
+                        padding: '6px 10px',
+                        backgroundColor: 'var(--color-bg-subtle)',
+                        borderRadius: 'var(--radius-sm)',
+                      }}
+                    >
+                      无外部模块引用 (该用例为纯内联步骤回放)
+                    </div>
+                  ) : (
+                    <div
+                      className="badge badge-danger"
+                      data-testid="module-snapshots-missing"
+                    >
+                      模块快照数据缺失 (未验证)
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <ErrorCard
+                type="missing_evidence"
+                message="当前运行模式为回归运行 (regression)，但该用例未关联已审查批准的冻结基线版本与用例库来源，来源信息未验证。"
+              />
+            )}
+          </div>
+        )}
 
         {/* Acceptance Criteria Table */}
         <div className="card" style={{ marginBottom: '20px' }}>
@@ -205,6 +522,11 @@ export const CaseDetailPage: React.FC = () => {
                   const result = caseRecord.verdict?.criterionResults.find(
                     (r) => r.criterionId === cr.id,
                   );
+                  const criterionStatus = caseRecord.verdict
+                    ? result?.result || 'not_evaluated'
+                    : caseRecord.outcome === 'not_run'
+                      ? 'not_run'
+                      : 'not_evaluated';
                   return (
                     <tr key={cr.id}>
                       <td>
@@ -217,10 +539,7 @@ export const CaseDetailPage: React.FC = () => {
                         </span>
                       </td>
                       <td>
-                        <StatusBadge
-                          status={result?.result || caseRecord.outcome}
-                          size="sm"
-                        />
+                        <StatusBadge status={criterionStatus} size="sm" />
                       </td>
                     </tr>
                   );
@@ -239,69 +558,157 @@ export const CaseDetailPage: React.FC = () => {
             <span
               style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}
             >
-              真实 Chromium 操作回放
+              {isNotRun || steps.length === 0
+                ? '尚未执行回放 (排队中 / 未执行)'
+                : `执行回放轨迹 (共 ${steps.length} 步)`}
             </span>
           </div>
 
           <div
             style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
           >
-            {steps.map((st) => (
+            {steps.length === 0 ? (
               <div
-                key={st.id}
                 style={{
-                  border: '1px solid var(--color-border-subtle)',
+                  padding: '24px',
+                  textAlign: 'center',
+                  color: 'var(--color-text-muted)',
+                  fontSize: '0.85rem',
+                  backgroundColor: 'var(--color-bg-subtle)',
                   borderRadius: 'var(--radius-md)',
-                  padding: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
                 }}
-                data-testid={`step-row-${st.seq}`}
+                data-testid="no-steps-placeholder"
               >
-                <div>
+                {isNotRun
+                  ? '该用例目前处于排队/未执行状态，等待 Worker 节点领取并执行回放。'
+                  : '该用例未记录任何步骤动作。'}
+              </div>
+            ) : (
+              steps.map((st) => (
+                <div
+                  key={st.id}
+                  style={{
+                    border: '1px solid var(--color-border-subtle)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                  }}
+                  data-testid={`step-row-${st.seq}`}
+                >
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '8px',
-                      marginBottom: '4px',
+                      justifyContent: 'space-between',
                     }}
                   >
-                    <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>
-                      步骤 #{st.seq}
-                    </span>
-                    <span className="badge badge-info">{st.toolName}</span>
-                    <StatusBadge status={st.status} size="sm" />
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '0.85rem',
-                      color: 'var(--color-text-main)',
-                    }}
-                  >
-                    目标: <code>{st.targetDescription}</code>
-                  </div>
-                </div>
+                    <div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                          步骤 #{st.seq}
+                        </span>
+                        <span className="badge badge-info">{st.toolName}</span>
+                        <StatusBadge status={st.status} size="sm" />
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '0.85rem',
+                          color: 'var(--color-text-main)',
+                        }}
+                      >
+                        目标: <code>{st.targetDescription}</code>
+                      </div>
+                    </div>
 
-                {st.evidenceRefs && st.evidenceRefs.length > 0 && (
-                  <div>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={() =>
-                        alert(`查看证据材料: ${st.evidenceRefs.join(', ')}`)
-                      }
-                      data-testid={`btn-view-evidence-${st.seq}`}
-                    >
-                      查看截图 🖼️
-                    </button>
+                    {st.evidenceRefs && st.evidenceRefs.length > 0 && (
+                      <div>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() =>
+                            alert(`查看证据材料: ${st.evidenceRefs.join(', ')}`)
+                          }
+                          data-testid={`btn-view-evidence-${st.seq}`}
+                        >
+                          查看截图 🖼️
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
+
+                  {/* Step Regression Source */}
+                  {st.regressionSource ? (
+                    <div
+                      style={{
+                        padding: '6px 10px',
+                        backgroundColor: 'var(--color-bg-subtle)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.75rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '2px',
+                      }}
+                      data-testid={`step-provenance-${st.seq}`}
+                    >
+                      <div>
+                        <strong>步骤出处:</strong> 原文档{' '}
+                        <code>{st.regressionSource.documentId}</code> · 步骤{' '}
+                        <code>#{st.regressionSource.stepIndex}</code>
+                      </div>
+                      {st.regressionSource.modulePath &&
+                        st.regressionSource.modulePath.length > 0 && (
+                          <div>
+                            <strong>模块调用链:</strong>{' '}
+                            {st.regressionSource.modulePath
+                              .map(
+                                (m) =>
+                                  `${m.ref} (sha:${m.sha256.slice(0, 8)}..., step:#${m.invocationStepIndex})`,
+                              )
+                              .join(' -> ')}
+                          </div>
+                        )}
+                    </div>
+                  ) : isRegressionCase ? (
+                    <div
+                      style={{
+                        padding: '4px 8px',
+                        backgroundColor: 'var(--color-warning-subtle)',
+                        color: 'var(--color-warning-text)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.75rem',
+                      }}
+                      data-testid={`step-source-unverified-${st.seq}`}
+                    >
+                      ⚠️ 步骤出处: 未验证 (缺少用例出处溯源信息)
+                    </div>
+                  ) : null}
+                </div>
+              ))
+            )}
           </div>
         </div>
       </main>
+
+      {saveModalOpen && (
+        <SaveToLibraryModal
+          caseRecord={caseRecord}
+          steps={steps}
+          projectId={currentProject?.id || 'prj_default'}
+          onClose={() => setSaveModalOpen(false)}
+          onSaved={(savedCase) => {
+            setSaveModalOpen(false);
+            setRoute('saved-case-detail', { caseId: savedCase.id });
+          }}
+        />
+      )}
     </div>
   );
 };

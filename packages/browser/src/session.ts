@@ -7,6 +7,8 @@ import {
 import { randomUUID } from 'node:crypto';
 import type {
   ToolCall,
+  Locator,
+  NodeTarget,
   ToolResult,
   BrowserSnapshot,
   Artifact,
@@ -18,6 +20,7 @@ import { SessionRecorder, isValidUuid } from './recorder.js';
 import { WaitAndRecoveryManager } from './waiter.js';
 import { ToolExecutor } from './executor.js';
 import { captureBrowserSnapshot } from './snapshot.js';
+import { resolveRegressionLocator } from './regression-locator.js';
 
 export class BrowserSessionImpl implements BrowserSession {
   public readonly id: string;
@@ -142,6 +145,15 @@ export class BrowserSessionImpl implements BrowserSession {
     return result;
   }
 
+  public async resolveRegressionLocator(
+    locator: Locator,
+    signal?: AbortSignal,
+  ): Promise<NodeTarget> {
+    // Worker must observe through the budgeted port immediately before resolving.
+    // Keep that snapshot identity so the grant can verify persisted ownership.
+    const snapshot = await this.getSnapshot();
+    return resolveRegressionLocator(this.page, locator, snapshot, signal);
+  }
   public async getSnapshot(options?: {
     forceFresh?: boolean;
   }): Promise<BrowserSnapshot> {

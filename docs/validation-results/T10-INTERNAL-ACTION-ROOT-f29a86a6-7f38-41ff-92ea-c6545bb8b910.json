@@ -1,0 +1,59 @@
+{
+  "task": "T10-INTERNAL-ACTION-ROOT",
+  "tag": "f29a86a6-7f38-41ff-92ea-c6545bb8b910",
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-life-7V2F8D",
+  "tests": [
+    {
+      "name": "Root: invalid caller token and worker cannot write an action result",
+      "passed": false,
+      "code": "TEST_FAILED",
+      "message": "Cannot read properties of undefined (reading 'budget')"
+    },
+    {
+      "name": "Root: a legitimate HTTP action result settles its reservation and records a hash",
+      "passed": false,
+      "code": "TEST_FAILED",
+      "message": "Cannot read properties of undefined (reading 'budget')"
+    },
+    {
+      "name": "Root: released proof and conflicting repeated result cannot overwrite a completed outcome",
+      "passed": false,
+      "code": "TEST_FAILED",
+      "message": "Cannot read properties of undefined (reading 'budget')"
+    }
+  ],
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "7ec9a46f75a4196f85984ef9b41ce7d136cbfaba1ee40124b7469b9161cd6136",
+    "volumes": [
+      "435790e28b3ff0fa3c3fba9c881d6ff92a9c675f8c9261d8749b68afc76fa106"
+    ],
+    "pgPort": 33117,
+    "apiPort": 49405,
+    "apiPid": 3729,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "435790e28b3ff0fa3c3fba9c881d6ff92a9c675f8c9261d8749b68afc76fa106",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "PG/API admission only; no browser, Worker.once, worker-entry or real model",
+    "Independent counterexamples and isolated concurrency checks; conclusions only reflect assertions in this run",
+    "P0=false; FakeBrowser/real model acceptance remains unverified"
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 3
+  }
+}

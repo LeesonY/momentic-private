@@ -1,0 +1,73 @@
+{
+  "batch": "T10-AUTH8C fix: descriptor-safe redactObservation",
+  "scope": "Pure Node: the real AUTH-5 private port only. Root’s independent repro (T10-AUTH8C-observation-controller-repro.mjs) plus my own port cases. No browser, runtime, PG, model, or deploy.",
+  "defect": {
+    "reported": [
+      "redactObservation read snapshot fields directly, so a snapshot accessor (for example a title getter) was invoked",
+      "it spread and then froze the caller’s nested objects, so the caller’s viewport/node.bounds were frozen and aliased into the returned copy instead of being cloned"
+    ],
+    "preservedFailureEvidence": "docs/validation-results/T10-AUTH8C-observation-controller-4e236452-c1cc-4bd6-a3c0-bd6f30f4cf9f.json (0/2) is untouched."
+  },
+  "fix": {
+    "shape": "descriptor-safe deep copy → validate the copy → redact the copy → freeze only that copy",
+    "details": [
+      "the caller’s object is never read property-by-property: cloneValue reads own descriptors only, so no accessor runs",
+      "accessors, cycles, symbol keys, non-enumerable keys and non-plain prototypes are refused with a constant VALIDATION_ERROR",
+      "redaction still scrubs title/displayUrl/node name+text, drops screenshot and network/console summaries, and sets redacted on the copy — never a flag flip on the raw observation",
+      "freezeValue now runs on the detached copy, so caller-owned nested objects are neither frozen nor aliased",
+      "still pure: zero primitive calls, zero gate calls, no I/O"
+    ]
+  },
+  "rootRepro": {
+    "script": "docs/validation-results/T10-AUTH8C-observation-controller-repro.mjs (unchanged)",
+    "previousFailure": "docs/validation-results/T10-AUTH8C-observation-controller-4e236452-c1cc-4bd6-a3c0-bd6f30f4cf9f.json — 0/2, preserved",
+    "rerunAfterFix": "docs/validation-results/T10-AUTH8C-observation-controller-cf6d12fe-ef5b-441b-9c55-d8cbbb0209ba.json — 2/2, effects 0, sourceSha256 66ef83fc0b6876595b12be5963af80e069d4450eff76afe0cdff54b169b49604"
+  },
+  "myOwnCases": {
+    "file": "packages/browser/test/private-auth.test.mjs",
+    "new": [
+      "redactObservation refuses accessors, cycles, and exotic prototypes without running getters",
+      "redactObservation never freezes or aliases the caller-owned objects"
+    ],
+    "negativeProof": "Restoring the previous body makes exactly those two cases fail (18/20), so they pin the reported defect."
+  },
+  "sourceSha256": {
+    "packages/browser/src/private-auth.ts": "66ef83fc0b6876595b12be5963af80e069d4450eff76afe0cdff54b169b49604",
+    "packages/browser/test/private-auth.test.mjs": "749c43cb10ab2f7bef1a522d8d1768d87169f25111e04e14efc7ebf79309bff6",
+    "apps/worker/src/auth-flow.ts": "fbcc2890098b236f9fec0ac5da5f8c6f3b24d4f5615ce9ccbb5cca4e8ed37f0d",
+    "apps/worker/src/auth-adapters.ts": "92fcfc3295ae8418da08379018f5dab8ff5c407f7b4ada70f87b7454efb6cb10",
+    "apps/worker/src/auth-services.ts": "319d32ead415c4a3aae40dd054ee4f9775939f8bafa6856a478c97ba4ec4215c"
+  },
+  "counts": {
+    "workerAuthCases": 37,
+    "privatePortCases": 20,
+    "privatePortFailed": 0,
+    "browserRunner": "41/41"
+  },
+  "commands": [
+    "cd docs/validation-results && node T10-AUTH8C-observation-controller-repro.mjs   # Root script, unchanged",
+    "cd packages/browser && ./node_modules/.bin/tsc -p tsconfig.build.json && ./node_modules/.bin/tsc --noEmit -p tsconfig.json && node --test test/*.test.mjs   # 41/41",
+    "cd packages/browser && node test/private-auth.test.mjs   # 20/20 cases",
+    "node_modules/.bin/eslint packages/browser/src packages/browser/test",
+    "cd apps/worker && node --test test/auth-flow.test.mjs test/auth-runtime.test.mjs test/auth-services.test.mjs test/auth-adapters.test.mjs test/auth-redaction.test.mjs   # 37/37",
+    "node_modules/.bin/tsc -p apps/worker/tsconfig.json && node_modules/.bin/tsc --noEmit -p apps/worker/tsconfig.json && node_modules/.bin/eslint apps/worker/src apps/worker/scripts apps/worker/test"
+  ],
+  "checks": {
+    "rootRepro": "2/2 pass after fix (0/2 before, evidence preserved)",
+    "browserBuild": "pass",
+    "browserTypecheck": "pass",
+    "browserLint": "pass",
+    "browserPrettier": "pass",
+    "workerBuild": "pass",
+    "workerTypecheck": "pass",
+    "workerLint": "pass",
+    "workerAuthCases": "37/37"
+  },
+  "notImplemented": [
+    "no browser, worker-entry, provider or Ego run; P0 stays false",
+    "no Worker.once wiring; Stage.auth stays unwired",
+    "this fix does not touch Root’s scripts, pi’s backend files, or Root’s PG tests"
+  ],
+  "browserPaused": true,
+  "P0Passed": false
+}

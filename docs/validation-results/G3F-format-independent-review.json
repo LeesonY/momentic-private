@@ -1,0 +1,49 @@
+{
+  "at": "2026-10-05T12:33:47.867Z",
+  "workspace": "wF",
+  "trigger": "grok idle 1736",
+  "audit": "Latest originCriteria/unknown/fencing audit reviewed; no demonstrated bypass or incorrect pass in these paths within stated scope.",
+  "independentFormatRepro": {
+    "command": "node docs/validation-results/G3F-format-independent-repro.mjs",
+    "exitCode": 1,
+    "results": [
+      {
+        "case": "Invalid UUID ToolCall",
+        "requestResult": "malformed",
+        "errorCode": "VALIDATION_ERROR",
+        "sends": 1,
+        "passed": true
+      },
+      {
+        "case": "Invalid custom uuid",
+        "requestResult": "ok",
+        "errorCode": null,
+        "sends": 1,
+        "passed": false
+      },
+      {
+        "case": "Invalid custom uri",
+        "requestResult": "ok",
+        "errorCode": null,
+        "sends": 1,
+        "passed": false
+      }
+    ],
+    "warningCount": 42,
+    "scope": "Local gateway output validation, no PG/browser/provider network"
+  },
+  "decision": "Custom output-format validation gap verified; G3-F repair dispatched to grok. ToolCall canonical format rejection already works and must be retained.",
+  "otherFinding": "Visible-only criterion does not assert HTTP health; no defect conclusion or added expectation without corresponding criteria. Full stored-smoke 503 non-pass already verified.",
+  "assignments": {
+    "pi": "Isolate T06 complete API harness to unique evidence/random owned ports; preserve old P0 evidence and fixed8085",
+    "agy": "Standby; browser paused",
+    "grok": "G3-F strict supported output formats; own model-gateway/tests and necessary dependency metadata",
+    "root": "Independent reproduction/review, worker/core/runtime reserved; no release"
+  },
+  "browserPaused": true,
+  "P0Passed": false,
+  "singleMonitorPid": 95898,
+  "cleanup": "Pure format probe creates no servers, containers or credentials files.",
+  "distGatewaySha256": "b0b94cf88fc153395285c91c449ca32fcb8cc4f0e50bb3f736f29157c82209c2",
+  "auditFile": "docs/validation-results/T10-B5-origin-unknown-ajv-readonly-review.md"
+}

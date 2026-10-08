@@ -1,0 +1,78 @@
+{
+  "title": "G3-D2 HTTP complete 租约与模型账本（独立 Postgres，本地 Response，不是 G3/P0 放行）",
+  "date": "2026-10-04",
+  "task": "G3-D2",
+  "controller": "wF:p1",
+  "claims": {
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalledThisRound": false,
+    "playwrightLaunched": false,
+    "workerEntryExecuted": false,
+    "workerImageRebuilt": false,
+    "egoUsed": false
+  },
+  "preserved": {
+    "docs/validation-results/G3-model-minimal.json": "1ed2904b1beda6d68494cd5db37be8d2758aa69a9e5605d0be066e25baa14469",
+    "docs/validation-results/G3C-model-wiring.json": "8bdb093e241573513b8415d042ff484c5fd8dfa68d836e5722c0cb40e3fb512c",
+    "docs/validation-results/G3D-process-wiring.json": "0efc3e164061b42faa71b83ba59109e7435093e8a2dcd4b692f81ea00e4994e1",
+    "docs/validation-results/T04-model.json": "f7def1515e0ed949cbe3fd3bb06d266e3c11e81f4e7ab18f46a580e85ba839e1",
+    "note": "本轮没有改这些文件，也没有重放真实样本，没有跑 verify.mjs，没有跑 api.test.mjs。T06-api.json 本轮未写，当前全文哈希是 e39fec2893260a68a039538b8f009465a703d0c03fd24a6ed58179dc7e70f95d。"
+  },
+  "host": {
+    "node": "v26.3.0",
+    "platform": "darwin",
+    "packageManager": "npx --yes pnpm@10.34.0",
+    "node24Image": "node:24-bookworm-slim",
+    "node24Version": "v24.21.0",
+    "postgresImage": "postgres:18-alpine"
+  },
+  "red": {
+    "meaning": "修复前，同一 fixture 对当时的 /internal/v1/model/complete。传输是注入的本地 Response，不是外网。",
+    "container": "localqa-g3d2-pg-a272d80f",
+    "port": 32868,
+    "duration_ms": 9359.120708,
+    "result": "11 项里 10 失败、1 通过。通过的是修复前就已经存在的 BoundModel.call：grant 查询拒绝未授权剖面，绑定 version 2 而不是最新 version 3。",
+    "httpDenial": "错误 leaseToken、过期租约、released 失效租约、context_version 变更、run 已取消、共享 modelCalls 已用尽、共享 totalTokens 已用尽：每一项都是 fetches 1、HTTP 200、响应体没有错误码。",
+    "httpValid": "正确租约的 complete 已返回 200，发送 g3d2-model-v1 和 json_schema，但 budget_reservations 行数是 0。",
+    "httpFailure": "供应商 HTTP 400 已返回 422 VALIDATION_ERROR，且不是 200，但 model_requests 行数是 0。",
+    "httpRace": "两个并发请求都返回 200。"
+  },
+  "fix": {
+    "path": "BoundModel.complete 与 BoundModel.call 共用 loadFrozen 和 budgetAdapter。loadFrozen 调用 Coordinator.validateLease，再按角色和 purpose 做 frozenModelSelection，核对请求的 profileId，然后执行 model_profile_versions JOIN model_profile_grants。budgetAdapter 在 provider send 前 reserve，写入 model_requests status reserved，成功后 settle，失败抛出时按 unknown settle。",
+    "http": "/internal/v1/model/complete 不再调用 createFrozenGateway.complete。它把同一 proof 交给 BoundModel.complete。探测路由仍使用冻结网关，不走这条 worker 账本。",
+    "kept": "角色加 purpose 的冻结选择、responseFormat、按 profileId:version 分槽的凭据、400/429/timeout/budget/unconfigured 的既有分类，以及失败不返回 200。worker call 仍是 timeoutMs 1000、maxInputTokens 4000。HTTP complete 仍是 timeoutMs 30000，不另传 maxInputTokens。",
+    "notChanged": "core.ts、runtime.ts、shared contracts、迁移、web、worker 执行 DSL、Root 的 B2/B3 API 与测试都没有改。index.ts 没有改。"
+  },
+  "green": {
+    "container": "localqa-g3d2-pg-7d02411b",
+    "port": 32870,
+    "bind": "127.0.0.1 random port, not 5432 or 8085",
+    "duration_ms": 9479.174208,
+    "tests": "11/11",
+    "denial": "上述 5 个租约场景 HTTP 409、body code LEASE_EXPIRED，provider 调用 0，budget_reservations 与 model_requests 都是 0。modelCalls 用尽和 totalTokens 用尽都是 HTTP 500、body code BUDGET_EXCEEDED，provider 调用 0，两类账本行都是 0。",
+    "validLedger": "HTTP 200。budget_reservations 一条，kind model，status settled，charged.modelCalls 1，charged.totalTokens 15。model_requests 一条，status settled，fencing_token 1，profileVersion 2，usageSource reported，configuredModelId g3d2-model-v1，inputTokens 11，outputTokens 4。run_budgets.used 同样是 modelCalls 1、totalTokens 15，reserved.modelCalls 回到 0。",
+    "frozenVersion": "剖面最新版本是 3，configuredModelId g3d2-model-v2，responseFormat json_object，status untested。运行绑定 version 2。发出的请求 model 是 g3d2-model-v1，response_format.type 是 json_schema。版本 2 的凭据进入 Authorization，版本 3 的凭据没有进入。证据和账本 JSON 都不含凭据值。",
+    "failureLedger": "本地 Response 返回 HTTP 400。API 是 422 VALIDATION_ERROR，不是 200。provider 调用 1。budget_reservations status settled，model_requests status settled，usageSource estimated。这是既有 BoundModel 对“返回错误响应而非抛出”的记账；接口结果不是完成。",
+    "race": "共享 maxModelCalls 为 1。两个并发 complete 的 HTTP 状态是 200 和 500，错误码是 BUDGET_EXCEEDED。provider 调用 1。该任务只有一条 settled reservation 和一条 model_requests，used.modelCalls 为 1。",
+    "boundModel": "createWorkerModelOptions.load 调用不带 projectId 的 readVersion，因此授权落在 BoundModel 的 grant JOIN。绑定版本发出 g3d2-model-v1 / json_schema，model_requests.profileVersion 为 2。未 grant 的剖面 readVersion 能读到文档，BoundModel.call 抛 NOT_FOUND，provider 调用 0，账本行 0。"
+  },
+  "criterionGap": {
+    "owner": "Root",
+    "fact": "ModelRequest 没有 criterionId，additionalProperties 为 false。BoundModel 只有在显式 criterionId 且 run_cases.criteria 能找到该 id 时才冻结 criterion。HTTP complete 不能携带这个字段，也不会从 messages 文本猜 id，因此 assert 完成不会附上 criterion。",
+    "minimalField": "在 ModelRequest 增加 criterionId: string，值等于已冻结用例里的 criterion id。shared generator 由 Root 负责。本轮没有改 contracts。"
+  },
+  "otherTests": {
+    "host14": "g3c-model-wiring 4、g3d-process-wiring 4、g3c-bound-model 2、g3d-process-model 4，共 14/14，duration_ms 245.606291。原有断言都保留。假 DB 只补了 validateLease/reserve/settle 和 grant 行，使同一产品路径能跑到原断言；它不代替本文件的 Postgres 边界。",
+    "node24": "同一 14 项在 node:24-bookworm-slim 上 14/14，duration_ms 669.114471。镜像内报告 v24.21.0。Postgres fixture 没有放进该镜像。"
+  },
+  "unverified": [
+    "没有执行 worker-entry，没有启动 Chromium 或浏览器。",
+    "没有真实外网或付费模型调用。传输只返回本地 Response。",
+    "没有重跑 model-gateway verify.mjs，也没有重跑 apps/api/test/api.test.mjs。",
+    "图片和 ArtifactStore 仍未接入；缺解析器或图片能力时仍在取图前失败。",
+    "HTTP assert 不能冻结 criterion，见 criterionGap。",
+    "没有重建 localqa 镜像，没有碰 8085 上已有 fixture。",
+    "G3 与 P0 都不放行。"
+  ]
+}

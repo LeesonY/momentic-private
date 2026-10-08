@@ -1,0 +1,130 @@
+{
+  "batch": "T10-AUTH7B real RuntimeClient → AuthFlowServices adapter (rev 2: stale-gate invalidation)",
+  "scope": "Pure Node: the real auth-services adapter, the real AUTH-6B bridge, the real AUTH-6 flow and the real AUTH-5 private port, over synthetic primitives and a labeled Fake service client that mirrors the five real facade signatures and the documented server semantics. No PG, browser, Coordinator, provider, worker-entry, or deploy.",
+  "acceptedScope": "These runs prove the worker-side adapter only. The Fake client passing is NOT acceptance of pi’s services: Root’s independent PG run found 13+ gate-currentness counterexamples (T10-AUTH7-STATE-ROOT-1369e344-aa12-4319-bf29-49caa3326d75.json) that pi is fixing. The adapter is defensive about staleness regardless of that fix.",
+  "countsByFile": {
+    "auth-flow.test.mjs": {
+      "passed": 11,
+      "failed": 0
+    },
+    "auth-runtime.test.mjs": {
+      "passed": 7,
+      "failed": 0
+    },
+    "auth-services.test.mjs": {
+      "passed": 9,
+      "failed": 0
+    }
+  },
+  "summary": {
+    "passed": 27,
+    "failed": 0,
+    "note": "Counts are the raw runner totals for the three files; cases already reported in earlier batches are re-runs, not new coverage."
+  },
+  "newInThisBatch": [
+    "the real services carry the flow to the unimplemented finish",
+    "injected stubs are explicit, and their absence still blocks",
+    "a capture grant is refused without a passed, same-session gate",
+    "service failures keep their constant codes and stop the flow",
+    "foreign and unknown capture handles are refused",
+    "the client keeps its receiver and always receives the frozen proof",
+    "storage_state material passes through canonically and the server refuses its gate",
+    "construction refuses an incomplete or inactive adapter input",
+    "every criterion evaluation invalidates the previous success gate"
+  ],
+  "rerunFromEarlierBatches": [
+    "form flow runs the fixed order once through the fake runtime",
+    "one OTP at most, and never a second wait after a criterion failure",
+    "storage_state prepares without navigating, then navigates once",
+    "record, observation, capture and finish failures never yield success",
+    "missing or unsupported configuration is blocked, never passed",
+    "unknown, raw, or getter-throwing codes fall back to constants",
+    "none never touches material, the port, or the adapters",
+    "abort cancels the flow without any success or capture",
+    "the private ticket and capture material stay out of the outcome",
+    "storage_state material takes only the canonical resolveAuth shape",
+    "the port must belong to the same session as the binding",
+    "the bridge forwards the frozen proof and keeps the lease token private",
+    "permits and port bindings are re-verified against the frozen binding",
+    "receipts cannot be borrowed, replayed, or settled twice",
+    "expiry, revocation, and service failures stop the flow without caching",
+    "a missing service blocks instead of fabricating a capture",
+    "construction refuses an incomplete client, proof, or inactive binding",
+    "service methods keep their receiver and a throwing accessor is contained"
+  ],
+  "sourceSha256": {
+    "apps/worker/src/auth-services.ts": "12fd53a0ab5238d69ce5ebd5588f8e8d9bffd4be697f99c98bb28c8e36cfabb5",
+    "apps/worker/test/auth-services.test.mjs": "c7ec8952dc2c857e651397c2644977c7dd3eaaa9edcee7b6dafe01d3e9ca3564",
+    "apps/worker/src/auth-runtime.ts": "fe9824810e151df14fed3c37932760f100465c39dd17cab183b8fb59729a3e55",
+    "apps/worker/test/auth-runtime.test.mjs": "360d5ff94f7feeb74015477e9c88b6639075b59e2f0c8388cdf583b8f78ef381",
+    "apps/worker/src/auth-flow.ts": "0d9030f3841feb013c7691ea7a241e69b27d1ddf707c5f6252503ec0e53e3d7f",
+    "apps/worker/test/auth-flow.test.mjs": "f958a6d43c12158460fb37799868e0158595a78fa2afd8504599951ea4386599",
+    "packages/browser/src/private-auth.ts": "1ec4cb847a6c4a84435c268078a049748bea6442fb6e6a344f2a9613f9f6b07d",
+    "packages/browser/test/private-auth.test.mjs": "f6dfa581cb07a662e0b977d61d7bf181a70fb6d58ab4bfcf6ef4f00f84de2018"
+  },
+  "unchangedSinceAUTH6B": [
+    "apps/worker/src/auth-runtime.ts",
+    "apps/worker/test/auth-runtime.test.mjs",
+    "apps/worker/src/auth-flow.ts",
+    "apps/worker/test/auth-flow.test.mjs",
+    "packages/browser/src/private-auth.ts",
+    "packages/browser/test/private-auth.test.mjs"
+  ],
+  "facadeCompatibility": {
+    "how": "AuthServiceClient declares the five real methods; `type _ServicesFacadeIsCompatible = RuntimeClient extends AuthServiceClient ? true : never` fails the build on drift.",
+    "negativeProof": "A deliberately wrong port (authMaterial(proof: string): Promise<number>) makes tsc fail with \"Type true is not assignable to type never\"."
+  },
+  "staleGateInvalidation": {
+    "rule": "Every recordAuthCriterion call clears successGateId before anything else; only a well-formed gateId returned for that passed evaluation is stored.",
+    "negativeProof": "Removing the single `successGateId = null;` line makes the new case fail (8/9), so the check is not vacuous.",
+    "covered": [
+      "passed → non-passed evaluation → issueCaptureGrant refused",
+      "passed → service failure during the next evaluation → refused",
+      "passed → malformed gate response → refused",
+      "passed twice → the second gate replaces the first (grant uses gate-2)",
+      "end-to-end failed criterion → no grant, and no stale gate leaks into the next attempt"
+    ]
+  },
+  "commands": [
+    "node_modules/.bin/tsc -p apps/worker/tsconfig.json            # worker build",
+    "node_modules/.bin/tsc --noEmit -p apps/worker/tsconfig.json   # worker typecheck",
+    "cd apps/worker && node --test test/auth-flow.test.mjs test/auth-runtime.test.mjs test/auth-services.test.mjs   # 27/27 (11 + 7 + 9)",
+    "node_modules/.bin/eslint apps/worker/src apps/worker/scripts apps/worker/test",
+    "cd packages/browser && node --test test/*.test.mjs   # 41/41 unchanged regression"
+  ],
+  "checks": {
+    "workerBuild": "pass",
+    "workerTypecheck": "pass",
+    "workerLint": "pass",
+    "workerPrettier": "pass",
+    "browserSuite": "41/41"
+  },
+  "coverage": [
+    "the real services carry a form run through material → criteria → capture gate → grant → ticket CAS → capture; every hop uses the frozen proof and the binding session",
+    "the capture gateId comes from the passed criterion response, is kept only in the adapter closure, and is invalidated by every new evaluation",
+    "a grant is refused without a current passed gate; a non-passed criterion never reaches the service",
+    "authorizeExport calls the real beginAuthCapture CAS with the grant and the ticket issued for it; captureAuthState uses the same pair",
+    "the returned AuthStateRef is adapted to stateRef, and a ref from another run/epoch is refused",
+    "foreign or unknown grant handles are refused before any client call",
+    "service errors keep constant codes (LEASE_EXPIRED, POLICY_DENIED, RATE_LIMITED, IDEMPOTENCY_CONFLICT) and stop the flow with no success and no stateRef",
+    "material passes through canonically (form username/password, storage_state storageState) with nothing renamed or parsed",
+    "storage_state still never navigates before injection, and the current server refusal of its capture gate is passed through",
+    "the leaseToken, gateId, ticket, and authStateId never appear in an outcome, a log object, or an enumerable return",
+    "OTP and finish stay absent → the flow blocks with SERVICE_UNAVAILABLE; only an explicit stub passes those steps, and a throwing stub still blocks"
+  ],
+  "interfaceNotesForRoot": [
+    "The AUTH-5 port compares grant.expiresAt with the binding exactly, so the worker binding must come from the same auth session row (expires_at) that issues the capture grant.",
+    "The adapter enforces grant.captureTicket === captureTicket from issueCaptureGrant; an inconsistent service response is refused.",
+    "AuthStateRef.authStateId becomes stateRef; runId/authEpoch are checked against the frozen binding before it is handed on.",
+    "recordAuthCriterion is only called for a passed result: the service refuses anything else with POLICY_DENIED while the flow reports its own CRITERION_* code.",
+    "auth-flow.ts / auth-runtime.ts are unchanged from the accepted AUTH-6B run (hashes listed in unchangedSinceAUTH6B)."
+  ],
+  "notImplemented": [
+    "finishAuth / import / OTP / handoff are absent: a captured state cannot be finished, so every real run ends blocked with SERVICE_UNAVAILABLE and no stateRef",
+    "storage_state capture gates are refused by the current server (POLICY_DENIED); the adapter forwards that instead of inventing a pass",
+    "no Worker.once / tick wiring; Stage.auth stays unwired",
+    "no PG or real Coordinator path in this batch; Root wires the real PG RuntimeClient→adapter test independently"
+  ],
+  "browserPaused": true,
+  "P0Passed": false
+}

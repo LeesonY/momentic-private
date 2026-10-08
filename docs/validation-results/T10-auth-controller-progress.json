@@ -1,0 +1,59 @@
+{
+  "at": "2026-10-05T23:27:50.278309+00:00",
+  "rootIndependent": true,
+  "P0Passed": false,
+  "completeT10Accepted": false,
+  "browserPaused": true,
+  "runtimeAuth": {
+    "preFix": "T10-auth-runtime-f745c606.json: 0/3, including returned synthetic secret for stale context/wrong worker",
+    "postFixInitial": "T10-auth-runtime-20f04f28.json: original three cases passed, extended cases had fixture issues",
+    "fixtureCorrections": [
+      "AuthProfilePatch uses supported name/sharingPolicy instead of unsupported allowedOrigins",
+      "after cancellation call coordinator.tick to release own reserved slots"
+    ],
+    "expandedTenCaseRun": "Not rerun after corrections because Docker socket denied",
+    "piApiBindingEightCases": "First 0/8 was fixture tlsPolicy omission plus ApiError mapped to SERVICE_UNAVAILABLE; fixture tlsPolicy and helper StorageError corrected, latest build passed, PG rerun remains pending"
+  },
+  "offlineVerified": {
+    "relatedPureLogicRegressions": 51,
+    "telemetryDiagnosticChecks": 10,
+    "initialSsrSessionGate": "Actual product App/AppProvider with stubbed API: initial pending session and no login form; no client hydration or paint",
+    "g3Preflight": "Default no network, six injected cases pass, execute and combined flags refused without network/credentials",
+    "contracts": "127 domain definitions, 78 operations / 70 public operations in sync",
+    "buildAndLint": "contracts/orchestrator build, API/worker build, touched API/orchestrator lint, web build/lint, diff check passed"
+  },
+  "notVerified": [
+    "Expanded auth runtime PG cases after fixture correction",
+    "Latest eight API auth-binding PG cases after correction",
+    "Actual Worker.once authenticated-none integration",
+    "Form/storage-state authentication execution and exclusive-run lock",
+    "P0 UI latency and three-state browser screenshots",
+    "Latest real provider G3",
+    "YAML import/export and module/lifecycle management entries",
+    "Full T10/P0 acceptance"
+  ],
+  "constraints": {
+    "agentControl": "Herdr socket: Operation not permitted under new workspace-write sandbox",
+    "pgVerification": "Docker socket unix:///Users/dcp/.colima/default/docker.sock permission denied",
+    "approvalPolicy": "never; no sandbox override or alternate control route attempted",
+    "singleExistingMonitorPid": 95898,
+    "secondMonitorStarted": false
+  },
+  "sourceSha256": {
+    "apps/api/src/runAuth.ts": "9667d6ff670dc3b81e7dcef32e4f6dd2b55382bcd7b03ca6db9d8a0252c994c0",
+    "apps/api/src/routes/runs.ts": "7b638300b9b5b70683e13ea43d369e7634d22b17af41d43ca8f68c7af298b846",
+    "apps/api/src/routes/savedCases.ts": "b9eb10b9bdfc19d9af32be645c92ad4bc2423a9a33689e21453a1ffb694a8a7f",
+    "apps/api/src/routes/internal.ts": "3950bed4e7c0195170ad994129ab878827b73cab94a6ec3929ea64d9d42aa4b8",
+    "packages/orchestrator/src/core.ts": "5db533fed506f0f0f39043b3cf6bf490ebca3b8b9ada51200151f96a61b5b88e",
+    "packages/orchestrator/src/runtime.ts": "3e7d2c2d9af7dde65643c079db6b82972b596bac778573b1a59c428f39184d83",
+    "apps/api/test/t10-auth-runtime.test.mjs": "f1c0e649746c0a9fdf067a442e37ad85ed237bceb73a7c72af686dc0dec43555",
+    "apps/api/test/t10-auth-binding.test.mjs": "44b054bfcd3ca97e401af3c3f9be5bfcddaf91be041a40fc08f5b71db93ac04a",
+    "apps/web/src/api/runMessages.ts": "1a3523d2430d8b6a900804350a9f97367ba2185ff94317724982d87f8dfe7fdd",
+    "apps/web/src/state/AppContext.tsx": "890521d34cbe71eee2c3d77784ed8f26f81954a7dbeb17d477b778159a1bd7e1",
+    "apps/web/src/App.tsx": "00fc0ce7fcca75f23a6874a249b20af4602a423edd9def0aaf6aff7896f79682",
+    "docs/build_contracts.py": "9b39c86f27c0b39906557d8effc555025e1b6971920bf691910a50d6ce1b64d5",
+    "docs/contracts/openapi.json": "bab0226be4b80b042ebc3ef0ba634e7eaac47766efcb5c6203ac25703a9a15ec",
+    "docs/validation-results/G3-model-gate-preflight.mjs": "a711c26ee9730679d53dd47ce11b3dfd18ca4999713c083b694076fb8d3d8f77"
+  },
+  "retainedEvidence": "Original failed runs, corrected fixture, new reports and reproducible scripts retained; no commit or reset"
+}

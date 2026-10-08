@@ -1,0 +1,25 @@
+{
+  "task": "T10-AUTH7-STATE-ROOT",
+  "tag": "c5f151fd-3213-41dc-9865-e5df6557cf07",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-state-root-raBRaD",
+  "tests": [],
+  "postgres": null,
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": null,
+    "volumes": [],
+    "cleanup": {
+      "apiClosed": true,
+      "credentialsAbsent": true
+    }
+  },
+  "limitations": [
+    "Real PG18 auth material, success gates, capture grants, canonical keyed HMAC and encrypted run auth state only",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 0
+  }
+}

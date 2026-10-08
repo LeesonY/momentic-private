@@ -1,0 +1,31 @@
+{
+  "rootIndependent": true,
+  "checks": [
+    {
+      "name": "archive/restore require a positive PostgreSQL-bound head version",
+      "passed": true
+    },
+    {
+      "name": "copy requires explicit source version and accepts omitted target project",
+      "passed": true
+    },
+    {
+      "name": "copy rejects unknown approval fields and invalid target identity",
+      "passed": true
+    },
+    {
+      "name": "list query has explicit lifecycle status and bounded pagination",
+      "passed": true
+    },
+    {
+      "name": "three lifecycle operations are included in canonical 80-public surface",
+      "passed": true
+    }
+  ],
+  "definitions": 138,
+  "operations": 88,
+  "publicOperations": 80,
+  "backendAndUiImplemented": false,
+  "browserExecuted": false,
+  "P0Passed": false
+}

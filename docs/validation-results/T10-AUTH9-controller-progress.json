@@ -1,0 +1,90 @@
+{
+  "at": "2026-10-07T17:50:58.248586+00:00",
+  "workspace": "wF",
+  "rootIndependent": true,
+  "acceptedLocally": false,
+  "rootChecks": {
+    "cryptoReader": {
+      "passed": 10,
+      "failed": 0,
+      "report": "T10-AUTH9-controller-crypto-d9457bca-cdca-476a-b415-e8a5eab3fba9.json",
+      "scope": "Actual state reader and SecretVault over synthetic query rows; no PG/lease/RLS/effect claim"
+    },
+    "orchestratorTypecheck": "passed",
+    "apiTypecheck": "passed",
+    "targetedLint": "passed",
+    "log": "T10-AUTH9-controller-lint.log"
+  },
+  "piActualExecutionEvidence": {
+    "log": "T10-AUTH9A-final-4286CBBB-825F-487F-913E-646B7083F8FD.log",
+    "importPg": {
+      "passed": 20,
+      "failed": 0,
+      "report": "T10-AUTH-IMPORT-d6f2ac2c-42ae-4830-8694-edbe3cdcb0e7.json"
+    },
+    "rootDesignedCaptureFinishScript": {
+      "passed": 38,
+      "failed": 0,
+      "executor": "pi, not Root"
+    },
+    "legacyRegression": {
+      "passed": 91,
+      "failed": 0,
+      "executor": "pi"
+    },
+    "cleanup": "Report asserts exact container/volume/key/ports absent; Root independent Docker/PID recheck unavailable"
+  },
+  "sourceSha256": {
+    "packages/orchestrator/src/auth-import-service.ts": "943b27aeac680601f12b75f4c4b35c2c20c4d2ec7fd618c2ee8b760e3a5c9b77",
+    "packages/orchestrator/src/auth-state-service.ts": "b45f287af9a93c66329a7cd2d8fdc1ca5af058842992238e9099ad0c6dd79ec6",
+    "packages/orchestrator/src/auth-execution.ts": "3df2d936bdff646699f7de0cd4a43d3c4e42459651fe70275ed3176fa791955e",
+    "packages/orchestrator/src/core.ts": "3d4c66386f9d302820b6c4862f74c820c83972126e0cee55e4a11722a25510c2",
+    "packages/orchestrator/src/runtime.ts": "138f717761a13cdea5072a789f5e7fa82bf2c42d83dbddde4649baeb8b057faa",
+    "packages/storage/migrations/014_auth_state_import.sql": "4edb4bf42211fdc6ba5cabfa3ff101085b8d0f58b68f20dcd21cb09d48780a7c",
+    "apps/api/test/t10-auth-import.test.mjs": "cb41546b54574d8bedb9c29c049c05af61b859aa219c5da893c631e93275269d"
+  },
+  "nextTaskPrepared": "T10-AUTH-9B-controller-ready.md",
+  "nextTaskDispatched": false,
+  "remaining": [
+    "Root independent PG importer/current-source capture+finish and exact resource recheck",
+    "worker importer bridge and main entry",
+    "OTP/storage frozen criterion/crash handoff/revoke integration",
+    "real browser and latest supplier validation"
+  ],
+  "controlBlock": "Managed permissions reject Herdr CLI/Docker; native UI explicitly refuses iTerm2. No bypass/second monitor.",
+  "piState": {
+    "agent": "pi",
+    "state": "done",
+    "state_change_seq": 2572,
+    "completion_seq": 2572,
+    "session": {
+      "agent": "pi",
+      "kind": "path",
+      "source": "herdr:pi",
+      "value": "/Users/dcp/.pi/agent/sessions/--Users-dcp-Documents-公司-momentic--/2026-10-02T07-48-47-754Z_01a0fb96-520a-71a2-9a82-96701c65ec78.jsonl"
+    },
+    "owned": true
+  },
+  "claudeState": {
+    "agent": "claude",
+    "state": "idle",
+    "state_change_seq": 2565,
+    "completion_seq": 2565,
+    "session": null,
+    "owned": true
+  },
+  "monitorHeartbeat": "2026-10-07T17:37:09.835133+00:00",
+  "singleMonitorPid": 14113,
+  "browserPaused": true,
+  "P0Passed": false,
+  "finalPiDelivery": "T10-AUTH9A-pi-delivery.md",
+  "piFinalEvidence": {
+    "log": "T10-AUTH9A-verification-C051E355-90C4-4F5C-8018-6111329FCF42.log",
+    "importReport": "T10-AUTH-IMPORT-4b02e577-6932-47af-b266-55400f353936.json",
+    "rootDesignedScriptReport": "T10-AUTH7-STATE-ROOT-008a982e-f8f4-4d38-8ce4-67148b574fb7.json",
+    "executor": "pi, not Root",
+    "resourceReport": "T10-AUTH9A-resource-recheck-68b4bdd1-145a-4fc6-9360-832e16dd3b83.json"
+  },
+  "latestRootCrypto": "T10-AUTH9-controller-crypto-210e3e75-a00c-487c-8426-17d24ebbd315.json",
+  "apiPolicyGapFixed": "T10-AUTH9-policy-error-controller-acceptance.json"
+}

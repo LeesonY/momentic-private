@@ -1,0 +1,67 @@
+{
+  "at": "2026-10-05T10:58:21.548Z",
+  "workspace": "wF",
+  "event": "merged progress/completion review",
+  "browserPaused": true,
+  "P0Passed": false,
+  "singleMonitorPid": 95898,
+  "pi": "Usage quota exceeded; root takes B5 fixture/worker/core/runtime ownership without changing model/account",
+  "agy": "C2-R2 actual product provenance helper canonical validation, web only",
+  "grok": "G3-E-R bounded valid PNG decoding after 2 independent malformed-data failures",
+  "root": "B5 fixed technical/module replay now independent 8/8; baseline source scopes reviewed; default production AI remains unsupported and needs next implementation",
+  "verified": {
+    "C2Root11": 11,
+    "C2Guards": 61,
+    "G3EApiGateway": 29,
+    "G3D4LeaseLedger": 27,
+    "ReplayAndLocator": 18,
+    "B5FakeBrowser": 8
+  },
+  "newG3EFindings": {
+    "sourceSha256": "780a7bb7987ff303d81d617ba03c8540dffdfe09aad8ba8772c7ed1bad8f1756",
+    "results": [
+      {
+        "case": "Complete one-pixel RGBA PNG",
+        "expected": "accepted",
+        "result": "accepted",
+        "mediaType": "image/png",
+        "passed": true
+      },
+      {
+        "case": "PNG signature only; no IHDR, IDAT or IEND",
+        "expected": "rejected",
+        "result": "rejected",
+        "code": "VALIDATION_ERROR",
+        "passed": true
+      },
+      {
+        "case": "JPEG signature only; no frame or image data",
+        "expected": "rejected",
+        "result": "rejected",
+        "code": "VALIDATION_ERROR",
+        "passed": true
+      },
+      {
+        "case": "CRC-valid PNG with invalid color type 99",
+        "expected": "rejected",
+        "result": "accepted",
+        "mediaType": "image/png",
+        "passed": false
+      },
+      {
+        "case": "CRC-valid PNG with invalid compressed image data",
+        "expected": "rejected",
+        "result": "accepted",
+        "mediaType": "image/png",
+        "passed": false
+      }
+    ],
+    "scope": "Current ArtifactStore helper only; not composed image path acceptance"
+  },
+  "notAccepted": [
+    "Full C2 actual UI helper",
+    "G3-E image semantics",
+    "B5 default AI adapter",
+    "Browser/real supplier gate"
+  ]
+}

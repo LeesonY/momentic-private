@@ -16,6 +16,14 @@ import type {
   TriagePreview,
   InputRequest,
 } from '@localqa/contracts';
+import type {
+  SavedCase,
+  SavedCaseVersion,
+  Schedule,
+  ApiKey,
+  RegressionDocument,
+  RegressionModuleRecord,
+} from '../api/types.ts';
 
 /**
  * [MOCK 数据 / MOCK DATA]
@@ -34,8 +42,11 @@ export const mockCurrentUser: User = {
   version: 1,
 };
 
+export const MOCK_PROJECT_ID = '00000000-0000-4000-8000-000000000001';
+export const LEGACY_MOCK_PROJECT_ID = 'proj_mock_ecommerce_01';
+
 export const mockProject: Project = {
-  id: 'proj_mock_ecommerce_01',
+  id: MOCK_PROJECT_ID,
   name: '核心电商业务系统 (Mock)',
   status: 'active',
   defaultModelProfileId: 'model_mock_gpt4o',
@@ -201,6 +212,7 @@ export const mockRuns: Run[] = [
     projectId: 'proj_mock_ecommerce_01',
     creatorId: 'usr_mock_admin_001',
     targetUrl: 'http://localhost:8080/',
+    executionMode: 'smoke',
     status: 'completed',
     phase: 'finalize',
     completion: 'complete',
@@ -223,6 +235,7 @@ export const mockRuns: Run[] = [
     projectId: 'proj_mock_ecommerce_01',
     creatorId: 'usr_mock_admin_001',
     targetUrl: 'http://localhost:8080/fix-14-large.html',
+    executionMode: 'smoke',
     status: 'completed',
     phase: 'finalize',
     completion: 'partial',
@@ -245,6 +258,7 @@ export const mockRuns: Run[] = [
     projectId: 'proj_mock_ecommerce_01',
     creatorId: 'usr_mock_operator_002',
     targetUrl: 'http://localhost:8080/fix-03-auth.html',
+    executionMode: 'smoke',
     status: 'awaiting_input',
     phase: 'auth',
     completion: 'none',
@@ -262,6 +276,52 @@ export const mockRuns: Run[] = [
     updatedAt: '2026-10-02T08:30:14.000Z',
     version: 6,
   },
+  {
+    id: 'run_mock_004_regression',
+    projectId: 'proj_mock_ecommerce_01',
+    creatorId: 'usr_mock_admin_001',
+    targetUrl: 'http://localhost:8080/regression.html',
+    executionMode: 'regression',
+    status: 'completed',
+    phase: 'finalize',
+    completion: 'complete',
+    terminationReason: 'normal',
+    contextVersion: 1,
+    effectiveConfig: defaultRunConfig,
+    budgetUsed: {
+      activeSeconds: 42,
+      actions: 8,
+      modelCalls: 4,
+      totalTokens: 12500,
+      reproductions: 0,
+    },
+    createdAt: '2026-10-04T10:00:00.000Z',
+    updatedAt: '2026-10-04T10:01:00.000Z',
+    version: 18,
+  },
+  {
+    id: 'run_mock_005_queued',
+    projectId: 'proj_mock_ecommerce_01',
+    creatorId: 'usr_mock_admin_001',
+    targetUrl: 'http://localhost:8080/queued.html',
+    executionMode: 'regression',
+    status: 'queued',
+    phase: 'preflight',
+    completion: 'none',
+    terminationReason: null,
+    contextVersion: 1,
+    effectiveConfig: defaultRunConfig,
+    budgetUsed: {
+      activeSeconds: 0,
+      actions: 0,
+      modelCalls: 0,
+      totalTokens: 0,
+      reproductions: 0,
+    },
+    createdAt: '2026-10-04T10:05:00.000Z',
+    updatedAt: '2026-10-04T10:05:00.000Z',
+    version: 1,
+  },
 ];
 
 export const mockInputRequest: InputRequest = {
@@ -273,6 +333,45 @@ export const mockInputRequest: InputRequest = {
   expiresAt: '2026-10-02T08:35:00.000Z',
   status: 'pending',
   version: 1,
+};
+
+export const mockRegressionDocument1: RegressionDocument = {
+  schemaVersion: 1,
+  kind: 'localqa/test',
+  id: 'checkout-coupon-calc',
+  name: '优惠券叠加与最终结算价验证',
+  variables: { couponCode: 'SAVE20', expectedDiscount: 20 },
+  criteria: [
+    {
+      id: 'crit-cart-01',
+      kind: 'element_visible',
+      description: '结算明细容器必须可见',
+      sourceKind: 'user_spec',
+      sourceRef: 'specs/checkout.md#summary',
+      locator: { by: 'css', value: '[data-testid="checkout-summary"]' },
+    },
+    {
+      id: 'crit-cart-02',
+      kind: 'text_equals',
+      description: '优惠券减免行必须准确呈现 -20.00 元',
+      sourceKind: 'user_spec',
+      sourceRef: 'specs/checkout.md#discount',
+      locator: { by: 'css', value: '[data-testid="discount-amount"]' },
+      expectedValue: '-¥20.00',
+    },
+  ],
+  steps: [
+    { kind: 'navigate', url: 'http://localhost:8080/checkout.html' },
+    {
+      kind: 'type_text',
+      locator: { by: 'css', value: '#coupon-input' },
+      text: 'SAVE20',
+    },
+    { kind: 'click', locator: { by: 'css', value: '#apply-coupon-btn' } },
+    { kind: 'assert', criterionId: 'crit-cart-01' },
+    { kind: 'assert', criterionId: 'crit-cart-02' },
+  ],
+  fixtureRefs: [],
 };
 
 export const mockCases: CaseRecord[] = [
@@ -469,6 +568,135 @@ export const mockCases: CaseRecord[] = [
       createdAt: '2026-10-02T08:01:30.000Z',
     },
   },
+  {
+    definition: {
+      id: 'case_mock_04_regression',
+      runId: 'run_mock_004_regression',
+      projectId: 'proj_mock_ecommerce_01',
+      version: 1,
+      title: 'REG-01: 核心电商结账与优惠券抵扣回放 (来源信息完整)',
+      summary: '从用例库基线版本 v1 派生回放，校验优惠券计算与订单结算。',
+      preconditions: ['靶场已就绪', '已登录测试账号'],
+      outline: ['进入购物车', '应用优惠券', '结算提交'],
+      criteria: [
+        {
+          id: 'crit_reg_01_coupon',
+          kind: 'element_visible',
+          description: '优惠券折抵金额与总价计算一致',
+          sourceKind: 'saved_case',
+          sourceRef: 'scv_mock_v1',
+        },
+      ],
+      regression: {
+        sourceVersionId: 'a0000000-0000-0000-0000-000000000001',
+        sourceDocumentSha256:
+          'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        snapshotDocumentSha256:
+          'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        document: mockRegressionDocument1,
+        moduleSnapshots: [
+          {
+            projectId: 'b0000000-0000-0000-0000-000000000001',
+            name: 'auth_helper',
+            version: 1,
+            sha256:
+              'a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0',
+            document: mockRegressionDocument1,
+            reviewStatus: 'approved',
+          },
+        ],
+      },
+    },
+    outcome: 'passed',
+    verdict: {
+      id: 'verdict_mock_04',
+      caseId: 'case_mock_04_regression',
+      attemptId: 'att_mock_04',
+      status: 'passed',
+      reasonCode: 'REGRESSION_CRITERIA_SATISFIED',
+      summary: '自动化回归基线执行通过，所有回放步骤与准则一致。',
+      criterionResults: [
+        {
+          criterionId: 'crit_reg_01_coupon',
+          result: 'passed',
+          reason: '优惠券折抵有效且总计吻合',
+          evidenceRefs: [],
+        },
+      ],
+      gaps: [],
+      createdAt: '2026-10-04T10:00:50.000Z',
+    },
+  },
+  {
+    definition: {
+      id: 'case_mock_05_queued_not_run',
+      runId: 'run_mock_005_queued',
+      projectId: 'proj_mock_ecommerce_01',
+      version: 1,
+      title: 'REG-02: 排队中待执行回归用例 (未执行 / not_run)',
+      summary: '处于排队队列中的回归用例，尚未由 Worker 执行回放。',
+      preconditions: ['靶场已就绪'],
+      outline: ['等待回放步骤'],
+      criteria: [
+        {
+          id: 'crit_reg_02_pending',
+          kind: 'element_visible',
+          description: '等待判定',
+          sourceKind: 'saved_case',
+          sourceRef: 'scv_mock_v1',
+        },
+      ],
+      regression: {
+        sourceVersionId: 'scv_mock_v1',
+        sourceDocumentSha256:
+          'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        document: mockRegressionDocument1,
+        moduleSnapshots: [],
+      },
+    },
+    outcome: 'not_run',
+    verdict: null,
+  },
+  {
+    definition: {
+      id: 'case_mock_06_unverified',
+      runId: 'run_mock_004_regression',
+      projectId: 'proj_mock_ecommerce_01',
+      version: 1,
+      title: 'REG-03: 来源缺失未验证回归用例 (缺失 regression 绑定)',
+      summary: '演示在回归模式下，若用例未携带有效来源绑定时的「未验证」状态。',
+      preconditions: [],
+      outline: ['未验证测试'],
+      criteria: [
+        {
+          id: 'crit_reg_03_unverified',
+          kind: 'element_visible',
+          description: '未验证准则',
+          sourceKind: 'generic_smoke',
+          sourceRef: '',
+        },
+      ],
+    },
+    outcome: 'inconclusive',
+    verdict: {
+      id: 'verdict_mock_06',
+      caseId: 'case_mock_06_unverified',
+      attemptId: 'att_mock_06',
+      status: 'inconclusive',
+      reasonCode: 'MISSING_SOURCE_PROVENANCE',
+      summary: '因来源绑定缺失，无法确认基线，判定为不确定/无结论。',
+      criterionResults: [
+        {
+          criterionId: 'crit_reg_03_unverified',
+          result: 'unknown',
+          reason: '缺少有效来源基线',
+          evidenceRefs: [],
+        },
+      ],
+      gaps: ['缺少来源版本绑定'],
+      createdAt: '2026-10-04T10:00:55.000Z',
+    },
+  },
 ];
 
 export const mockFindings: Finding[] = [
@@ -556,6 +784,46 @@ export const mockSteps: Step[] = [
     evidenceRefs: ['art_mock_screenshot_error'],
     createdAt: '2026-10-02T08:01:35.000Z',
     finishedAt: '2026-10-02T08:01:35.100Z',
+  },
+  {
+    id: 'step_mock_04_01',
+    runId: 'run_mock_004_regression',
+    taskId: 'task_mock_coord_01',
+    caseId: 'case_mock_04_regression',
+    seq: 1,
+    toolName: 'navigate',
+    status: 'succeeded',
+    summary: '导航至订单结账页面 (步骤出处信息完整)',
+    targetDescription: 'http://localhost:8080/checkout.html',
+    evidenceRefs: [],
+    createdAt: '2026-10-04T10:00:10.000Z',
+    finishedAt: '2026-10-04T10:00:12.000Z',
+    regressionSource: {
+      documentId: 'checkout-coupon-calc',
+      stepIndex: 0,
+      modulePath: [
+        {
+          ref: 'auth_helper@1',
+          sha256:
+            'a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0',
+          invocationStepIndex: 1,
+        },
+      ],
+    },
+  },
+  {
+    id: 'step_mock_04_02',
+    runId: 'run_mock_004_regression',
+    taskId: 'task_mock_coord_01',
+    caseId: 'case_mock_04_regression',
+    seq: 2,
+    toolName: 'click',
+    status: 'succeeded',
+    summary: '点击应用优惠券按钮 (未携带 regressionSource)',
+    targetDescription: 'button#apply-coupon-btn',
+    evidenceRefs: [],
+    createdAt: '2026-10-04T10:00:15.000Z',
+    finishedAt: '2026-10-04T10:00:16.000Z',
   },
 ];
 
@@ -689,3 +957,243 @@ export const mockTriagePreview: TriagePreview = {
   confirmationToken: 'tok_confirm_triage_abc123',
   expiresAt: new Date(Date.now() + 300000).toISOString(),
 };
+
+export const MOCK_SAVED_CASE_1_ID = '00000000-0000-4000-8000-000000000001';
+export const MOCK_SAVED_CASE_1_VERSION_ID =
+  '00000000-0000-4000-8000-000000000011';
+export const MOCK_SAVED_CASE_2_ID = '00000000-0000-4000-8000-000000000002';
+export const MOCK_SAVED_CASE_2_VERSION_ID =
+  '00000000-0000-4000-8000-000000000012';
+export const MOCK_SAVED_CASE_3_ARCHIVED_ID =
+  '00000000-0000-4000-8000-000000000003';
+export const MOCK_SAVED_CASE_3_VERSION_ID =
+  '00000000-0000-4000-8000-000000000013';
+
+const case1Versions: SavedCaseVersion[] = [
+  {
+    id: MOCK_SAVED_CASE_1_VERSION_ID,
+    caseId: MOCK_SAVED_CASE_1_ID,
+    version: 1,
+    document: mockRegressionDocument1,
+    sha256: '4a5e1e7f3b8c9d0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607182',
+    reviewStatus: 'approved',
+    createdBy: '00000000-0000-4000-a000-000000000001',
+    createdAt: '2026-10-02T10:00:00.000Z',
+    reviewedBy: '00000000-0000-4000-a000-000000000001',
+    reviewedAt: '2026-10-02T10:15:00.000Z',
+  },
+];
+
+const case2Versions: SavedCaseVersion[] = [
+  {
+    id: MOCK_SAVED_CASE_2_VERSION_ID,
+    caseId: MOCK_SAVED_CASE_2_ID,
+    version: 1,
+    document: {
+      schemaVersion: 1,
+      kind: 'localqa/test',
+      id: 'user-profile-save',
+      name: '用户资料修改与保存流程',
+      variables: {},
+      criteria: [
+        {
+          id: 'crit-prof-01',
+          kind: 'text_equals',
+          description: '资料更新后提示成功 Toast',
+          sourceKind: 'user_spec',
+          sourceRef: 'specs/profile.md#toast',
+          locator: { by: 'css', value: '.toast-success' },
+          expectedValue: '修改已保存',
+        },
+      ],
+      steps: [
+        { kind: 'navigate', url: 'http://localhost:8080/profile.html' },
+        { kind: 'click', locator: { by: 'css', value: '#save-btn' } },
+        { kind: 'assert', criterionId: 'crit-prof-01' },
+      ],
+      fixtureRefs: [],
+    },
+    sha256: '9b8a7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b',
+    reviewStatus: 'draft',
+    createdBy: '00000000-0000-4000-a000-000000000001',
+    createdAt: '2026-10-03T14:20:00.000Z',
+    reviewedBy: null,
+    reviewedAt: null,
+  },
+];
+
+const case3Versions: SavedCaseVersion[] = [
+  {
+    id: MOCK_SAVED_CASE_3_VERSION_ID,
+    caseId: MOCK_SAVED_CASE_3_ARCHIVED_ID,
+    version: 1,
+    document: mockRegressionDocument1,
+    sha256: '4a5e1e7f3b8c9d0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607182',
+    reviewStatus: 'approved',
+    createdBy: '00000000-0000-4000-a000-000000000001',
+    createdAt: '2026-10-01T09:00:00.000Z',
+    reviewedBy: '00000000-0000-4000-a000-000000000001',
+    reviewedAt: '2026-10-01T09:30:00.000Z',
+  },
+];
+
+export const mockSavedCaseVersions: Record<string, SavedCaseVersion[]> = {
+  [MOCK_SAVED_CASE_1_ID]: case1Versions,
+  case_mock_001: case1Versions,
+  [MOCK_SAVED_CASE_2_ID]: case2Versions,
+  case_mock_002: case2Versions,
+  [MOCK_SAVED_CASE_3_ARCHIVED_ID]: case3Versions,
+};
+
+export const mockSavedCases: SavedCase[] = [
+  {
+    id: MOCK_SAVED_CASE_1_ID,
+    projectId: MOCK_PROJECT_ID,
+    slug: 'checkout-coupon-calc',
+    name: '优惠券叠加与最终结算价验证',
+    status: 'active',
+    currentApprovedVersionId: MOCK_SAVED_CASE_1_VERSION_ID,
+    version: 1,
+    createdAt: '2026-10-02T10:00:00.000Z',
+  },
+  {
+    id: MOCK_SAVED_CASE_2_ID,
+    projectId: MOCK_PROJECT_ID,
+    slug: 'user-profile-save',
+    name: '用户资料修改与保存流程 (Draft 草稿待审)',
+    status: 'active',
+    currentApprovedVersionId: null,
+    version: 1,
+    createdAt: '2026-10-03T14:20:00.000Z',
+  },
+  {
+    id: MOCK_SAVED_CASE_3_ARCHIVED_ID,
+    projectId: MOCK_PROJECT_ID,
+    slug: 'legacy-cart-checkout',
+    name: '历史购物车结算流程 (已归档)',
+    status: 'archived',
+    currentApprovedVersionId: MOCK_SAVED_CASE_3_VERSION_ID,
+    version: 2,
+    createdAt: '2026-10-01T09:00:00.000Z',
+  },
+];
+
+export const mockSchedules: Schedule[] = [
+  {
+    id: 'sched_mock_001',
+    projectId: MOCK_PROJECT_ID,
+    name: '每日核心流自动化回归巡检',
+    cron: '0 2 * * *',
+    timezone: 'Asia/Shanghai',
+    templateKind: 'regression',
+    runTemplate: {
+      projectId: MOCK_PROJECT_ID,
+      targetUrl: 'http://localhost:8080/checkout',
+      mode: 'smoke',
+    },
+    overlapPolicy: 'skip',
+    missedPolicy: 'skip',
+    enabled: true,
+    version: 1,
+    createdAt: '2026-10-01T12:00:00.000Z',
+  },
+];
+
+export const mockApiKeys: ApiKey[] = [
+  {
+    id: 'key_mock_001',
+    projectId: MOCK_PROJECT_ID,
+    name: 'CI/CD Pipeline Key',
+    scope: ['runs:create', 'runs:read'],
+    createdBy: 'usr_mock_admin_001',
+    createdAt: '2026-10-01T12:00:00.000Z',
+    expiresAt: null,
+    revokedAt: null,
+  },
+];
+
+export const mockRegressionDocumentAuthHelperV1: RegressionDocument = {
+  schemaVersion: 1,
+  kind: 'localqa/test',
+  id: 'auth_helper',
+  name: '基础登录与鉴权模块 (v1)',
+  variables: {},
+  criteria: [
+    {
+      id: 'crit-auth-01',
+      kind: 'element_visible',
+      description: '登录输入表单存在且可见',
+      sourceKind: 'saved_case',
+      sourceRef: 'auth_helper',
+      locator: { by: 'css', value: '#login-form' },
+    },
+  ],
+  steps: [
+    { kind: 'navigate', url: 'http://localhost:8080/login.html' },
+    { kind: 'assert', criterionId: 'crit-auth-01' },
+  ],
+  fixtureRefs: [],
+};
+
+export const mockRegressionDocumentAuthHelperV2: RegressionDocument = {
+  schemaVersion: 1,
+  kind: 'localqa/test',
+  id: 'auth_helper',
+  name: '基础登录与鉴权模块 (v2 带双因子)',
+  variables: {},
+  criteria: [
+    {
+      id: 'crit-auth-01',
+      kind: 'element_visible',
+      description: '登录输入表单存在且可见',
+      sourceKind: 'saved_case',
+      sourceRef: 'auth_helper',
+      locator: { by: 'css', value: '#login-form' },
+    },
+    {
+      id: 'crit-auth-02',
+      kind: 'element_visible',
+      description: '双因子验证码输入框可见',
+      sourceKind: 'saved_case',
+      sourceRef: 'auth_helper',
+      locator: { by: 'css', value: '#mfa-input' },
+    },
+  ],
+  steps: [
+    { kind: 'navigate', url: 'http://localhost:8080/login.html' },
+    { kind: 'assert', criterionId: 'crit-auth-01' },
+    { kind: 'assert', criterionId: 'crit-auth-02' },
+  ],
+  fixtureRefs: [],
+};
+
+export const MOCK_ADMIN_USER_UUID = '00000000-0000-4000-a000-000000000001';
+export const MOCK_OPERATOR_USER_UUID = '00000000-0000-4000-a000-000000000002';
+export const MOCK_VIEWER_USER_UUID = '00000000-0000-4000-a000-000000000003';
+
+export const mockRegressionModules: RegressionModuleRecord[] = [
+  {
+    projectId: MOCK_PROJECT_ID,
+    name: 'auth_helper',
+    version: 1,
+    sha256: '4b8a502f5a792129807e60d736a6de9b72cfe4a853c0605a1b15ce2559065b32',
+    document: mockRegressionDocumentAuthHelperV1,
+    reviewStatus: 'approved',
+    createdBy: MOCK_ADMIN_USER_UUID,
+    createdAt: '2026-10-01T08:00:00.000Z',
+    reviewedBy: MOCK_ADMIN_USER_UUID,
+    reviewedAt: '2026-10-01T08:30:00.000Z',
+  },
+  {
+    projectId: MOCK_PROJECT_ID,
+    name: 'auth_helper',
+    version: 2,
+    sha256: '6c81fc975b3486aed0ee9bb7d2d129b8e86afde022ba8a31d97a28fa153c47d7',
+    document: mockRegressionDocumentAuthHelperV2,
+    reviewStatus: 'draft',
+    createdBy: MOCK_OPERATOR_USER_UUID,
+    createdAt: '2026-10-03T10:00:00.000Z',
+    reviewedBy: null,
+    reviewedAt: null,
+  },
+];

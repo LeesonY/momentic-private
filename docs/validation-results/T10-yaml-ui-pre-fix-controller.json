@@ -1,0 +1,25 @@
+{
+  "rootIndependent": true,
+  "results": [
+    {
+      "name": "new mock import returns canonical SavedCase",
+      "passed": false
+    },
+    {
+      "name": "new mock import has a draft version available to detail/review",
+      "passed": false,
+      "versionCount": 0
+    },
+    {
+      "name": "generated export client rejects a response for a different selected version",
+      "passed": false
+    },
+    {
+      "name": "mock export preserves selected version stored source SHA",
+      "passed": false,
+      "sourceShaWasString": true
+    }
+  ],
+  "scope": "Actual mock methods and generated client with injected Response, no browser/network",
+  "P0Passed": false
+}

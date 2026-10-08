@@ -1,0 +1,27 @@
+{
+  "results": [
+    {
+      "case": "Invalid UUID ToolCall",
+      "requestResult": "malformed",
+      "errorCode": "VALIDATION_ERROR",
+      "sends": 2,
+      "passed": true
+    },
+    {
+      "case": "Invalid custom uuid",
+      "requestResult": "malformed",
+      "errorCode": "VALIDATION_ERROR",
+      "sends": 2,
+      "passed": true
+    },
+    {
+      "case": "Invalid custom uri",
+      "requestResult": "malformed",
+      "errorCode": "VALIDATION_ERROR",
+      "sends": 2,
+      "passed": true
+    }
+  ],
+  "warningCount": 0,
+  "scope": "Local gateway output validation, no PG/browser/provider network"
+}

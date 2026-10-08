@@ -1,0 +1,36 @@
+{
+  "at": "2026-10-07T06:17:05.410Z",
+  "rootIndependent": true,
+  "cases": [
+    {
+      "name": "actual archive callback clears busy after its successful same-scope refresh",
+      "passed": true
+    },
+    {
+      "name": "actual create callback still navigates and clears busy after successful refresh",
+      "passed": true
+    },
+    {
+      "name": "actual delayed archive never refreshes the old project after a scope switch",
+      "passed": true
+    },
+    {
+      "name": "actual two same-scope archive callbacks both clear their own busy state",
+      "passed": true
+    },
+    {
+      "name": "actual load-more finally clears busy when superseded by same-scope refresh",
+      "passed": true
+    },
+    {
+      "name": "actual delayed create cannot route or clear new-project activity",
+      "passed": true
+    },
+    {
+      "name": "actual list loader retains approved version metadata from a later history page",
+      "passed": true
+    }
+  ],
+  "scope": "Actual SavedCasesPage callbacks transpiled with injected closure state and real LifecycleScopeGuard; no browser, DOM/hydration or provider",
+  "P0Passed": false
+}

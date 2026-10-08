@@ -1,0 +1,15 @@
+{
+  "rootIndependent": true,
+  "actualProductAppAndProvider": true,
+  "apiStubbed": true,
+  "initialServerRenderPendingSession": true,
+  "initialLoginFormAbsent": true,
+  "browserExecuted": false,
+  "apiCalled": false,
+  "notVerified": [
+    "Client session hydration",
+    "Real cookie restoration",
+    "DOM paint or event-to-UI P95"
+  ],
+  "P0Passed": false
+}

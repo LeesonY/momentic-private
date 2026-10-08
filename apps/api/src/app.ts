@@ -12,6 +12,9 @@ import { registerSseRoutes } from './routes/sse.js';
 import { registerExecutionRoutes } from './routes/execution.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerInternalRoutes } from './routes/internal.js';
+import { registerSavedCaseRoutes } from './routes/savedCases.js';
+import { registerRegressionModuleRoutes } from './routes/regressionModules.js';
+import { registerCaseLifecycleRoutes } from './routes/caseLifecycle.js';
 import { validateOriginAndCsrf } from './auth.js';
 
 export function createRouter(): Router {
@@ -25,6 +28,9 @@ export function createRouter(): Router {
   registerExecutionRoutes(router);
   registerHealthRoutes(router);
   registerInternalRoutes(router);
+  registerSavedCaseRoutes(router);
+  registerRegressionModuleRoutes(router);
+  registerCaseLifecycleRoutes(router);
   return router;
 }
 

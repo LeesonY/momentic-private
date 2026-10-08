@@ -1,0 +1,126 @@
+{
+  "at": "2026-10-07T13:29:35.732458+00:00",
+  "rootIndependent": true,
+  "scope": "Existing API generic authentication input boundary; secure OTP/profile apply still unimplemented",
+  "pgApiChecks": 15,
+  "t06ApiRegression": 14,
+  "build": "passed",
+  "eslint": "passed",
+  "diffCheck": "passed",
+  "initialCounterexample": {
+    "passed": 3,
+    "failed": 6,
+    "report": "T10-AUTH5-INPUT-ROOT-13257407-d49e-40aa-9cd3-329bf9929bd6.json"
+  },
+  "firstRepairError": "ApiError thrown inside Database.actor mapped to SERVICE_UNAVAILABLE503; corrected to StorageError(VALIDATION_ERROR), failed report retained",
+  "acceptedLocally": true,
+  "sourceSha256": {
+    "apps/api/src/routes/runs.ts": "3f67c78fcb010ffe0aa9c182433bb0f8dfe9470b1406fed0c4b17f277d14f527",
+    "docs/validation-results/T10-AUTH5-input-controller-repro.mjs": "17e716fa596540d331017a6001fb9a84feef92465e01ae5d55b68118022f2bcd"
+  },
+  "resourceRechecks": [
+    {
+      "report": "T10-AUTH5-INPUT-ROOT-13257407-d49e-40aa-9cd3-329bf9929bd6.json",
+      "summary": {
+        "passed": 3,
+        "failed": 6
+      },
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "d3063ef79d10ca2ec15077ad9423f43fe55e5c371099cdd8f60bdfc57e9ea3cc",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "ports": [
+        {
+          "port": 33127,
+          "closed": true
+        },
+        {
+          "port": 55358,
+          "closed": true
+        }
+      ]
+    },
+    {
+      "report": "T10-AUTH5-INPUT-ROOT-cf06b3d0-ecd4-45f9-9d52-45da99af1bce.json",
+      "summary": {
+        "passed": 4,
+        "failed": 11
+      },
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "2ae375a84c762f9918c9cb3400d52f3cff317f8933e7948c277ac62e09a729c6",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "ports": [
+        {
+          "port": 33128,
+          "closed": true
+        },
+        {
+          "port": 55604,
+          "closed": true
+        }
+      ]
+    },
+    {
+      "report": "T10-AUTH5-INPUT-ROOT-46f7bed1-b221-46a4-8d2e-191ea0c7eff0.json",
+      "summary": {
+        "passed": 15,
+        "failed": 0
+      },
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "c3a3e4eb2879045ac6a5261cf89fe11a978b872a37d850aea02827c586a8b398",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "ports": [
+        {
+          "port": 33129,
+          "closed": true
+        },
+        {
+          "port": 55900,
+          "closed": true
+        }
+      ]
+    },
+    {
+      "report": "T06-api-revalidation-32ec1cb3.json",
+      "summary": {
+        "passed": 14,
+        "failed": 0
+      },
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "a7efa11d178470649ab5aa5694afb5c203d2ebab26cdd5057a55ee90150eb941",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "ports": [
+        {
+          "port": 33131,
+          "closed": true
+        },
+        {
+          "port": 56305,
+          "closed": true
+        }
+      ]
+    }
+  ],
+  "browserPaused": true,
+  "P0Passed": false,
+  "fullAuthenticationAccepted": false
+}

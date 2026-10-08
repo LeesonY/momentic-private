@@ -1,0 +1,115 @@
+{
+  "task": "T10-AUTH6-ACTIONS-ROOT",
+  "tag": "d42c4ba9-05a5-41d8-b081-82bd088244fe",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-actions-zMHvNy",
+  "tests": [
+    {
+      "name": "recordAuthObservation: registers sanitized snapshot bound to auth session and epoch",
+      "passed": true
+    },
+    {
+      "name": "grantAuth: generates AuthPermit, reserves budget, enforces action/slot pairing, snapshot provenance and requestId idempotency",
+      "passed": true
+    },
+    {
+      "name": "beginAuthExecution CAS state (issued -> started), single-execution, and exclusive run lock",
+      "passed": true
+    },
+    {
+      "name": "recordAuth: requires started grant and receipt match, settles budget, updates Step, and rejects ordinary channels",
+      "passed": true
+    },
+    {
+      "name": "Failed outcome in recordAuth charges actions:1 and releases initializing exclusive lock",
+      "passed": true
+    },
+    {
+      "name": "Root: authoritative server permit is directly usable by the actual private port",
+      "passed": true
+    },
+    {
+      "name": "Root: same private result retry is idempotent and charges only once",
+      "passed": true
+    },
+    {
+      "name": "Root: changed snapshot on a private result retry conflicts",
+      "passed": true
+    },
+    {
+      "name": "Root: expired auth session cannot record under a still-live task lease",
+      "passed": true
+    },
+    {
+      "name": "Root: observation UUID cannot be rebound to another session or run",
+      "passed": true
+    },
+    {
+      "name": "Root: foreign or missing evidence cannot be charged as a successful auth report",
+      "passed": true
+    },
+    {
+      "name": "Root: task interruption releases the initializing exclusive lock and ends the private attempt",
+      "passed": true
+    },
+    {
+      "name": "Root: ordinary finish cannot approve auth stage without a committed auth state",
+      "passed": true
+    },
+    {
+      "name": "Root: viewer cannot read private execution receipts from action_intents",
+      "passed": true
+    },
+    {
+      "name": "Root: shared policy begins actions without exclusive lock rows",
+      "passed": true
+    },
+    {
+      "name": "Root: real lease recovery ends expired private attempts and releases initializing locks",
+      "passed": true
+    },
+    {
+      "name": "Root: ordinary expired lease recovery keeps working after private-table migration",
+      "passed": true
+    },
+    {
+      "name": "Root: storage_state navigation permit derives the frozen run target URL",
+      "passed": false,
+      "code": "TARGET_NOT_ALLOWED",
+      "message": "TARGET_NOT_ALLOWED"
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "02c29a228ff9e79a0815c9121ce9163de15a59bf76dd136f1ee364e802aaf4f5",
+    "volumes": [
+      "de675c69548f33da98b96ab438a56fdd4caf62baaf9a54dd06a4ee438e23bcb8"
+    ],
+    "pgPort": 33180,
+    "apiPort": 60476,
+    "apiPid": 21069,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "de675c69548f33da98b96ab438a56fdd4caf62baaf9a54dd06a4ee438e23bcb8",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 private auth actions ledger, provenance, CAS begin, and exclusive run lock only",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 17,
+    "failed": 1
+  }
+}

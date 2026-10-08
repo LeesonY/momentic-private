@@ -1,0 +1,36 @@
+{
+  "at": "2026-10-07T05:46:49.914Z",
+  "rootIndependent": true,
+  "cases": [
+    {
+      "name": "actual finder follows nextCursor and preserves actual archived head",
+      "passed": true
+    },
+    {
+      "name": "actual finder rejects foreign-project records even with the requested case id",
+      "passed": false,
+      "message": "Missing expected rejection."
+    },
+    {
+      "name": "actual finder rejects malformed page contract",
+      "passed": false,
+      "message": "Missing expected rejection."
+    },
+    {
+      "name": "actual finder distinguishes exhausted pages from search bounds",
+      "passed": false,
+      "message": "Missing expected rejection."
+    },
+    {
+      "name": "actual finder rejects a repeated cursor promptly",
+      "passed": false,
+      "message": "Missing expected rejection."
+    },
+    {
+      "name": "actual read token is invalid after project switch and unmount",
+      "passed": true
+    }
+  ],
+  "scope": "Actual pagination and scope helpers with injected pages/promises; no DOM/hydration, browser or provider",
+  "P0Passed": false
+}

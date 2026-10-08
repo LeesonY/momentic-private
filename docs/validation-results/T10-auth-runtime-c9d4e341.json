@@ -1,0 +1,39 @@
+{
+  "tag": "c9d4e341",
+  "execution": "Own PG/API/RuntimeClient, no browser or provider",
+  "tests": [
+    {
+      "name": "none is a frozen approved anonymous policy, not a request for manual credentials",
+      "passed": false
+    },
+    {
+      "name": "auth resolve must reject the caller stale context instead of rebuilding it from the database",
+      "passed": false
+    },
+    {
+      "name": "auth resolve must bind the caller worker identity to the lease",
+      "passed": false
+    }
+  ],
+  "ownership": {
+    "directory": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-runtime-Fg73bS",
+    "containerId": "28f508ea82aec3ea30bb9e8223059e7c993ea3bbc5c509668c2844b50ca0a0ab",
+    "volumes": [
+      "099e0e8589aae6d4fc1764e533345ee24c83bb04cf322cc7a27f18481c4c9c6c"
+    ],
+    "apiOrigin": "http://127.0.0.1:62864",
+    "pgPort": 33061
+  },
+  "P0Passed": false,
+  "cleanup": {
+    "removeStatus": 0,
+    "containerAbsent": true,
+    "volumesAbsent": [
+      {
+        "id": "099e0e8589aae6d4fc1764e533345ee24c83bb04cf322cc7a27f18481c4c9c6c",
+        "absent": true
+      }
+    ],
+    "secretDirectoryRemoved": true
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "rootIndependent": true,
+  "counts": {
+    "definitions": 135,
+    "operations": 85,
+    "publicOperations": 77
+  },
+  "results": [
+    {
+      "name": "unbound vars/env template schema admitted as draft input",
+      "passed": true
+    },
+    {
+      "name": "operator input cannot supply approval state or reviewer metadata",
+      "passed": true
+    },
+    {
+      "name": "invalid, traversal and control-character module names rejected",
+      "passed": true
+    },
+    {
+      "name": "version request stays inside PostgreSQL integer bounds",
+      "passed": true
+    },
+    {
+      "name": "full 120-character module name and PostgreSQL version fit reference/source contracts",
+      "passed": true
+    },
+    {
+      "name": "legacy snapshot shape retained and management metadata can be unknown",
+      "passed": true
+    },
+    {
+      "name": "preview binds a composite target and document SHA instead of UUID versionId",
+      "passed": true
+    },
+    {
+      "name": "module path has encoded-name string, bounded numeric version and UUID project",
+      "passed": true
+    },
+    {
+      "name": "five operations included in the canonical 77-public operation surface",
+      "passed": true
+    }
+  ],
+  "backendImplemented": false,
+  "uiImplemented": false,
+  "browserExecuted": false,
+  "P0Passed": false
+}

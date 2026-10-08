@@ -9,7 +9,12 @@ import type {
   Verdict,
   CredentialMaterial,
 } from '@localqa/contracts';
-import { Database, StorageError } from './database.js';
+import {
+  Database,
+  StorageError,
+  type Actor,
+  requireAdmin,
+} from './database.js';
 import type { WorkerScope } from './database.js';
 import { newToken, hashToken, hashPayload, SecretVault } from './crypto.js';
 import { appendEvent } from './repositories.js';
@@ -129,7 +134,10 @@ async function currentLease(
   return row;
 }
 export class LeaseRepository {
-  constructor(private db: Database) {}
+  constructor(
+    private readonly db: Database,
+    private readonly serviceActor?: Actor,
+  ) {}
   claim(scope: WorkerScope, seconds = 45): Promise<Lease | null> {
     return this.db.worker(scope, (client) => claimTask(client, scope, seconds));
   }
@@ -270,84 +278,109 @@ export class LeaseRepository {
   recoverExpired(
     scope: WorkerScope,
   ): Promise<{ requeued: number; interrupted: number }> {
-    return this.db.worker(scope, async (client) => {
-      const rows = await client.query<JobRow>(
-        "SELECT j.*,r.context_version,r.status run_status FROM jobs j JOIN runs r ON r.id=j.run_id WHERE j.project_id=$1 AND j.status='running' AND j.lease_until<=clock_timestamp() FOR UPDATE OF j SKIP LOCKED",
-        [scope.projectId],
+    const runWork = (client: PoolClient, isAdmin: boolean) =>
+      this.#recoverExpiredIn(client, scope, isAdmin);
+    if (this.serviceActor) {
+      return this.db.actor(this.serviceActor, async (client) => {
+        await requireAdmin(client);
+        return runWork(client, true);
+      });
+    }
+    return this.db.worker(scope, (client) => runWork(client, false));
+  }
+
+  async #recoverExpiredIn(
+    client: PoolClient,
+    scope: WorkerScope,
+    isAdmin: boolean,
+  ): Promise<{ requeued: number; interrupted: number }> {
+    const rows = await client.query<JobRow>(
+      "SELECT j.*,r.context_version,r.status run_status FROM jobs j JOIN runs r ON r.id=j.run_id WHERE j.project_id=$1 AND j.status='running' AND j.lease_until<=clock_timestamp() FOR UPDATE OF j SKIP LOCKED",
+      [scope.projectId],
+    );
+    let requeued = 0,
+      interrupted = 0;
+    for (const job of rows.rows) {
+      const isAuthTask = job.document?.summary === 'auth';
+      const acted = Boolean(
+        (
+          await client.query(
+            'SELECT 1 FROM action_intents WHERE project_id=$1 AND task_id=$2 LIMIT 1',
+            [scope.projectId, job.id],
+          )
+        ).rowCount,
       );
-      let requeued = 0,
-        interrupted = 0;
-      for (const job of rows.rows) {
-        const acted = Boolean(
-          (
-            await client.query(
-              'SELECT 1 FROM action_intents WHERE project_id=$1 AND task_id=$2 LIMIT 1',
-              [scope.projectId, job.id],
-            )
-          ).rowCount,
-        );
-        const canRetry =
-          !acted && ['queued', 'running'].includes(job.run_status);
+      const canRetry =
+        !isAuthTask && !acted && ['queued', 'running'].includes(job.run_status);
+      await client.query(
+        'UPDATE jobs SET status=$2,worker_id=NULL,lease_until=NULL WHERE id=$1',
+        [job.id, canRetry ? 'queued' : 'interrupted'],
+      );
+      await client.query(
+        "UPDATE action_intents SET outcome='unknown', execution_state='completed' WHERE task_id=$1 AND project_id=$2 AND outcome='pending'",
+        [job.id, scope.projectId],
+      );
+      if (isAdmin) {
         await client.query(
-          'UPDATE jobs SET status=$2,worker_id=NULL,lease_until=NULL WHERE id=$1',
-          [job.id, canRetry ? 'queued' : 'interrupted'],
-        );
-        await client.query(
-          "UPDATE action_intents SET outcome='unknown' WHERE task_id=$1 AND project_id=$2 AND outcome='pending'",
+          "UPDATE auth_execution_sessions SET status='ended', ended_at=clock_timestamp(), end_reason='interrupted' WHERE task_id=$1 AND project_id=$2 AND status IN ('allocated','active')",
           [job.id, scope.projectId],
         );
         await client.query(
-          "UPDATE case_attempts SET status='interrupted',finished_at=clock_timestamp() WHERE project_id=$1 AND task_id=$2 AND status IN ('queued','running')",
-          [scope.projectId, job.id],
+          "UPDATE auth_profile_run_locks SET status='released', released_at=clock_timestamp(), release_reason='interrupted' WHERE run_id=$1 AND phase='initializing' AND status='held'",
+          [job.run_id],
         );
-        // Unknown model/action reservations are charged conservatively, not released as zero.
-        const reservations = await client.query<{
-          id: string;
-          run_id: string;
-          reserved: Record<string, number>;
-        }>(
-          "SELECT id,run_id,reserved FROM budget_reservations WHERE project_id=$1 AND task_id=$2 AND status='reserved' FOR UPDATE",
-          [scope.projectId, job.id],
-        );
-        for (const reservation of reservations.rows) {
-          const budget = (
-            await client.query<{
-              used: Record<string, number>;
-              reserved: Record<string, number>;
-            }>(
-              'SELECT used,reserved FROM run_budgets WHERE run_id=$1 FOR UPDATE',
-              [reservation.run_id],
-            )
-          ).rows[0]!;
-          for (const [key, value] of Object.entries(reservation.reserved)) {
-            budget.used[key] = (budget.used[key] ?? 0) + value;
-            budget.reserved[key] = Math.max(
-              0,
-              (budget.reserved[key] ?? 0) - value,
-            );
-          }
-          await client.query(
-            'UPDATE run_budgets SET used=$2,reserved=$3 WHERE run_id=$1',
-            [reservation.run_id, budget.used, budget.reserved],
-          );
-          await client.query(
-            "UPDATE budget_reservations SET status='unknown',charged=reserved WHERE id=$1",
-            [reservation.id],
+      }
+      await client.query(
+        "UPDATE case_attempts SET status='interrupted',finished_at=clock_timestamp() WHERE project_id=$1 AND task_id=$2 AND status IN ('queued','running')",
+        [scope.projectId, job.id],
+      );
+      // Unknown model/action reservations are charged conservatively, not released as zero.
+      const reservations = await client.query<{
+        id: string;
+        run_id: string;
+        reserved: Record<string, number>;
+      }>(
+        "SELECT id,run_id,reserved FROM budget_reservations WHERE project_id=$1 AND task_id=$2 AND status='reserved' FOR UPDATE",
+        [scope.projectId, job.id],
+      );
+      for (const reservation of reservations.rows) {
+        const budget = (
+          await client.query<{
+            used: Record<string, number>;
+            reserved: Record<string, number>;
+          }>(
+            'SELECT used,reserved FROM run_budgets WHERE run_id=$1 FOR UPDATE',
+            [reservation.run_id],
+          )
+        ).rows[0]!;
+        for (const [key, value] of Object.entries(reservation.reserved)) {
+          budget.used[key] = (budget.used[key] ?? 0) + value;
+          budget.reserved[key] = Math.max(
+            0,
+            (budget.reserved[key] ?? 0) - value,
           );
         }
         await client.query(
-          'UPDATE task_leases SET released_at=clock_timestamp() WHERE task_id=$1 AND fencing_token=$2',
-          [job.id, job.fencing_token],
+          'UPDATE run_budgets SET used=$2,reserved=$3 WHERE run_id=$1',
+          [reservation.run_id, budget.used, budget.reserved],
         );
         await client.query(
-          "INSERT INTO audit_log(project_id,action,object_id,result) VALUES($1,'lease.expired',$2,$3)",
-          [scope.projectId, job.id, canRetry ? 'requeued' : 'interrupted'],
+          "UPDATE budget_reservations SET status='unknown',charged=reserved WHERE id=$1",
+          [reservation.id],
         );
-        if (canRetry) requeued++;
-        else interrupted++;
       }
-      return { requeued, interrupted };
-    });
+      await client.query(
+        'UPDATE task_leases SET released_at=clock_timestamp() WHERE task_id=$1 AND fencing_token=$2',
+        [job.id, job.fencing_token],
+      );
+      await client.query(
+        "INSERT INTO audit_log(project_id,actor_id,action,object_id,result) VALUES($1,actor_id(),'lease.expired',$2,$3)",
+        [scope.projectId, job.id, canRetry ? 'requeued' : 'interrupted'],
+      );
+      if (canRetry) requeued++;
+      else interrupted++;
+    }
+    return { requeued, interrupted };
   }
   async resolveAuth(
     scope: WorkerScope,
@@ -370,7 +403,9 @@ export class LeaseRepository {
       ).rows[0];
       if (!row) throw new StorageError('NOT_FOUND');
       let material = {};
-      if (row.secret_id) {
+      // An approved anonymous policy needs no credentials, including unused
+      // secrets attached to a historical none profile.
+      if (row.document.mode !== 'none' && row.secret_id) {
         const secret = (
           await client.query<{
             ciphertext: Buffer;

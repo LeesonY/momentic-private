@@ -1,0 +1,135 @@
+{
+  "task": "T10-AUTH5-INPUT-ROOT",
+  "tag": "cf06b3d0-ecd4-45f9-9d52-45da99af1bce",
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth5-input-X61Kjq",
+  "tests": [
+    {
+      "name": "auth_profile: unsupported approve cannot resolve authentication",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"kind\":\"auth_profile\",\"decision\":\"approve\",\"status\":503,\"resultCode\":\"SERVICE_UNAVAILABLE\",\"storedStatus\":\"pending\"}\n\n503 !== 422\n"
+    },
+    {
+      "name": "auth_profile: provide cannot resolve through generic input path",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"kind\":\"auth_profile\",\"decision\":\"provide\",\"status\":503,\"resultCode\":\"SERVICE_UNAVAILABLE\",\"storedStatus\":\"pending\"}\n\n503 !== 422\n"
+    },
+    {
+      "name": "auth_profile: reject cannot smuggle ordinary text material",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"kind\":\"auth_profile\",\"decision\":\"reject\",\"status\":503,\"resultCode\":\"SERVICE_UNAVAILABLE\",\"storedStatus\":\"pending\"}\n\n503 !== 422\n"
+    },
+    {
+      "name": "auth_profile: clean reject is recorded without fake resume",
+      "passed": true
+    },
+    {
+      "name": "one_time_code: unsupported approve cannot resolve authentication",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"kind\":\"one_time_code\",\"decision\":\"approve\",\"status\":503,\"resultCode\":\"SERVICE_UNAVAILABLE\",\"storedStatus\":\"pending\"}\n\n503 !== 422\n"
+    },
+    {
+      "name": "one_time_code: provide cannot resolve through generic input path",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"kind\":\"one_time_code\",\"decision\":\"provide\",\"status\":503,\"resultCode\":\"SERVICE_UNAVAILABLE\",\"storedStatus\":\"pending\"}\n\n503 !== 422\n"
+    },
+    {
+      "name": "one_time_code: reject cannot smuggle ordinary text material",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"kind\":\"one_time_code\",\"decision\":\"reject\",\"status\":503,\"resultCode\":\"SERVICE_UNAVAILABLE\",\"storedStatus\":\"pending\"}\n\n503 !== 422\n"
+    },
+    {
+      "name": "one_time_code: clean reject is recorded without fake resume",
+      "passed": true
+    },
+    {
+      "name": "ordinary clarification approve retains existing response semantics",
+      "passed": true
+    },
+    {
+      "name": "auth_profile: clean reject cannot carry oneTimeCode",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"kind\":\"auth_profile\",\"decision\":\"reject\",\"status\":503,\"resultCode\":\"SERVICE_UNAVAILABLE\",\"storedStatus\":\"pending\"}\n\n503 !== 422\n"
+    },
+    {
+      "name": "auth_profile: clean reject cannot carry allowedOrigins",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"kind\":\"auth_profile\",\"decision\":\"reject\",\"status\":503,\"resultCode\":\"SERVICE_UNAVAILABLE\",\"storedStatus\":\"pending\"}\n\n503 !== 422\n"
+    },
+    {
+      "name": "one_time_code: clean reject cannot carry oneTimeCode",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"kind\":\"one_time_code\",\"decision\":\"reject\",\"status\":503,\"resultCode\":\"SERVICE_UNAVAILABLE\",\"storedStatus\":\"pending\"}\n\n503 !== 422\n"
+    },
+    {
+      "name": "one_time_code: clean reject cannot carry allowedOrigins",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"kind\":\"one_time_code\",\"decision\":\"reject\",\"status\":503,\"resultCode\":\"SERVICE_UNAVAILABLE\",\"storedStatus\":\"pending\"}\n\n503 !== 422\n"
+    },
+    {
+      "name": "ordinary clarification cannot carry oneTimeCode",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"kind\":\"clarification\",\"decision\":\"approve\",\"status\":503,\"resultCode\":\"SERVICE_UNAVAILABLE\",\"storedStatus\":\"pending\"}\n\n503 !== 422\n"
+    },
+    {
+      "name": "stale version still rejects before authentication response handling",
+      "passed": true
+    }
+  ],
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "5ea5009afd5b8e023e5985c4c9723e9f81c4e2f6a768eea98a66346d398c0253",
+    "volumes": [
+      "2ae375a84c762f9918c9cb3400d52f3cff317f8933e7948c277ac62e09a729c6"
+    ],
+    "pgPort": 33128,
+    "apiPort": 55604,
+    "apiPid": 10415,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "2ae375a84c762f9918c9cb3400d52f3cff317f8933e7948c277ac62e09a729c6",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Actual PG/API input boundary; no browser, Worker.once, worker-entry or real model",
+    "Independent counterexamples and isolated concurrency checks; conclusions only reflect assertions in this run",
+    "P0=false; FakeBrowser/real model acceptance remains unverified"
+  ],
+  "migrationScope": "Owned immutable copy of migrations001-010; AUTH5 in-flight migration excluded from this existing input boundary reproduction",
+  "sourceSha256": {
+    "apps/api/src/routes/runs.ts": "8fc3d033da8ec6466f5fd34fea8fe2b82c1867d86fe54a6b93d793e1701d39a4",
+    "apps/api/dist/routes/runs.js": "6d7c30ac0e3bdcf490427d94185f234574357a9c5e58adb4694efc861090458b"
+  },
+  "lastResponse": {
+    "kind": "clarification",
+    "decision": "approve",
+    "status": 503,
+    "resultCode": "SERVICE_UNAVAILABLE",
+    "storedStatus": "pending"
+  },
+  "summary": {
+    "passed": 4,
+    "failed": 11
+  }
+}

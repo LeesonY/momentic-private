@@ -1,0 +1,81 @@
+{
+  "task": "T10-AUTH-1",
+  "setup": "ready",
+  "modelTransportCalls": 0,
+  "tag": "ab396496-0554-4b5c-a37a-80611fc21c36",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-auth-ss0ulb",
+  "tests": [
+    {
+      "name": "default none ID and version are both frozen for smoke and regression",
+      "passed": false,
+      "code": "VALIDATION_ERROR"
+    },
+    {
+      "name": "explicit project-wide none overrides environment default for both routes",
+      "passed": false,
+      "code": "VALIDATION_ERROR"
+    },
+    {
+      "name": "frozen none version survives a synthetic new form head; new regression refuses form",
+      "passed": false,
+      "code": "ERR_ASSERTION"
+    },
+    {
+      "name": "unknown, cross-project and revoked profiles reject for both routes",
+      "passed": false,
+      "code": "VALIDATION_ERROR"
+    },
+    {
+      "name": "environment-bound profile rejects wrong or omitted environment for both routes",
+      "passed": false,
+      "code": "VALIDATION_ERROR"
+    },
+    {
+      "name": "every run allowed origin must be approved, including environment extra origins",
+      "passed": false,
+      "code": "VALIDATION_ERROR"
+    },
+    {
+      "name": "form/storage_state bind legally in smoke but explicit/default regression remains 422",
+      "passed": false,
+      "code": "VALIDATION_ERROR"
+    },
+    {
+      "name": "identical retry reuses each run; profile/default configuration changes conflict",
+      "passed": false,
+      "code": "VALIDATION_ERROR"
+    }
+  ],
+  "ownership": {
+    "containerId": "8beedb36c31bc8b20ed08efe5e9fc08e89d18297069381eab5accd6ccf21e210",
+    "volumes": [
+      "2ffba5be46199fc8914286411f6d445a7d58e4b69e675fb6a79042616e840a43"
+    ],
+    "pgPort": 33064,
+    "apiPort": 63855,
+    "apiPid": 59190,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "2ffba5be46199fc8914286411f6d445a7d58e4b69e675fb6a79042616e840a43",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "PG/API admission only; no browser, Worker.once, worker-entry or real model",
+    "Frozen none metadata checked by SQL; RuntimeClient execution is Root-owned and not tested here",
+    "Form/storage_state regression remains unsupported; P0/T10 not accepted"
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 8
+  }
+}

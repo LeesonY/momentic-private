@@ -21,6 +21,7 @@ export type ProviderErrorCode =
   | 'IMAGE_UNSUPPORTED'
   | 'MODEL_NOT_CONFIGURED'
   | 'VALIDATION_ERROR'
+  | 'BUDGET_EXCEEDED'
   | 'SERVICE_UNAVAILABLE'
   | null;
 
@@ -30,12 +31,18 @@ export interface ProviderUsage {
 }
 
 export interface ProviderResponse {
+  /** Complete body used for parsing. Empty when the body is refused. */
   raw: string;
+  /** Log prefix only. Parsing must not use this instead of raw. */
+  logSample?: string;
   httpStatus: number;
   reportedModelId: string | null;
   usage: ProviderUsage | null;
   errorCode: ProviderErrorCode;
 }
+
+export type StructuredOutputMode =
+  'json_schema' | 'json_object' | 'native_tools';
 
 export interface NormalizedCall {
   endpoint: string;
@@ -45,6 +52,10 @@ export interface NormalizedCall {
   outputSchema: Record<string, unknown>;
   tools: readonly OpenAIToolSchema[];
   maxOutputTokens: number;
+  /** Declared on the profile. Omitted means the adapter keeps json_schema. */
+  responseFormat?: StructuredOutputMode;
+  /** Approved artifact id → https or data:image URL. Never artifact://. */
+  imageUrls?: Readonly<Record<string, string>>;
 }
 
 export interface ProviderAdapter {

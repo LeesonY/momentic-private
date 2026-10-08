@@ -1,0 +1,63 @@
+{
+  "task": "T10-LIFECYCLE",
+  "tag": "bd4acd6f-6b66-4452-a9b7-44289df94219",
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-life-shgFYe",
+  "tests": [
+    {
+      "name": "lifecycle roundtrip: create -> approve v1 (head version=2) -> archive (version=3) -> list status filter -> restore (version=4, baseline preserved) -> regression run",
+      "passed": true
+    },
+    {
+      "name": "archive vs regression-runs admission race defense: archived case rejected with 422 in FOR SHARE transaction; frozen run remains immune",
+      "passed": true
+    },
+    {
+      "name": "concurrency & optimistic locks: stale expectedVersion, repeat same state (409), upper bound 2147483647 (422)",
+      "passed": true
+    },
+    {
+      "name": "duplicate in same project: explicit sourceVersionId, active case with draft v1 (never inherits approved), slug conflict (409)",
+      "passed": false,
+      "code": "TEST_FAILED",
+      "message": "\"[object Object]\" is not valid JSON"
+    },
+    {
+      "name": "cross-project duplicate: RBAC ladder (404/403/201), source version mismatch (404), and module SHA mismatch defense (422)",
+      "passed": true
+    }
+  ],
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "f69fdc600909643095dc41dd0905a199c0f76bbad2886616e839e0ee1731b911",
+    "volumes": [
+      "b8dafc08c0906b808bd6a457c687b1923b41f446023a38a314dd228bbf0a5451"
+    ],
+    "pgPort": 33105,
+    "apiPort": 53013,
+    "apiPid": 97922,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "b8dafc08c0906b808bd6a457c687b1923b41f446023a38a314dd228bbf0a5451",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "PG/API admission only; no browser, Worker.once, worker-entry or real model",
+    "Case lifecycle verified with real database locks and immutable audit",
+    "P0=false; FakeBrowser/real model acceptance remains unverified"
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1
+  }
+}

@@ -3,6 +3,7 @@ import type { CallRecord, Gateway } from '@localqa/model-gateway';
 import documents from '../../contracts/src/generated/schemas.json' with { type: 'json' };
 import { createPolicyDispatcher, type Dispatcher } from './dispatcher.js';
 import { renderPrompt, type AgentRole } from './prompts.js';
+import { parametersForTool } from './tool-parameters.js';
 
 const toolDefs = documents['tools.schema.json'].$defs;
 
@@ -69,7 +70,7 @@ export async function runToolLoop(input: {
       approvedImageIds: [],
       toolSchemas: prompt.allowedTools.map((name) => ({
         name,
-        parameters: { type: 'object', additionalProperties: false },
+        parameters: parametersForTool(name),
       })),
       outputSchema: DECISION_SCHEMA,
       timeoutMs: input.timeoutMs,

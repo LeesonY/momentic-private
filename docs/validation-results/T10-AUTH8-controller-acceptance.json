@@ -1,0 +1,56 @@
+{
+  "at": "2026-10-07T16:45:14.022965+00:00",
+  "rootIndependent": true,
+  "acceptedLocally": true,
+  "scope": "Private material/current success gate/capture CAS/HMAC/encrypted state and dedicated finish only. Own PG/API/Artifact and actual RuntimeClient over synthetic browser primitives; actual flow still lacks worker-side finish connection at the recorded run.",
+  "pg": {
+    "passed": 37,
+    "failed": 0,
+    "report": "T10-AUTH7-STATE-ROOT-c7e77434-212e-44fb-98ee-9e3bc07c65e3.json",
+    "log": "T10-AUTH8-finish-controller-current.log"
+  },
+  "priorPg": {
+    "passed": 29,
+    "failed": 0,
+    "report": "T10-AUTH7-STATE-ROOT-cc441c88-72a7-4d94-a686-b77e0bb2ac1d.json"
+  },
+  "failuresRetained": [
+    "T10-AUTH7-STATE-ROOT-1369e344-aa12-4319-bf29-49caa3326d75.json",
+    "T10-AUTH7-STATE-ROOT-c30b0b0b-6e9a-4c0c-9c61-21c73abf4cef.json",
+    "T10-AUTH7-STATE-ROOT-66faa912-2e8b-4a47-8ee6-157b3bd0c5e7.json"
+  ],
+  "fixtureCorrections": [
+    "Earlier synthetic snapshots incorrectly marked redacted=false; positive fixtures now honestly mark known synthetic safe data and a dedicated negative proves raw auth observations are denied. Original fixtures retained.",
+    "Finish callbacks passed but original Root afterEach tried rewriting succeeded tasks and hit TERMINAL_TASK. Cleanup now changes only still-running owned tasks; entire runner37/37 with hooks/cleanup passed.",
+    "Actual Runtime probe initially used a package import absent in API workspace and wrong locator method name; corrected to physical dependency and actual locate signature. Real evaluateTechnical requires owned evidence, so fixture uploads actual redacted Artifact bytes instead of inventing evidence IDs."
+  ],
+  "sourceSha256": {
+    "packages/orchestrator/src/auth-state-service.ts": "058234cd662cef7b5c8eeff7b7dcab6aff285278d7f31b7a2afa123dbb38c5f8",
+    "packages/storage/migrations/013_auth_state_capture.sql": "97cc3095d5559c6630442e054d648540a3f9a68bd4feb0b9e9d77d177cec785b",
+    "packages/orchestrator/src/auth-actions.ts": "8b1b959458909e31a33bf4d6b2c1301bdb664d1ddf57ce9a0d1b5aa76b53f45d",
+    "packages/orchestrator/src/core.ts": "adf9b14152cf467a71c99aab8088462e535742e5b6faf1f52727c3d25f1f751a",
+    "packages/orchestrator/src/runtime.ts": "71880d14ce151a649ea6e7be8ade8065904a35e8d75cd57cdd23555ac5630d55",
+    "packages/storage/src/crypto.ts": "669f8c2623899790f3e03a4e55e41dd569f9faa6221289cee7b9c0768455af96",
+    "apps/api/test/t10-auth-state-capture-controller.test.mjs": "d35b3c69721e4e36dad5016de1782a4c691e46072a85909e4c3edb298168f0ab"
+  },
+  "build": "storage/orchestrator/api passed; worker typecheck/build of AUTH8B passed separately",
+  "lint": "Root modified backend/API test files passed",
+  "cleanupRecheck": "T10-AUTH8-controller-resource-recheck.json",
+  "notVerified": [
+    "Worker.once and tick auth wiring",
+    "importer state/CAS and crash handoff",
+    "real OTP input and consumption",
+    "storage_state configured frozen success criterion",
+    "Real browser/hydration/latest supplier semantics and visuals"
+  ],
+  "browserPaused": true,
+  "P0Passed": false,
+  "fullAuthAccepted": false,
+  "singleMonitorPid": 14113,
+  "regression": {
+    "passed": 91,
+    "failed": 0,
+    "log": "T10-AUTH8-controller-ledger-regression.log",
+    "scope": "Existing two auth-ledger suites plus affected fake Worker, lease ledger and Runtime auth; overlaps earlier runs, not new coverage"
+  }
+}

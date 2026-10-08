@@ -1,0 +1,64 @@
+{
+  "task": "G3A-independent-review",
+  "P0Passed": false,
+  "G3Passed": false,
+  "conclusion": "local_adapter_checks_passed_product_wiring_and_live_gate_unverified",
+  "checks": [
+    {
+      "name": "model_typecheck",
+      "command": "npm --prefix packages/model-gateway run typecheck",
+      "result": "passed"
+    },
+    {
+      "name": "scoped_lint",
+      "command": "./node_modules/.bin/eslint packages/model-gateway/src packages/model-gateway/scripts",
+      "result": "passed"
+    },
+    {
+      "name": "model_build",
+      "command": "npm --prefix packages/model-gateway run build",
+      "result": "passed"
+    },
+    {
+      "name": "agents_build",
+      "command": "npm --prefix packages/agents run build",
+      "result": "passed"
+    },
+    {
+      "name": "local_gateway_suite",
+      "command": "node --test --test-concurrency=1 packages/model-gateway/scripts/verify.mjs",
+      "result": "passed",
+      "pass": 27,
+      "fail": 0
+    }
+  ],
+  "independentReproduction": {
+    "name": "valid_provider_response_truncated_before_parsing",
+    "result": "reproduced",
+    "providerBytes": 2489,
+    "adapterBytes": 2000,
+    "providerUsagePresent": true,
+    "adapterUsage": null,
+    "realNetworkCalls": 0,
+    "method": "createOpenAIAdapter with a local Response containing model/choices/content(2300-character valid JSON note)/usage; provider JSON parses, returned raw is 2000 chars and JSON.parse throws, usage becomes null."
+  },
+  "unverified": [
+    "Live supplier requests after fix",
+    "Response format persisted in ModelProfile and wired to runtime",
+    "Approved image resolution through project/run-aware ArtifactStore",
+    "Real tool parameter schema at agents/orchestrator call sites",
+    "Node 24 and 10x10 quality baseline"
+  ],
+  "harnessSideEffect": "verify.mjs rewrote docs/validation-results/T04-model.json. Independent output snapshot preserved as G3A-independent-T04.json.",
+  "source": "docs/validation-results/G3A-model-gateway.json",
+  "browserState": "Ego paused; no browser used.",
+  "networkCallsToRealSupplier": 0,
+  "recordedAt": "2026-10-04T04:31:16.582587+00:00",
+  "sourceHashes": {
+    "packages/model-gateway/src/adapter.ts": "767a3be934487915fb766600acfabcf2334c5ed716a00ab7787f5408271eeec1",
+    "packages/model-gateway/src/openai.ts": "8240a4862d45c467c510dee2da54f7e37036630638518e7eb3b7ca8cd5d1d1ea",
+    "packages/model-gateway/src/gateway.ts": "aacba919fcdfd69572d95c2122935666706f42e8b0550e33549c8ba1891e0016",
+    "packages/model-gateway/scripts/verify.mjs": "13664538f566482b0810a4954af8dccf4ec99efa5dc60e15dfae017c85746d16"
+  },
+  "evidenceSnapshotSha256": "9012324e7b33dccf506aa2321dd75e878af52f8b2308160c82815fb7371386ca"
+}

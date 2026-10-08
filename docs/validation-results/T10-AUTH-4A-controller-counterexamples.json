@@ -1,0 +1,26 @@
+{
+  "rootIndependent": true,
+  "checks": [
+    {
+      "name": "plain alias sharing has the same JSON semantics as string input",
+      "passed": false,
+      "objectAccepted": false,
+      "stringAccepted": true
+    },
+    {
+      "name": "array non-index numeric accessor is rejected without invocation",
+      "passed": false,
+      "rejected": false,
+      "getterCalls": 0
+    },
+    {
+      "name": "serialized output UTF8 cap holds for string input too",
+      "passed": false,
+      "rawBytes": 33277,
+      "accepted": true,
+      "resultBytes": 66037
+    }
+  ],
+  "scope": "Actual exported pure validator; no browser/provider/PG",
+  "P0Passed": false
+}

@@ -1,0 +1,81 @@
+{
+  "task": "T10-MODULES",
+  "tag": "9b710280-c74e-418e-b173-5140f71762cf",
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-mod-9o3u8z",
+  "tests": [
+    {
+      "name": "valid module with slash in name: encoded route %2F roundtrip, review approval and list pagination",
+      "passed": true
+    },
+    {
+      "name": "RBAC matrix across all 5 endpoints: operator creates draft, owner reviews, viewer read-only, cross-project 404 zero existence leaks",
+      "passed": true
+    },
+    {
+      "name": "invalid UUID, numbers, and templates return 422 without SQL 503 error; dot/dot-dot segment prohibited",
+      "passed": true
+    },
+    {
+      "name": "cross-actor token hidden (409), replay protection, TTL expiry and content tampering",
+      "passed": true
+    },
+    {
+      "name": "concurrency: race on initial creation and expectedVersion optimistic lock",
+      "passed": true
+    },
+    {
+      "name": "real migration 001-009 -> seed approved -> migration 010 verifies null audit metadata without backfilling timestamps",
+      "passed": true
+    },
+    {
+      "name": "module recursion depth: 8 invocations legal with real compileRegression, 9th rejected; static step limit 100",
+      "passed": true
+    },
+    {
+      "name": "legal unbound vars and env template registers and approves; execution without variable rejects; illegal expressions in locator/criteria/arguments return 422 zero persistence",
+      "passed": true
+    },
+    {
+      "name": "direct operator INSERT approved rejected by RLS/trigger; owner mutation of approved document/metadata rejected by immutable guard",
+      "passed": true
+    },
+    {
+      "name": "full vertical workflow: module draft -> review approve -> saved case references module -> regression run freezes binding",
+      "passed": true
+    }
+  ],
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "c18b3120e10d6bc0b8f598b208fb3eab05a14514d3fefe6799d4ab9908be5bdb",
+    "volumes": [
+      "588b0d36fadb3a3d8e896a672b8a51060797238febaebde0fbab055e708954c0"
+    ],
+    "pgPort": 33096,
+    "apiPort": 55683,
+    "apiPid": 75079,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "588b0d36fadb3a3d8e896a672b8a51060797238febaebde0fbab055e708954c0",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "PG/API admission only; no browser, Worker.once, worker-entry or real model",
+    "Full compiler integration verified statically and via regression binding",
+    "P0=false; FakeBrowser/real model acceptance remains unverified"
+  ],
+  "summary": {
+    "passed": 10,
+    "failed": 0
+  }
+}

@@ -1,15 +1,26 @@
 import { randomUUID, createHash } from 'node:crypto';
-import { parseContract } from '@localqa/contracts';
+import {
+  isErrorCode,
+  parseContract,
+  getApiValidator,
+} from '@localqa/contracts';
 import type { Artifact } from '@localqa/contracts';
 import {
   StorageError,
   type LeaseProof,
   type WorkerScope,
 } from '@localqa/storage';
+import { BoundModel, createWorkerModelOptions } from '@localqa/orchestrator';
 import { ApiError } from '../errors.js';
 import { rejectUserCookieForInternal } from '../auth.js';
 import type { Router } from '../router.js';
 import type { RequestContext } from '../types.js';
+
+const validateActionResultPath = getApiValidator(
+  'completeAction',
+  { kind: 'parameters', location: 'path' },
+  { internal: true },
+);
 
 export function registerInternalRoutes(router: Router): void {
   // Common check for all internal routes
@@ -224,66 +235,76 @@ export function registerInternalRoutes(router: Router): void {
     '/internal/v1/actions/{actionId}/result',
     async (ctx: RequestContext) => {
       checkInternal(ctx);
-      const actionId = ctx.params.actionId!;
+      const pathId = ctx.params.actionId!;
+      if (!validateActionResultPath({ actionId: pathId }))
+        throw new ApiError('VALIDATION_ERROR', 'Invalid action ID', 422);
       const input = parseContract('ActionResult', ctx.body);
-
-      // Look up action intent and step
-      const stepInfo = await ctx.api.db.actor(
+      const leaseToken = ctx.headers['x-lease-token'];
+      const workerId = ctx.headers['x-worker-id'];
+      if (
+        typeof leaseToken !== 'string' ||
+        !leaseToken ||
+        typeof workerId !== 'string' ||
+        !workerId ||
+        workerId.length > 200
+      )
+        throw new ApiError(
+          'FORBIDDEN',
+          'Caller lease and worker headers are required',
+          403,
+        );
+      const integerHeader = (name: string): number => {
+        const raw = ctx.headers[name];
+        if (typeof raw !== 'string' || !/^[1-9][0-9]*$/.test(raw))
+          throw new ApiError(
+            'VALIDATION_ERROR',
+            'Caller proof integer header is required',
+            422,
+          );
+        const value = Number(raw);
+        if (!Number.isSafeInteger(value))
+          throw new ApiError(
+            'VALIDATION_ERROR',
+            'Invalid caller proof integer',
+            422,
+          );
+        return value;
+      };
+      // Never infer or upgrade caller fencing/context/worker from current DB.
+      const fencingToken = integerHeader('x-fencing-token');
+      const contextVersion = integerHeader('x-context-version');
+      const owner = await ctx.api.db.actor(
         ctx.api.adminActor,
-        async (client) => {
-          const row = (
+        async (client) =>
+          (
             await client.query<{
-              step_id: string | null;
+              action_id: string;
               task_id: string;
               project_id: string;
-              run_id: string;
-              document: unknown;
             }>(
-              `SELECT s.id AS step_id, a.task_id, a.project_id, a.run_id, s.document
-               FROM action_intents a
-               LEFT JOIN steps s ON s.action_id = a.id
-               WHERE a.id = $1 OR s.id = $1
-               LIMIT 1`,
-              [actionId],
+              `SELECT a.id AS action_id,a.task_id,a.project_id
+           FROM action_intents a LEFT JOIN steps s ON s.action_id=a.id
+           WHERE a.id=$1 OR s.id=$1 ORDER BY (a.id=$1) DESC LIMIT 1`,
+              [pathId.toLowerCase()],
             )
-          ).rows[0];
-          return row;
-        },
+          ).rows[0],
       );
-
-      if (!stepInfo) {
-        throw new StorageError('NOT_FOUND');
-      }
-
-      await extractScopeAndProof(ctx, stepInfo.task_id);
-
-      // Record outcome
-      await ctx.api.db.actor(ctx.api.adminActor, async (client) => {
-        await client.query(
-          'UPDATE action_intents SET outcome = $2 WHERE id = $1',
-          [actionId, input.outcome],
-        );
-
-        if (stepInfo.step_id && stepInfo.document) {
-          const step = {
-            ...(stepInfo.document as Record<string, unknown>),
-            status:
-              input.outcome === 'succeeded'
-                ? 'succeeded'
-                : input.outcome === 'cancelled'
-                  ? 'cancelled'
-                  : 'failed',
-            summary: input.summary,
-            finishedAt: new Date().toISOString(),
-          };
-
-          await client.query('UPDATE steps SET document = $2 WHERE id = $1', [
-            stepInfo.step_id,
-            step,
-          ]);
-        }
-      });
-
+      if (!owner) throw new StorageError('NOT_FOUND');
+      const scope: WorkerScope = { projectId: owner.project_id, workerId };
+      const proof: LeaseProof = {
+        taskId: owner.task_id,
+        leaseToken,
+        fencingToken,
+        contextVersion,
+      };
+      const actionId = await withLeaseErrors(() =>
+        ctx.api.coordinator.recordHttpAction(
+          scope,
+          proof,
+          owner.action_id,
+          input,
+        ),
+      );
       ctx.res.statusCode = 200;
       return parseContract('ActionPermit', {
         actionId,
@@ -297,25 +318,48 @@ export function registerInternalRoutes(router: Router): void {
   router.post('/internal/v1/model/complete', async (ctx: RequestContext) => {
     checkInternal(ctx);
     const input = parseContract('ModelRequest', ctx.body);
-
-    await extractScopeAndProof(
+    if (!ctx.api.modelTransport) {
+      throw new ApiError(
+        'MODEL_NOT_CONFIGURED',
+        'Model transport is not configured',
+        409,
+      );
+    }
+    const { scope, proof } = await extractScopeAndProof(
       ctx,
       input.taskId,
       undefined,
       input.contextVersion,
     );
-
-    // Call model gateway
-    const record = await ctx.api.gateway.complete(input, {
-      role: 'coordinator',
-      promptVersion: '1.0',
-      approvedImageIds: [],
-      toolSchemas: [],
-      timeoutMs: 30000,
+    const record = await withLeaseErrors(async () => {
+      const artifacts = ctx.api.artifacts;
+      const options = createWorkerModelOptions({
+        transport: ctx.api.modelTransport,
+        load: (id, version) =>
+          ctx.api.modelRepo.readVersion(
+            ctx.api.adminActor,
+            id,
+            version,
+            scope.projectId,
+          ),
+        ...(typeof artifacts?.readApprovedImage === 'function'
+          ? {
+              readApprovedImage: (image) => artifacts.readApprovedImage(image),
+            }
+          : {}),
+      });
+      return new BoundModel(ctx.api.coordinator, scope, options).complete(
+        proof,
+        input,
+      );
     });
 
     if (record.errorCode || !record.data) {
-      throw new ApiError('SERVICE_UNAVAILABLE', 'Model completion failed', 500);
+      const code =
+        record.errorCode && isErrorCode(record.errorCode)
+          ? record.errorCode
+          : 'SERVICE_UNAVAILABLE';
+      throw new ApiError(code, 'Model completion failed');
     }
 
     ctx.res.statusCode = 200;
@@ -326,8 +370,34 @@ export function registerInternalRoutes(router: Router): void {
   router.post('/internal/v1/auth/resolve', async (ctx: RequestContext) => {
     checkInternal(ctx);
     const input = parseContract('AuthResolve', ctx.body);
-
-    const { scope, proof } = await extractScopeAndProof(ctx, input.taskId);
+    // These values must come from the caller's proof. Reading the current DB
+    // context/fencing value would renew a stale worker's authorization.
+    const workerId = ctx.headers['x-worker-id'];
+    const integerHeader = (name: string): number => {
+      const value = ctx.headers[name];
+      if (typeof value !== 'string' || !/^[1-9][0-9]*$/.test(value))
+        throw new ApiError('VALIDATION_ERROR', `${name} is required`, 422);
+      const parsed = Number(value);
+      if (!Number.isSafeInteger(parsed))
+        throw new ApiError('VALIDATION_ERROR', `${name} is invalid`, 422);
+      return parsed;
+    };
+    if (typeof workerId !== 'string' || !workerId || workerId.length > 200)
+      throw new ApiError('FORBIDDEN', 'X-Worker-Id is required', 403);
+    const { scope, proof } = await extractScopeAndProof(
+      ctx,
+      input.taskId,
+      integerHeader('x-fencing-token'),
+      integerHeader('x-context-version'),
+    );
+    if (scope.workerId !== workerId) throw new StorageError('LEASE_EXPIRED');
+    const frozen = await ctx.api.coordinator.authProfile(scope, proof);
+    if (
+      !frozen ||
+      frozen.id !== input.authProfileId ||
+      frozen.version !== input.authProfileVersion
+    )
+      throw new StorageError('NOT_FOUND');
 
     const credentialMaterial = await ctx.api.coordinator.leases.resolveAuth(
       scope,
@@ -351,9 +421,6 @@ export function registerInternalRoutes(router: Router): void {
 
     // The internal transport contract permits multipart only; never accept base64 JSON.
     let taskId = '';
-    let kind: Artifact['kind'] = 'screenshot';
-    let redaction: Artifact['redaction'] = 'applied';
-    let fileBuffer: Buffer = Buffer.alloc(0);
 
     const contentType = ctx.headers['content-type'] || '';
     if (!/^multipart\/form-data\s*;/i.test(contentType)) {
@@ -377,13 +444,13 @@ export function registerInternalRoutes(router: Router): void {
       boundaryMatch[1] || boundaryMatch[2]!,
     );
     taskId = parts['taskId']?.toString('utf8').trim() || '';
-    kind = (parts['kind']?.toString('utf8').trim() ||
+    const kind = (parts['kind']?.toString('utf8').trim() ||
       'screenshot') as Artifact['kind'];
-    redaction = (parts['redaction']?.toString('utf8').trim() ||
+    const redaction = (parts['redaction']?.toString('utf8').trim() ||
       'applied') as Artifact['redaction'];
     if (!parts['file'])
       throw new ApiError('VALIDATION_ERROR', 'Multipart file is required', 422);
-    fileBuffer = parts['file'];
+    const fileBuffer = parts['file'];
 
     if (!taskId) {
       throw new ApiError('VALIDATION_ERROR', 'taskId is required', 422);

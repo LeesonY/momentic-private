@@ -1,0 +1,48 @@
+{
+  "at": "2026-10-07T15:25:51.701229+00:00",
+  "rootIndependent": true,
+  "acceptedLocally": true,
+  "scope": "AUTH6 private observation/action ledger/CAS/lease recovery/opaque receipt permission and actual HttpApiClient protocol only",
+  "rootPgChecksPassed": 18,
+  "realApiNodeClientPassed": 17,
+  "affectedRuntimeWorkerAuthRegressionPassed": 55,
+  "pgReport": "T10-AUTH6-ACTIONS-ROOT-1a227e74-4778-4112-918f-d65edad9e1ba.json",
+  "realApiReport": "T10-real-api-node-24dc14cd.json",
+  "legacyLog": "T10-AUTH6-controller-legacy-regression.log",
+  "sourceSha256": {
+    "packages/orchestrator/src/auth-actions.ts": "83520a55b3073c340437c82788f91c42a37fce2039d85bf47ff4513df51e8896",
+    "packages/storage/src/leases.ts": "a8f455305f00ec0b4adb8903c122fb358a27bdc32443ac50e50b96f56767503e",
+    "packages/storage/migrations/012_auth_execution_actions.sql": "89fa932ef56695b26f761fccf35cb2ec2b6e6a545ef281e3c780caf8a1515241",
+    "apps/api/test/t10-auth-actions-controller.test.mjs": "e7bde4ad12b043c31982ed2672f3e735300f4d79d8cc98a04b0e6ea21539811c",
+    "apps/web/scripts/testT10RealApiNode.mjs": "1337f88caf81550acbdf77b2f94ff0b163c5883da2e09381aca37cdc57d926b1"
+  },
+  "priorFailuresRetained": [
+    "9 original auth ledger counterexamples",
+    "2 lease recovery RLS failures",
+    "storage navigation missing URL, after correcting Root invalid storage fixture",
+    "ordinary clarification provide503; repaired in separate accepted report"
+  ],
+  "resourceChecks": [
+    {
+      "report": "T10-AUTH6-ACTIONS-ROOT-1a227e74-4778-4112-918f-d65edad9e1ba.json",
+      "containerVolumesAndPortsAbsent": true,
+      "credentialsAbsent": true,
+      "retained": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-actions-x7rJBx"
+    },
+    {
+      "report": "T10-real-api-node-24dc14cd.json",
+      "containerVolumesAndPortsAbsent": true,
+      "credentialsAbsent": true,
+      "retained": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-real-api-24dc14cd-xDyybC"
+    }
+  ],
+  "notVerified": [
+    "Full Runtime state/OTP/handoff services and Worker main path",
+    "Physical browser/DOM/hydration authentication",
+    "Latest supplier semantic/visual validation"
+  ],
+  "browserPaused": true,
+  "P0Passed": false,
+  "singleMonitorPid": 14113,
+  "secondMonitorStarted": false
+}

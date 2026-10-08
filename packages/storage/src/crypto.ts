@@ -4,6 +4,7 @@ import {
   createCipheriv,
   createDecipheriv,
   createHash,
+  createHmac,
   randomBytes,
   scrypt,
   timingSafeEqual,
@@ -180,6 +181,41 @@ export class SecretVault {
   }
   rotate(envelope: CipherEnvelope, binding: SecretBinding): CipherEnvelope {
     return this.encrypt(this.decrypt(envelope, binding), binding);
+  }
+  keyedHmac(
+    data: string | Buffer,
+    domain: string,
+    keyVersion = this.activeVersion,
+  ): { hmac: string; keyVersion: number } {
+    const rootKey = this.#keys.get(keyVersion);
+    if (!rootKey) throw new StorageError('SERVICE_UNAVAILABLE');
+    const derivedKey = createHmac('sha256', rootKey)
+      .update(`localqa-domain-separated:${domain}`)
+      .digest();
+    try {
+      const hmac = createHmac('sha256', derivedKey).update(data).digest('hex');
+      return { hmac, keyVersion };
+    } finally {
+      derivedKey.fill(0);
+    }
+  }
+  verifyKeyedHmac(
+    data: string | Buffer,
+    domain: string,
+    expectedHmac: string,
+    keyVersion: number,
+  ): boolean {
+    if (
+      !this.#keys.has(keyVersion) ||
+      typeof expectedHmac !== 'string' ||
+      !/^[0-9a-f]{64}$/.test(expectedHmac)
+    )
+      return false;
+    const { hmac } = this.keyedHmac(data, domain, keyVersion);
+    return timingSafeEqual(
+      Buffer.from(hmac, 'hex'),
+      Buffer.from(expectedHmac, 'hex'),
+    );
   }
   dispose(): void {
     for (const key of this.#keys.values()) key.fill(0);

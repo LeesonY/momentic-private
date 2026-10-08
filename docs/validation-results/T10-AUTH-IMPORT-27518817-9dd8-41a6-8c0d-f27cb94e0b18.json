@@ -1,0 +1,107 @@
+{
+  "task": "T10-AUTH-9A-STATE-CAPTURE",
+  "tag": "27518817-9dd8-41a6-8c0d-f27cb94e0b18",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-import-lOUK9O",
+  "tests": [
+    {
+      "name": "exclusive and shared: normally finished capture feeds independent importer sessions and ends only one child",
+      "passed": true
+    },
+    {
+      "name": "prepare and begin concurrent CAS each grant one capability; lost replies cannot replay decryption or effect",
+      "passed": true
+    },
+    {
+      "name": "private importer rejects initializer-only methods and ordinary result/HTTP channels",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"code\":\"POLICY_DENIED\",\"message\":\"POLICY_DENIED\",\"requestId\":\"9d4fd409-d3b6-40cb-ae1f-5a7d95a62533\"}\n\n500 !== 403\n"
+    },
+    {
+      "name": "allocation/activation rejects wrong state or current authority before any state decryption",
+      "passed": true
+    },
+    {
+      "name": "historical tuple, revoked state, consumed grant and ciphertext/HMAC tampering fail closed",
+      "passed": true
+    },
+    {
+      "name": "historical encryption and HMAC key survive rotation, wrong receipt and changed outcome cannot charge twice",
+      "passed": true
+    },
+    {
+      "name": "RLS denies workers and project non-admin actors private importer metadata",
+      "passed": true
+    },
+    {
+      "name": "shared action budget denial reserves no import row and DB insertion failure rolls everything back",
+      "passed": true
+    },
+    {
+      "name": "real lock waits expiring prepare and begin deadlines roll the CAS back with zero decryption",
+      "passed": true
+    },
+    {
+      "name": "failure/unknown/cancelled import outcomes remain truthful and charge one action",
+      "passed": true
+    },
+    {
+      "name": "service recovery ends one expired importer without touching active sibling/state/granted lock",
+      "passed": true
+    },
+    {
+      "name": "RuntimeClient minimal facade carries the independent importer proof through grant/prepare/begin/record",
+      "passed": true
+    },
+    {
+      "name": "ciphertext changes after prepare invalidate the pinned state before begin without another decrypt",
+      "passed": true
+    },
+    {
+      "name": "record PG Step-write failure atomically preserves started receipt, pending action and reserved budget",
+      "passed": true
+    },
+    {
+      "name": "foreign state/initializer capability cannot allocate a new importer and grants pin current session proof",
+      "passed": true
+    },
+    {
+      "name": "none cannot allocate importer authority: zero state decryption/session/scope/grants",
+      "passed": true
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "67e5fbff244e094aae311ac5faef72b387cd2371565e2706fb8bbcd4d654926f",
+    "volumes": [
+      "d98cf1637c71f582dd5264073d7e1d3a46e96f277e16fe2d8044dc6b6256c57b"
+    ],
+    "pgPort": 33257,
+    "apiPort": 59005,
+    "apiPid": 33695,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "d98cf1637c71f582dd5264073d7e1d3a46e96f277e16fe2d8044dc6b6256c57b",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 protected state importer/CAS/private receipt/budget/Step only; synthetic captured browser state",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 15,
+    "failed": 1
+  }
+}

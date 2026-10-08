@@ -1,0 +1,47 @@
+{
+  "task": "T10-AUTH7-STATE-ROOT",
+  "tag": "682447b3-ba92-4598-8f10-dc8722afba77",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-state-root-S7ieYS",
+  "tests": [
+    {
+      "name": "Root real RuntimeClient and auth-services reach encrypted PG capture through the actual flow; missing finish stays blocked",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'RESOLVER_UNAVAILABLE'\n- 'SERVICE_UNAVAILABLE'\n"
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "ebc3f50956e761dfe24684f9a5fa7bf370c1936611e58e0931dfc4575ae151f9",
+    "volumes": [
+      "fe0592fa3f32d853b450d61040657833736f672633a37cca72d11b924e637850"
+    ],
+    "pgPort": 33213,
+    "apiPort": 59263,
+    "apiPid": 27139,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "fe0592fa3f32d853b450d61040657833736f672633a37cca72d11b924e637850",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 auth material, success gates, capture grants, canonical keyed HMAC and encrypted run auth state only",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 1
+  }
+}

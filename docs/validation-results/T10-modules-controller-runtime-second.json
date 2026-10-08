@@ -1,0 +1,8 @@
+{
+  "fixtureFile": "apps/api/test/.root-modules-92e2c4ab.mjs",
+  "sourceSha256": "40746abc6f000cd199bc02623758f9d84f6628d019e698a2f8a42b962f4f8adb",
+  "createdFor": "Root independent 10 PG/API cases plus additional contract-valid UUID identity boundary",
+  "P0Passed": false,
+  "exitCode": 1,
+  "rootFixtureFileRemoved": true
+}

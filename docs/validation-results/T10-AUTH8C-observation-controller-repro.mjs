@@ -1,0 +1,15 @@
+import { createPrivateAuthPort } from '../../packages/browser/dist/index.js';
+import assert from 'node:assert/strict';
+import { randomUUID, createHash } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
+const binding={sessionId:randomUUID(),projectId:randomUUID(),runId:randomUUID(),taskId:randomUUID(),workerId:'root-observation',fencingToken:1,contextVersion:1,contextId:randomUUID(),profileId:randomUUID(),profileVersion:1,authEpoch:1,purpose:'initializer',status:'active',expiresAt:new Date(Date.now()+60000).toISOString()};
+let effects=0;
+const port=createPrivateAuthPort({binding,allowedOrigins:['http://localhost'],gate:{async authorize(){},async authorizeExport(){}},primitives:{async navigate(){effects++;throw Error()},async fill(){effects++;throw Error()},async submit(){effects++;throw Error()},async prepareState(){effects++},async exportState(){effects++;return {cookies:[],origins:[]}}}});
+port.primeSensitiveValues(['root-known-password']);
+const snapshot=()=>({snapshotId:randomUUID(),pageId:randomUUID(),frameIds:['main'],displayUrl:'http://localhost/login',title:'root-known-password',responseStatus:200,capturedAt:new Date().toISOString(),stateVersion:1,viewport:{width:100,height:100},nodes:[{nodeId:'n1',frameId:'main',role:'textbox',name:'field',text:'root-known-password',visible:true,enabled:true,bounds:{left:0,top:0,width:100,height:30}}],screenshotRef:null,networkSummary:[],consoleSummary:[],truncated:false,redacted:false});
+const facts={rootIndependent:true,scope:'Actual private port pure redaction only; no browser/runtime/PG',tests:[],sourceSha256:createHash('sha256').update(readFileSync(new URL('../../packages/browser/src/private-auth.ts',import.meta.url))).digest('hex')};
+function check(name,run){try{run();facts.tests.push({name,passed:true})}catch(e){facts.tests.push({name,passed:false,code:e.code??'TEST_FAILED',message:e.message})}}
+check('Accessor snapshot fields are refused without running getters',()=>{const s=snapshot();let reads=0;Object.defineProperty(s,'title',{enumerable:true,get(){reads++;return 'root-known-password'}});assert.throws(()=>port.redactObservation(s),e=>e.code==='VALIDATION_ERROR');assert.equal(reads,0)});
+check('Pure redaction cannot freeze caller-owned nested snapshot objects',()=>{const s=snapshot();const copy=port.redactObservation(s);assert.equal(Object.isFrozen(s.viewport),false);assert.equal(Object.isFrozen(s.nodes[0].bounds),false);assert.notEqual(copy.viewport,s.viewport);assert.notEqual(copy.nodes[0].bounds,s.nodes[0].bounds);assert.ok(Object.isFrozen(copy.viewport));assert.equal(JSON.stringify(copy).includes('root-known-password'),false)});
+await port.close();facts.effects=effects;assert.equal(effects,0);facts.summary={passed:facts.tests.filter(t=>t.passed).length,failed:facts.tests.filter(t=>!t.passed).length};
+const file=new URL(`./T10-AUTH8C-observation-controller-${randomUUID()}.json`,import.meta.url);writeFileSync(file,JSON.stringify(facts,null,2)+'\n',{flag:'wx'});console.log(file.pathname);console.log(facts.summary);if(facts.summary.failed)process.exitCode=1;

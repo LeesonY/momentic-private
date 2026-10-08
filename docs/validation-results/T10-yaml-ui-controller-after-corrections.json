@@ -1,0 +1,55 @@
+{
+  "rootIndependent": true,
+  "results": [
+    {
+      "name": "new import matches SavedCase contract",
+      "passed": true
+    },
+    {
+      "name": "queryable synthetic draft matches SavedCaseVersion",
+      "passed": true
+    },
+    {
+      "name": "import remains in selected project list with queryable versions",
+      "passed": true
+    },
+    {
+      "name": "draft SHA equals canonical stored document SHA",
+      "passed": true
+    },
+    {
+      "name": "export mirrors selected stored version ID and SHA",
+      "passed": true
+    },
+    {
+      "name": "unknown project rejected without case persistence",
+      "passed": true
+    },
+    {
+      "name": "legacy project compatibility returns canonical identity and stays queryable",
+      "passed": true
+    },
+    {
+      "name": "listSchedules existing fixtures visible after canonical project switch",
+      "passed": true
+    },
+    {
+      "name": "listApiKeys existing fixtures visible after canonical project switch",
+      "passed": true
+    },
+    {
+      "name": "missing WebCrypto rejects import without persistence or fake SHA",
+      "passed": true
+    },
+    {
+      "name": "digest rejection rejects import without persistence or fake SHA",
+      "passed": true
+    },
+    {
+      "name": "generated export client rejects another version response",
+      "passed": true
+    }
+  ],
+  "scope": "Actual public methods and shared backend hash oracle; browser/network not used",
+  "P0Passed": false
+}

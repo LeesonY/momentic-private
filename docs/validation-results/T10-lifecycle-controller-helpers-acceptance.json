@@ -1,0 +1,32 @@
+{
+  "at": "2026-10-07T06:11:06.736749+00:00",
+  "rootIndependent": true,
+  "acceptedLocally": true,
+  "scope": "Pure lifecycle scope and case/version pagination helpers only",
+  "rootFinderChecks": 6,
+  "rootVersionPageChecks": 6,
+  "packageScopeChecks": 5,
+  "packageVersionPageChecks": 3,
+  "eslint": "passed",
+  "sourceSha256": {
+    "apps/web/src/utils/lifecycleScope.ts": "3a192340469011144a4f71dc2b9b6b54a257189635c9b922b29cca5aecb74279",
+    "apps/web/src/utils/savedCaseVersionPagination.ts": "640a87e3346eee26e21718079830f27e1f7da957ecfb27a61d1eab17057f3f90",
+    "apps/web/scripts/testLifecycleScopeOffline.mjs": "0788e187f57c1af3dbd37023b5b87687500a436e3f88e38cb34382ac894bc587",
+    "apps/web/scripts/testSavedCaseVersionPaginationOffline.mjs": "5869e054f176efd763a0eee46d9498f4c95f1955fa67d1981ba898589c29f6d9"
+  },
+  "evidence": [
+    "T10-lifecycle-controller-scope-post-fix.json",
+    "T10-lifecycle-controller-version-post-fix.json",
+    "T10-lifecycle-controller-scope-package.log",
+    "T10-lifecycle-controller-version-pagination-suite.log"
+  ],
+  "consumerAcceptance": "Page wiring/build/lint still in progress; actual callback6 and Modal2 pass at intermediate source",
+  "notVerified": [
+    "DOM/hydration",
+    "Real browser",
+    "Actual supplier model",
+    "Release"
+  ],
+  "browserPaused": true,
+  "P0Passed": false
+}

@@ -27,6 +27,8 @@ export interface ApiContext {
   adminActor: Actor;
   publicOrigin?: string | undefined;
   workerSecret?: string | undefined;
+  /** Process transport. Production uses global fetch unless a test injects one. */
+  modelTransport: typeof fetch;
 }
 
 export interface RequestContext {

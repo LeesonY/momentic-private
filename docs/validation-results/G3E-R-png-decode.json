@@ -1,0 +1,70 @@
+{
+  "title": "G3-E-R PNG 有界解码（唯一 Postgres、临时文件、注入 Response，不是 G3/P0 放行）",
+  "date": "2026-10-05",
+  "task": "G3-E-R",
+  "keeps": "docs/validation-results/G3E-approved-image.json 仍是上一轮已交付证据，本文件不覆盖它。",
+  "claims": {
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalledThisRound": false,
+    "playwrightLaunched": false,
+    "workerEntryExecuted": false,
+    "workerImageRebuilt": false,
+    "egoUsed": false,
+    "contractFieldAdded": false,
+    "indexExportAdded": false,
+    "runtimeEditedThisRound": false,
+    "secondMonitor": false
+  },
+  "sourceSha256": "24629dd60f6f2bb1354ab878cb0a1f871aced4c97af3dae397783624bd10a808",
+  "previousCrcOnlySha256": "780a7bb7987ff303d81d617ba03c8540dffdfe09aad8ba8772c7ed1bad8f1756",
+  "png": "合法 PNG 要过 IHDR 组合：宽高至少 1；颜色 0 的位深 1/2/4/8/16，颜色 2 为 8/16，颜色 3 为 1/2/4/8，颜色 4 为 8/16，颜色 6 为 8/16；压缩方法 0，过滤方法 0，交错 0 或 1。颜色 99 即使 CRC 正确也拒绝。关键块只允许 IHDR、PLTE、IDAT、IEND。颜色 3 必须在第一个 IDAT 前有长度 3–768 且能被 3 整除的 PLTE。IDAT 必须连续、每段至少 1 字节，拼成一条 zlib 再 inflate。先按 Adam7 或非交错算出扫描线字节数；声明超过 32MB 或乘法溢出则在 inflate 前拒绝。inflateSync 的 maxOutputLength 等于该字节数。输出长度必须相等，每行过滤字节必须是 0–4，行数据长度必须与位深和样本数一致。这是结构解码，不重建 Paeth 像素。文件上限仍是 25MB。",
+  "jpeg": "JPEG 只查标记结构，不是完整解码。需要 SOI、至少一个 SOF（C0–C3、C5–C7、C9–CB、CD–CF，不含 DHT C4 与 DAC CC）且高宽和分量都为正、至少一个 SOS 且至少有一个熵字节（允许 FF 00 填充和 RST D0–D7）、最后是 EOI 且没有尾随字节。不做 Huffman 解码，不要求 DHT/DQT，不产出位图。存在 SOF 和 SOS 不等于已解码图片。FF D8 FF 以及只有 APP0 和 EOI、没有 SOF 的字节仍拒绝。产品正例 JPEG 只是通过这层结构检查后，把原字节做成 data URL。",
+  "helperReview": {
+    "script": "docs/validation-results/G3E-progress-independent-review.mjs",
+    "sourceSha256": "24629dd60f6f2bb1354ab878cb0a1f871aced4c97af3dae397783624bd10a808",
+    "results": "5/5。完整 1x1 RGBA accepted image/png。仅 PNG 签名、仅 JPEG FF D8 FF、CRC 正确但颜色 99、CRC 正确但 IDAT 为 not-a-zlib-stream，四项均为 rejected VALIDATION_ERROR。脚本 scope 仍是 helper，不是组合路径验收。780a7bb7 是上一轮只做 CRC 与块结构的源码；主控在该 SHA 上实测颜色 99 与非 zlib IDAT 会被接受。本轮没有再检出那份旧源码重跑。",
+    "scratch": "脚本 finally 已删除 packages/orchestrator/test/.root-g3e-review-* 与临时 localqa-g3e-root-review。复查时这两处都不存在。"
+  },
+  "distPrecheck": {
+    "scope": "对已发出的 packages/orchestrator/dist ArtifactStore.readApprovedImage 做的本地预检，不是 PG 出站。",
+    "accepted": "经典 1x1 base64 PNG、带 ancillary buNk 的 1x1 RGBA、拆成两段的 IDAT、Adam7 1x1、8 位灰度、1 位打包灰度、带 PLTE 的索引色、首行过滤字节 1、既有 1x1 JPEG。",
+    "rejected": "无 PLTE 的颜色 3、颜色 99、非 zlib IDAT、过滤字节 9、扫描线过短、100000x100000 的声明（inflate 前拒绝）、把 200000 字节零压进 1x1 声明、仅 FF D8 FF。全部 VALIDATION_ERROR。整段约 6ms。"
+  },
+  "postgres": {
+    "container": "localqa-g3e-pg-cd74aa9c",
+    "port": 33044,
+    "bind": "127.0.0.1 random port, not 5432 or 8085",
+    "image": "postgres:18-alpine",
+    "duration_ms": 2332.251875,
+    "tests": "27/27",
+    "transport": "注入的本地 Response。请求头只记录与运行时 key 是否相等的布尔值。证据不含 key。",
+    "keptPositives": "既有正例仍过：批准 PNG 出站一条 data:image/png;base64，内容是该文件字节，HTTP 200，data.result passed，reason OBSERVED。批准 JPEG 出站 data:image/jpeg;base64。空 evidence refs 在图片已发出后仍是 not_evaluated / NO_OBSERVATION_REF。视觉无图、坏 hash、GIF、仅签名、坏 JPEG、归属、redaction、上下文、取消、超大、超预算、无 reader、符号链接等原拒绝项仍过。没有放宽这些断言，也没有改成更短的假 PNG。",
+    "newNegatives": "四项都用 vision profile（imageInput true），CRC 正确且块完整。G3E-COLOR 颜色 99、G3E-ZLIB 的 IDAT 为 not-a-zlib-stream、G3E-FILTER 解压后过滤字节 9、G3E-ROWS 解压后扫描线过短。均为 422 VALIDATION_ERROR，provider 调用 0，budget_reservations 0，model_requests 0。拒绝发生在 provider send 之前。"
+  },
+  "notRerun": [
+    "D4 的 27 项本轮没有重跑。本轮没有改 gateway 断言或 D4 用例。",
+    "非 PG 的 gateway 视觉用例本轮没有重跑。",
+    "node:24 没有跑这份 27 项。",
+    "没有跑 verify.mjs，没有重写 T04-model.json。",
+    "没有执行 worker-entry，没有重建镜像，没有启动浏览器，没有第二监控器，没有调用付费 provider。"
+  ],
+  "pi": "本轮没有改 runtime.ts、worker、core、web。HEAD RuntimeClient 仍要由 pi 在 new BoundModel 时把已有 ArtifactStore.readApprovedImage 传入。工作区 runtime.ts 已有未提交改动，本轮没有再叠。",
+  "unverified": [
+    "没有把 780a7bb7 再检出做一次红跑。该失败是主控在该 SHA 上的实测。",
+    "Adam7、索引色、拆分 IDAT、首行 Sub 过滤、超大声明和 zlib 膨胀上限只在 dist 预检里通过，没有进这 27 项 PG。",
+    "JPEG 产品正例没有做 Huffman 解码或像素比对。",
+    "fake Response 不是 G3 或 P0 放行。"
+  ],
+  "cleanup": {
+    "removedContainers": ["localqa-g3e-pg-cd74aa9c"],
+    "dockerPsRemainingNotOurs": ["b5-dbg-muv0jome", "b5-dbg-muv0j8e5"],
+    "volumesUnchanged": [
+      "3c7b579214479ad5d9803614712a793f486b1e718a00813167b8da5f8ec9403a",
+      "79e6b62585a476cb1d73128a4304fe0556d3526fda92d40302434fde82407472",
+      "ea2ce024d15945e5dee260323e27c3fc866b3690ab359e5ae6244a7515d34477"
+    ],
+    "tmp": "测试 after 已删除本轮 /tmp/localqa-g3e-cd74aa9c。预检临时目录已删。没有新增镜像，没有 prune。",
+    "ego": "未使用"
+  }
+}

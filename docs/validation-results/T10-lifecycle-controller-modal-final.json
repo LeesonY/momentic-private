@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-07T06:17:05.394Z",
+  "rootIndependent": true,
+  "cases": [
+    {
+      "name": "actual modal submit with target operator permission reaches the duplicate API",
+      "passed": true
+    },
+    {
+      "name": "actual modal submit without target write permission performs no mutation",
+      "passed": true
+    }
+  ],
+  "scope": "Actual modal submit callback with context taken from actual member effect; no DOM/hydration, browser or provider",
+  "P0Passed": false
+}

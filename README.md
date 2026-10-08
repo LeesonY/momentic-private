@@ -1,6 +1,10 @@
 # LocalQA：Momentic 风格的私有化 Web 测试平台
 
-当前交付是开发规格与契约，尚无可运行应用。产品目标是：输入 URL，即可自动探索有限范围、生成冒烟用例、执行检查、独立复现问题并导出证据报告。
+LocalQA 是参考 Momentic 产品工作流的自研私有化 Web 测试平台，包含 React 工作台、API、任务协调器、浏览器 Worker、模型网关、PostgreSQL 存储及报告导出。产品目标是：输入 URL，即可自动探索有限范围、生成冒烟用例、执行检查、独立复现问题并导出证据报告。
+
+当前仓库保存截至 2026-10-08 的开发代码与验收证据，**不作为生产发布版本：P0 尚未放行，P1/T10 尚未全量验收。** T00–T09 已交付；T09-B 最终结果为 12 通过 / 1 失败 / 1 未验证。T10 的用例库、版本审查、自有 YAML/DSL、模块与回归流程已在各自报告限定范围内验证；认证执行仍有主流程接线及独立复验待完成。真实浏览器/会话、最新供应商模型语义与视觉验证不能由 Mock、FakeBrowser 或局部通过替代。
+
+当前结论见 [P0 验收矩阵](docs/validation-results/P0-acceptance-matrix.md)、[T10 当前验收矩阵](docs/validation-results/T10-current-acceptance-matrix.md)及[最新控制器记录](docs/validation-results/T10-controller-latest.json)。历史失败与修复证据均保留，报告中的测试数量可能重叠，不累加为覆盖率。
 
 已确认的用户决策：**直接建设多人使用的内网 Linux 平台；平台、浏览器和报告在内网，允许调用外部模型 API。** 外部模型输入可能包含脱敏页面内容和截图，这与全程断网部署有不同的数据边界。
 
@@ -14,9 +18,25 @@
 6. [开发 agent 交接与任务分解](docs/05-agent-handoff.md)
 7. [P1 Web 回归、定时与修复细化](docs/06-web-regression-and-scheduling.md)
 
-机读契约位于 `docs/contracts/`，可用于契约校验的虚构样例位于 `docs/examples/`。开发前应阅读契约及文档优先级；初始化项目时验证并锁定依赖版本。这里的样例和性能指标分别是示例、验收目标，不是已实现结果。
+机读契约位于 `docs/contracts/`，可用于契约校验的虚构样例位于 `docs/examples/`。开发前应阅读契约及文档优先级。这里的样例和性能指标分别是示例、验收目标，不是已实现结果。
 
 本次 [G0 校验记录](docs/validation-results/G0-contract-validation.json) 已通过 OpenAPI 3.1 标准校验、JSON Schema、样例和关键语义检查。产品的 Linux/浏览器/模型验收由 M0 和后续工作包实际执行。
+
+## 本地开发
+
+使用 Node.js 24–26 和锁定的 pnpm 10.34.0，在仓库根目录执行：
+
+```sh
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm contracts:check
+pnpm build
+pnpm typecheck
+pnpm --filter @localqa/web dev
+```
+
+前端提供 Mock 开发模式；连接真实 API 还需要 PostgreSQL、迁移和受保护的运行配置。部署输入与隔离演练步骤见 [部署指南](deploy/README.md)，包内 README 提供各组件说明。`pnpm test:integration` 包含真实浏览器/数据库测试，应在具备相应资源且已授权的环境执行。
+
+只提交源码、锁文件、配置模板与必要验收材料。实际 `.env`、密钥、证书、依赖目录、构建输出和原始运行日志均应保留在仓库之外；`.env.example` 中的值仅为模板。
 
 ## 调研依据
 

@@ -1,0 +1,53 @@
+{
+  "task": "T10-B-independent-api",
+  "at": "2026-10-04T05:24:09.609994+00:00",
+  "command": "node --test apps/api/test/t10-saved-cases.test.mjs",
+  "exitCode": 0,
+  "sourceHashes": {
+    "apps/api/test/t10-saved-cases.test.mjs": "90376544040dceeb30a4733fb9d6cb6536174f73a937305181ef69890f0e9f08",
+    "apps/api/dist/routes/savedCases.js": "188a6accf51942ab511b6f525ed63b62425f0a8a7fb50801fffca5cd58c9e333",
+    "apps/api/dist/index.js": "011c129d817a6e217767c6017ee5ef6a6956956d8f6067329d44485b0f6fd870",
+    "packages/storage/dist/repositories.js": "49c793814965d83d83a16a75b64d3d3d1966564d5a01598bac434aa9a49d508f",
+    "packages/storage/migrations/007_p1_saved_cases.sql": "66aeb31166c108fec3534773d4216bee29fdf536766283bb6b06fc3a832f244a",
+    "packages/storage/migrations/008_saved_case_review_previews.sql": "6534336138682f878be9d33931994e3dc47ab05d6c797a18f5a15688c582f753"
+  },
+  "sourceChangedDuringRun": [],
+  "resourceBaseline": {
+    "containers": [],
+    "volumes": [
+      "79e6b62585a476cb1d73128a4304fe0556d3526fda92d40302434fde82407472"
+    ],
+    "networks": [
+      "9541ee651a6a bridge",
+      "f86750b77270 host",
+      "17827b3a1f21 none"
+    ]
+  },
+  "resourceAfter": {
+    "containers": [],
+    "volumes": [
+      "79e6b62585a476cb1d73128a4304fe0556d3526fda92d40302434fde82407472"
+    ],
+    "networks": [
+      "9541ee651a6a bridge",
+      "f86750b77270 host",
+      "17827b3a1f21 none"
+    ]
+  },
+  "newRemainingResources": {
+    "containers": [],
+    "volumes": [],
+    "networks": []
+  },
+  "testedScope": "Current three API tests: document-to-draft/review/queued regression creation; import-time rejection samples; new-version history preservation.",
+  "unverified": [
+    "sourceRunCaseId saving path",
+    "Meaningful single-fault validation coverage",
+    "YAML and module execution",
+    "Worker approved DSL replay and fresh browser context",
+    "Real provider and full UI flow"
+  ],
+  "P0Passed": false,
+  "realModelCalls": 0,
+  "browserUsed": false
+}

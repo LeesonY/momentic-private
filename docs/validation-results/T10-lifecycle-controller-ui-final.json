@@ -1,0 +1,48 @@
+{
+  "at": "2026-10-07T06:17:05.575Z",
+  "rootIndependent": true,
+  "cases": [
+    {
+      "name": "archive response must increment entity version exactly once",
+      "passed": true
+    },
+    {
+      "name": "restore response must increment entity version exactly once",
+      "passed": true
+    },
+    {
+      "name": "duplicate response starts at entity version one",
+      "passed": true
+    },
+    {
+      "name": "list response rejects records belonging to another project",
+      "passed": true
+    },
+    {
+      "name": "Mock list honors limit and successive cursor",
+      "passed": true
+    },
+    {
+      "name": "Mock repeated archive reports VERSION_CONFLICT 409",
+      "passed": true
+    },
+    {
+      "name": "Mock PG integer overflow is rejected before mutation",
+      "passed": true
+    },
+    {
+      "name": "Mock UUID identity is case insensitive",
+      "passed": true
+    },
+    {
+      "name": "Mock explicit source version UUID is case insensitive",
+      "passed": true
+    },
+    {
+      "name": "Mock copying rejects nonempty fixture references",
+      "passed": true
+    }
+  ],
+  "scope": "Actual Mock and generated HTTP methods, synthetic transport/data; no browser or DOM hydration",
+  "P0Passed": false
+}

@@ -1,0 +1,76 @@
+{
+  "scope": "Pure Node, transpiled actual source; synthetic primitives only",
+  "sourceSha256": "a8de6fe8858c839e6ac1ad5bef7c74fb26fc7880cf7b94a69341e79b99a17ee3",
+  "checks": [
+    {
+      "name": "Permit mutated during async gate cannot change the approved navigation",
+      "passed": true
+    },
+    {
+      "name": "Credential snapshot metadata is redacted on fill",
+      "passed": true
+    },
+    {
+      "name": "Later submit snapshot retains redaction of previously filled credentials",
+      "passed": true
+    },
+    {
+      "name": "Export started before close cannot return state after the instance is closed",
+      "passed": true
+    },
+    {
+      "name": "State accessor is rejected without being invoked or normalized into approved data",
+      "passed": true
+    },
+    {
+      "name": "Cyclic state returns a constant validation error",
+      "passed": true
+    },
+    {
+      "name": "Permit getter cannot disclose its exception or execute",
+      "passed": true
+    },
+    {
+      "name": "Trusted primitive retains its original receiver",
+      "passed": true
+    },
+    {
+      "name": "Factory without the private export gate is rejected",
+      "passed": true
+    },
+    {
+      "name": "Missing capture ticket rejects before export or service gate",
+      "passed": true
+    },
+    {
+      "name": "Old epoch or foreign session rejects export before the gate",
+      "passed": true
+    },
+    {
+      "name": "Non-active binding cannot create a private port",
+      "passed": true
+    },
+    {
+      "name": "Service export denial has constant errors and returns no material",
+      "passed": true
+    },
+    {
+      "name": "Export grant is immutable across the gate and cannot be reused",
+      "passed": true
+    },
+    {
+      "name": "Closing during export authorization prevents the primitive from running",
+      "passed": true
+    },
+    {
+      "name": "Deadline expiring while authorization is pending prevents state export",
+      "passed": true
+    }
+  ],
+  "summary": {
+    "passed": 16,
+    "failed": 0
+  },
+  "browserPaused": true,
+  "P0Passed": false
+}

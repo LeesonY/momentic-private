@@ -1,0 +1,202 @@
+{
+  "title": "DeepSeek 最小可行性真模型样本（AC-002 / G3，不是整门通过）",
+  "date": "2026-10-04",
+  "mode": "live-minimal",
+  "changedPackages": false,
+  "claims": {
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalled": true,
+    "postgresUsed": false,
+    "playwrightLaunched": false
+  },
+  "host": {
+    "node": "v26.3.0",
+    "platform": "darwin"
+  },
+  "limits": {
+    "maxCalls": 12,
+    "callsMade": 9,
+    "maxCompletionTokensCap": 300,
+    "largestMaxCompletionTokensSent": 200
+  },
+  "credentials": {
+    "source": "deploy/.env.local",
+    "writtenToReport": false,
+    "copied": false
+  },
+  "model": {
+    "configuredModelId": "deepseek-chat",
+    "reportedModelId": "deepseek-flash",
+    "note": "每次 HTTP 200 的响应 model 字段都是 deepseek-flash。请求体里的 model 仍是配置值 deepseek-chat。4xx 错误体没有 model 字段，reportedModelId 为空。测试剖面 approvedFallbackIds 为空，fallbackUsed 均为 false。"
+  },
+  "usage": {
+    "reported": {
+      "calls": 5,
+      "promptTokens": 894,
+      "completionTokens": 143,
+      "totalTokens": 1037
+    },
+    "byCall": [
+      { "name": "probe-live", "http": 200, "prompt": 36, "completion": 5, "total": 41, "source": "reported" },
+      { "name": "capabilityProbe", "http": 400, "prompt": 18, "completion": 49, "total": null, "source": "estimated-by-gateway" },
+      { "name": "decision-gateway", "http": 400, "prompt": 87, "completion": 49, "total": null, "source": "estimated-by-gateway" },
+      { "name": "image-via-gateway", "http": 400, "prompt": 40, "completion": 48, "total": null, "source": "estimated-by-gateway" },
+      { "name": "image-direct-biased", "http": 200, "prompt": 200, "completion": 5, "total": 205, "source": "reported" },
+      { "name": "timeout-1ms", "http": null, "prompt": 18, "completion": null, "total": null, "source": "estimated-by-gateway" },
+      { "name": "decision-json-object", "http": 200, "prompt": 133, "completion": 61, "total": 194, "source": "reported" },
+      { "name": "native-tool", "http": 200, "prompt": 321, "completion": 71, "total": 392, "source": "reported" },
+      { "name": "vision-red-pixel", "http": 200, "prompt": 204, "completion": 1, "total": 205, "source": "reported" }
+    ],
+    "note": "reported 五行合计 prompt 894、completion 143、total 1037。网关对 4xx 和超时填的是本地估算，供应商响应里没有 usage，没有加进 1037。超时那次是否计费未知。"
+  },
+  "commands": [
+    "LOCALQA_MODEL_PROBE=allow node packages/model-gateway/scripts/probe-live.mjs（变量从 deploy/.env.local 读入，命令行不写密钥）",
+    "node /tmp/g3-minimal.mjs（createGateway + createOpenAIAdapter：capabilityProbe、generateDecision、带图 generateDecision、1ms 超时；另一次 adapter.send 发送 1x1 data URL）",
+    "node /tmp/g3-minimal-2.mjs（同一 adapter.send：json_object 决策、原生 tools、纯红 1x1）"
+  ],
+  "steps": [
+    {
+      "name": "probe-live",
+      "what": "脚本原样探测 JSON 输出",
+      "maxCompletionTokens": 16,
+      "httpStatus": 200,
+      "latencyMs": null,
+      "reportedModelId": "deepseek-flash",
+      "content": "{\"ok\":true}",
+      "raw": "{\"id\":\"2bac76bf-9a3f-4f4b-a619-f4e54f00dc02\",\"object\":\"chat.completion\",\"created\":1791085249,\"model\":\"deepseek-flash\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"ok\\\":true}\"},\"logprobs\":null,\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":36,\"completion_tokens\":5,\"total_tokens\":41,\"prompt_tokens_details\":{\"cached_tokens\":0},\"prompt_cache_hit_tokens\":0,\"prompt_cache_miss_tokens\":36},\"system_fingerprint\":\"aeb56401ca74e127821c4f9126dcb669\"}",
+      "conclusion": "JSON 输出可用。response_format 为 json_object。脚本打印 status=called。外壳因 zsh 的只读变量名 status 退出码为 1，请求本身是 HTTP 200。"
+    },
+    {
+      "name": "capabilityProbe",
+      "what": "产品 gateway.capabilityProbe，超时 25000ms，maxOutputTokens 200",
+      "latencyMs": 246,
+      "requestResult": "malformed",
+      "errorCode": "VALIDATION_ERROR",
+      "usageSource": "estimated",
+      "providerCalls": 1,
+      "repairCount": 0,
+      "fallbackUsed": false,
+      "raw": "{\"error\":{\"message\":\"This response_format type is unavailable now (request_id: 0d745cf6-83bf-4027-af26-e2b3d5f031cf)\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+      "conclusion": "能力探测没有拿到模型正文。openai adapter 固定发送 response_format json_schema，该端点拒绝。网关把 HTTP 400 记成 VALIDATION_ERROR，没有写成能力缺失。"
+    },
+    {
+      "name": "decision-gateway",
+      "what": "gateway.generateDecision，中文指令，夹具首页 Overview/Details，maxOutputTokens 200，附带 click 工具 schema",
+      "latencyMs": 87,
+      "requestResult": "malformed",
+      "errorCode": "VALIDATION_ERROR",
+      "usageSource": "estimated",
+      "providerCalls": 1,
+      "repairCount": 0,
+      "raw": "{\"error\":{\"message\":\"This response_format type is unavailable now (request_id: 49b989dd-81da-41e0-a55a-4618c7a841dc)\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+      "validator": "未到达。没有模型正文可校验。",
+      "conclusion": "产品链「网关 → adapter.build → 供应商」在该端点上停在 json_schema。格式修复没有触发，因为供应商错误在解析正文之前返回。"
+    },
+    {
+      "name": "decision-json-object",
+      "what": "同一 createOpenAIAdapter.send。response_format 改为 json_object。提示词给出夹具首页两个按钮，要求只点 Details。max_completion_tokens 180。",
+      "latencyMs": 956,
+      "httpStatus": 200,
+      "reportedModelId": "deepseek-flash",
+      "usage": { "prompt_tokens": 133, "completion_tokens": 61, "total_tokens": 194 },
+      "content": "{\"name\":\"click\",\"args\":{\"target\":{\"snapshotId\":\"44444444-4444-4444-8444-444444444444\",\"pageId\":\"33333333-3333-4333-8333-333333333333\",\"nodeId\":\"tab-btn-details\"}}}",
+      "pickedNode": "tab-btn-details",
+      "validator": "validateContract('ToolCall') success true",
+      "conclusion": "这条链通了：真实模型输出一个 click，契约校验器接受，nodeId 是 tab-btn-details。它没有走 gateway.generateDecision。"
+    },
+    {
+      "name": "native-tool",
+      "what": "同一 adapter.send。tools + tool_choice=click，无 response_format。max_completion_tokens 180。提示词只给了 testid，没有给 uuid。",
+      "latencyMs": 687,
+      "httpStatus": 200,
+      "reportedModelId": "deepseek-flash",
+      "finishReason": "tool_calls",
+      "usage": { "prompt_tokens": 321, "completion_tokens": 71, "total_tokens": 392 },
+      "toolName": "click",
+      "arguments": { "snapshotId": "fixture", "pageId": "home", "nodeId": "tab-btn-details" },
+      "validator": "包成 ToolCall 后 success false。click 分支的原因是 snapshotId 与 pageId 不是 uuid。其余 oneOf 分支的 must be equal to constant 是兄弟分支的失败。",
+      "conclusion": "原生工具调用可用，nodeId 选对了。参数不是契约要求的 uuid，校验器不接受。"
+    },
+    {
+      "name": "image-via-gateway",
+      "what": "gateway.generateDecision，批准的 image part。adapter 把图片写成 artifact://88888888-8888-4888-8888-888888888888。maxOutputTokens 40。",
+      "latencyMs": 97,
+      "requestResult": "malformed",
+      "errorCode": "VALIDATION_ERROR",
+      "usageSource": "estimated",
+      "raw": "{\"error\":{\"message\":\".messages[0]: Unsupported image_url format (request_id: ddd99fc8-f358-48fc-a2c3-f6020b707fdd)\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+      "conclusion": "供应商拒绝的是 artifact:// 这种 URL 格式。网关没有返回 IMAGE_UNSUPPORTED，也没有写「图片不受支持。视觉验收不能改成文本验收。」"
+    },
+    {
+      "name": "image-direct-biased",
+      "what": "adapter.send 发送 1x1 data URL。提示词要求只答 {\"seen\":false}，答案是提示词指定的，不能用来判断视觉。",
+      "latencyMs": 575,
+      "httpStatus": 200,
+      "reportedModelId": "deepseek-flash",
+      "usage": { "prompt_tokens": 200, "completion_tokens": 5, "total_tokens": 205 },
+      "content": "{\"seen\":false}",
+      "conclusion": "请求被接受，但结论作废。真正的颜色题是 vision-red-pixel。"
+    },
+    {
+      "name": "vision-red-pixel",
+      "what": "adapter.send。本地生成的 1x1 纯红 PNG（RGB 255,0,0）data URL。提示词只问颜色，一个中文词。max_completion_tokens 20。",
+      "latencyMs": 717,
+      "httpStatus": 200,
+      "reportedModelId": "deepseek-flash",
+      "usage": { "prompt_tokens": 204, "completion_tokens": 1, "total_tokens": 205 },
+      "content": "红色",
+      "conclusion": "该端点接受图片输入，并把这张纯红像素答成「红色」。不能记成「该模型不具备视觉输入」。这只是 1x1 纯色，不是夹具页面截图。"
+    },
+    {
+      "name": "timeout-1ms",
+      "what": "gateway.generateDecision，timeoutMs=1，maxOutputTokens=16",
+      "latencyMs": 2,
+      "requestResult": "timeout",
+      "errorCode": "MODEL_TIMEOUT",
+      "usageSource": "estimated",
+      "inputTokens": 18,
+      "outputTokens": null,
+      "raw": "",
+      "conclusion": "本地 AbortController 触发后，网关记 MODEL_TIMEOUT。没有供应商 usage。429 没有测。"
+    },
+    {
+      "name": "visual-assess-local",
+      "what": "assessCriterionOutput，criterionKind=visual，imageInput=false。零次网络。",
+      "result": {
+        "verdictStatus": "blocked",
+        "reasonCode": "MODEL_CAPABILITY_MISSING",
+        "criterionId": "smoke.visible",
+        "criterionResult": "not_evaluated"
+      },
+      "conclusion": "剖面标明无图片能力时，视觉断言被挡住，没有当成文本通过。这次活探测没有把 imageInput 写回剖面；capabilityProbe 在 json_schema 上就失败了。"
+    }
+  ],
+  "结论": {
+    "JSON输出": "probe-live 与 json_object 决策均为 HTTP 200，正文是 JSON。产品网关使用的 json_schema 被端点拒绝。",
+    "工具调用": "原生 tool_calls 返回了 click，但 snapshotId/pageId 不是 uuid，ToolCall 校验失败。json_object 路径输出的 click 校验通过，且 nodeId 为夹具首页的 tab-btn-details。",
+    "图片输入": "具备最小视觉输入。纯红 1x1 回答「红色」。artifact:// 被拒是适配器 URL 格式，网关把它记成 VALIDATION_ERROR，没有走视觉能力缺失。",
+    "错误与超时": "json_schema 与 artifact:// 都是 HTTP 400，映射为 VALIDATION_ERROR。1ms 超时映射为 MODEL_TIMEOUT。429 未测。",
+    "中文": "夹具 public HTML 没有中文。中文指令要求在 Overview 与 Details 之间点 Details，模型选对了 tab-btn-details。这是中文指令作用于英文夹具文案，不是中文页面理解。",
+    "configured与reported": "配置 deepseek-chat，成功响应报告 deepseek-flash。没有启用未批准 fallback。",
+    "闭环": "「真实模型 → 结构化工具调用 → validateContract('ToolCall') 接受」在 adapter.send + json_object 上成立。gateway.generateDecision 因 json_schema 不可用，同一决策没有走通。",
+    "G3": "这是 9 次调用的最小样本。不构成 G3 或 P0 通过。"
+  },
+  "契约要求但当前端点或适配器做不到": [
+    "packages/model-gateway/src/openai.ts 的 toOpenAIChatRequest 固定 response_format.type=json_schema 且 strict=true。该 DeepSeek 端点返回 This response_format type is unavailable now。json_object 可用。",
+    "图片 part 被写成 artifact://{artifactId}。端点返回 Unsupported image_url format。适配器的 send 只在 stub 路径返回 IMAGE_UNSUPPORTED，这次 400 被 httpStatusError 记成 VALIDATION_ERROR，gateway 不会写视觉验收禁止改成文本验收。",
+    "原生工具参数没有被约束成 NodeTarget 的 uuid。模型填了 fixture/home，契约拒绝。",
+    "成功响应的 model 是 deepseek-flash，与配置的 deepseek-chat 不同。网关会把响应 model 放到 reportedModelId；这次 4xx 没有 reportedModelId。"
+  ],
+  "本次未覆盖的范围": [
+    "没有跑整份 G3，没有 10×10 质量基线，没有预算预约，没有 SecretVault，没有把 Dispatcher 接到浏览器。",
+    "没有打开 packages/test-fixture 的 HTTP 服务，没有 Playwright，没有页面截图。决策用的是首页两个按钮的文字快照。",
+    "夹具页面没有中文，中文页面理解没有样本。",
+    "没有测 429，没有测 401/403，没有测未批准 fallback。",
+    "1ms 超时只证明网关把 abort 记成 MODEL_TIMEOUT，没有证明供应商侧超时。",
+    "带偏见的 seen:false 图片题不能作为视觉证据。",
+    "视觉正样本只是 1x1 纯色，不能外推到按钮定位或视觉验收。",
+    "没有把 key 写入本文件。临时脚本在 /tmp，不在仓库里。"
+  ],
+  "清理状态": "已删除 /tmp/g3-minimal.mjs、/tmp/g3-minimal-2.mjs 及两份输出，回查 TEMP_GONE。本轮未创建容器、卷、网络或镜像。回查 docker ps -a 为空。匿名卷 79e6b62585a476cb1d73128a4304fe0556d3526fda92d40302434fde82407472 不是本轮创建的，未删。镜像未删，含 localqa-*:latest、node:24-bookworm-slim、postgres:18-alpine、mcr.microsoft.com/playwright:v1.63.0-noble、hello-world、nginx:1.27-alpine。未跑 git。未复制 deploy/.env.local。报告内无密钥。"
+}

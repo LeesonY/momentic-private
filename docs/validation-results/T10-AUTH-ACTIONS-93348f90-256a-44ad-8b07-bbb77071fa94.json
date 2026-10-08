@@ -1,0 +1,69 @@
+{
+  "task": "T10-AUTH-6-ACTIONS-LEDGER",
+  "tag": "93348f90-256a-44ad-8b07-bbb77071fa94",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-actions-URvntO",
+  "tests": [
+    {
+      "name": "recordAuthObservation: registers sanitized snapshot bound to auth session and epoch",
+      "passed": false,
+      "code": "SERVICE_UNAVAILABLE",
+      "message": "SERVICE_UNAVAILABLE"
+    },
+    {
+      "name": "grantAuth: generates AuthPermit, reserves budget, enforces action/slot pairing, snapshot provenance and requestId idempotency",
+      "passed": false,
+      "code": "SERVICE_UNAVAILABLE",
+      "message": "SERVICE_UNAVAILABLE"
+    },
+    {
+      "name": "beginAuthExecution CAS state (issued -> started), single-execution, and exclusive run lock",
+      "passed": true
+    },
+    {
+      "name": "recordAuth: requires started grant and receipt match, settles budget, updates Step, and rejects ordinary channels",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'settled'\n- 'reported'\n"
+    },
+    {
+      "name": "Failed outcome in recordAuth charges actions:1 and releases initializing exclusive lock",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'settled'\n- 'reported'\n"
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "c423e2b83ca5ef54343557b5c241a1009dabd66f7bec241a25ff002d0c163880",
+    "volumes": [
+      "e37f7c0bcad82bbff3c6c3b411e30b8e9346c0ba28ecd774b1409b6b5b77a3f4"
+    ],
+    "pgPort": 33145,
+    "apiPort": 64281,
+    "apiPid": 15700,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "e37f7c0bcad82bbff3c6c3b411e30b8e9346c0ba28ecd774b1409b6b5b77a3f4",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 private auth actions ledger, provenance, CAS begin, and exclusive run lock only",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4
+  }
+}

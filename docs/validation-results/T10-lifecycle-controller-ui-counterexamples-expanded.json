@@ -1,0 +1,58 @@
+{
+  "at": "2026-10-07T05:31:04.801Z",
+  "rootIndependent": true,
+  "cases": [
+    {
+      "name": "archive response must increment entity version exactly once",
+      "passed": false,
+      "message": "Missing expected rejection."
+    },
+    {
+      "name": "restore response must increment entity version exactly once",
+      "passed": false,
+      "message": "Missing expected rejection."
+    },
+    {
+      "name": "duplicate response starts at entity version one",
+      "passed": false,
+      "message": "Missing expected rejection."
+    },
+    {
+      "name": "list response rejects records belonging to another project",
+      "passed": false,
+      "message": "Missing expected rejection."
+    },
+    {
+      "name": "Mock list honors limit and successive cursor",
+      "passed": false,
+      "message": "Expected values to be strictly equal:\n\n3 !== 1\n"
+    },
+    {
+      "name": "Mock repeated archive reports VERSION_CONFLICT 409",
+      "passed": false,
+      "message": "The validation function is expected to return \"true\". Received false\n\nCaught error:\n\nError: 用例已处于归档状态: 00000000-0000-4000-8000-000000000003"
+    },
+    {
+      "name": "Mock PG integer overflow is rejected before mutation",
+      "passed": false,
+      "message": "Missing expected rejection."
+    },
+    {
+      "name": "Mock UUID identity is case insensitive",
+      "passed": false,
+      "message": "用例不存在: AB111111-AB11-4111-8111-AB1111111111"
+    },
+    {
+      "name": "Mock explicit source version UUID is case insensitive",
+      "passed": false,
+      "message": "源用例版本不存在: AB222222-AB22-4222-8222-AB2222222222"
+    },
+    {
+      "name": "Mock copying rejects nonempty fixture references",
+      "passed": false,
+      "message": "Missing expected rejection."
+    }
+  ],
+  "scope": "Actual Mock and generated HTTP methods, synthetic transport/data; no browser or DOM hydration",
+  "P0Passed": false
+}

@@ -1,0 +1,63 @@
+{
+  "at": "2026-10-07T06:22:09.149949+00:00",
+  "rootIndependent": true,
+  "acceptedLocally": true,
+  "scope": "Lifecycle UI/client/Mock, actual callback logic with injected closure state, pure pagination/scope helpers, static SSR; no DOM/hydration or real browser",
+  "checks": {
+    "lifecycleOffline": 24,
+    "actualListCallbacks": 7,
+    "actualDuplicateSubmitCallbacks": 2,
+    "actualClientMockMethods": 10,
+    "rootCaseFinder": 6,
+    "rootVersionPagination": 6,
+    "packageScope": 5,
+    "packageVersionPagination": 3,
+    "moduleOfflineRegression": 39,
+    "yamlOfflineRegression": 28,
+    "flowHelpersRegression": 70,
+    "fixtureHelpersRegression": 32
+  },
+  "build": "passed",
+  "eslint": "passed",
+  "clientGeneration80PublicOperations": "passed",
+  "repairs": [
+    "Exact entity version/status/identity guards and mock pagination/error semantics",
+    "Scope reset invalidates old mutation; same-scope reads no longer invalidate mutation/finally",
+    "Concurrent row actions and superseded load-more clear their own busy state",
+    "Copy sourceviewer/targetoperator permissions; target member and submit contexts match",
+    "Case detail reads actual paginated head and does not invent active/version/baseline",
+    "Case/version pagination validates canonical DTO and ownership, rejects cursor loops and search caps",
+    "Complete version pages expose actual approved metadata without v1 fallback"
+  ],
+  "evidence": [
+    "T10-lifecycle-controller-callback-final.json",
+    "T10-lifecycle-controller-modal-final.json",
+    "T10-lifecycle-controller-ui-final.json",
+    "T10-lifecycle-controller-helpers-acceptance.json",
+    "T10-lifecycle-controller-offline-final.log",
+    "T10-lifecycle-controller-web-final-build.log",
+    "T10-lifecycle-controller-web-final-lint.log",
+    "T10-lifecycle-controller-client-final.log"
+  ],
+  "sourceSha256": {
+    "apps/web/src/pages/SavedCasesPage.tsx": "a6ebb9f28200d5cbac98ec14f136d866c0f3eafd3fe3d986811ce1f14c7140d6",
+    "apps/web/src/pages/SavedCaseDetailPage.tsx": "2916a07d94a83a299d87db39b20cc472ca817b1f0730cfccd55e0a8eaf9747ac",
+    "apps/web/src/components/saved-cases/SavedCaseDuplicateModal.tsx": "2e97e9b6045ed64beab7cae3ef29bf601f797faef5afb52170247ef44a8938dc",
+    "apps/web/src/api/client.ts": "6a1d84981df000fe0cbbd7e930ca7a678036135fc6d96116a7293ae644148d58",
+    "apps/web/scripts/generateClient.mjs": "8d2ac83655139c11b4f2f2edfade58a4b5d370bb07527b22dca91cb8673bc3c7",
+    "apps/web/src/mocks/mockClient.ts": "e1aa60b0a307cd3682c3cdc6554a869f328dcf85a067f950cc7e545f06f31721",
+    "apps/web/src/utils/lifecycleScope.ts": "3a192340469011144a4f71dc2b9b6b54a257189635c9b922b29cca5aecb74279",
+    "apps/web/src/utils/savedCaseVersionPagination.ts": "640a87e3346eee26e21718079830f27e1f7da957ecfb27a61d1eab17057f3f90",
+    "apps/web/scripts/testLifecycleOffline.mjs": "8fce05814e826c9cd04bd96d9b9ee69e08412f09ba40e50f3969eddc49d34252"
+  },
+  "rootFinalSourceChange": "Wired both remaining list version reads to the accepted full-page version helper; no silent empty history on error",
+  "failureReportsRetained": true,
+  "notVerified": [
+    "DOM/hydration or real browser lifecycle",
+    "Full form/storage-state/exclusive/OTP execution",
+    "Latest implementation against real supplier models",
+    "Full P1/P0 release"
+  ],
+  "browserPaused": true,
+  "P0Passed": false
+}

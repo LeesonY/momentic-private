@@ -1,0 +1,101 @@
+{
+  "task": "T10-AUTH5-INPUT-ROOT",
+  "tag": "13257407-d49e-40aa-9cd3-329bf9929bd6",
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth5-input-wZnBLj",
+  "tests": [
+    {
+      "name": "auth_profile: unsupported approve cannot resolve authentication",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"kind\":\"auth_profile\",\"decision\":\"approve\",\"status\":200,\"resultCode\":null,\"storedStatus\":\"resolved\"}\n\n200 !== 422\n"
+    },
+    {
+      "name": "auth_profile: provide cannot resolve through generic input path",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"kind\":\"auth_profile\",\"decision\":\"provide\",\"status\":200,\"resultCode\":null,\"storedStatus\":\"resolved\"}\n\n200 !== 422\n"
+    },
+    {
+      "name": "auth_profile: reject cannot smuggle ordinary text material",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"kind\":\"auth_profile\",\"decision\":\"reject\",\"status\":200,\"resultCode\":null,\"storedStatus\":\"rejected\"}\n\n200 !== 422\n"
+    },
+    {
+      "name": "auth_profile: clean reject is recorded without fake resume",
+      "passed": true
+    },
+    {
+      "name": "one_time_code: unsupported approve cannot resolve authentication",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"kind\":\"one_time_code\",\"decision\":\"approve\",\"status\":200,\"resultCode\":null,\"storedStatus\":\"resolved\"}\n\n200 !== 422\n"
+    },
+    {
+      "name": "one_time_code: provide cannot resolve through generic input path",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"kind\":\"one_time_code\",\"decision\":\"provide\",\"status\":200,\"resultCode\":null,\"storedStatus\":\"resolved\"}\n\n200 !== 422\n"
+    },
+    {
+      "name": "one_time_code: reject cannot smuggle ordinary text material",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"kind\":\"one_time_code\",\"decision\":\"reject\",\"status\":200,\"resultCode\":null,\"storedStatus\":\"rejected\"}\n\n200 !== 422\n"
+    },
+    {
+      "name": "one_time_code: clean reject is recorded without fake resume",
+      "passed": true
+    },
+    {
+      "name": "ordinary clarification approve retains existing response semantics",
+      "passed": true
+    }
+  ],
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "6603b1d6fd4419fb7d892ec0d0ebf2344ed9c6b522c956835e4ed0d15cd120c2",
+    "volumes": [
+      "d3063ef79d10ca2ec15077ad9423f43fe55e5c371099cdd8f60bdfc57e9ea3cc"
+    ],
+    "pgPort": 33127,
+    "apiPort": 55358,
+    "apiPid": 10241,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "d3063ef79d10ca2ec15077ad9423f43fe55e5c371099cdd8f60bdfc57e9ea3cc",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Actual PG/API input boundary; no browser, Worker.once, worker-entry or real model",
+    "Independent counterexamples and isolated concurrency checks; conclusions only reflect assertions in this run",
+    "P0=false; FakeBrowser/real model acceptance remains unverified"
+  ],
+  "migrationScope": "Owned immutable copy of migrations001-010; AUTH5 in-flight migration excluded from this existing input boundary reproduction",
+  "sourceSha256": {
+    "apps/api/src/routes/runs.ts": "7b638300b9b5b70683e13ea43d369e7634d22b17af41d43ca8f68c7af298b846",
+    "apps/api/dist/routes/runs.js": "b29aac1c26500c0d893d03f337c8ba914ae51e3c6ff65df670c25b0def69619b"
+  },
+  "lastResponse": {
+    "kind": "one_time_code",
+    "decision": "reject",
+    "status": 200,
+    "resultCode": null,
+    "storedStatus": "rejected"
+  },
+  "summary": {
+    "passed": 3,
+    "failed": 6
+  }
+}

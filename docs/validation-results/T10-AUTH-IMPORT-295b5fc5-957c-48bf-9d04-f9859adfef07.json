@@ -1,0 +1,93 @@
+{
+  "task": "T10-AUTH-9A-STATE-CAPTURE",
+  "tag": "295b5fc5-957c-48bf-9d04-f9859adfef07",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-import-5NeQNa",
+  "tests": [
+    {
+      "name": "exclusive and shared: normally finished capture feeds independent importer sessions and ends only one child",
+      "passed": true
+    },
+    {
+      "name": "prepare and begin concurrent CAS each grant one capability; lost replies cannot replay decryption or effect",
+      "passed": true
+    },
+    {
+      "name": "private importer rejects initializer-only methods and ordinary result/HTTP channels",
+      "passed": true
+    },
+    {
+      "name": "allocation/activation rejects wrong state or current authority before any state decryption",
+      "passed": false,
+      "code": "23503",
+      "message": "insert or update on table \"auth_profiles\" violates foreign key constraint \"auth_profiles_project_id_id_version_fkey\""
+    },
+    {
+      "name": "historical tuple, revoked state, consumed grant and ciphertext/HMAC tampering fail closed",
+      "passed": false,
+      "code": "P0001",
+      "message": "VERSION_CONFLICT"
+    },
+    {
+      "name": "historical encryption and HMAC key survive rotation, wrong receipt and changed outcome cannot charge twice",
+      "passed": true
+    },
+    {
+      "name": "RLS denies workers and project non-admin actors private importer metadata",
+      "passed": true
+    },
+    {
+      "name": "shared action budget denial reserves no import row and DB insertion failure rolls everything back",
+      "passed": true
+    },
+    {
+      "name": "real lock waits expiring prepare and begin deadlines roll the CAS back with zero decryption",
+      "passed": true
+    },
+    {
+      "name": "failure/unknown/cancelled import outcomes remain truthful and charge one action",
+      "passed": true
+    },
+    {
+      "name": "service recovery ends one expired importer without touching active sibling/state/granted lock",
+      "passed": true
+    },
+    {
+      "name": "none cannot allocate importer authority: zero state decryption/session/scope/grants",
+      "passed": true
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "ab51052caeb7dd1dddf0044319d1f161b50b3adda78558bce8d8a02a6c73ef61",
+    "volumes": [
+      "94352e082eca2d9a243bf6f4701d51b60ad3f7b63dcf5eec667fb0181db9faf3"
+    ],
+    "pgPort": 33254,
+    "apiPort": 56455,
+    "apiPid": 33287,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "94352e082eca2d9a243bf6f4701d51b60ad3f7b63dcf5eec667fb0181db9faf3",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 protected state importer/CAS/private receipt/budget/Step only; synthetic captured browser state",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 10,
+    "failed": 2
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "at": "2026-10-05T12:07:51.950Z",
+  "workspace": "wF",
+  "task": "Independent B5 / C2-R2 / G3-E-R checkpoint",
+  "browserPaused": true,
+  "P0Passed": false,
+  "singleMonitorPid": 95898,
+  "changes": [
+    "Root repaired pi's interrupted fixture initialization, undefined references and extra lease claim; preserved existing implementations.",
+    "Default approved ai_action uses a four-round loop through canonical dispatcher and the same revocable grant/execute/record port.",
+    "Shared browser actions now return canonical BrowserSnapshot/Artifact rather than abbreviated receipts.",
+    "Worker accepts normalized assertion assessment with null errorCode; actual gateway statuses passed/issue_found are supported, raw provider pass is never authority.",
+    "Run plans retain originCriteria with scoped ids for approved source smoke semantics while frozen Case.criteria retain saved-case provenance.",
+    "Unusable successful browser results close Step/intent/reservation as unknown; coordinator interruption closes pending running Steps as unknown."
+  ],
+  "independentChecks": {
+    "workerPgFakeBrowser": 15,
+    "workerScope": "Actual API approval/regression -> Worker.once -> RuntimeClient/BoundModel -> injected Response and real PG ledger; synthetic PNG/browser observations, no real website claims.",
+    "savedSmoke": "Stored synthetic source -> draft -> approve -> regression: 200 passes, 503 is not_evaluated; source document unchanged.",
+    "apiSavedAndB4AndBoundary": 19,
+    "latestB4AndModelLeaseLedger": 34,
+    "compilerReplayLocator": 27,
+    "imagePgGateway": 33,
+    "imageHelper": 5,
+    "storageWithNineMigrations": 32,
+    "webGuardsIncludingActualProductHelper": 70,
+    "webFixtureLifecycle": 32,
+    "httpProxy": 8,
+    "rootSourceAndSsrRegressionChecks": 11,
+    "node24OfflineNonPg": 39,
+    "builds": "All modified packages and API/worker/web passed; API, worker and orchestrator rebuilt after the final interruption cleanup.",
+    "lint": "worker/orchestrator/web passed",
+    "diffCheck": 0
+  },
+  "audit": {
+    "file": "docs/validation-results/T10-B5-agent-readonly-review.md",
+    "scope": "Independent agent review up to its recorded SHA/time; later originCriteria and unknown outcome fixes verified separately by Root tests."
+  },
+  "cleanup": {
+    "ownPgAndFilesRemoved": true,
+    "piDebugContainersAndVolumesIndependentlyConfirmedAbsent": true,
+    "egoUsed": false,
+    "imagesRebuilt": false,
+    "legacy8085Untouched": true,
+    "legacyEgoCleanupStillPaused": true
+  },
+  "unverified": [
+    "Actual browser UI and Playwright regression replay",
+    "Real supplier validation and G3/P0 release",
+    "JPEG pixel/Huffman decoding",
+    "Unspecified authentication/fixture adapters remain fail-closed",
+    "Full original T06 harness not rerun because it uses the existing fixed 8085 and shared evidence paths"
+  ],
+  "next": "Read-only review of latest origin/unknown outcome changes and investigate gateway format warnings; preserve scope and no paid/browser calls.",
+  "sourceHashes": {
+    "apps/worker/src/index.ts": "72b724d3729f56d1187529085691e3d33efe1df7aec966ddf0d1a1c5fae2bcf3",
+    "apps/worker/src/regression-ai.ts": "7e5e037899b625428ec0834cb5842be8851f3613d22bbf033f832a52b48f3be4",
+    "apps/worker/src/regression-replay.ts": "7c00a289a80c8e79794aba8a6c6ef66d04ed773229166a719c8c775ef026f1a7",
+    "apps/worker/test/t10-b5-fakebrowser.test.mjs": "0566e1144e3bea2bab7063db1b9256ddcdb3734d046f75888aea63e22e4ed69e",
+    "packages/orchestrator/src/core.ts": "914cff3973875971c1a6a9d199eddf0a85f363f81e7069dedc6f314a17057b57",
+    "packages/orchestrator/src/runtime.ts": "949fcea95ea0aa06a4d5b4168ebcd600c9fac9b0693e80fd2a5eaf719e989faf",
+    "packages/orchestrator/src/regression-plan.ts": "cea17b3b0b491eb4b8728b25355fe47b97ed28f8df7b67d66edfb86e49cc9110",
+    "packages/orchestrator/src/regression-compiler.ts": "9133df1fcaeb7e2c708fee9c33201c06e13ca68ac8755ce09679d7f3201b2f77",
+    "packages/orchestrator/src/artifacts.ts": "24629dd60f6f2bb1354ab878cb0a1f871aced4c97af3dae397783624bd10a808",
+    "apps/web/src/utils/provenance.ts": "e37da5a49c640617ec522f7c325786f694451565bd46375e61566f1462c52d09"
+  }
+}

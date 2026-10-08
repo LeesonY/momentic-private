@@ -1,0 +1,86 @@
+{
+  "task": "T10-MODULES",
+  "rootIndependent": true,
+  "tag": "64da2e93-0527-4997-8f21-8fb35a1d2b3c",
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-mod-FTx8Zv",
+  "tests": [
+    {
+      "name": "valid module with slash in name: encoded route %2F roundtrip, review approval and list pagination",
+      "passed": true
+    },
+    {
+      "name": "RBAC matrix across all 5 endpoints: operator creates draft, owner reviews, viewer read-only, cross-project 404 zero existence leaks",
+      "passed": true
+    },
+    {
+      "name": "invalid UUID, numbers, and templates return 422 without SQL 503 error; dot/dot-dot segment prohibited",
+      "passed": true
+    },
+    {
+      "name": "cross-actor token hidden (409), replay protection, TTL expiry and content tampering",
+      "passed": true
+    },
+    {
+      "name": "concurrency: race on initial creation and expectedVersion optimistic lock",
+      "passed": true
+    },
+    {
+      "name": "real migration 001-009 -> seed approved -> migration 010 verifies null audit metadata without backfilling timestamps",
+      "passed": false,
+      "code": "ENOENT",
+      "message": "ENOENT: no such file or directory, scandir '/Users/dcp/Documents/%E5%85%AC%E5%8F%B8/momentic/packages/storage/migrations/'"
+    },
+    {
+      "name": "module recursion depth: 8 invocations legal with real compileRegression, 9th rejected; static step limit 100",
+      "passed": true
+    },
+    {
+      "name": "legal unbound vars and env template registers and approves; execution without variable rejects; illegal expressions in locator/criteria/arguments return 422 zero persistence",
+      "passed": true
+    },
+    {
+      "name": "direct operator INSERT approved rejected by RLS/trigger; owner mutation of approved document/metadata rejected by immutable guard",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "The validation function is expected to return \"true\". Received false\n\nCaught error:\n\nStorageError: NOT_FOUND"
+    },
+    {
+      "name": "full vertical workflow: module draft -> review approve -> saved case references module -> regression run freezes binding",
+      "passed": true
+    }
+  ],
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "ec2161efbd85111845c007053de1936b9eae72a7930aac1e62324cb2ee9045ae",
+    "volumes": [
+      "0176b188c2ee875c92144ecd9d575ca84799b853260fbda8e8163f58bfd69ad9"
+    ],
+    "pgPort": 33082,
+    "apiPort": 54697,
+    "apiPid": 74018,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "0176b188c2ee875c92144ecd9d575ca84799b853260fbda8e8163f58bfd69ad9",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "PG/API admission only; no browser, Worker.once, worker-entry or real model",
+    "Full compiler integration verified statically and via regression binding",
+    "P0=false; FakeBrowser/real model acceptance remains unverified"
+  ],
+  "summary": {
+    "passed": 8,
+    "failed": 2
+  }
+}

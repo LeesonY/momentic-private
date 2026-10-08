@@ -1,0 +1,341 @@
+{
+  "title": "G3 真实模型 Gate 只读审查与 preflight 入口",
+  "date": "2026-10-05",
+  "round": "read-only-plus-preflight",
+  "claims": {
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalledThisRound": false,
+    "postgresUsed": false,
+    "playwrightLaunched": false,
+    "gatewayEdited": false,
+    "apiWorkerCoreEdited": false,
+    "oldSampleOverwritten": false,
+    "rootLocal70of70ReRun": false
+  },
+  "host": {
+    "node": "v26.3.0",
+    "platform": "darwin",
+    "note": "本轮注入跑在宿主 Node。不是 node:24 证明，也不是 Root 70/70 的复跑。"
+  },
+  "sample": {
+    "path": "docs/validation-results/G3-model-minimal.json",
+    "sha256": "1ed2904b1beda6d68494cd5db37be8d2758aa69a9e5605d0be066e25baa14469",
+    "date": "2026-10-04",
+    "callsMade": 9,
+    "limits": {
+      "maxCalls": 12,
+      "maxCompletionTokensCap": 300,
+      "largestMaxCompletionTokensSent": 200
+    },
+    "reportedUsageOnHttp200": {
+      "calls": 5,
+      "promptTokens": 894,
+      "completionTokens": 143,
+      "totalTokens": 1037
+    },
+    "postgresUsed": false,
+    "playwrightLaunched": false,
+    "kept": true
+  },
+  "factBoundary": "下面「支持」只覆盖该 JSON 与当前源码对照。Root 所述本地 70/70 与格式反例 9/9 是用户给出的限定验收，本轮没有重跑，也不把它们写成真实模型 Gate。",
+  "samples": [
+    {
+      "name": "probe-live",
+      "http": 200,
+      "gateway": false,
+      "boundModel": false,
+      "leaseBudget": false,
+      "normative": false,
+      "path": "packages/model-gateway/scripts/probe-live.mjs 直接 fetch。response_format json_object，max_completion_tokens 16。",
+      "supports": "该 HTTPS 端点在 json_object 下返回了 {\"ok\":true}。响应 model 为 deepseek-flash。供应商 usage 36/5/41。",
+      "doesNotSupport": "产品 gateway、BoundModel、租约、预算预约、outputSchema、ToolCall、CriterionResult。"
+    },
+    {
+      "name": "capabilityProbe",
+      "http": 400,
+      "gateway": true,
+      "boundModel": false,
+      "leaseBudget": false,
+      "normative": false,
+      "path": "当时的 gateway.capabilityProbe。purpose=probe，没有模型正文。",
+      "supports": "产品网关发出请求后，端点以 response_format type is unavailable now 返回 HTTP 400。网关记 malformed/VALIDATION_ERROR，providerCalls 1，repairCount 0，usage 为本地估算。没有写成能力缺失。",
+      "doesNotSupport": "能力探测成功、剖面 imageInput/nativeTools 被写回、当前 responseFormat 选择。probe 不编译 outputSchema，所以也不支持格式契约。"
+    },
+    {
+      "name": "decision-gateway",
+      "http": 400,
+      "gateway": true,
+      "boundModel": false,
+      "leaseBudget": false,
+      "normative": false,
+      "path": "gateway.generateDecision。中文指令加英文夹具按钮文案，maxOutputTokens 200。",
+      "supports": "产品链停在当时固定发出的 json_schema。供应商错误发生在正文解析之前，格式修复没有跑。validator 记录为未到达。",
+      "doesNotSupport": "generateDecision 成功、中文页面理解、ToolCall 接受、BoundModel、PG 预算。"
+    },
+    {
+      "name": "decision-json-object",
+      "http": 200,
+      "gateway": false,
+      "boundModel": false,
+      "leaseBudget": false,
+      "normative": "事后 validateContract('ToolCall')，不是 gateway 内部的 toolCallsMatchContract。",
+      "path": "createOpenAIAdapter.send。调用方自己把 response_format 改成 json_object。max_completion_tokens 180。",
+      "supports": "真实模型可以在调用方手写的 json_object 请求里输出契约接受的 click，nodeId 为 tab-btn-details。提示词里带了合法 uuid。usage 133/61/194。",
+      "doesNotSupport": "gateway.generateDecision、jsonObjectConstraint、G3-F 格式校验、BoundModel、真实页面、中文页面。"
+    },
+    {
+      "name": "native-tool",
+      "http": 200,
+      "gateway": false,
+      "boundModel": false,
+      "leaseBudget": false,
+      "normative": "事后把 tool_calls 包成 ToolCall，validateContract 拒绝。",
+      "path": "adapter.send。tools + tool_choice=click，无 response_format。提示词只有 testid，没有 uuid。",
+      "supports": "端点能返回 finish_reason tool_calls 的 click，nodeId 为 tab-btn-details。snapshotId/pageId 为 fixture/home 时契约不接受。usage 321/71/392。",
+      "doesNotSupport": "gateway native_tools 模式、出站 schema 约束模型必填 uuid、一次成功的原生决策、BoundModel。"
+    },
+    {
+      "name": "image-via-gateway",
+      "http": 400,
+      "gateway": true,
+      "boundModel": false,
+      "leaseBudget": false,
+      "normative": false,
+      "path": "当时的 gateway.generateDecision。适配器把图片写成 artifact://88888888-8888-4888-8888-888888888888。",
+      "supports": "只支持当时的 URL 形状被端点拒绝，网关记成 VALIDATION_ERROR，不是 IMAGE_UNSUPPORTED，也没有写视觉不得降为文本。",
+      "doesNotSupport": "当前实现。当前 gateway 用 imageDataUrl/legalImageUrl，不发送 artifact://。也不支持 readApprovedImage、视觉准则通过或页面截图。"
+    },
+    {
+      "name": "image-direct-biased",
+      "http": 200,
+      "gateway": false,
+      "boundModel": false,
+      "leaseBudget": false,
+      "normative": false,
+      "path": "adapter.send 1x1 data URL。提示词指定只答 {\"seen\":false}。",
+      "supports": "请求被接受。",
+      "doesNotSupport": "视觉能力。该结论在原样本里已经作废。"
+    },
+    {
+      "name": "vision-red-pixel",
+      "http": 200,
+      "gateway": false,
+      "boundModel": false,
+      "leaseBudget": false,
+      "normative": false,
+      "path": "adapter.send。本地 1x1 纯红 PNG data URL。max_completion_tokens 20。",
+      "supports": "端点接受图片 data URL，并把纯红像素答成「红色」。usage 204/1/205。",
+      "doesNotSupport": "批准图片读取、gateway 组装的 data URL、视觉准则、页面截图、按钮定位。不能据此把剖面 imageInput 写成 true。"
+    },
+    {
+      "name": "timeout-1ms",
+      "http": null,
+      "gateway": true,
+      "boundModel": false,
+      "leaseBudget": false,
+      "normative": false,
+      "path": "gateway.generateDecision，timeoutMs=1，maxOutputTokens=16。本地 AbortController。",
+      "supports": "网关把本地 abort 记成 MODEL_TIMEOUT，raw 为空，usage 为估算，没有供应商 usage。",
+      "doesNotSupport": "供应商侧超时、429、401/403、BoundModel。"
+    }
+  ],
+  "notOneOfTheNine": {
+    "name": "visual-assess-local",
+    "network": 0,
+    "supports": "imageInput false 时，assessCriterionOutput 把视觉准则挡成 blocked/MODEL_CAPABILITY_MISSING，criterionResult not_evaluated。",
+    "doesNotSupport": "活探测写回剖面，或真实图片传输后的视觉判定。"
+  },
+  "currentImplementation": {
+    "responseFormat": "packages/model-gateway/src/openai.ts 与 dist/openai.js 已按 responseFormat 分支。默认仍是 json_schema strict true。json_object 发 type json_object 且不附 tools。native_tools 发 tools、不发 response_format。样本 JSON 里「适配器固定 json_schema」描述的是 2026-10-04 的 gateway 调用，不是当前源码。",
+    "selectStructuredOutput": "status 为 untested 时直接用 profile.responseFormat，缺省 json_schema，不查能力位。status ready 时，json_schema/json_object 要求 structuredOutput，native_tools 要求 nativeTools，否则 unsupported。",
+    "jsonObjectConstraint": "generateDecision 在 json_object 模式会追加一条用户消息，写入 outputSchema 和 tools 文本。9 次样本里的 decision-json-object 没有走这条路径。",
+    "images": "CallInput 只收 artifact id。createGateway 的 resolveArtifact 把 id 变成 bytes 或 https URL。gateway 用 imageDataUrl 组 data URL，legalImageUrl 拒绝其他形状。视觉准则在 providerCalls 增加前要求该 URL 真的出现在出站 body，否则 VISUAL_IMAGE_ABSENT。",
+    "approvedBytes": "PNG/JPEG 结构校验在 ArtifactStore.readApprovedImage。BoundModel.materializeImages 调用 readApprovedImage，再把 bytes 交给 resolveArtifact。gateway 自身不解码 IHDR。",
+    "budget": "gateway 里的 BUDGET_EXCEEDED 是输入 token 估算上限。租约、冻结剖面、model_requests 预约与结算在 packages/orchestrator/src/model.ts 的 BoundModel。9 次样本 postgresUsed 为 false，没有进入该路径。",
+    "redaction": "出站与诊断经 redactText、hideSecret、data URL 替换。诊断样本先脱敏再截到 2000。缺 usage 时按完整 raw 估算，不填 0。",
+    "formatGate": "G3-F/G3F-R 的格式校验已由 Root 作限定本地验收。这 9 个真实正文早于该修复，不能证明线上正文走过格式校验。"
+  },
+  "minimalExtraVerification": {
+    "chinesePage": {
+      "needed": "中文页面理解。",
+      "localThisRound": "注入只放了中文指令文本，并断言该文本进入出站 body。",
+      "stillMissing": "没有无浏览器的中文页面入口。文字快照不是页面。若要最小真实验证，需要一张已经批准、且画面含中文界面的截图，经 BoundModel.readApprovedImage 送出。本轮不查询数据库、不打开浏览器、不新增该接口。",
+      "inFutureHttpBudget": false
+    },
+    "json": {
+      "needed": "产品 gateway.generateDecision 以 json_object 产出并校验 JSON。",
+      "localThisRound": "注入 Response 已通过：response_format json_object、不附 tools、max_completion_tokens 64、schema 接受 {choice:详情}、usageSource reported。",
+      "stillMissing": "端点是否接受「产品网关组装的 json_object 请求」（含 jsonObjectConstraint）仍无样本。旧的 adapter.send 不能代替。",
+      "inFutureHttpBudget": true
+    },
+    "nativeToolCall": {
+      "needed": "产品 gateway native_tools 发出 tools，并用 schema 与 toolCallsMatchContract 判定。",
+      "localThisRound": "合法 uuid 的 click：1 次发送，requestResult ok。outputSchema 带 format uuid 的 fixture/home：2 次发送，repairCount 1，malformed。outputSchema 仅为 {type:object} 的同一非法 ToolCall：1 次发送，repairCount 0，由 toolCallsMatchContract 拒绝。",
+      "stillMissing": "真实模型在产品 native_tools 请求里是否吐出 uuid 未知。失败也是这条路径的结果，不追加第二次修复。注入用的是本地 click schema，不是 agents DECISION_SCHEMA 全文，也没有跑 runToolLoop。",
+      "inFutureHttpBudget": true
+    },
+    "approvedImage": {
+      "needed": "合法批准图片经 ArtifactStore 读取后进入同一租约、冻结剖面和预算，出站为 data URL 或已批准 https，并做视觉规范判定。",
+      "localThisRound": "调用方注入的 1x1 PNG 字节经现有 resolveArtifact 变成 data:image/png;base64。出站无 artifact://。outboundRedacted 去掉了 base64。视觉 assessment 为 passed/OBSERVED，data.result 为 passed。未批准 id：0 次发送，MODEL_NOT_CONFIGURED，authorization 仍为 failure() 默认 unset。",
+      "stillMissing": "这不调用 readApprovedImage，gateway 也不解码 IHDR。产品批准缝在 BoundModel，不在本脚本。不新增 gateway 方法。1x1 注入通过不是视觉 Gate。",
+      "inFutureHttpBudget": false
+    },
+    "redactedUsage": {
+      "needed": "证据只保留脱敏诊断和供应商或估算的 token 计数。",
+      "localThisRound": "注入的 reported usage 原样进入 CallRecord。stdout 不含注入用假密钥，也不含 PNG base64。",
+      "stillMissing": "真实响应的脱敏仍要等未来授权调用。证据字段限于 http、requestResult、errorCode、providerCalls、repairCount、usageSource、input/output tokens、reportedModelId 和已脱敏诊断。不写密钥，不写 deploy/.env.local，不把完整 raw 当证据。",
+      "inFutureHttpBudget": true
+    }
+  },
+  "missingInterfaces": [
+    "没有「不读取明文密钥、又带上述上限」的真实发送函数。probe-live.mjs 会在 LOCALQA_MODEL_PROBE=allow 且三项环境变量齐全时立刻发送，并打印最多 2000 字 raw。它不走 gateway/BoundModel。本轮不改它，也不调用它。",
+    "createGateway({resolveArtifact}) 与 generateDecision/evaluateCriterion 已存在。CallInput 不直接收图片字节。不需要为此改 gateway。",
+    "租约、冻结剖面、预算预约和 readApprovedImage 在 BoundModel（packages/orchestrator/src/model.ts）。本脚本不调用它。要补真实批准图片或 PG 预算，需要跨入 orchestrator/API 进程与密钥解密。本轮按缺口报告，不改 API/worker/core。",
+    "中文页面没有可复用的无浏览器产品入口。"
+  ],
+  "futureLiveBudget": {
+    "status": "方案，不是本轮授权，也不是本脚本的 --execute。",
+    "maxHttpAttempts": 4,
+    "countsProductRepair": true,
+    "productRepairBudget": 1,
+    "maxDecisions": 2,
+    "calls": [
+      {
+        "name": "json-object-generateDecision",
+        "method": "gateway.generateDecision",
+        "responseFormat": "json_object",
+        "maxOutputTokens": 64,
+        "purpose": "decide"
+      },
+      {
+        "name": "native-tools-generateDecision",
+        "method": "gateway.generateDecision",
+        "responseFormat": "native_tools",
+        "maxOutputTokens": 64,
+        "purpose": "decide"
+      }
+    ],
+    "maxCompletionTokensEach": 64,
+    "maxCompletionTokensTotal": 256,
+    "imageHttpCalls": 0,
+    "chinesePageCalls": 0,
+    "browser": false,
+    "postgres": false,
+    "workerEntry": false,
+    "fallbackProfiles": 0,
+    "toolExecution": false,
+    "stopOnHttp": [401, 403, 429],
+    "profileRules": "status 必须是 ready 或 degraded，responseFormat 必须是持久化的 json_object 或 native_tools。不得因模型自报把 imageInput 或 nativeTools 写成 true。不得改用 json_schema 再探一次。",
+    "costBound": "不估算金额。硬边界是最多 4 次 chat/completions（含产品已有的一次修复），每次 max_completion_tokens 64，输出 token 合计不超过 256。先到任一上限、或先遇到 401/403/429，即停止。",
+    "sideEffects": "只读补全。不写数据库，不改剖面，不执行工具，不打开浏览器，不启用 fallback。",
+    "stillNotAGate": "即使这 4 次以后做了，仍不覆盖中文页面、批准图片的产品读取、BoundModel 租约预算、429 以外的计费争议、10×10 基线。G3Passed 与 P0Passed 保持 false。"
+  },
+  "entry": {
+    "path": "docs/validation-results/G3-model-gate-preflight.mjs",
+    "sha256": "a711c26ee9730679d53dd47ce11b3dfd18ca4999713c083b694076fb8d3d8f77",
+    "default": "node docs/validation-results/G3-model-gate-preflight.mjs",
+    "inject": "node docs/validation-results/G3-model-gate-preflight.mjs --inject",
+    "execute": "node docs/validation-results/G3-model-gate-preflight.mjs --execute",
+    "readsEnv": false,
+    "readsCredentialFile": false,
+    "autoSends": false,
+    "executeSends": false,
+    "note": "--execute 退出码 2 表示拒绝，不是发送失败。LOCALQA_MODEL_PROBE=allow 不会让本脚本发送。"
+  },
+  "thisRoundVerification": {
+    "preflightExit": 0,
+    "preflightWithProbeAllowAndDummyKeyEnvExit": 0,
+    "executeExit": 2,
+    "executeWithDummyKeyEnvExit": 2,
+    "injectPlusExecuteExit": 2,
+    "injectExit": 0,
+    "networkCallMade": false,
+    "globalFetchUsed": false,
+    "cases": [
+      {
+        "name": "json-object-generateDecision",
+        "providerCalls": 1,
+        "repairCount": 0,
+        "requestResult": "ok",
+        "errorCode": null,
+        "usageSource": "reported",
+        "inputTokens": 5,
+        "outputTokens": 3,
+        "responseFormat": "json_object",
+        "toolsSent": false,
+        "maxCompletionTokens": 64,
+        "authorization": "set"
+      },
+      {
+        "name": "native-tool-valid-uuid",
+        "providerCalls": 1,
+        "repairCount": 0,
+        "requestResult": "ok",
+        "errorCode": null,
+        "usageSource": "reported",
+        "inputTokens": 5,
+        "outputTokens": 7,
+        "responseFormat": null,
+        "toolsSent": true,
+        "maxCompletionTokens": 64,
+        "authorization": "set"
+      },
+      {
+        "name": "native-tool-bad-uuid-repairs-once",
+        "providerCalls": 2,
+        "repairCount": 1,
+        "requestResult": "malformed",
+        "errorCode": "VALIDATION_ERROR",
+        "usageSource": "reported",
+        "inputTokens": 10,
+        "outputTokens": 14,
+        "toolsSent": true,
+        "maxCompletionTokens": 64,
+        "authorization": "set"
+      },
+      {
+        "name": "native-tool-contract-without-format",
+        "providerCalls": 1,
+        "repairCount": 0,
+        "requestResult": "malformed",
+        "errorCode": "VALIDATION_ERROR",
+        "usageSource": "reported",
+        "inputTokens": 5,
+        "outputTokens": 7,
+        "toolsSent": true,
+        "authorization": "set"
+      },
+      {
+        "name": "image-unapproved-zero-send",
+        "providerCalls": 0,
+        "repairCount": 0,
+        "requestResult": "not_configured",
+        "errorCode": "MODEL_NOT_CONFIGURED",
+        "usageSource": "unknown",
+        "authorization": "unset",
+        "note": "decryptKey 已在失败前被调用，但 failure() 不把 authorization 写成 set。密钥不在记录里。"
+      },
+      {
+        "name": "image-resolver-bytes-data-url",
+        "providerCalls": 1,
+        "repairCount": 0,
+        "requestResult": "passed",
+        "errorCode": null,
+        "usageSource": "reported",
+        "inputTokens": 11,
+        "outputTokens": 4,
+        "responseFormat": "json_object",
+        "imageUrlKind": "data:image/png;base64",
+        "artifactSchemeSent": false,
+        "assessmentCriterionResult": "passed",
+        "assessmentReason": "OBSERVED",
+        "dataResult": "passed",
+        "maxCompletionTokens": 64,
+        "authorization": "set",
+        "visionEvidence": false
+      }
+    ]
+  },
+  "cleanup": "未创建容器、卷、网络或镜像。docker ps -a 无输出。未跑 git。未复制密钥文件。未删除 G3-model-minimal.json 或其他旧证据。ego 未使用。未启动监控器。临时 stdout 放在 /tmp，写入本文件后删除。"
+}

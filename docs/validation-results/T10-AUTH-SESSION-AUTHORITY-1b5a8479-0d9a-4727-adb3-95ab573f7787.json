@@ -1,0 +1,75 @@
+{
+  "task": "T10-AUTH-5-SESSION-AUTHORITY",
+  "tag": "1b5a8479-0d9a-4727-adb3-95ab573f7787",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-session-cmgxq2",
+  "tests": [
+    {
+      "name": "011 Migration RLS protection: non-admin roles and workers cannot query protected tables",
+      "passed": true
+    },
+    {
+      "name": "Full lifecycle: allocate session (authEpoch=1, allocated) -> re-allocate idempotent -> issue ticket -> activate CAS -> query -> end",
+      "passed": true
+    },
+    {
+      "name": "Task summary check: non-auth tasks cannot allocate auth session (POLICY_DENIED)",
+      "passed": true
+    },
+    {
+      "name": "Anonymous mode=none policy produces zero rows and zero allocation (POLICY_DENIED)",
+      "passed": true
+    },
+    {
+      "name": "Revoked auth profile blocks allocation and all session operations (AUTH_FAILED)",
+      "passed": false,
+      "code": "23503",
+      "message": "insert or update on table \"auth_profiles\" violates foreign key constraint \"auth_profiles_project_id_id_version_fkey\""
+    },
+    {
+      "name": "Revoked auth scope blocks all session operations (AUTH_FAILED)",
+      "passed": true
+    },
+    {
+      "name": "Strict proof verification: wrong workerId, fencingToken, contextVersion, or expired lease reject (LEASE_EXPIRED)",
+      "passed": true
+    },
+    {
+      "name": "Concurrent allocateAuthSession on the same task+fencing yields exactly one session row",
+      "passed": true
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "2b733a2458d967d0b5b59eb0ecee7ad288ca81aedd360f253535860e2a269672",
+    "volumes": [
+      "a877e1d472ce85a8699b9fbe758bc7686a0b64e457ec8425671d68b3cdf4bc37"
+    ],
+    "pgPort": 33133,
+    "apiPort": 56893,
+    "apiPid": 11627,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "a877e1d472ce85a8699b9fbe758bc7686a0b64e457ec8425671d68b3cdf4bc37",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 session authority ledger and private Runtime/Coordinator facade only",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 7,
+    "failed": 1
+  }
+}

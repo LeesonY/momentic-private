@@ -1,0 +1,39 @@
+{
+  "rootIndependent": true,
+  "cases": [
+    {
+      "name": "latest version and document remain in target project/module",
+      "passed": true
+    },
+    {
+      "name": "actual project page rejects foreign project records",
+      "passed": true
+    },
+    {
+      "name": "history page rejects foreign project and foreign module records",
+      "passed": true
+    },
+    {
+      "name": "canonical project casing is accepted and bad page shape rejected",
+      "passed": true
+    },
+    {
+      "name": "merge identity includes project and canonical UUID casing",
+      "passed": true
+    },
+    {
+      "name": "actual guard rejects delayed previous-project response and finally",
+      "passed": true
+    },
+    {
+      "name": "history selection or close invalidates previous request",
+      "passed": true
+    },
+    {
+      "name": "preview validates canonical contract and exact reason",
+      "passed": true
+    }
+  ],
+  "scope": "Actual helpers used by ModulesPage, injected pages/promises; no browser/network or DOM hydration",
+  "P0Passed": false
+}

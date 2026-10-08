@@ -1,0 +1,64 @@
+{
+  "task": "T10-YAML-1",
+  "tag": "c54657b5-527f-45d2-bea0-1626d52b7ef5",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-yaml-CEPQXS",
+  "tests": [
+    {
+      "name": "valid Chinese text, variables, all five canonical locator strategies, and module refs roundtrip",
+      "passed": true
+    },
+    {
+      "name": "HTTP viewer and cross-project isolation for import and export",
+      "passed": true
+    },
+    {
+      "name": "parser negative cases: duplicate keys, multi-docs, dangerous keys, tags, depth, anchors",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Expected values to be strictly equal:\n\n503 !== 422\n"
+    },
+    {
+      "name": "imported draft cannot be executed in regression; approved review allows execution with unchanged SHA",
+      "passed": true
+    },
+    {
+      "name": "JSON-saved document with deep semantic criterion (>32 levels) explicitly fails YAML export with 422 while retaining original document and SHA",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"versionId\":\"972fde32-a245-4f24-9c1f-2316ec42b5cd\",\"sourceDocumentSha256\":\"6d81f7f80a7b6658fa18f741d04a26fc15a818ab5a3836b0d04930c75ab931fa\",\"yaml\":\"id: deep-semantic-c54657b5-527f-45d2-bea0-1626d52b7ef5\\nkind: localqa/test\\nname: Deep Semantic Document in JSON\\nsteps:\\n  - url: http://localhost:8080/\\n    kind: navigate\\n  - kind: assert\\n    criterionId: deep-c1\\ncriteria:\\n  - id: deep-c1\\n    kind: semantic\\n    sourceRef: smoke\\n    sourceKind: user_spec\\n    description: Deep semantic criterion\\n    expectedValue:\\n      nest_34:\\n        nest_33:\\n          nest_32:\\n            nest_31:\\n              nest_30:\\n                nest_29:\\n                  nest_28:\\n                    nest_27:\\n                      nest_26:\\n                        nest_25:\\n                          nest_24:\\n                            nest_23:\\n                              nest_22:\\n                                nest_21:\\n                                  nest_20:\\n                                    nest_19:\\n                                      nest_18:\\n                                        nest_17:\\n                                          nest_16:\\n                                            nest_15:\\n                                              nest_14:\\n                                                nest_13:\\n                                                  nest_12:\\n                                                    nest_11:\\n                                                      nest_10:\\n                                                        nest_9:\\n                                                          nest_8:\\n                                                            nest_7:\\n                                                              nest_6:\\n                                                                nest_5:\\n                                                                  nest_4:\\n                                                                    nest_3:\\n                                                                      nest_2:\\n                                                                        nest_1:\\n                                                                          nest_0: leaf\\nvariables: {}\\nschemaVersion: 1\\n\"}\n\n200 !== 422\n"
+    }
+  ],
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "7fa0baed66e6dc195f77edf173c7a0d576bd0624d5e96bffff9802bec51e8635",
+    "volumes": [
+      "ea25cfda59d28e3cd1465008119a7e49c1f08f57568285565e81ed4410e396c7"
+    ],
+    "pgPort": 33071,
+    "apiPort": 65028,
+    "apiPid": 69235,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "ea25cfda59d28e3cd1465008119a7e49c1f08f57568285565e81ed4410e396c7",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "PG/API admission only; no browser, Worker.once, worker-entry or real model",
+    "Import creates draft only; execution blocked until approved review",
+    "FakeBrowser and real model acceptance still unverified; P0=false"
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2
+  }
+}

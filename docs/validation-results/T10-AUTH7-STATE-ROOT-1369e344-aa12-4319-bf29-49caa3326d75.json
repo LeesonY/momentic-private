@@ -1,0 +1,159 @@
+{
+  "task": "T10-AUTH7-STATE-ROOT",
+  "tag": "1369e344-aa12-4319-bf29-49caa3326d75",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-state-root-J0FQPO",
+  "tests": [
+    {
+      "name": "013 Migration RLS protection: non-admin roles and workers cannot query capture tables",
+      "passed": true
+    },
+    {
+      "name": "SecretVault keyedHmac domain separation and verification",
+      "passed": true
+    },
+    {
+      "name": "authMaterial: returns decrypted material in private memory; mode=none is rejected",
+      "passed": true
+    },
+    {
+      "name": "Full capture flow: recordAuthCriterion (gate) -> issueCaptureGrant -> beginAuthCapture CAS -> captureAuthState atomic commit",
+      "passed": true
+    },
+    {
+      "name": "recordAuthCriterion rejects unpassed results and pending intents",
+      "passed": true
+    },
+    {
+      "name": "recordAuthCriterion rejects storage_state without frozen criterion and foreign snapshots",
+      "passed": true
+    },
+    {
+      "name": "captureAuthState rejects un-started grants and wrong tickets",
+      "passed": true
+    },
+    {
+      "name": "Session past expires_at fails captureAuthState with LEASE_EXPIRED",
+      "passed": true
+    },
+    {
+      "name": "Root material rejects importer purpose before decrypting",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Missing expected rejection (policyError)."
+    },
+    {
+      "name": "Root material rejects scope context mismatch before decrypting",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Missing expected rejection (policyError)."
+    },
+    {
+      "name": "Root begin rejects session fencing mismatch",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Missing expected rejection (policyError)."
+    },
+    {
+      "name": "Root capture rejects session worker mismatch",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Missing expected rejection (policyError)."
+    },
+    {
+      "name": "Root begin rejects a capture deadline expired while waiting on a profile lock",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "capture deadline must be checked after the last lock\n+ actual - expected\n\n+ undefined\n- 'LEASE_EXPIRED'\n"
+    },
+    {
+      "name": "Root capture rejects a capture deadline expired while waiting on a profile lock",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "capture deadline must be checked after the last lock\n+ actual - expected\n\n+ undefined\n- 'LEASE_EXPIRED'\n"
+    },
+    {
+      "name": "Root old success gate cannot authorize capture after another pending action",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Missing expected rejection (policyError)."
+    },
+    {
+      "name": "Root capture refuses an action pending after capture begin",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Missing expected rejection (policyError)."
+    },
+    {
+      "name": "Root another capture ticket cannot return a prior ticket state",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Missing expected rejection (policyError)."
+    },
+    {
+      "name": "Root same-ticket replay refuses a revoked stored state",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Missing expected rejection (policyError)."
+    },
+    {
+      "name": "Root same-ticket replay verifies stored historical binding",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Missing expected rejection (policyError)."
+    },
+    {
+      "name": "Root same state is idempotent across a Vault key rotation with the historical key retained",
+      "passed": false,
+      "code": "IDEMPOTENCY_CONFLICT",
+      "message": "IDEMPOTENCY_CONFLICT"
+    },
+    {
+      "name": "Root encryption failure rolls capture back without a granted scope",
+      "passed": true
+    },
+    {
+      "name": "Root failed PG state insertion rolls the whole capture transaction back",
+      "passed": true
+    },
+    {
+      "name": "Root exclusive capture cannot grant a state without a held profile lock",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "an exclusive granted state must hold a granted profile lock"
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "623943a3b41d7bf8701bf189260725ad682a58d0b5ad179f2cfdd8b218f54294",
+    "volumes": [
+      "9a55d8ed1a81aa570fcafa67bad31966ff30956bb99f090a6995383c4c67e4a0"
+    ],
+    "pgPort": 33208,
+    "apiPort": 57447,
+    "apiPid": 26349,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "9a55d8ed1a81aa570fcafa67bad31966ff30956bb99f090a6995383c4c67e4a0",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 auth material, success gates, capture grants, canonical keyed HMAC and encrypted run auth state only",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 10,
+    "failed": 13
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "at": "2026-10-07T16:18:49.300920+00:00",
+  "rootIndependent": true,
+  "acceptedLocally": false,
+  "tests": {
+    "agentSuiteReplay": {
+      "passed": 8,
+      "failed": 0,
+      "evidence": "T10-AUTH-STATE-CAPTURE-66b48fa4-260d-48f3-a116-5738bd8b32b9.json"
+    },
+    "extendedPg": {
+      "passed": 10,
+      "failed": 13,
+      "evidence": "T10-AUTH7-STATE-ROOT-1369e344-aa12-4319-bf29-49caa3326d75.json"
+    }
+  },
+  "sourceSha256": {
+    "packages/orchestrator/src/auth-state-service.ts": "e4c08df27021fec7f55d64ce67c134b54c889aebbbb0a810084382914cf0179b",
+    "packages/storage/migrations/013_auth_state_capture.sql": "df9105f146cba3fc95a088a6317b27d953e469208ecdcccd68fcb543b0397179",
+    "packages/storage/src/crypto.ts": "669f8c2623899790f3e03a4e55e41dd569f9faa6221289cee7b9c0768455af96",
+    "apps/api/test/t10-auth-state-capture-controller.test.mjs": "04c01390ddd3f9ef079aafc28b8c1dfca520ac87843f9cb91866329a12c1373b"
+  },
+  "dispatch": {
+    "pi": "AUTH7A repair active2547: Root PG23=10pass13fail; must fix full tuple, postlock capture expiry, gates, revoked state, grant-bound idempotence/HMAC key rotation/exclusive lock",
+    "claude": "AUTH7B active2546: actual RuntimeClient private state services adapter; OTP/finish unavailable must block"
+  },
+  "scope": "Owned PostgreSQL/API Coordinator and synthetic material; actual source; no browser or provider",
+  "browserPaused": true,
+  "P0Passed": false,
+  "extraCounterexamples": {
+    "gateAndCas": {
+      "passed": 1,
+      "failed": 3,
+      "evidence": "T10-AUTH7-STATE-ROOT-c30b0b0b-6e9a-4c0c-9c61-21c73abf4cef.json"
+    },
+    "genericFinishDiagnostic": {
+      "evidence": "T10-AUTH7-STATE-ROOT-66faa912-2e8b-4a47-8ee6-157b3bd0c5e7.json",
+      "actual": "PG undefined column 42703; auth guard queries nonexistent run_auth_scopes.id -> SERVICE_UNAVAILABLE",
+      "fixtureAdjustment": "Converted job.role/document.role/result.stage to actual auth executor shape; same error remains",
+      "required": "Generic auth finish deliberately POLICY_DENIED until dedicated finishAuth is implemented"
+    }
+  }
+}

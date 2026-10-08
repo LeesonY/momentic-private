@@ -22,6 +22,7 @@
     "@localqa/domain": "workspace:*",
     "@localqa/storage": "workspace:*",
     "@localqa/model-gateway": "workspace:*",
+    "@localqa/browser": "workspace:*",
     "@localqa/agents": "workspace:*"
   },
   "devDependencies": {

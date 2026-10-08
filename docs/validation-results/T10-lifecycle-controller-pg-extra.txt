@@ -1,0 +1,173 @@
+// Root independent additions to the delivered isolated PG/API harness.
+async function createOwnedCaseWithVersion(slug, document = sampleCaseDoc(slug, slug)) {
+  const created = await request(`/projects/${project.id}/saved-cases`, { slug, name: slug, document });
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  const version = (await request(`/saved-cases/${created.body.id}/versions`)).body.items[0];
+  return { record: created.body, version };
+}
+async function approveOwned(version) {
+  const preview = await request(`/saved-case-versions/${version.id}/review-preview`, { expectedVersion: version.version, decision: 'approve', reason: 'Root isolated acceptance' });
+  assert.equal(preview.status, 200, JSON.stringify(preview.body));
+  const approved = await request(`/saved-case-versions/${version.id}/review`, { expectedVersion: version.version, decision: 'approve', reason: 'Root isolated acceptance', confirmationToken: preview.body.confirmationToken });
+  assert.equal(approved.status, 200, JSON.stringify(approved.body));
+}
+async function seedOwnedModule(projectId, name, document, sha = hashPayload(document)) {
+  await superuserQuery("INSERT INTO regression_module_versions(project_id,name,version,sha256,document,review_status) VALUES($1,$2,1,$3,$4,'approved')", [projectId, name, sha, document]);
+}
+test('Root: recursive child dependency divergence refuses copying with zero destination writes', async () => {
+  const parentName = `root/parent-${tag}`;
+  const childName = `root/child-${tag}`;
+  const parentDoc = sampleCaseDoc('root-parent', 'Root parent', [{ kind: 'module', ref: `${childName}@1` }, { kind: 'assert', criterionId: 'crit-life' }]);
+  const childA = sampleCaseDoc('root-child', 'Root child source', [{ kind: 'navigate', url: 'http://localhost:8080/source' }, { kind: 'assert', criterionId: 'crit-life' }]);
+  const childB = sampleCaseDoc('root-child', 'Root child destination', [{ kind: 'navigate', url: 'http://localhost:8080/destination' }, { kind: 'assert', criterionId: 'crit-life' }]);
+  await seedOwnedModule(project.id, parentName, parentDoc);
+  await seedOwnedModule(otherProject.id, parentName, parentDoc);
+  await seedOwnedModule(project.id, childName, childA);
+  await seedOwnedModule(otherProject.id, childName, childB);
+  const source = await createOwnedCaseWithVersion(`root-recursive-src-${tag}`, sampleCaseDoc('root-recursive', 'Root recursive', [{ kind: 'module', ref: `${parentName}@1` }, { kind: 'assert', criterionId: 'crit-life' }]));
+  const slug = `root-recursive-copy-${tag}`;
+  const response = await request(`/saved-cases/${source.record.id}/duplicate`, { targetProjectId: otherProject.id, sourceVersionId: source.version.id, newSlug: slug, newName: 'Root recursive copy' });
+  facts.recursiveCopy = { status: response.status, topShaEqual: true, childShaEqual: false };
+  const count = (await superuserQuery('SELECT count(*)::int AS count FROM saved_cases WHERE project_id=$1 AND slug=$2', [otherProject.id, slug])).rows[0].count;
+  facts.recursiveCopy.destinationRows = count;
+  assert.equal(response.status, 422, 'Equal top module hashes must not mask divergent approved child modules');
+  assert.equal(count, 0);
+});
+test('Root: equal stored module SHA with divergent canonical document refuses copying', async () => {
+  const name = `root/canonical-${tag}`;
+  const a = sampleCaseDoc('root-canonical', 'Root canonical source');
+  const b = { ...a, steps: [{ kind: 'navigate', url: 'http://localhost:8080/different' }, { kind: 'assert', criterionId: 'crit-life' }] };
+  assert.notEqual(hashPayload(a), hashPayload(b));
+  await seedOwnedModule(project.id, name, a);
+  await seedOwnedModule(otherProject.id, name, b, hashPayload(a));
+  const source = await createOwnedCaseWithVersion(`root-canonical-src-${tag}`, sampleCaseDoc('root-canonical-case', 'Root canonical case', [{ kind: 'module', ref: `${name}@1` }, { kind: 'assert', criterionId: 'crit-life' }]));
+  const slug = `root-canonical-copy-${tag}`;
+  const response = await request(`/saved-cases/${source.record.id}/duplicate`, { targetProjectId: otherProject.id, sourceVersionId: source.version.id, newSlug: slug, newName: 'Root canonical copy' });
+  const count = (await superuserQuery('SELECT count(*)::int AS count FROM saved_cases WHERE project_id=$1 AND slug=$2', [otherProject.id, slug])).rows[0].count;
+  facts.canonicalCopy = { status: response.status, storedShaEqual: true, canonicalDocEqual: false, destinationRows: count };
+  assert.equal(response.status, 422);
+  assert.equal(count, 0);
+});
+test('Root: actual concurrent archive requests yield one success and one VERSION_CONFLICT', async () => {
+  const source = await createOwnedCaseWithVersion(`root-concurrent-${tag}`);
+  const results = await Promise.all([request(`/saved-cases/${source.record.id}/archive`, { expectedVersion: 1 }), request(`/saved-cases/${source.record.id}/archive`, { expectedVersion: 1 })]);
+  assert.deepEqual(results.map(item => item.status).sort(), [200, 409]);
+  assert.equal(results.find(item => item.status === 409).body.code, 'VERSION_CONFLICT');
+  const head = (await superuserQuery('SELECT version,status FROM saved_cases WHERE id=$1', [source.record.id])).rows[0];
+  assert.equal(head.version, 2);
+  assert.equal(head.status, 'archived');
+});
+test('Root: viewer cannot mutate a visible head and invalid UUID is 422', async () => {
+  const source = await createOwnedCaseWithVersion(`root-viewer-${tag}`);
+  for (const action of ['archive', 'restore']) {
+    assert.equal((await request(`/saved-cases/${source.record.id}/${action}`, { expectedVersion: 1 }, viewerCookie)).status, 403);
+    assert.equal((await request(`/saved-cases/not-a-uuid/${action}`, { expectedVersion: 1 })).status, 422);
+  }
+  const head = (await superuserQuery('SELECT version,status FROM saved_cases WHERE id=$1', [source.record.id])).rows[0];
+  assert.equal(head.version, 1);
+  assert.equal(head.status, 'active');
+});
+test('Root: real FOR SHARE admission blocks concurrent archive until frozen run commit', async () => {
+  const source = await createOwnedCaseWithVersion(`root-admission-lock-${tag}`);
+  await approveOwned(source.version);
+  const originalActor = context.db.actor.bind(context.db);
+  let unlockAdmission;
+  const gate = new Promise(resolve => { unlockAdmission = resolve; });
+  let signalLocked;
+  const locked = new Promise(resolve => { signalLocked = resolve; });
+  let intercepted = false;
+  context.db.actor = (actorInput, work) => originalActor(actorInput, async client => {
+    const originalQuery = client.query.bind(client);
+    client.query = async (...args) => {
+      const result = await originalQuery(...args);
+      if (!intercepted && typeof args[0] === 'string' && args[0].includes('ORDER BY id ASC FOR SHARE')) {
+        intercepted = true;
+        signalLocked();
+        await gate;
+      }
+      return result;
+    };
+    try { return await work(client); }
+    finally { client.query = originalQuery; }
+  });
+  let admission, archive, archiveSettled = false;
+  try {
+    admission = request('/regression-runs', { projectId: project.id, caseVersionIds: [source.version.id] });
+    await Promise.race([locked, delay(5000).then(() => { throw new Error('admission FOR SHARE interception timeout'); })]);
+    archive = request(`/saved-cases/${source.record.id}/archive`, { expectedVersion: 2 }).finally(() => { archiveSettled = true; });
+    let waiting = [];
+    for (let i = 0; i < 60; i++) {
+      waiting = (await superuserQuery("SELECT wait_event_type,wait_event,query FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE 'SELECT id, project_id, slug, name, status%FOR UPDATE'")).rows;
+      if (waiting.length) break;
+      await delay(20);
+    }
+    assert.ok(waiting.length > 0, 'Observe actual archive row-lock wait in PostgreSQL');
+    assert.equal(archiveSettled, false);
+    facts.admissionLock = { observedPgLockWait: true, archivePendingBeforeCommit: true, waitingCount: waiting.length };
+    unlockAdmission();
+    const run = await admission;
+    const archived = await archive;
+    assert.equal(run.status, 202, JSON.stringify(run.body));
+    assert.equal(archived.status, 200);
+    const rows = (await superuserQuery('SELECT source_version_id,source_sha256 FROM run_case_regression_bindings WHERE source_version_id=$1', [source.version.id])).rows;
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].source_sha256, source.version.sha256);
+  } finally {
+    unlockAdmission();
+    context.db.actor = originalActor;
+    await Promise.allSettled([admission, archive].filter(Boolean));
+  }
+});
+test('Root: copying permits eight module invocations and refuses the ninth with zero writes', async () => {
+  const names = Array.from({ length: 9 }, (_, i) => `root/depth-${i + 1}-${tag}`);
+  for (let i = 8; i >= 0; i--) {
+    const steps = i === 8 ? [{ kind: 'assert', criterionId: 'crit-life' }] : [{ kind: 'module', ref: `${names[i + 1]}@1` }];
+    const document = sampleCaseDoc(`depth-${i + 1}`, `Depth ${i + 1}`, steps);
+    for (const pid of [project.id, otherProject.id]) await seedOwnedModule(pid, names[i], document);
+  }
+  for (const [start, expected] of [[1, 201], [0, 422]]) {
+    const source = await createOwnedCaseWithVersion(`root-depth-source-${start}-${tag}`, sampleCaseDoc(`depth-case-${start}`, `Depth case ${start}`, [{ kind: 'module', ref: `${names[start]}@1` }]));
+    const slug = `root-depth-copy-${start}-${tag}`;
+    const response = await request(`/saved-cases/${source.record.id.toUpperCase()}/duplicate`, { sourceVersionId: source.version.id.toUpperCase(), targetProjectId: otherProject.id.toUpperCase(), newSlug: slug, newName: `Root depth copy ${start}` });
+    assert.equal(response.status, expected, JSON.stringify(response.body));
+    const count = (await superuserQuery('SELECT count(*)::int AS count FROM saved_cases WHERE project_id=$1 AND slug=$2', [otherProject.id, slug])).rows[0].count;
+    assert.equal(count, expected === 201 ? 1 : 0);
+  }
+});
+test('Root: explicit historical source stays fixed and fixture copy rejects before writes', async () => {
+  const source = await createOwnedCaseWithVersion(`root-explicit-source-${tag}`);
+  const newer = await request(`/saved-cases/${source.record.id}/versions`, { document: sampleCaseDoc('newer-document', 'Newer document'), expectedVersion: 1 });
+  assert.equal(newer.status, 201, JSON.stringify(newer.body));
+  const copy = await request(`/saved-cases/${source.record.id}/duplicate`, { sourceVersionId: source.version.id, newSlug: `root-explicit-copy-${tag}`, newName: 'Explicit old version' });
+  assert.equal(copy.status, 201);
+  const versions = (await request(`/saved-cases/${copy.body.id}/versions`)).body.items;
+  assert.equal(versions.length, 1);
+  assert.deepEqual(versions[0].document.steps, source.version.document.steps);
+  assert.notDeepEqual(versions[0].document, newer.body.document);
+  const withFixture = await createOwnedCaseWithVersion(`root-fixture-source-${tag}`, { ...sampleCaseDoc('root-fixture-source', 'Root fixture source'), fixtureRefs: [{ id: 'd1111111-d111-4111-8111-d11111111111', version: 1 }] });
+  const slug = `root-fixture-copy-${tag}`;
+  const response = await request(`/saved-cases/${withFixture.record.id}/duplicate`, { sourceVersionId: withFixture.version.id, newSlug: slug, newName: 'Fixture copy' });
+  assert.equal(response.status, 422);
+  const count = (await superuserQuery('SELECT count(*)::int AS count FROM saved_cases WHERE slug=$1', [slug])).rows[0].count;
+  assert.equal(count, 0);
+});
+test('Root: source viewer can duplicate into a project where the same user is operator', async () => {
+  const user = await new AccountsRepository(db).create(actor, { email: `root-viewer-operator-${tag}@localqa.test`, displayName: 'Root source viewer target operator', password: 'OwnedFixtureOnly123!', globalRole: 'member' });
+  await db.actor(actor, async client => {
+    await client.query("INSERT INTO project_members(project_id,user_id,role) VALUES($1,$2,'viewer')", [project.id, user.id]);
+    await client.query("INSERT INTO project_members(project_id,user_id,role) VALUES($1,$2,'operator')", [otherProject.id, user.id]);
+  });
+  const login = await fetch(`${url}/api/v1/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user.email, password: 'OwnedFixtureOnly123!' }) });
+  assert.equal(login.status, 200);
+  const memberCookie = login.headers.get('set-cookie').split(';')[0];
+  const source = await createOwnedCaseWithVersion(`root-viewer-op-src-${tag}`);
+  const cross = await request(`/saved-cases/${source.record.id}/duplicate`, { sourceVersionId: source.version.id, targetProjectId: otherProject.id, newSlug: `root-viewer-op-copy-${tag}`, newName: 'Viewer to operator copy' }, memberCookie);
+  assert.equal(cross.status, 201, JSON.stringify(cross.body));
+  assert.equal(cross.body.projectId, otherProject.id);
+  assert.equal(cross.body.currentApprovedVersionId, null);
+  assert.equal(cross.body.version, 1);
+  const same = await request(`/saved-cases/${source.record.id}/duplicate`, { sourceVersionId: source.version.id, newSlug: `root-viewer-no-write-${tag}`, newName: 'Viewer no source write' }, memberCookie);
+  assert.equal(same.status, 403);
+  const archive = await request(`/saved-cases/${source.record.id}/archive`, { expectedVersion: 1 }, memberCookie);
+  assert.equal(archive.status, 403);
+});

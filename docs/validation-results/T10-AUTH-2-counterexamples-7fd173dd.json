@@ -1,0 +1,76 @@
+{
+  "task": "T10-AUTH-2",
+  "tag": "7fd173dd",
+  "date": "2026-10-06",
+  "P0Passed": false,
+  "G3Passed": false,
+  "liveModelCalled": false,
+  "playwrightLaunched": false,
+  "workerEntry": false,
+  "cases": [
+    {
+      "name": "approvedAuthState-origins-goto-catch",
+      "passed": true,
+      "gotoPresent": true,
+      "catchEmpty": true,
+      "injectionChecksAllowedOrigins": false,
+      "note": "源码事实。本轮没有启动 Playwright。Worker 当前也不传入 approvedAuthState。"
+    },
+    {
+      "name": "exclusive_run-two-smoke-runs-both-start",
+      "passed": true,
+      "profileId": "1a78402b-2e22-47e1-84b8-6e731285a740",
+      "sharingPolicy": "exclusive_run",
+      "runIds": [
+        "0964bcec-deb9-42f3-8921-36ffaf550280",
+        "c82fe520-6e44-4a8c-99b8-11e04d7b7d1e"
+      ],
+      "lockTables": [],
+      "note": "同一 exclusive_run none 剖面连续两次 start 都成功。库中没有认证独占表。"
+    },
+    {
+      "name": "type_text-plaintext-and-session-options",
+      "passed": true,
+      "runId": "642cd303-51d4-4bd0-907d-6a87f257f08e",
+      "sentinelIn": {
+        "action_intents_tool_call": true,
+        "page_snapshots_fakebrowser_node_text": true,
+        "steps_document": false,
+        "run_events_payload": true,
+        "GET_steps": false,
+        "GET_event_history": true,
+        "GET_report": true,
+        "model_requests_count": 0
+      },
+      "workerCreateSession": {
+        "allowedOrigins": [
+          "http://localhost:8080"
+        ],
+        "hasApprovedAuthState": false,
+        "approvedAuthState": null
+      },
+      "note": "action_intents.tool_call 保存 type_text 原文。FakeBrowser 把同一原文写进 snapshot node.text。Step/SSE 文档本身没有该字段。Worker.createSession 未传 approvedAuthState。"
+    }
+  ],
+  "ownership": {
+    "directory": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth2-iyoroJ",
+    "containerName": "localqa-auth2-7fd173dd",
+    "containerId": "5dc77373b3e1bb9531ad60f40d151d57b563b81118a3c2931618a6f481b898c0",
+    "volumes": [
+      "7139c3816633d341867a95488c08f48a679a65e5688cb9028c2bfc72800902a7"
+    ],
+    "pgPort": 33079,
+    "apiOrigin": "http://127.0.0.1:53224"
+  },
+  "cleanup": {
+    "removeStatus": 0,
+    "containerAbsent": false,
+    "volumesAbsent": [
+      {
+        "id": "7139c3816633d341867a95488c08f48a679a65e5688cb9028c2bfc72800902a7",
+        "absent": true
+      }
+    ],
+    "secretDirectoryRemoved": true
+  }
+}

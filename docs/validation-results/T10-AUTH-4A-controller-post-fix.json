@@ -1,0 +1,36 @@
+{
+  "at": "2026-10-07T05:33:02.086Z",
+  "rootIndependent": true,
+  "checks": [
+    {
+      "name": "plain alias sharing matches equivalent JSON semantics",
+      "passed": true,
+      "objectAccepted": true,
+      "stringAccepted": true
+    },
+    {
+      "name": "non-index array accessor rejected without invocation",
+      "passed": true,
+      "rejected": true,
+      "getterCalls": 0
+    },
+    {
+      "name": "string input also enforces serialized output UTF8 cap",
+      "passed": true,
+      "rejected": true,
+      "rawBytes": 33277,
+      "serializedCandidateBytes": 66037
+    },
+    {
+      "name": "oversized sparse array rejected without reading a value accessor",
+      "passed": true,
+      "getterCalls": 0
+    },
+    {
+      "name": "detached nested values stay unchanged after source mutation",
+      "passed": true
+    }
+  ],
+  "scope": "Actual exported pure validator; no browser/provider/PG",
+  "P0Passed": false
+}

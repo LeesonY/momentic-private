@@ -1,0 +1,43 @@
+{
+  "task": "T10-B3A",
+  "scope": "Pure canonical RegressionDocument compilation only; no DB, browser, model or worker execution",
+  "files": [
+    "packages/orchestrator/src/regression-compiler.ts",
+    "packages/orchestrator/test/regression-compiler.test.mjs"
+  ],
+  "commands": [
+    {"command": "npx --yes pnpm@10.34.0 --filter @localqa/orchestrator build", "exitCode": 0},
+    {"command": "node --test packages/orchestrator/test/regression-compiler.test.mjs", "exitCode": 0, "passed": 9, "failed": 0, "skipped": 0},
+    {"command": "./node_modules/.bin/prettier --check packages/orchestrator/src/regression-compiler.ts packages/orchestrator/test/regression-compiler.test.mjs", "exitCode": 0}
+  ],
+  "covered": [
+    "Deep object-key reordering preserves module SHA and compilation; step-array reversal and locator value changes fail MODULE_SHA",
+    "Ordered expansion, caller env and module argument substitutions, unchanged root and module documents",
+    "Frozen step/criterion/provenance output; exact module SHA and invocation positions",
+    "Missing variables, invalid expressions, explicitly secret env/vars, dangerous object keys",
+    "Post-substitution URL scheme/origin/credentials and canonical locator/type validation",
+    "Legal sibling reuse with one frozen module snapshot per exact ref",
+    "Real A-B-A active-stack cycle; eight module layers accepted and nine rejected",
+    "Unknown, unapproved, wrong-project/name/version and wrong-SHA modules",
+    "Global expanded non-module step count, including repeated modules",
+    "Document-scoped criteria, unknown assert/ai_action criteria and unresolved fixtures"
+  ],
+  "integrationNotes": [
+    "Import dist/regression-compiler.js directly; existing index/core/runtime were not modified",
+    "Module SHA uses existing @localqa/storage hashPayload(document): recursively sorted object keys, unchanged array order; no second canonicalizer",
+    "Historical hashes are not rewritten or migrated by this change; Root owns new SavedCaseVersion hashing",
+    "Previous 8/8 result predates the key-order fix; latest post-fix run is 9/9",
+    "Root depth is zero, module levels are one through eight",
+    "Static count includes all emitted non-module steps, not runtime tool calls/tokens/time",
+    "Resolver is caller supplied and synchronous; callers are responsible for read-only approved registry access"
+  ],
+  "unverified": [
+    "Approved version Run bindings, transactional persistence and queue phase changes",
+    "Real worker tool execution, fresh browser contexts, verdicts, reports and artifact evidence",
+    "Runtime action/token/time budgets and model-driven ai_action execution",
+    "YAML parsing/import/export, fixture registry and approved setup/cleanup execution",
+    "Browser-level CSS selector validity and locator match behavior",
+    "Full existing orchestrator test suite"
+  ],
+  "resources": "No service/container/browser/paid model started; no temporary credentials or resources created"
+}

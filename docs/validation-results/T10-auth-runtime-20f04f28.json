@@ -1,0 +1,72 @@
+{
+  "tag": "20f04f28",
+  "execution": "Own PG/API/RuntimeClient, no browser or provider",
+  "tests": [
+    {
+      "name": "none is a frozen approved anonymous policy, not a request for manual credentials",
+      "passed": true,
+      "observedAnonymousPolicyAllowed": true
+    },
+    {
+      "name": "auth resolve must reject the caller stale context instead of rebuilding it from the database",
+      "passed": true,
+      "observedHttpStatus": 409,
+      "returnedOwnedSyntheticSecret": false
+    },
+    {
+      "name": "auth resolve must bind the caller worker identity to the lease",
+      "passed": true,
+      "observedHttpStatus": 409,
+      "returnedOwnedSyntheticSecret": false
+    },
+    {
+      "name": "frozen auth metadata survives a current-head origin update",
+      "passed": false
+    },
+    {
+      "name": "revoked none cannot become an anonymous fallback",
+      "passed": false
+    },
+    {
+      "name": "frozen auth metadata rejects a wrong worker, fencing token and context",
+      "passed": false
+    },
+    {
+      "name": "unconnected storage-state execution still waits instead of running anonymously",
+      "passed": false
+    },
+    {
+      "name": "valid credential proof retains the exact bound profile and material",
+      "passed": false
+    },
+    {
+      "name": "missing and malformed credential proof headers return no material",
+      "passed": false
+    },
+    {
+      "name": "wrong fencing and cancellation deny credential material",
+      "passed": false
+    }
+  ],
+  "ownership": {
+    "directory": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-runtime-fMIx8k",
+    "containerId": "59a165683024840f4cdaee2f4c3f57f9e3c95f9cd2d55e61044354a4c0ab3a60",
+    "volumes": [
+      "941e6eced484d6292b9d4419c6ecbec7e1afef9df9f0be428d1ff4774425ab57"
+    ],
+    "apiOrigin": "http://127.0.0.1:63838",
+    "pgPort": 33063
+  },
+  "P0Passed": false,
+  "cleanup": {
+    "removeStatus": 0,
+    "containerAbsent": true,
+    "volumesAbsent": [
+      {
+        "id": "941e6eced484d6292b9d4419c6ecbec7e1afef9df9f0be428d1ff4774425ab57",
+        "absent": true
+      }
+    ],
+    "secretDirectoryRemoved": true
+  }
+}

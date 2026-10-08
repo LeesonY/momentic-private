@@ -12,17 +12,14 @@ import {
   RuntimeClient,
   ArtifactStore,
 } from '../../packages/orchestrator/dist/index.js';
-import { createStubAdapter } from '../../packages/model-gateway/dist/index.js';
+import { ModelRepository } from '../../packages/storage/dist/index.js';
+import { createWorkerModelOptions } from '../../packages/orchestrator/dist/index.js';
 import { readiness } from './readiness.mjs';
 import { projectOffers } from './project-scheduling.mjs';
 
 if (process.getuid() === 0) throw new Error('Refusing to run browser as root');
 if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL required');
-// The fixed stub is only an explicit integration-test mode, never an implicit production model.
-if (process.env.LOCALQA_ALLOW_TEST_STUB !== '1')
-  throw new Error(
-    'Real model provider wiring is not configured; LOCALQA_ALLOW_TEST_STUB=1 is for isolated tests only',
-  );
+const allowTestStub = process.env.LOCALQA_ALLOW_TEST_STUB === '1';
 const scratch = '/var/localqa/scratch';
 const slots = Number(process.env.BROWSER_SLOTS || 4);
 if (!Number.isSafeInteger(slots) || slots < 1)
@@ -58,44 +55,28 @@ const artifacts = new ArtifactStore(
   process.env.DATA_DIR || '/var/localqa/data',
 );
 const browser = new BrowserManager();
-const adapter = createStubAdapter();
-const options = {
-  adapter,
-  allowTestStub: true,
-  async profile(id, version) {
-    const document = await db.actor(
-      actor,
-      async (client) =>
-        (
-          await client.query(
-            'SELECT document FROM model_profile_versions WHERE profile_id=$1 AND version=$2',
-            [id, version],
-          )
-        ).rows[0]?.document,
-    );
-    if (!document || !document.configuredModelId?.startsWith('stub-'))
-      throw new Error('Test stub profile not configured');
-    return {
-      id,
-      version,
-      name: document.name,
-      endpoint: document.endpoint,
-      configuredModelId: document.configuredModelId,
-      kind: 'stub',
-      dataBoundary: document.dataBoundary,
-      capabilities: {
-        structuredOutput: true,
-        nativeTools: true,
-        imageInput: true,
-      },
-      encryptedApiKey: null,
-      approvedFallbackIds: [],
-    };
+const modelRepo = new ModelRepository(db, vault);
+const options = createWorkerModelOptions({
+  transport: globalThis.fetch,
+  allowTestStub,
+  async load(id, version) {
+    if (allowTestStub) {
+      const document = await db.actor(
+        actor,
+        async (client) =>
+          (
+            await client.query(
+              'SELECT document FROM model_profile_versions WHERE profile_id=$1 AND version=$2',
+              [id, version],
+            )
+          ).rows[0]?.document,
+      );
+      if (!document) throw new Error('Test stub profile not configured');
+      return { document, apiKey: null };
+    }
+    return modelRepo.readVersion(actor, id, version);
   },
-  decryptKey() {
-    throw new Error('Test stub must not decrypt API credentials');
-  },
-};
+});
 let running = true;
 let nextProject = 0;
 for (const signal of ['SIGTERM', 'SIGINT'])

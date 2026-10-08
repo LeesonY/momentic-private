@@ -1,0 +1,63 @@
+{
+  "task": "T10-AUTH-7A-STATE-CAPTURE",
+  "tag": "bb224918-3717-4e3c-ac22-6a72b8171b1f",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-state-4v5Ys5",
+  "tests": [
+    {
+      "name": "013 Migration RLS protection: non-admin roles and workers cannot query capture tables",
+      "passed": true
+    },
+    {
+      "name": "SecretVault keyedHmac domain separation and verification",
+      "passed": true
+    },
+    {
+      "name": "authMaterial: returns decrypted material in private memory; mode=none is rejected",
+      "passed": true
+    },
+    {
+      "name": "Full capture flow: recordAuthCriterion (gate) -> issueCaptureGrant -> beginAuthCapture CAS -> captureAuthState atomic commit",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "recordAuthCriterion rejects unpassed results and pending intents",
+      "passed": true
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "4199700a7918448e7adf8067b04d6044abd1dddb3884620682a69b51d80e4a41",
+    "volumes": [
+      "d483efffdeb205c9db4931990e55ff954388d100dabbdef8071a7bb454744271"
+    ],
+    "pgPort": 33195,
+    "apiPort": 51501,
+    "apiPid": 24655,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "d483efffdeb205c9db4931990e55ff954388d100dabbdef8071a7bb454744271",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 auth material, success gates, capture grants, canonical keyed HMAC and encrypted run auth state only",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1
+  }
+}

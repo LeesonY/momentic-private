@@ -1,0 +1,44 @@
+{
+  "task": "T10-B3B",
+  "scope": "Independent controlled replay core; local fake ports only",
+  "ownedFiles": ["apps/worker/src/regression-replay.ts", "apps/worker/test/regression-replay.test.mjs"],
+  "commands": [
+    {"command": "npx --yes pnpm@10.34.0 --filter @localqa/worker build", "exitCode": 0},
+    {"command": "npx --yes pnpm@10.34.0 --filter @localqa/worker typecheck", "exitCode": 0},
+    {"command": "./node_modules/.bin/eslint apps/worker/src/regression-replay.ts apps/worker/test/regression-replay.test.mjs", "exitCode": 0},
+    {"command": "./node_modules/.bin/prettier --check apps/worker/src/regression-replay.ts apps/worker/test/regression-replay.test.mjs", "exitCode": 0},
+    {"command": "node --test apps/worker/test/regression-replay.test.mjs", "exitCode": 0, "passed": 15, "failed": 0, "skipped": 0}
+  ],
+  "priorResult": "7/9 predates canonical UUID fake data correction; latest run is 15/15",
+  "covered": [
+    "Ordered navigate/type_text/click; assert evaluation at its actual DSL position",
+    "Fresh per-resolution canonical UUID snapshot targets; strict NodeTarget/ToolCall validation and invalid-target rejection",
+    "Signal propagation, frozen criterion associations and full DSL/module SHA provenance retained",
+    "Explicit AI adapter calls shared guarded executeTool port; post-action criteria evaluation",
+    "Absent AI adapter fails unsupported without autonomous exploration",
+    "Failed/unknown/not_evaluated criteria and failed/unknown tool receipts stop subsequent actions",
+    "Pre-step, during-tool and during-target-resolution cancellation",
+    "Shared fake budget exhaustion across fixed/AI actions; caught exception remains sticky",
+    "Unawaited in-flight AI tool detected and drained before evidence is returned",
+    "Concurrent AI tool rejected without unlocking first pending invocation; later attempts never enter port",
+    "Escaped AI capability rejected during assertion, during subsequent fixed action, after return and after cancellation",
+    "No mutation of original document, compiled plan or finalized result; exception text excluded from result"
+  ],
+  "integrationContract": [
+    "replayRegression receives canonical CompiledRegressionStep and injected ReplayPorts plus AbortSignal",
+    "Root must adapt executeTool to the existing runtime.grant -> session.executeTool -> runtime.record path, returning succeeded only after all required stages succeed",
+    "resolveTarget must provide a current-context legal canonical NodeTarget; this core checks shape, not browser ownership",
+    "Criterion evaluator must return matching canonical CriterionResult using actual owned observations/evidence",
+    "AI adapter must await its tool calls; returned capability is revoked as soon as adapter returns",
+    "Receipt types are local port composition, not a new HTTP/DSL protocol"
+  ],
+  "limitations": [
+    "No actual runtime authorization, lease/fencing, database budgets, worker queue, browser context or report persistence verified",
+    "No browser, DB, model, SDK, network or server environment access performed by this module/tests",
+    "AbortSignal is cooperative: a nonresponsive injected port cannot be forcibly cancelled; in-flight calls are drained before returning",
+    "Pending unawaited calls are detectable; JavaScript cannot prove whether an already-settled Promise was syntactically awaited",
+    "Controlled adapter may use the injected capability only; arbitrary side effects within caller-supplied adapters are not sandboxed by this core",
+    "Full worker test suite not run; it can start integration services",
+    "Queued API runs and these local fake ports do not prove real approved DSL rerun completion"
+  ]
+}

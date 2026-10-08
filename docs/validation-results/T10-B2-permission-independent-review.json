@@ -1,0 +1,45 @@
+{
+  "task": "T10-B2-permission-increment-independent-review",
+  "recordedAt": "2026-10-04T06:26:38.938624+00:00",
+  "head": "f1dad77d09077536a269896d8247ba18dd0dcc0d",
+  "commands": [
+    {
+      "command": "npm --prefix apps/api run build",
+      "exitCode": 0
+    },
+    {
+      "command": "node --test apps/api/test/t10-saved-cases.test.mjs",
+      "exitCode": 0,
+      "passed": 7,
+      "failed": 0,
+      "durationMs": 3241.931791
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "verifiedIncrement": [
+    "Viewer source-save denied with 403.",
+    "Source from another project denied with 404.",
+    "Unreadable project case listing returns 404.",
+    "Returned immutable version document and SHA match JSON content."
+  ],
+  "scope": "Unique local PostgreSQL/API fixture. No real browser or supplier calls.",
+  "unverified": [
+    "Approved DSL worker replay and report",
+    "Real UI integration",
+    "Real model validation and P0 release"
+  ],
+  "sourceHashes": {
+    "apps/api/src/routes/savedCases.ts": "23b285b546e896ed9d188480f0af6194ec69c3aa45c30b55f699657b8afce511",
+    "apps/api/test/t10-saved-cases.test.mjs": "2c053bf35140b28e49cab2ac6c85d1aa741640973b3b800003c1ada2ebaaf960",
+    "packages/storage/migrations/007_p1_saved_cases.sql": "5d858f5b86e19cbdb671926a03340b14d3052afb7fcc092b1449563145b21b1e",
+    "packages/storage/migrations/008_saved_case_review_previews.sql": "abd7ae85b2c9bad82d55403f3912a0124c046a8a5faa84f7a0e19b43d66ed5d6"
+  },
+  "remainingT10Containers": [],
+  "browserUsed": false,
+  "realSupplierCalls": 0,
+  "T10Passed": false,
+  "P0Passed": false
+}

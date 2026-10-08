@@ -11,4 +11,5 @@ export type { PlanReview } from './plan.js';
 export { createPolicyDispatcher } from './dispatcher.js';
 export type { Dispatcher, DispatchRequest } from './dispatcher.js';
 export { DECISION_SCHEMA, runToolLoop } from './loop.js';
+export { parametersForTool, toolSchemasForRole } from './tool-parameters.js';
 export type { LoopResult } from './loop.js';

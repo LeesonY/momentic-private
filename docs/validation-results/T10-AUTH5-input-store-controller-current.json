@@ -1,0 +1,32 @@
+{
+  "scope": "Extracted actual RunStore callback; synthetic transport and render refs only",
+  "sourceSha256": "336e895b7ef35652b77beaa753845527978092e221762c27152e85ec6e8f765a",
+  "checks": [
+    {
+      "name": "Incorrect response version cannot clear the active request",
+      "passed": true
+    },
+    {
+      "name": "New run can submit its own request while an old run response remains pending",
+      "passed": true
+    },
+    {
+      "name": "Same-request same-tick submissions remain single flight",
+      "passed": true
+    },
+    {
+      "name": "Late old response does not clear the new run request",
+      "passed": true
+    },
+    {
+      "name": "Reject payload omits ordinary text",
+      "passed": true
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0
+  },
+  "browserPaused": true,
+  "P0Passed": false
+}

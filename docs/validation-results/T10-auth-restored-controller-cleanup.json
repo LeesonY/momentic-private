@@ -1,0 +1,54 @@
+{
+  "rootIndependent": true,
+  "ownedResources": [
+    {
+      "file": "T10-AUTH-1-b21b7640-15ca-4474-a556-2618ce9fb4ad.json",
+      "summary": {
+        "passed": 8,
+        "failed": 0
+      },
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "292656d6d0a33c6094a5b6bc854988597bf6e1e37a19a98c6fc53d3cf15d404b",
+          "absent": true
+        }
+      ],
+      "portsClosed": {
+        "33068": true,
+        "62808": true
+      },
+      "credentialsAbsent": {
+        "pg.env": true,
+        "kek.json": true
+      },
+      "evidenceDirectoryRetained": true
+    },
+    {
+      "file": "T10-auth-runtime-1b7fe278.json",
+      "summary": {
+        "passed": 10,
+        "failed": 0
+      },
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "8f3b924b1e7850805d2d849ad0496f28df97e7af8536aa25a7bece22c37db752",
+          "absent": true
+        }
+      ],
+      "portsClosed": {
+        "33069": true,
+        "62824": true
+      },
+      "credentialsAbsent": {
+        "pg.env": true,
+        "kek.json": true
+      },
+      "evidenceDirectoryRetained": false
+    }
+  ],
+  "containerInventoryRestored": true,
+  "volumeInventoryRestored": true,
+  "P0Passed": false
+}

@@ -1,0 +1,46 @@
+{
+  "title": "G3F-R schema format 与实例数据分开（注入 Response，不是 G3/P0 放行）",
+  "date": "2026-10-05",
+  "task": "G3F-R",
+  "keeps": "不覆盖 docs/validation-results/G3F-output-format.json，也不覆盖 Root 的 G3F-schema-data-pre-fix-independent-review.json。复现脚本 docs/validation-results/G3F-schema-data-independent-repro.mjs 未改。",
+  "claims": {
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalledThisRound": false,
+    "postgresUsed": false,
+    "playwrightLaunched": false,
+    "egoUsed": false,
+    "secondMonitor": false,
+    "formatsRemoved": false,
+    "toolCallsMatchContractRemoved": false,
+    "draftBehaviorExpanded": false,
+    "lockOrSharedSourceEdited": false
+  },
+  "defect": "G3-F 的 unsupportedFormat 遍历每个对象。const、default、examples、enum 里的实例 {format:business-label, kind:invoice} 被当成 schema format，编译前返回 VALIDATION_ERROR，provider 0。Root 脚本六例当时 2 通过 / 4 失败。",
+  "fix": "只在 schema 节点上读 format。继续进入 properties、patternProperties、items、additionalItems、additionalProperties、contains、propertyNames、$defs、definitions、allOf、anyOf、oneOf、not、if、then、else，以及 dependencies 里的 schema 对象。不进入 const、default、examples、enum，也不把 dependencies 的字符串数组当 schema。draft 2020 专有关键字仍不遍历、仍不解释。ajv-formats 3.0.1 full 与 toolCallsMatchContract 都保留。",
+  "sourceSha256": {
+    "packages/model-gateway/src/gateway.ts": "ff3d6508aa106294c3b1261cf8dec36cf44f11ebbc16aa159ea3bf87d74aa982",
+    "packages/model-gateway/test/g3f-output-format.test.mjs": "48cc8e7a8197067f3e9630a9e9bfc5009c8a98b66fdd3be7957ddd41140033da",
+    "packages/model-gateway/dist/gateway.js": "a1a800069c6a704e4e3a39c449cf7d8d78e3b66acfc212f2a55da5f7700bf437"
+  },
+  "rootRepro": {
+    "script": "docs/validation-results/G3F-schema-data-independent-repro.mjs",
+    "result": "6/6 passed",
+    "cases": [
+      "const/default/examples/enum 实例字段 format=business-label：requestResult ok，errorCode null，data 等于该对象，sends 1",
+      "properties.value.format=business-label：malformed，VALIDATION_ERROR，data null，sends 0",
+      "format uuid 且 value=not-valid：malformed，VALIDATION_ERROR，data null，sends 2"
+    ]
+  },
+  "tests": {
+    "command": "node --test --test-concurrency=1 packages/model-gateway/test/g3f-output-format.test.mjs packages/model-gateway/test/g3d4-assert-complete.test.mjs packages/model-gateway/test/g3e-image-assert.test.mjs",
+    "result": "18/18",
+    "duration_ms": 435.901209,
+    "g3f": "8/8。原 6 项仍在：uuid/uri 正负、date-time 与 uri-reference、一次修复的用量、未知 format 与非法 schema 零发送、json_schema 与 native_tools、无 format schema 上的非法 ToolCall 仍是 1 次发送。新增实例数据 1 项与嵌套 schema format 1 项。",
+    "g3d4": "4/4",
+    "g3e": "6/6",
+    "emit": "tsc -p packages/model-gateway/tsconfig.build.json exit 0。测试跑的是这份 dist。",
+    "verifyMjs": "未跑，避免重写 T04-model.json。"
+  },
+  "notVerified": "没有 Postgres、浏览器、worker-entry、BoundModel、外网模型。probe 仍不编译 outputSchema。draft 2020 专有关键字行为与 G3-F 初版相同。"
+}

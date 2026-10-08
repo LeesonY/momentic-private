@@ -1,0 +1,36 @@
+{
+  "task": "T10-YAML-1",
+  "tag": "e737b594-814a-43eb-8010-a4103b667524",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-yaml-YUGXVA",
+  "tests": [],
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "bf36f9ca115f8e0b78eb946e8df427397ea54b935b59b42d1a99cd957281dfd3",
+    "volumes": [
+      "924a96ab13c320d72d3a8054d8746246119c6d25c1b26e5fd58e0cb27dd152dc"
+    ],
+    "pgPort": 33086,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "924a96ab13c320d72d3a8054d8746246119c6d25c1b26e5fd58e0cb27dd152dc",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true
+    }
+  },
+  "limitations": [
+    "PG/API admission only; no browser, Worker.once, worker-entry or real model",
+    "Import creates draft only; execution blocked until approved review",
+    "FakeBrowser and real model acceptance still unverified; P0=false"
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 0
+  }
+}

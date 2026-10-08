@@ -1,0 +1,111 @@
+{
+  "batch": "T10-AUTH6 fixed auth adapter, revised for the real resolveAuth material shape",
+  "scope": "Pure Node: the real runAuthFlow and the real AUTH-5 private port over synthetic FakeBrowser primitives with an explicitly labeled Fake Runtime. No browser, Playwright, worker-entry, provider, deploy, or real Coordinator.",
+  "materialInterface": "CredentialMaterial.material.storageState, exactly as LeaseRepository.resolveAuth returns it (JSON string) or a plain approved object; validated only by the private port approved-state validator. No alias key, no local parse, no normalization.",
+  "sourceSha256": {
+    "apps/worker/src/auth-flow.ts": "0d9030f3841feb013c7691ea7a241e69b27d1ddf707c5f6252503ec0e53e3d7f",
+    "apps/worker/test/auth-flow.test.mjs": "f958a6d43c12158460fb37799868e0158595a78fa2afd8504599951ea4386599",
+    "packages/browser/src/private-auth.ts": "24c06fcd37d625e972d46474ac3f6c1b7ac279217b2a0af1af9a0ece9f3df21a",
+    "packages/browser/test/private-auth.test.mjs": "f6dfa581cb07a662e0b977d61d7bf181a70fb6d58ab4bfcf6ef4f00f84de2018"
+  },
+  "auth5Formatting": {
+    "note": "private-auth.ts/test were Prettier-formatted in this batch; semantics unchanged and the AUTH-5 suites still pass 8/8 private-port + 20/20 approved-state (41/41 package).",
+    "previousSha256": {
+      "packages/browser/src/private-auth.ts": "a8de6fe8858c839e6ac1ad5bef7c74fb26fc7880cf7b94a69341e79b99a17ee3",
+      "packages/browser/test/private-auth.test.mjs": "d41d70d3e4d886b4c302f753cc95cc694f2f8353efd77c9d619e3f40f926f899"
+    }
+  },
+  "commands": [
+    "node_modules/.bin/tsc -p apps/worker/tsconfig.json            # = pnpm --filter @localqa/worker build",
+    "node_modules/.bin/tsc --noEmit -p apps/worker/tsconfig.json   # = pnpm --filter @localqa/worker typecheck",
+    "cd apps/worker && node --test test/auth-flow.test.mjs",
+    "node_modules/.bin/eslint apps/worker/src apps/worker/scripts apps/worker/test",
+    "cd packages/browser && ./node_modules/.bin/tsc -p tsconfig.build.json && node --test test/*.test.mjs",
+    "node_modules/.bin/eslint packages/browser/src packages/browser/test"
+  ],
+  "cases": [
+    {
+      "name": "form flow runs the fixed order once through the fake runtime",
+      "passed": true
+    },
+    {
+      "name": "one OTP at most, and never a second wait after a criterion failure",
+      "passed": true
+    },
+    {
+      "name": "storage_state prepares without navigating, then navigates once",
+      "passed": true
+    },
+    {
+      "name": "record, observation, capture and finish failures never yield success",
+      "passed": true
+    },
+    {
+      "name": "missing or unsupported configuration is blocked, never passed",
+      "passed": true
+    },
+    {
+      "name": "unknown, raw, or getter-throwing codes fall back to constants",
+      "passed": true
+    },
+    {
+      "name": "none never touches material, the port, or the adapters",
+      "passed": true
+    },
+    {
+      "name": "abort cancels the flow without any success or capture",
+      "passed": true
+    },
+    {
+      "name": "the private ticket and capture material stay out of the outcome",
+      "passed": true
+    },
+    {
+      "name": "storage_state material takes only the canonical resolveAuth shape",
+      "passed": true
+    },
+    {
+      "name": "the port must belong to the same session as the binding",
+      "passed": true
+    }
+  ],
+  "summary": {
+    "passed": 11,
+    "failed": 0
+  },
+  "checks": {
+    "workerBuild": "pass",
+    "workerTypecheck": "pass",
+    "workerLint": "pass",
+    "workerPrettier": "pass",
+    "browserBuild": "pass",
+    "browserTypecheck": "pass",
+    "browserLint": "pass",
+    "browserPrettier": "pass (auth-5 files)",
+    "browserSuite": "41/41"
+  },
+  "interfaceCompatibilityNegatives": [
+    "legacy/alias material key `state` -> MATERIAL_INVALID with zero primitive calls",
+    "storageState number/array/null/empty string/class instance/form-only keys -> MATERIAL_INVALID",
+    "malformed JSON string and unknown fields -> VALIDATION_ERROR from the real port validator",
+    "foreign cookie domain and foreign origin entry -> TARGET_NOT_ALLOWED",
+    "accessor inside the state object -> VALIDATION_ERROR and the getter is never invoked",
+    "port.sessionId != binding.sessionId -> SESSION_MISMATCH before any material or primitive call"
+  ],
+  "interfaceNotesForRoot": [
+    "AuthActionRequest = {requestId, sessionId, action, slot, target?}; the navigate URL always comes from the permit.",
+    "AuthFlowRuntime.recordAuth must attach the begin receipt and forward to the auth service method; the ordinary recordAction/HTTP channel is never used.",
+    "Permit fields contextId/profileId/profileVersion/authEpoch/purpose are used as returned; the flow never fabricates or downgrades them.",
+    "form uses material.username/password; storage_state uses material.storageState (JSON string or plain object).",
+    "storage_state takes its frozen criterion from options.criterion; form always uses profile.formConfig.successCriterion.",
+    "Known error codes pass through only from an explicit allowlist (contract ERROR_CODES + browser STABLE_REASON_CODES + port CANCELLED); unknown or getter-throwing codes become constant fallbacks and error.message is never read."
+  ],
+  "notImplemented": [
+    "no real Coordinator capture CAS, OTP service, or Worker.once wiring; Stage.auth stays unwired in this batch",
+    "positive capture evidence comes from a Fake Runtime only, so no service-verified ticket or stateRef is claimed",
+    "no distributed exactly-once guarantee; the flow guarantees one attempt per action and at most one OTP wait",
+    "no real browser / session.ts integration; Ego verification stays paused"
+  ],
+  "browserPaused": true,
+  "P0Passed": false
+}

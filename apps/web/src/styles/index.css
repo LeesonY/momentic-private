@@ -260,6 +260,26 @@
   border: 1px solid var(--color-success-border);
 }
 
+.phase-item.failed {
+  background: var(--color-danger-subtle, #fef2f2);
+  color: var(--color-danger, #dc2626);
+  border: 1px solid var(--color-danger-border, #fecaca);
+}
+
+.phase-item.cancelled {
+  background: var(--color-warning-subtle, #fffbeb);
+  color: var(--color-warning-text, #92400e);
+  border: 1px solid var(--color-warning, #f59e0b);
+}
+
+.phase-item.skipped {
+  color: var(--color-text-subtle, #94a3b8);
+  font-style: italic;
+  opacity: 0.65;
+  background: transparent;
+  border: 1px dashed var(--color-border-subtle, #e2e8f0);
+}
+
 /* Modal Overlay & Content (Radix UI) */
 .dialog-overlay {
   position: fixed;

@@ -1,0 +1,107 @@
+{
+  "batch": "T10-AUTH8C provenance-safe locators, fresh-observation handshake, real finishAuth",
+  "scope": "Pure Node: real auth-adapters/auth-services, the real AUTH-6 flow, the real AUTH-5 private port and the real regression-locator over a labeled FakeSession, synthetic primitives, a labeled Fake RuntimeClient and labeled Fake services. No Playwright launch, browser, model, PG, Worker.once or deploy.",
+  "summary": {
+    "workerPassed": 37,
+    "workerFailed": 0,
+    "note": "Raw runner totals per file; flow/runtime/services cases first reported in earlier batches are re-runs, not new coverage. test/integration.test.mjs needs PG/Docker and is out of scope for these pure-Node runs."
+  },
+  "countsByFile": {
+    "auth-flow.test.mjs": {
+      "passed": 11,
+      "failed": 0
+    },
+    "auth-runtime.test.mjs": {
+      "passed": 7,
+      "failed": 0
+    },
+    "auth-services.test.mjs": {
+      "passed": 9,
+      "failed": 0
+    },
+    "auth-adapters.test.mjs": {
+      "passed": 8,
+      "failed": 0
+    },
+    "auth-redaction.test.mjs": {
+      "passed": 2,
+      "failed": 0
+    },
+    "packages/browser test/private-auth.test.mjs (case list)": {
+      "passed": 18,
+      "failed": 0
+    },
+    "packages/browser runner": {
+      "passed": 41,
+      "failed": 0
+    }
+  },
+  "sourceSha256": {
+    "apps/worker/src/auth-adapters.ts": "92fcfc3295ae8418da08379018f5dab8ff5c407f7b4ada70f87b7454efb6cb10",
+    "apps/worker/test/auth-adapters.test.mjs": "5ffc34c0694f2dbb9615722e72bf5c6d48a385ccbd047df69d9a25547fd21a4c",
+    "apps/worker/src/auth-services.ts": "319d32ead415c4a3aae40dd054ee4f9775939f8bafa6856a478c97ba4ec4215c",
+    "apps/worker/test/auth-services.test.mjs": "98615e857459a96d658fb6c2668004fdae4b5ad30fd071fe7938fbbbb63e97b3",
+    "apps/worker/src/auth-flow.ts": "fbcc2890098b236f9fec0ac5da5f8c6f3b24d4f5615ce9ccbb5cca4e8ed37f0d",
+    "apps/worker/test/auth-redaction.test.mjs": "ca79c724155d639421bb12fed9839e81bdfb2de6d95b0412f76ccc4230d9a515",
+    "packages/browser/src/private-auth.ts": "459a9769cb64eefa40c6679047e0562954913e91c8baacd735f69ca1a1ed1bb0",
+    "packages/browser/test/private-auth.test.mjs": "a93bea32a0caadc74b423b240e84a8f0642343ef2e22f6268c451ef7282e581c",
+    "packages/browser/src/regression-locator.ts": "be3ecbedc608690f2be1e6065a537071beee1cd07b5a002b5b1412ef0ae11012",
+    "packages/browser/test/regression-locator.test.mjs": "7563956a883812e7c51dc3be4d83a04f6fe3c713284ee7bf6373bb8efe775c0c"
+  },
+  "provenanceFix": {
+    "problem": "The adapter re-based a target resolved against the session-s own fresh snapshot onto the snapshot the flow held, rewriting another snapshot id — which forges provenance even when page, node and frame happen to match.",
+    "now": [
+      "a target is passed through only when it already belongs to the snapshot it is checked against; otherwise it is refused with TARGET_NOT_FOUND, never rewritten",
+      "the real session resolves against a fresh observation, so the adapter exposes an explicit handshake: resolveRegressionLocator, then the cached getSnapshot read of that same observation, with the target required to match that observation fully",
+      "the flow redacts the actual fresh observation through the private port (registered secrets only) and records it before the permit, then grants with that real snapshot id",
+      "without the cached snapshot read the adapter refuses to construct, so no run can grant or touch the browser"
+    ],
+    "negativeProof": "Registering the raw observation instead of the port-redacted one fails 2 of the adapter cases (6/8), so the redaction step in the handshake is load-bearing."
+  },
+  "locatorZeroMatch": {
+    "change": "regression-locator reports count === 0 as LOCATOR_NOT_FOUND (explicit absence) instead of LOCATOR_NOT_UNIQUE; multi-match, hidden and thrown failures keep their existing codes.",
+    "effect": "the optional OTP target can now be distinguished: absence returns null (skip the OTP wait) while ambiguity still blocks with TARGET_AMBIGUOUS and never requests an OTP."
+  },
+  "realFinish": {
+    "wiring": "AuthServiceClient.finishAuth(proof, sessionId, authStateId) is called with the frozen proof/session and the state ref this adapter captured; a ref it never captured is refused, and a client without the method stays SERVICE_UNAVAILABLE with no ordinary-finish fallback.",
+    "stubRule": "unimplementedServices may only fill pauseForOtp; an injected finishAuth stub is ignored and the real method is used (asserted).",
+    "covered": [
+      "successful run returns the captured stateRef and the finish call carries the frozen proof/session",
+      "a refusing finish blocks with its constant code, no success and no stateRef",
+      "a missing finish method stays SERVICE_UNAVAILABLE with zero finish calls",
+      "the outcome of a successful run carries no leaseToken, ticket, password or gate id"
+    ]
+  },
+  "commands": [
+    "node_modules/.bin/tsc -p apps/worker/tsconfig.json && node_modules/.bin/tsc --noEmit -p apps/worker/tsconfig.json",
+    "cd apps/worker && node --test test/auth-flow.test.mjs test/auth-runtime.test.mjs test/auth-services.test.mjs test/auth-adapters.test.mjs test/auth-redaction.test.mjs   # 37/37",
+    "node_modules/.bin/eslint apps/worker/src apps/worker/scripts apps/worker/test",
+    "cd packages/browser && ./node_modules/.bin/tsc -p tsconfig.build.json && node --test test/*.test.mjs   # 41/41",
+    "cd packages/browser && node test/private-auth.test.mjs   # 18/18 cases",
+    "node_modules/.bin/eslint packages/browser/src packages/browser/test"
+  ],
+  "checks": {
+    "workerBuild": "pass",
+    "workerTypecheck": "pass",
+    "workerLint": "pass",
+    "workerPrettier": "pass",
+    "browserBuild": "pass",
+    "browserTypecheck": "pass",
+    "browserLint": "pass",
+    "browserSuite": "41/41"
+  },
+  "interfaceNotesForRoot": [
+    "Every locator resolution now registers one extra redacted observation (the fresh snapshot), so the server sees the id the permit targets before the grant.",
+    "The adapter refuses at construction if the session cannot read back the cached observation; the real BrowserSession has getSnapshot, so this only guards a partial session.",
+    "A zero-match locator now arrives as LOCATOR_NOT_FOUND: the OTP step skips, and a required target reports TARGET_NOT_RESOLVED.",
+    "finishAuth is private RuntimeClient.finishAuth(proof, sessionId, authStateId); the adapter never falls back to the ordinary finish and never lets a stub replace it."
+  ],
+  "notImplemented": [
+    "import / OTP service / handoff remain absent: the OTP step still needs an explicit stub to proceed",
+    "no Worker.once or tick wiring; Stage.auth stays unwired",
+    "no PG or real Coordinator path in these runs; Root re-verifies the full chain on its own PG",
+    "actual browser / worker-entry / Ego stay paused"
+  ],
+  "browserPaused": true,
+  "P0Passed": false
+}

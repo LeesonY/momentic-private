@@ -1,5 +1,8 @@
-import { parseContract } from '@localqa/contracts';
+import { parseContract, isErrorCode } from '@localqa/contracts';
+import { StorageError } from '@localqa/storage';
 import { requireAuth, requireAdmin } from '../auth.js';
+import { ApiError } from '../errors.js';
+import { createFrozenGateway } from '../frozen-model.js';
 import { parsePagination, paginate, type Router } from '../router.js';
 import type { RequestContext } from '../types.js';
 
@@ -77,24 +80,78 @@ export function registerModelRoutes(router: Router): void {
     async (ctx: RequestContext) => {
       await requireAdmin(ctx);
       const profileId = ctx.params.modelProfileId!;
-
-      // Verify model exists
-      await ctx.api.modelRepo.get(ctx.actor!, profileId);
-
-      const probeRecord = await ctx.api.gateway.capabilityProbe(profileId);
-      const probeResult = probeRecord.data
-        ? parseContract('ModelProbeResult', probeRecord.data)
-        : parseContract('ModelProbeResult', {
-            profileId,
-            capabilities: {
-              structuredOutput: true,
-              nativeTools: true,
-              imageInput: false,
-            },
-            status: 'ready',
-            notes: [],
-          });
-
+      const current = await ctx.api.modelRepo.get(ctx.actor!, profileId);
+      if (current.status === 'disabled') {
+        throw new ApiError(
+          'MODEL_NOT_CONFIGURED',
+          'Model profile is disabled',
+          409,
+        );
+      }
+      if (!ctx.api.modelTransport) {
+        throw new ApiError(
+          'MODEL_NOT_CONFIGURED',
+          'Model transport is not configured',
+          409,
+        );
+      }
+      const frozen = await ctx.api.modelRepo.readVersion(
+        ctx.actor!,
+        profileId,
+        current.version,
+      );
+      if (frozen.document.status === 'disabled') {
+        throw new ApiError(
+          'MODEL_NOT_CONFIGURED',
+          'Model profile is disabled',
+          409,
+        );
+      }
+      const probeRecord = await createFrozenGateway(
+        frozen,
+        ctx.api.modelTransport,
+      ).capabilityProbe(profileId);
+      if (
+        probeRecord.requestResult !== 'ok' ||
+        probeRecord.errorCode ||
+        !probeRecord.data
+      ) {
+        const code =
+          probeRecord.errorCode && isErrorCode(probeRecord.errorCode)
+            ? probeRecord.errorCode
+            : 'SERVICE_UNAVAILABLE';
+        throw new ApiError(code, 'Model probe failed');
+      }
+      let probeResult;
+      try {
+        probeResult = parseContract('ModelProbeResult', probeRecord.data);
+      } catch (error) {
+        if (error instanceof StorageError) throw error;
+        throw new ApiError('SERVICE_UNAVAILABLE', 'Model probe failed');
+      }
+      if (probeResult.status === 'disabled') {
+        throw new ApiError(
+          'MODEL_NOT_CONFIGURED',
+          'Automatic probe cannot disable a profile',
+          409,
+        );
+      }
+      const saved = await ctx.api.modelRepo.recordProbe(
+        ctx.actor!,
+        profileId,
+        current.version,
+        {
+          capabilities: probeResult.capabilities,
+          status: probeResult.status,
+        },
+      );
+      if (!saved) {
+        throw new ApiError(
+          'MODEL_NOT_CONFIGURED',
+          'Model profile is disabled',
+          409,
+        );
+      }
       ctx.res.statusCode = 200;
       return probeResult;
     },

@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
-import type { CaseRecord, Finding, Task, Report } from '@localqa/contracts';
+import type {
+  CaseRecord,
+  Finding,
+  Task,
+  Report,
+  Run,
+} from '@localqa/contracts';
 import { defaultApiClient } from '../../api/index.ts';
 import { StatusBadge } from '../ui/Badge.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { ErrorCard } from '../ui/ErrorCard.tsx';
 import { useApp } from '../../state/AppContext.tsx';
+import { getRegressionProvenanceStatus } from '../../utils/provenance.ts';
 
 interface TaskCaseTabsProps {
   cases: CaseRecord[];
@@ -12,6 +19,7 @@ interface TaskCaseTabsProps {
   tasks: Task[];
   report: Report | null;
   runId: string;
+  run?: Run | null;
 }
 
 export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
@@ -20,6 +28,7 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
   tasks,
   report,
   runId,
+  run,
 }) => {
   const [activeTab, setActiveTab] = useState<
     'cases' | 'findings' | 'tasks' | 'report'
@@ -130,63 +139,229 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
                     gap: '10px',
                   }}
                 >
-                  {cases.map((c) => (
-                    <div
-                      key={c.definition.id}
-                      style={{
-                        padding: '12px',
-                        border: '1px solid var(--color-border-subtle)',
-                        borderRadius: 'var(--radius-md)',
-                        cursor: 'pointer',
-                        transition: 'background-color 0.15s',
-                      }}
-                      onClick={() =>
-                        setRoute('case-detail', {
-                          caseId: c.definition.id,
-                          runId,
-                        })
-                      }
-                      data-testid={`case-item-${c.definition.id}`}
-                    >
+                  {cases.map((c) => {
+                    const isNotRun = c.outcome === 'not_run' || !c.verdict;
+                    const verdictStatus = c.verdict ? c.verdict.status : null;
+                    const isRegressionCase =
+                      !!c.definition.regression ||
+                      run?.executionMode === 'regression';
+                    const regression = c.definition.regression;
+
+                    return (
                       <div
+                        key={c.definition.id}
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          marginBottom: '6px',
+                          padding: '12px',
+                          border: '1px solid var(--color-border-subtle)',
+                          borderRadius: 'var(--radius-md)',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.15s',
                         }}
+                        onClick={() =>
+                          setRoute('case-detail', {
+                            caseId: c.definition.id,
+                            runId,
+                          })
+                        }
+                        data-testid={`case-item-${c.definition.id}`}
                       >
-                        <span
+                        <div
                           style={{
-                            fontSize: '0.75rem',
-                            color: 'var(--color-text-subtle)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            marginBottom: '6px',
                           }}
                         >
-                          {c.definition.id}
-                        </span>
-                        <StatusBadge status={c.outcome} size="sm" />
+                          <span
+                            style={{
+                              fontSize: '0.75rem',
+                              color: 'var(--color-text-subtle)',
+                            }}
+                          >
+                            {c.definition.id}
+                          </span>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
+                            {isRegressionCase && (
+                              <span
+                                className="badge badge-primary"
+                                style={{
+                                  fontSize: '0.68rem',
+                                  padding: '1px 5px',
+                                }}
+                                data-testid={`badge-regression-case-${c.definition.id}`}
+                              >
+                                回归用例
+                              </span>
+                            )}
+                            {isNotRun ? (
+                              <StatusBadge
+                                status="not_run"
+                                label="未执行"
+                                size="sm"
+                              />
+                            ) : (
+                              <StatusBadge status={verdictStatus!} size="sm" />
+                            )}
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            fontSize: '0.875rem',
+                            fontWeight: 600,
+                            color: 'var(--color-text-main)',
+                            marginBottom: '4px',
+                          }}
+                        >
+                          {c.definition.title}
+                        </div>
+
+                        <p
+                          style={{
+                            fontSize: '0.8rem',
+                            color: 'var(--color-text-muted)',
+                            lineHeight: 1.4,
+                            marginBottom: '4px',
+                          }}
+                        >
+                          {c.definition.summary}
+                        </p>
+
+                        {/* Regression Provenance Metadata */}
+                        {regression ? (
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              gap: '6px',
+                              alignItems: 'center',
+                              fontSize: '0.72rem',
+                              padding: '4px 8px',
+                              backgroundColor: 'var(--color-bg-subtle)',
+                              borderRadius: 'var(--radius-sm)',
+                              margin: '6px 0',
+                            }}
+                            data-testid={`case-provenance-meta-${c.definition.id}`}
+                          >
+                            <span>
+                              源版本:{' '}
+                              {regression.sourceVersionId ? (
+                                <code>
+                                  {regression.sourceVersionId.slice(0, 8)}...
+                                </code>
+                              ) : (
+                                <strong
+                                  style={{ color: 'var(--color-danger)' }}
+                                >
+                                  未验证
+                                </strong>
+                              )}
+                            </span>
+                            <span>·</span>
+                            <span>
+                              原SHA:{' '}
+                              {regression.sourceDocumentSha256 ? (
+                                <code>
+                                  {regression.sourceDocumentSha256.slice(0, 8)}
+                                  ...
+                                </code>
+                              ) : (
+                                <strong
+                                  style={{ color: 'var(--color-danger)' }}
+                                >
+                                  未验证
+                                </strong>
+                              )}
+                            </span>
+                            {regression.snapshotDocumentSha256 && (
+                              <>
+                                <span>·</span>
+                                <span>
+                                  快照SHA:{' '}
+                                  <code>
+                                    {regression.snapshotDocumentSha256.slice(
+                                      0,
+                                      8,
+                                    )}
+                                    ...
+                                  </code>
+                                </span>
+                              </>
+                            )}
+                            <span>·</span>
+                            <span>
+                              模块: {regression.moduleSnapshots?.length ?? 0}
+                            </span>
+                            {(() => {
+                              const provStatus =
+                                getRegressionProvenanceStatus(regression);
+                              return (
+                                <span
+                                  className={`badge badge-${provStatus.badgeVariant}`}
+                                  style={{
+                                    fontSize: '0.65rem',
+                                    padding: '1px 5px',
+                                  }}
+                                  data-testid={
+                                    provStatus.isComplete
+                                      ? `badge-case-provenance-complete-${c.definition.id}`
+                                      : `badge-case-unverified-${c.definition.id}`
+                                  }
+                                >
+                                  {provStatus.statusLabel}
+                                </span>
+                              );
+                            })()}
+                          </div>
+                        ) : isRegressionCase ? (
+                          <div
+                            style={{
+                              padding: '4px 8px',
+                              backgroundColor: 'var(--color-warning-subtle)',
+                              color: 'var(--color-warning-text)',
+                              borderRadius: 'var(--radius-sm)',
+                              fontSize: '0.72rem',
+                              margin: '6px 0',
+                            }}
+                            data-testid={`case-missing-regression-binding-${c.definition.id}`}
+                          >
+                            ⚠️ 回归来源缺失: 未关联冻结基线版本与用例库来源
+                            (未验证)
+                          </div>
+                        ) : null}
+
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            marginTop: '6px',
+                          }}
+                        >
+                          <button
+                            className="btn btn-secondary btn-xs"
+                            style={{ fontSize: '0.72rem', padding: '2px 8px' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRoute('case-detail', {
+                                caseId: c.definition.id,
+                                runId,
+                              });
+                            }}
+                            data-testid={`btn-case-detail-${c.definition.id}`}
+                          >
+                            查看详情与保存到用例库 ↗
+                          </button>
+                        </div>
                       </div>
-                      <div
-                        style={{
-                          fontSize: '0.875rem',
-                          fontWeight: 600,
-                          color: 'var(--color-text-main)',
-                          marginBottom: '4px',
-                        }}
-                      >
-                        {c.definition.title}
-                      </div>
-                      <p
-                        style={{
-                          fontSize: '0.8rem',
-                          color: 'var(--color-text-muted)',
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        {c.definition.summary}
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -333,6 +508,124 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
                       type="partial_report"
                       message="该报告为预算用尽或中途停止产生的 Partial 报告，仅代表已完成区间的有效结论。"
                     />
+                  )}
+
+                  {/* Execution Mode Card */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      backgroundColor: 'var(--color-bg-subtle)',
+                      borderRadius: 'var(--radius-sm)',
+                      marginBottom: '10px',
+                      fontSize: '0.85rem',
+                    }}
+                    data-testid="report-execution-mode-card"
+                  >
+                    <div>
+                      执行模式:{' '}
+                      <strong>
+                        {report.run.executionMode === 'regression' ||
+                        run?.executionMode === 'regression'
+                          ? '自动化回归 (Regression)'
+                          : '冒烟探索 (Smoke)'}
+                      </strong>
+                    </div>
+                    <StatusBadge
+                      status={
+                        report.run.executionMode === 'regression' ||
+                        run?.executionMode === 'regression'
+                          ? 'regression'
+                          : 'smoke'
+                      }
+                      size="sm"
+                    />
+                  </div>
+
+                  {/* Regression Audit Provenance (when regression mode) */}
+                  {(report.run.executionMode === 'regression' ||
+                    run?.executionMode === 'regression') && (
+                    <div
+                      className="card"
+                      style={{
+                        marginBottom: '14px',
+                        backgroundColor: 'var(--color-bg-subtle)',
+                        borderLeft: '4px solid var(--color-primary)',
+                      }}
+                      data-testid="report-regression-audit-card"
+                    >
+                      <h4
+                        style={{
+                          fontSize: '0.85rem',
+                          fontWeight: 600,
+                          marginBottom: '6px',
+                        }}
+                      >
+                        回归用例基线与来源说明审计 (Regression Baseline Audit)
+                      </h4>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '4px',
+                          fontSize: '0.8rem',
+                          color: 'var(--color-text-main)',
+                        }}
+                      >
+                        <div>
+                          回归用例总数: <strong>{cases.length}</strong>
+                        </div>
+                        <div>
+                          来源信息完整用例:{' '}
+                          <strong style={{ color: 'var(--color-success)' }}>
+                            {
+                              cases.filter(
+                                (c) =>
+                                  getRegressionProvenanceStatus(
+                                    c.definition.regression,
+                                  ).isComplete,
+                              ).length
+                            }
+                          </strong>
+                        </div>
+                        {cases.some(
+                          (c) =>
+                            !getRegressionProvenanceStatus(
+                              c.definition.regression,
+                            ).isComplete,
+                        ) && (
+                          <div
+                            style={{ color: 'var(--color-danger)' }}
+                            data-testid="report-unverified-cases-count"
+                          >
+                            ⚠️ 包含未验证/来源信息不完整用例:{' '}
+                            <strong>
+                              {
+                                cases.filter(
+                                  (c) =>
+                                    !getRegressionProvenanceStatus(
+                                      c.definition.regression,
+                                    ).isComplete,
+                                ).length
+                              }
+                            </strong>
+                          </div>
+                        )}
+                        <div
+                          style={{
+                            fontSize: '0.72rem',
+                            color: 'var(--color-text-subtle)',
+                            marginTop: '6px',
+                          }}
+                        >
+                          *
+                          溯源审计仅反映基线元数据契约完整性，未验证状态独立于运行裁决
+                          (Verdict)，不影响既有用例判定。
+                        </div>
+                      </div>
+                    </div>
                   )}
 
                   <div

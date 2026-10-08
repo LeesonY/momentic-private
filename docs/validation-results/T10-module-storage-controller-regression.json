@@ -1,0 +1,40 @@
+{
+  "tag": "498c83f4",
+  "scope": "Existing real PostgreSQL storage suite; no browser or provider",
+  "containerId": "e7a64ea40a74b63974699d4dc64b129330c499c51e38c18d81d258c362dfb115",
+  "migrationSha256": {
+    "001_core.sql": "6ad7cd958e2fb51484970ae6a0678df6ac9fca105cc138348efdcaf14cb4fbd1",
+    "002_invariants.sql": "d9c35e1165f849accb2074c99ea9e8296fb0682b7ec164402cc94337ea1dc314",
+    "003_access.sql": "6c5c975ce7b35b6c20d2a9620a4cfdb2800d668ec55320422d6172baa248e8cb",
+    "004_hardening.sql": "c244cd9424cc22b67e8b11e784f0156261aa4edae5e9b11f8712778a4f1be6bb",
+    "005_project_default_model.sql": "3501d637d649a345ea21949cf0bdedf04f891370ebe1adc9870fdbfc75e04d66",
+    "006_run_messages_redaction.sql": "d67046207b3fc75a8750bbacd2d6c9e4a58f5c76d6a5248f3350d58266cce793",
+    "007_p1_saved_cases.sql": "5d858f5b86e19cbdb671926a03340b14d3052afb7fcc092b1449563145b21b1e",
+    "008_saved_case_review_previews.sql": "abd7ae85b2c9bad82d55403f3912a0124c046a8a5faa84f7a0e19b43d66ed5d6",
+    "009_regression_bindings.sql": "35d5c1075093de8e1256794e57e844ebc3906103bb790e5818504459af6356dd",
+    "010_regression_module_reviews.sql": "dbeb2f05b58d8fc0c27e353cf23dd0247ebecdfd280555d9ea0631d6e71ea5ba"
+  },
+  "migrations": [
+    "001_core.sql",
+    "002_invariants.sql",
+    "003_access.sql",
+    "004_hardening.sql",
+    "005_project_default_model.sql",
+    "006_run_messages_redaction.sql",
+    "007_p1_saved_cases.sql",
+    "008_saved_case_review_previews.sql",
+    "009_regression_bindings.sql",
+    "010_regression_module_reviews.sql"
+  ],
+  "sourceSha256": "be503be8dd94072e4fb6f1c8c0d022362a40d89bf5736b4eb8d323bad7dd6279",
+  "exitCode": 0,
+  "testSummary": [
+    "# tests 32",
+    "# pass 32",
+    "# fail 0",
+    "# skipped 0",
+    "# duration_ms 3737.157542"
+  ],
+  "containerRemoved": true,
+  "temporaryFilesRemoved": true
+}

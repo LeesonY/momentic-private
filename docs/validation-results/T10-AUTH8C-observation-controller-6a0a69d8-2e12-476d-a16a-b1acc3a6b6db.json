@@ -1,0 +1,20 @@
+{
+  "rootIndependent": true,
+  "scope": "Actual private port pure redaction only; no browser/runtime/PG",
+  "tests": [
+    {
+      "name": "Accessor snapshot fields are refused without running getters",
+      "passed": true
+    },
+    {
+      "name": "Pure redaction cannot freeze caller-owned nested snapshot objects",
+      "passed": true
+    }
+  ],
+  "sourceSha256": "66ef83fc0b6876595b12be5963af80e069d4450eff76afe0cdff54b169b49604",
+  "effects": 0,
+  "summary": {
+    "passed": 2,
+    "failed": 0
+  }
+}

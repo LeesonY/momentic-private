@@ -1,0 +1,58 @@
+{
+  "task": "T10-B2-controller-verification",
+  "P0Passed": false,
+  "T10Passed": false,
+  "agentAvailability": {
+    "pi": "Kimi 5-hour quota exhausted; B2 not completed; controller took over",
+    "agy": "web review protocol and shared HTTP helper",
+    "grok": "G3-D actual process wiring and PostgreSQL model repository verification"
+  },
+  "verified": {
+    "contractsCheck": true,
+    "apiBuild": true,
+    "apiTypecheck": true,
+    "t10ApiTests": {
+      "passed": 7,
+      "failed": 0
+    },
+    "webClientCheck": true,
+    "webTypecheck": true,
+    "webLint": true,
+    "httpHelperLocalCases": 8,
+    "g3cLocalGatewayTests": 31,
+    "g3cHttpEntryTests": 4,
+    "g3cBoundModelTests": 2
+  },
+  "changes": [
+    "ReviewPreviewInput and mirrored review decision/version/reason",
+    "Actor/subject/document hash/decision/reason/TTL/one-use binding; owner permission rechecked",
+    "Full approved-to-draft preview diff; oversized diff rejected",
+    "Immutable saved-case document/hash/review metadata and scoped approved baseline",
+    "Immutable confirmation preview metadata",
+    "True sourceRunCaseId test against stored run case; controlled PostgreSQL negative cases"
+  ],
+  "unverified": [
+    "Worker approved DSL execution and fresh browser context",
+    "Full real UI integration",
+    "YAML/module registry/variable execution budget; sibling module reuse check remains to be completed",
+    "Real provider and G3 quality baseline",
+    "Model repository PostgreSQL semantics and production process composition pending G3-D",
+    "P0 API regression suite pending actual model transport fixture update"
+  ],
+  "realSupplierCalls": 0,
+  "browserUsed": false,
+  "scopeNotes": [
+    "Source test uses a stored controlled fixture RunCase; it does not claim prior browser execution.",
+    "HTTP helper review test uses a local mock backend; database review behavior is independently covered by the seven API tests.",
+    "Initial new fixture failures were missing Idempotency-Key and a wrong smokeCase Run argument; corrected without weakening product checks."
+  ],
+  "recordedAt": "2026-10-04T06:11:06.936283+00:00",
+  "sourceHashes": {
+    "docs/build_contracts.py": "e9533143a35a79d7f5871b75d88eb1a1ea480bff1cf8d395a32550f84f25f0ff",
+    "apps/api/src/routes/savedCases.ts": "cfa3ae2dc4c271342a0b265e3a72e035e42e4b54f656337e40cd8285e9b98282",
+    "apps/api/test/t10-saved-cases.test.mjs": "b261e16dead5d8e70f7bd3ccfc540b4eee5a724d9d44bed4a6967e5708381826",
+    "packages/storage/migrations/007_p1_saved_cases.sql": "5d858f5b86e19cbdb671926a03340b14d3052afb7fcc092b1449563145b21b1e",
+    "packages/storage/migrations/008_saved_case_review_previews.sql": "abd7ae85b2c9bad82d55403f3912a0124c046a8a5faa84f7a0e19b43d66ed5d6"
+  },
+  "remainingT10Containers": []
+}

@@ -1,0 +1,118 @@
+{
+  "at": "2026-10-07T11:14:32.293443+00:00",
+  "rootIndependent": true,
+  "acceptedLocally": true,
+  "scope": "Existing internal HTTP action-result proof/ownership/atomic record/idempotency/ledger only; no auth execution bridge",
+  "originalCounterexamples": {
+    "failed": 3,
+    "report": "T10-INTERNAL-ACTION-ROOT-0975c6ea-dad1-4cff-9082-a3e989fa0a00.json"
+  },
+  "finalValidation": {
+    "pgHttpTestsPassed": 18,
+    "runtimeLedgerWorkerAuthRegressionPassed": 55,
+    "t06ApiRegressionPassed": 14,
+    "builds": [
+      "orchestrator",
+      "api"
+    ],
+    "eslint": "passed",
+    "diffCheck": "passed"
+  },
+  "evidence": [
+    "T10-internal-action-controller-pg-corrected.log",
+    "T10-internal-action-controller-runtime-final.log",
+    "T10-internal-action-controller-t06-regression.log",
+    "T10-INTERNAL-ACTION-RESULT-aa17fcbf-6fc8-48e4-b2b4-dd576551481a.json",
+    "T10-INTERNAL-ACTION-ROOT-9ec9bd4a-8b14-4a44-aadd-f6ce7f68ab0f.json",
+    "T06-api-revalidation-32ae7c05.json"
+  ],
+  "fixedBehavior": [
+    "Caller worker/token/fencing/context headers required; no current-DB proof substitution",
+    "Current lease and resolved intent/Step ownership validated inside shared atomic recorder",
+    "Same complete payload is idempotent; different payload conflicts; opaque client hash and raw summary bind only server fingerprint",
+    "Evidence ownership and fixed Step metadata enforced; snapshot not accepted from this DTO",
+    "Reservation settles and action counter charges once; cancelled/unknown never reclassified as success",
+    "Step/event summary fixed by server; arbitrary raw summary not persisted"
+  ],
+  "rootCorrections": [
+    "Internal completeAction opted into getApiValidator, removing API-load exception",
+    "Removed stale-declaration coordinator type cast after orchestrator rebuild",
+    "Context-change fixture uses real messages API/version advancement; no weakened database invariant",
+    "Root budget assertion corrected reported usage source to settled reservation status"
+  ],
+  "failureLogsRetained": true,
+  "resourceChecks": [
+    {
+      "report": "T10-INTERNAL-ACTION-RESULT-aa17fcbf-6fc8-48e4-b2b4-dd576551481a.json",
+      "cleanup": {
+        "apiClosed": true,
+        "removeStatus": 0,
+        "containerAbsent": true,
+        "volumes": [
+          {
+            "id": "48438ba793438acc17547cae58032f80f4f52e209e57d3d109fa433c0160c58e",
+            "absent": true
+          }
+        ],
+        "credentialsAbsent": true,
+        "pgPortClosed": true,
+        "apiPortClosed": true
+      }
+    },
+    {
+      "report": "T10-INTERNAL-ACTION-ROOT-9ec9bd4a-8b14-4a44-aadd-f6ce7f68ab0f.json",
+      "cleanup": {
+        "apiClosed": true,
+        "removeStatus": 0,
+        "containerAbsent": true,
+        "volumes": [
+          {
+            "id": "c8d01941c49dff18f3ee9ae6b574acc616fb96fb3a413d0c324e179f8d032983",
+            "absent": true
+          }
+        ],
+        "credentialsAbsent": true,
+        "pgPortClosed": true,
+        "apiPortClosed": true
+      }
+    },
+    {
+      "report": "T06-api-revalidation-32ae7c05.json",
+      "cleanup": {
+        "apiClosed": true,
+        "fixtureExited": true,
+        "removeStatus": 0,
+        "containerAbsent": true,
+        "volumesAbsent": [
+          {
+            "id": "f16531fdff9e1a86047cba49388f2235e4cb60d05f49bb36a85ed9f48a42904f",
+            "absent": true
+          }
+        ],
+        "credentialsRemoved": true,
+        "baselineUnchanged": true
+      },
+      "ownedPortsRecheckedClosed": [
+        33124,
+        49843,
+        49845
+      ]
+    }
+  ],
+  "retainedResources": "Evidence/repros kept; pre-existing volume79e6b62585a476cb1d73128a4304fe0556d3526fda92d40302434fde82407472 retained; no test containers remain",
+  "sourceSha256": {
+    "apps/api/src/routes/internal.ts": "a4e4704acf396e5e45a675d3e862aee54a11b25a8420f24ca9a832bfc95ca55d",
+    "packages/orchestrator/src/core.ts": "357bc4d558089ffb344c3ffe73bb8c921cdee9c8b99402ef0c64694b00c6a5c0",
+    "apps/api/test/t10-internal-action-result.test.mjs": "03b3a68435472ff49b0134c9501d7cb1e563a4e6571a44f3ebfa70c72ad426a1",
+    "apps/api/test/api.test.mjs": "8806f446ba3e2ac84c2925a6dd7105f81ee6dd402dc4ec6dbdd78636e8b559ad",
+    "docs/validation-results/T10-internal-action-controller-repro.mjs": "94c2ce894c7d85c880fa715b5b8302d0cd307c7082539546e558f3a1b93c3ded"
+  },
+  "notVerified": [
+    "Full AUTH-4C/session/credential/capture/import/OTP/exclusive implementation",
+    "Real browser or worker-entry",
+    "Latest supplier model release acceptance",
+    "Full P0/P1 release"
+  ],
+  "browserPaused": true,
+  "P0Passed": false
+}

@@ -1,0 +1,61 @@
+{
+  "rootIndependent": true,
+  "counts": {
+    "definitions": 135,
+    "operations": 85,
+    "publicOperations": 77
+  },
+  "results": [
+    {
+      "name": "unbound vars/env template schema admitted as draft input",
+      "passed": true
+    },
+    {
+      "name": "operator input cannot supply approval state or reviewer metadata",
+      "passed": true
+    },
+    {
+      "name": "invalid, traversal and control-character module names rejected",
+      "passed": true
+    },
+    {
+      "name": "version request stays inside PostgreSQL integer bounds",
+      "passed": true
+    },
+    {
+      "name": "legacy snapshot shape retained and management metadata can be unknown",
+      "passed": true
+    },
+    {
+      "name": "preview binds a composite target and document SHA instead of UUID versionId",
+      "passed": true
+    },
+    {
+      "name": "module path has encoded-name string, bounded numeric version and UUID project",
+      "passed": true
+    },
+    {
+      "name": "five operations included in the canonical 77-public operation surface",
+      "passed": true
+    }
+  ],
+  "backendImplemented": false,
+  "uiImplemented": false,
+  "browserExecuted": false,
+  "P0Passed": false,
+  "at": "2026-10-06T00:45:23.264538+00:00",
+  "checks": {
+    "generatedContractBuild": "passed",
+    "canonicalContractEngineeringCheck": "passed",
+    "compilerReplayLocator": 27,
+    "diffCheck": "passed"
+  },
+  "sourceSha256": {
+    "docs/build_contracts.py": "e45d36cb5890d0c2684983e98d5b0f52eabef55978f118a7488f033f8468e9cb",
+    "docs/contracts/domain.schema.json": "7d6fc85f2ff8bf0e6d431b86879c39c0f83e2385893ae55b8dc07192f6877d8f",
+    "docs/contracts/openapi.json": "2528565046eeefee3e0b107acf3bdea58d4e0104b5dc8562831851c79d328957",
+    "packages/contracts/src/generated/types.ts": "be6838ef1716f0c6ae6b37338aec55e47371ac39a97ba9b3ea4d902f9ef18d83",
+    "packages/contracts/src/generated/manifest.json": "f478aad20694110a2f0e8da7ae931860c76d428a77f479a74119e458350c3cc6"
+  },
+  "note": "Eight generated-contract boundary checks only. Module endpoints/010 and UI implementation are independently pending."
+}

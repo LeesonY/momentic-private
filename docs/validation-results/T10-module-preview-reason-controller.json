@@ -1,0 +1,11 @@
+{
+  "rootIndependent": true,
+  "case": "reason binding uses exact preview text",
+  "passed": false,
+  "actual": {
+    "valid": true,
+    "issues": []
+  },
+  "scope": "Actual product helper; no browser/network",
+  "P0Passed": false
+}

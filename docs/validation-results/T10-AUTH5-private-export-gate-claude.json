@@ -1,0 +1,115 @@
+{
+  "batch": "T10-AUTH5 private export gate (wF:p4, Claude continued grok work)",
+  "scope": "Pure Node, compiled actual source, synthetic primitives and an explicitly labeled Fake Runtime gate. No browser, no Playwright, no worker-entry, no provider, no deploy.",
+  "sourceSha256": {
+    "packages/browser/src/private-auth.ts": "a8de6fe8858c839e6ac1ad5bef7c74fb26fc7880cf7b94a69341e79b99a17ee3",
+    "packages/browser/test/private-auth.test.mjs": "d41d70d3e4d886b4c302f753cc95cc694f2f8353efd77c9d619e3f40f926f899",
+    "packages/browser/src/index.ts": "7fa29bfc027b852fa03cfb8a55189bc07e8b090632e135f862de94ee31d0dede"
+  },
+  "commands": [
+    "cd packages/browser && ./node_modules/.bin/tsc -p tsconfig.build.json   # = pnpm --filter @localqa/browser build",
+    "cd packages/browser && ./node_modules/.bin/tsc --noEmit -p tsconfig.json   # = pnpm --filter @localqa/browser typecheck",
+    "cd packages/browser && node --test test/private-auth.test.mjs",
+    "cd packages/browser && node --test test/*.test.mjs",
+    "./node_modules/.bin/eslint packages/browser/src packages/browser/test   # = pnpm lint 的 browser 子集"
+  ],
+  "falsifiedInterface": {
+    "binding": "AuthSessionBinding gains status: AuthSessionStatus; construction requires status === \"active\"",
+    "grant": "AuthExportGrant = frozen binding tuple + grantId + deadline + kind: \"capture_auth_state\" + private captureTicket; unknown keys rejected",
+    "gate": "AuthExecutionGate.authorizeExport({binding, grant}) is required; missing gate/method refuses at construction (no default-allow)",
+    "export": "exportAuthState(grant, signal?): freeze/copy -> shape -> abort -> tuple (incl. expiresAt) -> deadline -> synchronous grantId claim -> await gate -> active/deadline re-check -> exportState -> active/deadline re-check -> approved-state validation",
+    "noLegacyExport": "the old no-argument exportAuthState path is removed, not deprecated",
+    "ticketHandling": "captureTicket crosses only the gate boundary; it is registered as redaction material so it cannot appear in a later snapshot or error",
+    "sharedGrantLedger": "executeAuth and exportAuthState share one grantId ledger, so an id consumed once cannot be replayed through either path"
+  },
+  "privatePortCases": [
+    {
+      "name": "four actions call only injected primitives and fill redacts every slot",
+      "passed": true
+    },
+    {
+      "name": "prepare_state validates and does not navigate",
+      "passed": true
+    },
+    {
+      "name": "repeat and overlap of one grant do not execute twice",
+      "passed": true
+    },
+    {
+      "name": "gate failure, abort, deadline, and tampering cause zero side effects",
+      "passed": true
+    },
+    {
+      "name": "invalid approved state does not prepare or navigate",
+      "passed": true
+    },
+    {
+      "name": "async gate sees a frozen permit and later snapshots keep prior secrets out",
+      "passed": true
+    },
+    {
+      "name": "missing gate, missing export gate, and non-active binding are refused at construction",
+      "passed": true
+    },
+    {
+      "name": "export needs a well-formed grant, the exact tuple, a live deadline and no abort",
+      "passed": true
+    },
+    {
+      "name": "a capture grant exports once, only through the fake runtime gate",
+      "passed": true
+    },
+    {
+      "name": "duplicate and overlapping exports of one grant never run twice",
+      "passed": true
+    },
+    {
+      "name": "a grant mutated during a blocked gate cannot change what is approved or exported",
+      "passed": true
+    },
+    {
+      "name": "gate rejection, abort, expiry and close during a capture return no material",
+      "passed": true
+    },
+    {
+      "name": "the private ticket never appears in a returned snapshot or error",
+      "passed": true
+    },
+    {
+      "name": "export in flight rejects after close, abort, or expiry",
+      "passed": true
+    },
+    {
+      "name": "grant accessors, cycles, and non-plain grants are rejected without running getters",
+      "passed": true
+    }
+  ],
+  "privatePortSummary": {
+    "passed": 15,
+    "failed": 0
+  },
+  "approvedStateRegression": {
+    "file": "packages/browser/test/auth-state.test.mjs",
+    "passed": 20,
+    "failed": 0
+  },
+  "packageSuite": {
+    "tests": 41,
+    "passed": 41,
+    "failed": 0
+  },
+  "checks": {
+    "build": "pass",
+    "typecheck": "pass",
+    "eslint": "pass (no output)",
+    "prettier": "not run"
+  },
+  "notProven": [
+    "no real Runtime capture-ticket CAS, no Coordinator/Worker wiring, no ciphertext submission: the positive path is a Fake Runtime gate only",
+    "no real browser/session.ts integration; session.ts is untouched",
+    "no service-side guarantee that a ticket is single-use or that the gate verifies the binding from the database",
+    "Ego/real-browser verification stays paused per the batch decision"
+  ],
+  "browserPaused": true,
+  "P0Passed": false
+}

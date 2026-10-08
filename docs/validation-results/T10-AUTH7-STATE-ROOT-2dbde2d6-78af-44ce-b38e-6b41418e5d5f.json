@@ -1,0 +1,47 @@
+{
+  "task": "T10-AUTH7-STATE-ROOT",
+  "tag": "2dbde2d6-78af-44ce-b38e-6b41418e5d5f",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-state-root-SPavl3",
+  "tests": [
+    {
+      "name": "Root generic finish cannot bypass the dedicated auth finish after capture",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "The \"policyError\" validation function is expected to return \"true\". Received false\n\nCaught error:\n\nStorageError: SERVICE_UNAVAILABLE"
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "e49343285957a0ae22487010f9cb067f6003027e95038a894f71930fa3bd8740",
+    "volumes": [
+      "784bf1ad89eb3cf3f839e27769a6cbf00dbfb0cec70b0ab3459525807e2d1f63"
+    ],
+    "pgPort": 33210,
+    "apiPort": 58218,
+    "apiPid": 26550,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "784bf1ad89eb3cf3f839e27769a6cbf00dbfb0cec70b0ab3459525807e2d1f63",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 auth material, success gates, capture grants, canonical keyed HMAC and encrypted run auth state only",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 1
+  }
+}

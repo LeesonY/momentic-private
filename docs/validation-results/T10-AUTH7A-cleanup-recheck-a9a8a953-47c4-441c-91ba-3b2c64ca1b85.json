@@ -1,0 +1,256 @@
+{
+  "log": "docs/validation-results/T10-AUTH7A-repair-44724AAC-8C15-4626-99D6-E10CDEAD662A.log",
+  "checks": [
+    {
+      "report": "T10-AUTH-STATE-CAPTURE-9bffe76b-a43a-4148-8c62-cd42b9b6d597.json",
+      "containerId": "ef8e74a51d73cf4df070f8d35b83cfe463a7a269d1abbc85fc45cca5a97d48e3",
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "4754a64b4f4525af9deaca4907751a290b92f52d6004206947d86f9dad71a661",
+          "absent": true
+        }
+      ],
+      "ports": [
+        {
+          "port": 33242,
+          "closed": true
+        },
+        {
+          "port": 51876,
+          "closed": true
+        }
+      ],
+      "secretChecks": [
+        {
+          "name": "pg.env",
+          "absent": true
+        },
+        {
+          "name": "kek.json",
+          "absent": true
+        },
+        {
+          "name": "root-rotated-kek.json",
+          "absent": true
+        }
+      ],
+      "reportedCleanup": {
+        "apiClosed": true,
+        "removeStatus": 0,
+        "containerAbsent": true,
+        "volumes": [
+          {
+            "id": "4754a64b4f4525af9deaca4907751a290b92f52d6004206947d86f9dad71a661",
+            "absent": true
+          }
+        ],
+        "credentialsAbsent": true,
+        "pgPortClosed": true,
+        "apiPortClosed": true
+      },
+      "modelTransportCalls": 0
+    },
+    {
+      "report": "T10-AUTH7-STATE-ROOT-ba8a60ca-9880-42e9-841d-4336df815de5.json",
+      "containerId": "70164f99127c6656b7de2cf1a93c10bf0e28a608cc91610af07a7f81f0a922e3",
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "ea44ff93bc2e43bf2e49d39d0ac08761f506764ec9f00dc9b8fe3c8276a3b8cc",
+          "absent": true
+        }
+      ],
+      "ports": [
+        {
+          "port": 33243,
+          "closed": true
+        },
+        {
+          "port": 51948,
+          "closed": true
+        }
+      ],
+      "secretChecks": [
+        {
+          "name": "pg.env",
+          "absent": true
+        },
+        {
+          "name": "kek.json",
+          "absent": true
+        },
+        {
+          "name": "root-rotated-kek.json",
+          "absent": true
+        }
+      ],
+      "reportedCleanup": {
+        "apiClosed": true,
+        "removeStatus": 0,
+        "containerAbsent": true,
+        "volumes": [
+          {
+            "id": "ea44ff93bc2e43bf2e49d39d0ac08761f506764ec9f00dc9b8fe3c8276a3b8cc",
+            "absent": true
+          }
+        ],
+        "credentialsAbsent": true,
+        "pgPortClosed": true,
+        "apiPortClosed": true
+      },
+      "modelTransportCalls": 0
+    },
+    {
+      "report": "T10-AUTH6-ACTIONS-ROOT-40fe72bb-6f27-4b7d-89ef-d64c8898be15.json",
+      "containerId": "3b43197966f5bcdcbb62c818998281eba5a32df7fa7bba78c85ed97b223dca76",
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "814dc3cd9a67627d2fe0b6cd01734ce74ed820f00331124555306e268ebebf92",
+          "absent": true
+        }
+      ],
+      "ports": [
+        {
+          "port": 33246,
+          "closed": true
+        },
+        {
+          "port": 52237,
+          "closed": true
+        }
+      ],
+      "secretChecks": [
+        {
+          "name": "pg.env",
+          "absent": true
+        },
+        {
+          "name": "kek.json",
+          "absent": true
+        },
+        {
+          "name": "root-rotated-kek.json",
+          "absent": true
+        }
+      ],
+      "reportedCleanup": {
+        "apiClosed": true,
+        "removeStatus": 0,
+        "containerAbsent": true,
+        "volumes": [
+          {
+            "id": "814dc3cd9a67627d2fe0b6cd01734ce74ed820f00331124555306e268ebebf92",
+            "absent": true
+          }
+        ],
+        "credentialsAbsent": true,
+        "pgPortClosed": true,
+        "apiPortClosed": true
+      },
+      "modelTransportCalls": 0
+    },
+    {
+      "report": "T10-AUTH-ACTIONS-e1e10577-ab63-4a32-a2af-79382e9e92b2.json",
+      "containerId": "1f438e4264b760c8b2659f1ba844d71c52f44ef4eeb822c0e950f73e8464397f",
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "9aab555a3ae26cafd9329e42151a974dd39af4ef27e4f48706e542dd58a0599f",
+          "absent": true
+        }
+      ],
+      "ports": [
+        {
+          "port": 33245,
+          "closed": true
+        },
+        {
+          "port": 52234,
+          "closed": true
+        }
+      ],
+      "secretChecks": [
+        {
+          "name": "pg.env",
+          "absent": true
+        },
+        {
+          "name": "kek.json",
+          "absent": true
+        },
+        {
+          "name": "root-rotated-kek.json",
+          "absent": true
+        }
+      ],
+      "reportedCleanup": {
+        "apiClosed": true,
+        "removeStatus": 0,
+        "containerAbsent": true,
+        "volumes": [
+          {
+            "id": "9aab555a3ae26cafd9329e42151a974dd39af4ef27e4f48706e542dd58a0599f",
+            "absent": true
+          }
+        ],
+        "credentialsAbsent": true,
+        "pgPortClosed": true,
+        "apiPortClosed": true
+      },
+      "modelTransportCalls": 0
+    },
+    {
+      "report": "T10-auth-runtime-5bf662be.json",
+      "containerId": "73199e200e1c524102ea2c8ea1f87ce643358db6d67e1367c032be08a74dcbcf",
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "069a58861df5182f841ce7154cdc14e9733bf8c733c42a7fbbc29a33714a8f3b",
+          "absent": true
+        }
+      ],
+      "ports": [
+        {
+          "port": 33247,
+          "closed": true
+        },
+        {
+          "port": 52522,
+          "closed": true
+        }
+      ],
+      "secretChecks": [],
+      "reportedCleanup": {
+        "removeStatus": 0,
+        "containerAbsent": true,
+        "volumesAbsent": [
+          {
+            "id": "069a58861df5182f841ce7154cdc14e9733bf8c733c42a7fbbc29a33714a8f3b",
+            "absent": true
+          }
+        ],
+        "secretDirectoryRemoved": true
+      }
+    },
+    {
+      "containerName": "localqa-g3d4-pg-7ba221c0",
+      "containerAbsent": true,
+      "ports": [
+        {
+          "port": 33248,
+          "closed": true
+        }
+      ],
+      "scope": "Exact logged g3d container/PG port; fixture itself deletes its volume/temp directory"
+    }
+  ],
+  "passed": true,
+  "limitations": [
+    "FakeBrowser fixture does not emit its exact resource IDs; its teardown is verified only by test completion, not independent exact-volume reinspection."
+  ],
+  "P0": false,
+  "realBrowser": false,
+  "realProviderCalls": 0
+}

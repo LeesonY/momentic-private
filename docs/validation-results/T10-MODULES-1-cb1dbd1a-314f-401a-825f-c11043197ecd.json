@@ -1,0 +1,88 @@
+{
+  "task": "T10-MODULES",
+  "rootIndependent": true,
+  "tag": "cb1dbd1a-314f-401a-825f-c11043197ecd",
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-mod-z0pj8f",
+  "tests": [
+    {
+      "name": "valid module with slash in name: encoded route %2F roundtrip, review approval and list pagination",
+      "passed": true
+    },
+    {
+      "name": "RBAC matrix across all 5 endpoints: operator creates draft, owner reviews, viewer read-only, cross-project 404 zero existence leaks",
+      "passed": true
+    },
+    {
+      "name": "invalid UUID, numbers, and templates return 422 without SQL 503 error; dot/dot-dot segment prohibited",
+      "passed": true
+    },
+    {
+      "name": "cross-actor token hidden (409), replay protection, TTL expiry and content tampering",
+      "passed": true
+    },
+    {
+      "name": "concurrency: race on initial creation and expectedVersion optimistic lock",
+      "passed": true
+    },
+    {
+      "name": "real migration 001-009 -> seed approved -> migration 010 verifies null audit metadata without backfilling timestamps",
+      "passed": true
+    },
+    {
+      "name": "module recursion depth: 8 invocations legal with real compileRegression, 9th rejected; static step limit 100",
+      "passed": true
+    },
+    {
+      "name": "legal unbound vars and env template registers and approves; execution without variable rejects; illegal expressions in locator/criteria/arguments return 422 zero persistence",
+      "passed": true
+    },
+    {
+      "name": "direct operator INSERT approved rejected by RLS/trigger; owner mutation of approved document/metadata rejected by immutable guard",
+      "passed": true
+    },
+    {
+      "name": "full vertical workflow: module draft -> review approve -> saved case references module -> regression run freezes binding",
+      "passed": true
+    },
+    {
+      "name": "Root: contract-valid uppercase UUID path preserves module approval identity",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"code\":\"VERSION_CONFLICT\",\"message\":\"VERSION_CONFLICT\",\"requestId\":\"b481d830-f5a6-4ed9-b1aa-0a123ae59aaf\"}\n\n409 !== 200\n"
+    }
+  ],
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "0735a18fb8d31eee71c9663c30b46fe0089239cc110d93f97e18b3165a01a7ea",
+    "volumes": [
+      "f12f549d934f5c27570b2c7604c1fb39e13dedd0f06ea46a8856fdde303f4197"
+    ],
+    "pgPort": 33087,
+    "apiPort": 55237,
+    "apiPid": 74685,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "f12f549d934f5c27570b2c7604c1fb39e13dedd0f06ea46a8856fdde303f4197",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "PG/API admission only; no browser, Worker.once, worker-entry or real model",
+    "Full compiler integration verified statically and via regression binding",
+    "P0=false; FakeBrowser/real model acceptance remains unverified"
+  ],
+  "summary": {
+    "passed": 10,
+    "failed": 1
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "task": "T10-INTERNAL-ACTION-ROOT",
+  "tag": "0975c6ea-dad1-4cff-9082-a3e989fa0a00",
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-life-mjcUwZ",
+  "tests": [
+    {
+      "name": "Root: invalid caller token and worker cannot write an action result",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "A nonempty token is not a validated current lease"
+    },
+    {
+      "name": "Root: a legitimate HTTP action result settles its reservation and records a hash",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'reserved'\n- 'reported'\n     ^\n"
+    },
+    {
+      "name": "Root: released proof and conflicting repeated result cannot overwrite a completed outcome",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Expected \"actual\" to be strictly unequal to: 200"
+    }
+  ],
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "42323b359ab88e90f77278f7b9b2a2783fa80927dc9bbe5a0355e49543a756d4",
+    "volumes": [
+      "91b424590073efab493223e4c4100107f9c33d3cbe2ad9893ae5418ce340a523"
+    ],
+    "pgPort": 33118,
+    "apiPort": 50153,
+    "apiPid": 3831,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "91b424590073efab493223e4c4100107f9c33d3cbe2ad9893ae5418ce340a523",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "PG/API admission only; no browser, Worker.once, worker-entry or real model",
+    "Independent counterexamples and isolated concurrency checks; conclusions only reflect assertions in this run",
+    "P0=false; FakeBrowser/real model acceptance remains unverified"
+  ],
+  "invalidProof": {
+    "status": 200,
+    "before": {
+      "outcome": "pending",
+      "result_hash": null,
+      "reservation_status": "reserved",
+      "charged": null,
+      "step_status": "running",
+      "step_summary": "Action intent persisted before execution"
+    },
+    "after": {
+      "outcome": "succeeded",
+      "result_hash": null,
+      "reservation_status": "reserved",
+      "charged": null,
+      "step_status": "succeeded",
+      "step_summary": "Owned synthetic result"
+    }
+  },
+  "validResult": {
+    "status": 200,
+    "after": {
+      "outcome": "succeeded",
+      "result_hash": null,
+      "reservation_status": "reserved",
+      "charged": null,
+      "step_status": "succeeded",
+      "step_summary": "Owned synthetic result"
+    }
+  },
+  "releasedConflict": {
+    "status": 200,
+    "before": {
+      "outcome": "succeeded",
+      "result_hash": null,
+      "reservation_status": "reserved",
+      "charged": null,
+      "step_status": "succeeded",
+      "step_summary": "Owned synthetic result"
+    },
+    "after": {
+      "outcome": "failed",
+      "result_hash": null,
+      "reservation_status": "reserved",
+      "charged": null,
+      "step_status": "failed",
+      "step_summary": "Conflicting owned synthetic result"
+    }
+  },
+  "summary": {
+    "passed": 0,
+    "failed": 3
+  }
+}

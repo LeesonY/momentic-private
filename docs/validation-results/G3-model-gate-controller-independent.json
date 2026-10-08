@@ -1,0 +1,43 @@
+{
+  "rootIndependent": true,
+  "cases": [
+    {
+      "flags": [],
+      "exitCode": 0,
+      "networkCallMade": false,
+      "readsCredential": false,
+      "injectedCases": 0
+    },
+    {
+      "flags": [
+        "--inject"
+      ],
+      "exitCode": 0,
+      "networkCallMade": false,
+      "readsCredential": false,
+      "injectedCases": 6
+    },
+    {
+      "flags": [
+        "--execute"
+      ],
+      "exitCode": 2,
+      "networkCallMade": false,
+      "readsCredential": false,
+      "injectedCases": 0
+    },
+    {
+      "flags": [
+        "--inject",
+        "--execute"
+      ],
+      "exitCode": 2,
+      "networkCallMade": false,
+      "readsCredential": false,
+      "injectedCases": 0
+    }
+  ],
+  "scope": "Safe preflight and injection only; no credential access or network",
+  "G3Passed": false,
+  "P0Passed": false
+}

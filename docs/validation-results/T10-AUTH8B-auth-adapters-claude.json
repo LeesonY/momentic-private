@@ -1,0 +1,138 @@
+{
+  "batch": "T10-AUTH8B real locator/criterion adapters + pre-navigation redaction priming",
+  "scope": "Pure Node: the real auth-adapters and evaluateTechnical source, the real AUTH-6 flow, the real AUTH-5/6B/7B modules and the real private port, over a labeled FakeSession, synthetic primitives, a labeled Fake RuntimeClient and labeled Fake services. No Playwright launch, no browser, no model call, no PG, no Worker.once wiring.",
+  "countsByFile": {
+    "auth-flow.test.mjs": {
+      "passed": 11,
+      "failed": 0
+    },
+    "auth-runtime.test.mjs": {
+      "passed": 7,
+      "failed": 0
+    },
+    "auth-services.test.mjs": {
+      "passed": 9,
+      "failed": 0
+    },
+    "auth-adapters.test.mjs": {
+      "passed": 6,
+      "failed": 0
+    },
+    "auth-redaction.test.mjs": {
+      "passed": 2,
+      "failed": 0
+    },
+    "private-auth.test.mjs (browser package, case list)": {
+      "passed": 17,
+      "failed": 0
+    }
+  },
+  "summary": {
+    "workerPassed": 35,
+    "workerFailed": 0,
+    "browserPackageRunner": "41/41 (unchanged total; the private-port file is one runner entry)",
+    "note": "Raw runner totals per file; flow/runtime/services cases were reported in earlier batches and are re-runs, not new coverage."
+  },
+  "newInThisBatch": {
+    "auth-adapters.test.mjs": [
+      "locator targets are rebased onto the snapshot the flow holds",
+      "missing, ambiguous, hidden and foreign targets keep stable codes",
+      "an optional OTP target is skipped only on the explicit absence signal",
+      "the criterion is frozen and evaluated by the real evaluateTechnical",
+      "a criterion swap or missing evidence blocks the flow without a capture",
+      "the adapter module has no model or browser-tool fallback"
+    ],
+    "auth-redaction.test.mjs": [
+      "the first observation after an auto-filled navigation carries no secret",
+      "a none profile never fetches material and never primes the port"
+    ],
+    "private-auth.test.mjs": [
+      "the first navigation cannot expose material the port was not told about",
+      "priming refuses malformed input without echoing it or running getters"
+    ]
+  },
+  "sourceSha256": {
+    "apps/worker/src/auth-adapters.ts": "e36639d156b924fadf0be2297b256e977c3f1cd3e349cea01808c79bdf25fed7",
+    "apps/worker/test/auth-adapters.test.mjs": "35e2325d3a688c5a680c278037fc989227ae5909fac7e49eeceab6a9f2867e63",
+    "apps/worker/test/auth-redaction.test.mjs": "ca79c724155d639421bb12fed9839e81bdfb2de6d95b0412f76ccc4230d9a515",
+    "apps/worker/src/auth-flow.ts": "9fdd275f5cdb2dbca11e9de4699a3f44187bd1ce2193264af7a7ae7081d1e5cf",
+    "apps/worker/test/auth-flow.test.mjs": "f958a6d43c12158460fb37799868e0158595a78fa2afd8504599951ea4386599",
+    "apps/worker/src/auth-runtime.ts": "fe9824810e151df14fed3c37932760f100465c39dd17cab183b8fb59729a3e55",
+    "apps/worker/src/auth-services.ts": "12fd53a0ab5238d69ce5ebd5588f8e8d9bffd4be697f99c98bb28c8e36cfabb5",
+    "packages/browser/src/private-auth.ts": "fe31ec214d8f2cf447856cf3f6363fd8fd318017c3dac551af97c0af319aa4f0",
+    "packages/browser/test/private-auth.test.mjs": "4e3bd804433b4d2854353e465b03c9dfba0fb06390cde0ef793a93f193ef81ae"
+  },
+  "changedSinceAUTH7B": [
+    "apps/worker/src/auth-adapters.ts (new)",
+    "apps/worker/test/auth-adapters.test.mjs (new)",
+    "apps/worker/test/auth-redaction.test.mjs (new)",
+    "apps/worker/src/auth-flow.ts (primeSensitiveValues call before the first effect)",
+    "packages/browser/src/private-auth.ts (new private primeSensitiveValues method)",
+    "packages/browser/test/private-auth.test.mjs (two new cases)"
+  ],
+  "redactionGap": {
+    "problem": "The flow fetched material before navigating, but the port only registered secrets at fill time, so the first snapshot after the navigation (already auto-filled) was returned unredacted.",
+    "fix": "PrivateAuthPort.primeSensitiveValues(values) plus one call in the form flow before any effect; the values stay in the port closure and are never a ToolCall or model-facing input.",
+    "strictness": [
+      "only a plain array of non-empty strings, at most 32 values of at most 4096 characters",
+      "accessors are rejected without being invoked; sparse arrays, subclassed arrays and non-arrays are refused",
+      "refused after close, and a rejected value is never echoed in the error"
+    ],
+    "negativeProof": "Removing the single primeSensitiveValues line from the flow makes the new end-to-end case fail (1/2): the first observation then carries the username and password.",
+    "coverage": [
+      "port level: unprimed navigation leaks the echoed credentials; primed navigation scrubs title, url (raw and percent-encoded), node name and node text",
+      "flow level: every recorded observation, the steps and the outcome are free of username/password while the fill primitive still receives them",
+      "none profile: zero material calls, zero priming, zero observations, zero primitives"
+    ]
+  },
+  "adapters": {
+    "compatibility": "AuthLocatorSession mirrors the real BrowserSession.resolveRegressionLocator signature; `NonNullable<BrowserSession[\"resolveRegressionLocator\"]> extends AuthLocatorSession[\"resolveRegressionLocator\"]` fails the build on drift.",
+    "negativeProof": "A deliberately wrong session port (locator: string) makes tsc fail with \"Type true is not assignable to type never\".",
+    "rebasing": "The session resolves against its own fresh snapshot, so the returned target is re-based onto the snapshot the flow holds; pageId must match and the node/frame must exist (and be visible) in that snapshot.",
+    "codes": [
+      "LOCATOR_NOT_FOUND -> null (the only explicit \"not present\" signal, used by the optional OTP step)",
+      "LOCATOR_NOT_UNIQUE -> TARGET_AMBIGUOUS",
+      "node hidden in the current snapshot -> TARGET_HIDDEN",
+      "node or page absent / foreign page -> TARGET_NOT_FOUND",
+      "unknown failure -> RESOLVER_ERROR, abort -> CANCELLED; none of them become null"
+    ],
+    "evaluator": [
+      "criteria are evaluated by the real evaluateTechnical over the frozen criterion; a swapped criterion is refused with VALIDATION_ERROR",
+      "observed reasons come from the real evaluator: \"Visible matching node observed\", \"Required owned evidence missing\", \"Locator oracle not implemented\", \"Truncated observation cannot prove absence\", \"Infrastructure/entry HTTP response blocks evaluation\"",
+      "no owned evidence => unknown, never a pass (the same condition Root hit in the PG probe)",
+      "the built module imports only @localqa/domain, @localqa/contracts and @localqa/browser: no model, agent, tool-runner or Playwright import"
+    ],
+    "discoveredConstraint": "CriterionResult.evidenceRefs items are contract-typed as uuid, so an owned evidence ref must be a UUID; a non-UUID ref is refused by the contract validator (constant VALIDATION_ERROR), never silently accepted."
+  },
+  "commands": [
+    "node_modules/.bin/tsc -p apps/worker/tsconfig.json            # worker build",
+    "node_modules/.bin/tsc --noEmit -p apps/worker/tsconfig.json   # worker typecheck",
+    "cd apps/worker && node --test test/auth-flow.test.mjs test/auth-runtime.test.mjs test/auth-services.test.mjs test/auth-adapters.test.mjs test/auth-redaction.test.mjs   # 35/35",
+    "node_modules/.bin/eslint apps/worker/src apps/worker/scripts apps/worker/test",
+    "cd packages/browser && ./node_modules/.bin/tsc -p tsconfig.build.json && node --test test/*.test.mjs   # 41/41",
+    "cd packages/browser && node test/private-auth.test.mjs   # 17/17 cases"
+  ],
+  "checks": {
+    "workerBuild": "pass",
+    "workerTypecheck": "pass",
+    "workerLint": "pass",
+    "workerPrettier": "pass",
+    "browserBuild": "pass",
+    "browserTypecheck": "pass",
+    "browserLint": "pass",
+    "browserSuite": "41/41"
+  },
+  "interfaceNotesForRoot": [
+    "The adapter needs an owned-evidence source to turn a would-be pass into passed; evidence refs must be UUIDs (e.g. the redacted artifact id the fixture adds).",
+    "createAuthAdapters pins one frozen criterion; the flow must pass that same criterion (form mode always takes profile.formConfig.successCriterion).",
+    "A configured otpTarget that is absent rather than ambiguous: the real locator reports a 0-match as LOCATOR_NOT_UNIQUE, so it currently blocks as TARGET_AMBIGUOUS instead of skipping. Only LOCATOR_NOT_FOUND returns null.",
+    "The private port now exposes primeSensitiveValues; a caller that fetches material without priming repeats the original leak, so the Worker wiring must keep the priming inside the flow."
+  ],
+  "notImplemented": [
+    "no finishAuth / import / OTP / handoff; a captured state still cannot be finished",
+    "no Worker.once / tick wiring; Stage.auth stays unwired",
+    "no PG, no real Coordinator path, no Playwright launch in this batch"
+  ],
+  "browserPaused": true,
+  "P0Passed": false
+}

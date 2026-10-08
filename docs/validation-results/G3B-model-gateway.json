@@ -1,0 +1,154 @@
+{
+  "title": "G3-B 完整响应正文不再在解析前截断（本地假传输，不是 G3/P0 放行）",
+  "date": "2026-10-04",
+  "task": "G3-B",
+  "controller": "wF:p1",
+  "claims": {
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalledThisRound": false,
+    "postgresUsed": false,
+    "playwrightLaunched": false,
+    "dockerUsed": false
+  },
+  "preserved": {
+    "docs/validation-results/G3-model-minimal.json": "1ed2904b1beda6d68494cd5db37be8d2758aa69a9e5605d0be066e25baa14469",
+    "docs/validation-results/G3A-model-gateway.json": "82e8e300c1c37c9a5aa4de5a92c5e94e09fbbb128d14f5e058fa86f5bc3f70ae",
+    "docs/validation-results/G3A-independent-review.json": "4e3a79b0111876b179a96c43352f005dee386c51951028a8784e34375da23cca",
+    "docs/validation-results/G3A-independent-T04.json": "9012324e7b33dccf506aa2321dd75e878af52f8b2308160c82815fb7371386ca",
+    "note": "以上四个文件本轮哈希未变。"
+  },
+  "host": {
+    "node": "v26.3.0",
+    "platform": "darwin",
+    "packageManager": "npx --yes pnpm@10.34.0",
+    "note": "设计基线是 Node 24。本轮没有在 Node 24 上重跑。"
+  },
+  "checks": [
+    {
+      "name": "scoped_lint",
+      "command": "./node_modules/.bin/eslint packages/model-gateway/src packages/model-gateway/scripts",
+      "cwd": "仓库根目录",
+      "result": "passed"
+    },
+    {
+      "name": "model_typecheck",
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/model-gateway typecheck",
+      "cwd": "仓库根目录",
+      "result": "passed"
+    },
+    {
+      "name": "local_gateway_suite",
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/model-gateway test",
+      "cwd": "仓库根目录",
+      "result": "passed",
+      "exitCode": 0,
+      "tests": 29,
+      "pass": 29,
+      "fail": 0,
+      "durationMs": 346.211167,
+      "note": "裸 pnpm 不在 PATH。脚本会构建 model-gateway 与 agents，再跑 scripts/verify.mjs。verify.mjs 覆写 docs/validation-results/T04-model.json。"
+    }
+  ],
+  "t04": {
+    "rewrittenByHarness": true,
+    "passed": 46,
+    "blocked": 1,
+    "unverified": 6,
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalled": false,
+    "productImplemented": false,
+    "node": "v26.3.0",
+    "evidenceSha256": "59798af457323130e45ce14027b6b8a1bba8a8aaf77b6124a98e129ee15580ff",
+    "productImplementedNote": "productImplemented 仍由 verify.mjs 写成 false。model-gateway 源码有改动，这份 T04 不表示 G3 或 P0 通过。"
+  },
+  "adapter": {
+    "version": "openai-compatible.2",
+    "previous": "openai-compatible.1",
+    "diagnosticSampleChars": 2000,
+    "responseCharLimit": 65536
+  },
+  "fileScope": {
+    "changed": [
+      "packages/model-gateway/src/adapter.ts",
+      "packages/model-gateway/src/openai.ts",
+      "packages/model-gateway/src/gateway.ts",
+      "packages/model-gateway/src/index.ts",
+      "packages/model-gateway/scripts/verify.mjs",
+      "docs/validation-results/T04-model.json",
+      "docs/validation-results/G3B-model-gateway.json"
+    ],
+    "notModified": [
+      "docs/validation-results/G3-model-minimal.json",
+      "docs/validation-results/G3A-model-gateway.json",
+      "docs/validation-results/G3A-independent-review.json",
+      "docs/validation-results/G3A-independent-T04.json",
+      "docs/contracts",
+      "packages/storage",
+      "apps/web",
+      "packages/orchestrator",
+      "packages/agents",
+      "apps/api",
+      "apps/worker",
+      "packages/model-gateway/scripts/probe-live.mjs"
+    ]
+  },
+  "behavior": {
+    "parse": "HTTP 正文按字符读到 OPENAI_RESPONSE_CHAR_LIMIT（65536）。未超限时 JSON.parse 使用完整正文，再取 model 与 usage。诊断字段 logSample 只保留前 2000 字符，网关 rawOutput 用它，解析不用它。",
+    "overLimit": "超过 65536 字符时停止读取。2xx 返回 errorCode BUDGET_EXCEEDED，raw 为空，usage 与 reportedModelId 为 null，不解析被截断的前缀。非 2xx 仍用状态码，同样不把截断正文当完成结果。超限不触发格式修复，也不是 fallback 的可重试结果。",
+    "nonJson": "上限内的非 JSON 200 仍把 errorCode 留空，以便既有的一次格式修复继续生效。修复后仍非法则 generateDecision 为 malformed / VALIDATION_ERROR，不接受为决策。",
+    "kept": "脱敏、预算估算、空输出不填 0、已批准 fallback 只在 rate_limited 或 timeout 时使用。配置模型仍写在请求体，响应 model 只记入 reportedModelId。"
+  },
+  "localCases": [
+    {
+      "id": "g3b.long-envelope",
+      "bodyChars": 2489,
+      "noteChars": 2300,
+      "usageFieldIndex": 2430,
+      "asserted": "本地 HTTP 200。前 2000 字符不是合法 JSON。adapter.raw 为 2489，logSample 为 2000，errorCode 为 null，reportedModelId 为 deepseek-flash，usage 为 prompt 11 / completion 100000000。generateDecision 为 ok，modelId 仍是 deepseek-chat，usageSource 为 reported，data.note 长度为 2300，adapterVersion 为 openai-compatible.2，rawOutput 长度为 2000 且不能 JSON.parse。completion_tokens 用了 9 位数字，只为把总长度对齐到复现的 2489，并使 usage 落在旧截断点之后。"
+    },
+    {
+      "id": "g3b.non-json",
+      "asserted": "2500 个 x 加前缀，长于 2000。adapter.raw 等于完整正文，usage 与 reportedModelId 为 null。网关两次调用（一次修复），结果 malformed / VALIDATION_ERROR，data 为 null，usageSource 不是 reported，fallbackUsed 为 false。rawOutput 是两段 2000 字符样本。"
+    },
+    {
+      "id": "g3b.http-error-sample",
+      "asserted": "3000 字符的 HTTP 400。errorCode 为 VALIDATION_ERROR，不依赖正文能解析。raw 保留 3000，logSample 与 rawOutput 为 2000。一次调用，data 为 null，不进入修复。"
+    },
+    {
+      "id": "g3b.over-limit",
+      "asserted": "正文长度 65537。前 65536 字符本身是带 usage 的合法 JSON，再多一个字符。adapter errorCode 为 BUDGET_EXCEEDED，raw 为空，usage 与 reportedModelId 为 null，logSample 不能当 JSON 解析。网关一次调用，模型仍是 deepseek-chat。已加载且已批准的 fallback 没有被调用。outputTokens 为 null，repairCount 为 0。"
+    }
+  ],
+  "wiringSuggestion": {
+    "note": "只是增量建议。本轮没有改契约、orchestrator、agents、API、worker 或 ArtifactStore。",
+    "profileResponseFormat": {
+      "contract": "在 ModelProfile 与 ModelProfileCreate 增加可选 responseFormat，enum 为 json_schema、json_object、native_tools。不要放进 required。未写的旧剖面继续表示网关默认 json_schema。不要把它塞进只有三个布尔值的 ModelCapabilities。",
+      "callSite": "packages/orchestrator/src/model.ts 的 profile() 把 document.responseFormat 抄到交给 createGateway 的 GatewayProfile。DeepSeek 持久化值应为 json_object。apps/api/src/index.ts 约第 55 行和 apps/worker/test/integration.test.mjs profile() 约第 67 行在表示该提供方时同样设置。在契约落地前，这些调用点只能在内存剖面上显式赋值。"
+    },
+    "imageResolver": {
+      "gatewayHook": "createGateway({ resolveArtifact(artifactId) }) 仍只接收 artifactId。调用方用闭包带上 projectId 与 runId，不要把 ArtifactStore.get 直接当 resolver。",
+      "store": "ArtifactStore.get(projectId, runId, artifactId) 返回 Buffer。",
+      "callSite": "packages/orchestrator/src/model.ts 目前把 approvedImageIds 写成 []。应改为本次租约里已批准的图片 artifact id。resolver 先核对 id 属于该 project 与 run，再取字节。",
+      "gap": "Artifact 有 kind、bytes 计数和 contentUrl，没有 mediaType。网关只接受 image/png、image/jpeg、image/gif、image/webp 或 https URL。不能凭 kind=screenshot 猜测图片类型。contentUrl 只有已经是 https:// 时才能作为 { url }。字节路径要等契约有 mediaType，或上传侧另有已核对的类型；本轮不改契约。"
+    },
+    "toolParameters": {
+      "sites": [
+        "packages/agents/src/loop.ts 约第 70 行现在传 { type: object, additionalProperties: false }。",
+        "packages/orchestrator/src/model.ts 约第 289 行现在传 { type: object }。"
+      ],
+      "increment": "每个工具的 parameters 改为 docs/contracts/domain.schema.json ToolCall 里同名分支的 args。click 的 args 必须 required target，target 内联 NodeTarget（snapshotId、pageId 为 uuid，加 nodeId）。发给提供方的 schema 不能只留 $ref。网关仍只校验返回值，不改写出站 parameters。"
+    }
+  },
+  "unverified": [
+    "没有调用真实供应商。2489 字符包、非 JSON、400 和超限都是本地 Response。",
+    "probe-live.mjs 仍把打印样本截到 2000 字符。它不解析决策，本轮没改。",
+    "responseFormat 尚未写入 ModelProfile，orchestrator / API / worker 也未设置。",
+    "ArtifactStore 未接到 resolveArtifact。Artifact 仍无 mediaType。",
+    "agents 与 orchestrator 的 tool parameters 仍不是 ToolCall.args。",
+    "Node 24 未复跑。G3 与 P0 不放行。"
+  ],
+  "docker": "本任务未启动容器，未删除资源。docker ps -a 无容器。volume local 79e6b62585a476cb1d73128a4304fe0556d3526fda92d40302434fde82407472 不是本任务创建的，未删除。镜像仍在 localqa-web/api/worker/orchestrator:latest、node:24-bookworm-slim、postgres:18-alpine、mcr.microsoft.com/playwright:v1.63.0-noble，以及既有 hello-world:latest、nginx:1.27-alpine。未执行 docker volume prune。",
+  "ego": "未使用"
+}

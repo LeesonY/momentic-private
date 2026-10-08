@@ -1,0 +1,85 @@
+{
+  "task": "T10-C-independent-review",
+  "conclusion": "needs_changes",
+  "P0Passed": false,
+  "agentDeliveryAccepted": false,
+  "verified": [
+    {
+      "check": "generated_client_matches_openapi",
+      "command": "node apps/web/scripts/generateClient.mjs --check",
+      "result": "passed",
+      "operations": 70
+    },
+    {
+      "check": "typecheck",
+      "command": "npm --prefix apps/web run typecheck",
+      "result": "passed"
+    },
+    {
+      "check": "lint",
+      "command": "npm --prefix apps/web run lint",
+      "result": "passed"
+    },
+    {
+      "check": "production_build",
+      "command": "npm --prefix apps/web run build",
+      "result": "passed",
+      "asset": "index-C1mZC2X1.js"
+    },
+    {
+      "check": "malformed_SavedCasePage_rejected",
+      "method": "Import HttpApiClient in Node, replace fetch with a 200 invalid SavedCasePage response, assert rejection with VALIDATION_ERROR; restore fetch",
+      "result": "passed"
+    }
+  ],
+  "codeFindings": [
+    {
+      "id": "T10C-R2-01",
+      "issue": "Default health probe calls /health/live while API serves /api/v1/health/live; HTTPS target uses plaintext http.request; proxy Origin/Host alignment not verified."
+    },
+    {
+      "id": "T10C-R2-02",
+      "issue": "Script waits for AppHeader before logging in; unauthenticated App renders only LoginPage. Login input selectors do not match actual test IDs."
+    },
+    {
+      "id": "T10C-R2-03",
+      "issue": "Seed project is not selected. rowCount >= 0 is vacuous. Case ID is used as a slug selector, with arbitrary first-row fallback; missing real smoke seeds fall back to mock IDs."
+    },
+    {
+      "id": "T10C-R2-04",
+      "issue": "taskSlug is only reported, not used to isolate created case data. Existing seed cases can be edited/reviewed without baseline or cleanup ledger."
+    },
+    {
+      "id": "T10C-R2-05",
+      "issue": "URL redirection is reported as verification of Idempotency-Key/202 without network assertions; version presence does not establish document/hash immutability."
+    },
+    {
+      "id": "T10C-R2-06",
+      "issue": "Mock and real runs write the same evidence filenames."
+    }
+  ],
+  "unverified": [
+    "Real API UI flow",
+    "Browser UI checks independently rerun",
+    "Database immutability and review bindings",
+    "Worker approved DSL execution, fresh browser context, final report",
+    "Real cleanup of created test resources"
+  ],
+  "browserState": "Ego remains paused; independent checks used no browser.",
+  "testsDidNotContactRealModel": true,
+  "dispatch": {
+    "pane": "wF:p3",
+    "task": "T10-C targeted harness fixes",
+    "prompt": "T10-C 这轮独立审查：生成器 check、前端 typecheck/lint/build 及 HttpApiClient 对非法 SavedCasePage 返回 VALIDATION_ERROR 均由我实际复跑通过。真实联调脚本仍不验收，请仅修 apps/web 内下列有代码依据的缺口，保持 WAITING/未验证，不写「缺陷全部清零」：\n1. 默认 LOCALQA_API_URL 是 origin（5188），checkRealBackendHealth 却拼 /health/live；实际 API 是 /api/v1/health/live。统一 origin/API base URL 规范，URL 非法立即失败；代理现在总用 http.request，HTTPS 目标要正确支持或明确拒绝，不得发送明文到 443。代理保持 Cookie/CSRF/Origin/SSE 行为，当前 Host 改成 backend 会与浏览器 5199 Origin 产生 mismatch，需与同源配置对齐，不能通过去掉 Origin 绕过。\n2. 当前脚本先 wait mock-mode-indicator 才登录，但 App.tsx 未登录只返回 LoginPage、不渲染 header；登录必须先完成再断言 header。输入的真实 testid 是 login-username-input / login-password-input，不是 input-login-email / input-login-password；真实凭据从环境读取，不放命令行，不使用猜测默认密码。\n3. projectIdSeed 当前只校验存在、写到报告，没有选择 project-selector；真实断言 rowCount>=0 恒真。实际明确选中受控项目，核对请求 projectId；case detail testid 后缀是 slug 而 --case-id 给 ID，先准确取该 seed 的 slug。真实模式缺 case/run/smoke seeds 应退出2或明确跳过为未验证，禁止回退 mock IDs 或 first() 任意选一条。当前 smokeUrl 缺参数仍退回 case_mock_01/run_mock_001_completed，必须去掉该真实回退。\n4. taskSlug 目前仅写报告，不隔离实际保存/版本/审查的数据；已有 seed 的版本仍被修改，且没有基线或清理账本。将 seed 作为只读来源，测试新建带唯一 slug 的 SavedCase 后再编辑/审查；记录创建 ID 和修改前基线，只清理本任务资源。缺清理 API 就明确保留项和原因/主控独占 fixture DB 的拆除入口，不自称完成清理，不碰任意第一条用例。\n5. 回归步骤仅检查 URL，却声称已验证 Idempotency-Key 和 202。添加实际请求/响应断言，或去掉这两项未验证声明；worker 终态与报告仍单列未验证。不要把显示 v1/v2 当作 hash/document 不可变证明，要对照实际版本基线。\n6. mock/real、每次 taskSlug 的报告和截图目录分开保存，防止覆写验收材料；保留已有 T07 引用的历史证据。\n本轮只做代码和本地质量/HTTP helper 验证。Ego 仍暂停，不跑任何真实业务或共享 API/DB/compose，不自行启动浏览器规避暂停。缺后端种子或清理协议给准确依赖即可。请交简短、真实的修改/验证/未验证报告。"
+  },
+  "limitations": [
+    "pnpm is unavailable in the current shell; equivalent existing npm workspace scripts were used."
+  ],
+  "recordedAt": "2026-10-04T04:25:44.636466+00:00",
+  "sourceHashes": {
+    "apps/web/scripts/e2eT10Flow.mjs": "5eef437d08d0b6c74f556605840c1e9b77700991b7628d07fd6e8434e0f15839",
+    "apps/web/scripts/generateClient.mjs": "f5aa514424953d106adfff0c4b8a20b4032620796e4245affb07f1621b790181",
+    "apps/web/src/api/client.ts": "e7ee8498746183c610f21565b3b1d15200491ed9ce0fcbc0f7f632e450cbc359",
+    "apps/web/src/api/adapter.ts": "25d65e8c53e4f7c8d6954a095ea6c69c631ae3c05e1a49bc2f38c2a0a4959781"
+  }
+}

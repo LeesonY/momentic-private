@@ -1,0 +1,174 @@
+{
+  "batch": "T10-AUTH6B trusted RuntimeClient bridge + private gate receipts",
+  "scope": "Pure Node: the real bridge, the real AUTH-6 flow and the real AUTH-5 private port, with a labeled Fake RuntimeClient (real facade signatures) and labeled Fake private services. No browser, Playwright, worker-entry, provider, deploy, DB, or real Coordinator.",
+  "sourceSha256": {
+    "apps/worker/src/auth-runtime.ts": "fe9824810e151df14fed3c37932760f100465c39dd17cab183b8fb59729a3e55",
+    "apps/worker/test/auth-runtime.test.mjs": "360d5ff94f7feeb74015477e9c88b6639075b59e2f0c8388cdf583b8f78ef381",
+    "apps/worker/src/auth-flow.ts": "0d9030f3841feb013c7691ea7a241e69b27d1ddf707c5f6252503ec0e53e3d7f",
+    "apps/worker/test/auth-flow.test.mjs": "f958a6d43c12158460fb37799868e0158595a78fa2afd8504599951ea4386599",
+    "packages/browser/src/private-auth.ts": "1ec4cb847a6c4a84435c268078a049748bea6442fb6e6a344f2a9613f9f6b07d",
+    "packages/browser/test/private-auth.test.mjs": "f6dfa581cb07a662e0b977d61d7bf181a70fb6d58ab4bfcf6ef4f00f84de2018"
+  },
+  "browserCompatibilityFix": {
+    "file": "packages/browser/src/private-auth.ts",
+    "change": "AuthPermit.target/url now declare `| undefined` so the orchestrator AuthPermit (target?: NodeTarget | undefined) is assignable under exactOptionalPropertyTypes. This is the one semantic line of the AUTH-6B compatibility fix; behavior is unchanged.",
+    "previousSha256": "24c06fcd37d625e972d46474ac3f6c1b7ac279217b2a0af1af9a0ece9f3df21a"
+  },
+  "facadeCompatibility": {
+    "how": "AuthRuntimeClient narrows the four real facade methods; `type _FacadeIsCompatible = RuntimeClient extends AuthRuntimeClient ? true : never` fails the build on drift.",
+    "negativeProof": "A deliberately wrong port (grantAuth(proof: string, request: string)) makes tsc fail with \"Type true is not assignable to type never\", so the assertion is not vacuous."
+  },
+  "commands": [
+    "node_modules/.bin/tsc -p apps/worker/tsconfig.json            # worker build",
+    "node_modules/.bin/tsc --noEmit -p apps/worker/tsconfig.json   # worker typecheck",
+    "cd apps/worker && node --test test/auth-flow.test.mjs test/auth-runtime.test.mjs   # 18/18 (11 flow re-runs + 7 new bridge cases)",
+    "node_modules/.bin/eslint apps/worker/src apps/worker/scripts apps/worker/test",
+    "cd packages/browser && ./node_modules/.bin/tsc -p tsconfig.build.json && node --test test/*.test.mjs   # 41/41",
+    "node_modules/.bin/eslint packages/browser/src packages/browser/test"
+  ],
+  "cases": [
+    {
+      "file": "auth-flow.test.mjs",
+      "name": "form flow runs the fixed order once through the fake runtime",
+      "passed": true
+    },
+    {
+      "file": "auth-flow.test.mjs",
+      "name": "one OTP at most, and never a second wait after a criterion failure",
+      "passed": true
+    },
+    {
+      "file": "auth-flow.test.mjs",
+      "name": "storage_state prepares without navigating, then navigates once",
+      "passed": true
+    },
+    {
+      "file": "auth-flow.test.mjs",
+      "name": "record, observation, capture and finish failures never yield success",
+      "passed": true
+    },
+    {
+      "file": "auth-flow.test.mjs",
+      "name": "missing or unsupported configuration is blocked, never passed",
+      "passed": true
+    },
+    {
+      "file": "auth-flow.test.mjs",
+      "name": "unknown, raw, or getter-throwing codes fall back to constants",
+      "passed": true
+    },
+    {
+      "file": "auth-flow.test.mjs",
+      "name": "none never touches material, the port, or the adapters",
+      "passed": true
+    },
+    {
+      "file": "auth-flow.test.mjs",
+      "name": "abort cancels the flow without any success or capture",
+      "passed": true
+    },
+    {
+      "file": "auth-flow.test.mjs",
+      "name": "the private ticket and capture material stay out of the outcome",
+      "passed": true
+    },
+    {
+      "file": "auth-flow.test.mjs",
+      "name": "storage_state material takes only the canonical resolveAuth shape",
+      "passed": true
+    },
+    {
+      "file": "auth-flow.test.mjs",
+      "name": "the port must belong to the same session as the binding",
+      "passed": true
+    },
+    {
+      "file": "auth-runtime.test.mjs",
+      "name": "the bridge forwards the frozen proof and keeps the lease token private",
+      "passed": true
+    },
+    {
+      "file": "auth-runtime.test.mjs",
+      "name": "permits and port bindings are re-verified against the frozen binding",
+      "passed": true
+    },
+    {
+      "file": "auth-runtime.test.mjs",
+      "name": "receipts cannot be borrowed, replayed, or settled twice",
+      "passed": true
+    },
+    {
+      "file": "auth-runtime.test.mjs",
+      "name": "expiry, revocation, and service failures stop the flow without caching",
+      "passed": true
+    },
+    {
+      "file": "auth-runtime.test.mjs",
+      "name": "a missing service blocks instead of fabricating a capture",
+      "passed": true
+    },
+    {
+      "file": "auth-runtime.test.mjs",
+      "name": "construction refuses an incomplete client, proof, or inactive binding",
+      "passed": true
+    },
+    {
+      "file": "auth-runtime.test.mjs",
+      "name": "service methods keep their receiver and a throwing accessor is contained",
+      "passed": true
+    }
+  ],
+  "summary": {
+    "passed": 18,
+    "failed": 0,
+    "note": "Raw runner totals; earlier-batch cases are re-runs, not accumulated coverage."
+  },
+  "checks": {
+    "workerBuild": "pass",
+    "workerTypecheck": "pass",
+    "workerLint": "pass",
+    "workerPrettier": "pass",
+    "browserBuild": "pass",
+    "browserTypecheck": "pass",
+    "browserLint": "pass",
+    "browserSuite": "41/41"
+  },
+  "coverage": [
+    "real proof is copied and frozen once; every client call receives that same frozen object",
+    "beginAuthExecution runs before the matching browser effect; its receipt reaches exactly one recordAuth call and never an outcome/Step/enumerable return",
+    "leaseToken, ticket, username and password never appear in the outcome or in the returned bridge objects",
+    "no ordinary grant/record channel is ever called",
+    "permits are re-verified against the frozen binding on all 12 tuple fields plus action/slot/target (14 tampering negatives, all LEASE_EXPIRED with zero primitives)",
+    "port bindings from another session are refused before beginAuthExecution",
+    "receipts cannot be borrowed (unbegun grant), replayed (second begin for one grant), or used across sessions/grants",
+    "concurrent begins for one grant: exactly one reaches the service",
+    "mid-flow LEASE_EXPIRED from beginAuthExecution stops the flow with no capture and no cached acceptance on the next call",
+    "RATE_LIMITED from grantAuth and POLICY_DENIED from recordAuth/authorizeExport block without a success or a fabricated stateRef",
+    "each of the 7 missing services blocks the flow (SERVICE_UNAVAILABLE; the export gate surfaces VALIDATION_ERROR because the port accepts only three codes)",
+    "construction refuses an incomplete client, an empty leaseToken, and an inactive binding"
+  ],
+  "notImplemented": [
+    "no real Coordinator material/OTP/criterion/capture/finish service and no Worker.once wiring; Stage.auth stays unwired",
+    "no service-verified ticket or stateRef: positive capture evidence is a Fake service only",
+    "the export gate maps a missing CAS service to VALIDATION_ERROR (the port only understands three codes)",
+    "no DB/PG path in this batch; pi owns the service side",
+    "no real browser / session.ts integration; Ego verification stays paused"
+  ],
+  "browserPaused": true,
+  "P0Passed": false,
+  "countsByFile": {
+    "auth-flow.test.mjs": {
+      "passed": 11,
+      "failed": 0,
+      "note": "re-runs of AUTH-6 cases, not new coverage"
+    },
+    "auth-runtime.test.mjs": {
+      "passed": 7,
+      "failed": 0,
+      "note": "new in AUTH-6B"
+    },
+    "auth-services.test.mjs": {
+      "note": "added in AUTH-7B, see that report"
+    }
+  }
+}

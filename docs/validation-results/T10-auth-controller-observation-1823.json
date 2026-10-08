@@ -1,0 +1,50 @@
+{
+  "at": "2026-10-05T23:38:39.742688+00:00",
+  "workspace": "wF",
+  "rootIndependentReview": true,
+  "piCompletion": 1823,
+  "agentReported": {
+    "authBindingPg": {
+      "passed": 8,
+      "failed": 0,
+      "evidence": "T10-AUTH-1-2ca2e3d3-f6b5-4877-aa5e-0505c5bc39b1.json"
+    },
+    "savedAndB4": 16,
+    "T06Api": 14,
+    "realModelCalls": 0
+  },
+  "rootChecks": {
+    "apiTypecheck": true,
+    "diffCheck": true,
+    "assertionsReviewed": "Both smoke/regression metadata binding, default/explicit, cross-project/invalid/revoked/env/origin, stored historical version and idempotency; no Worker execution in those 8 cases",
+    "oldT06ShaUnchanged": true,
+    "oldArtifactShaCountUnchanged": 70,
+    "oldRealModelSampleShaUnchanged": true,
+    "credentialFilesAbsent": true
+  },
+  "pendingRootPgRerun": true,
+  "preparedIntegration": {
+    "file": "apps/worker/test/t10-b5-fakebrowser.test.mjs",
+    "newCases": [
+      "Actual API bind none -> Worker.once/FakeBrowser after current auth head update",
+      "Revoked none before preflight has no browser session or action intent"
+    ],
+    "totalCases": 17,
+    "syntaxAndLintPassed": true,
+    "executed": false
+  },
+  "sourceSha256": {
+    "apps/api/src/runAuth.ts": "9667d6ff670dc3b81e7dcef32e4f6dd2b55382bcd7b03ca6db9d8a0252c994c0",
+    "apps/api/src/routes/runs.ts": "7b638300b9b5b70683e13ea43d369e7634d22b17af41d43ca8f68c7af298b846",
+    "apps/api/src/routes/savedCases.ts": "b9eb10b9bdfc19d9af32be645c92ad4bc2423a9a33689e21453a1ffb694a8a7f",
+    "apps/api/test/t10-auth-binding.test.mjs": "44b054bfcd3ca97e401af3c3f9be5bfcddaf91be041a40fc08f5b71db93ac04a",
+    "apps/api/test/t10-auth-runtime.test.mjs": "f1c0e649746c0a9fdf067a442e37ad85ed237bceb73a7c72af686dc0dec43555",
+    "apps/worker/test/t10-b5-fakebrowser.test.mjs": "0ed9381636a3982adc7eed6128d4170ddeb235899d2c88c1c14051475e07c8fc"
+  },
+  "socketRetestAfterUserHerdrFullDiskAccess": "Herdr Operation not permitted and Docker Unix socket Permission denied persist; active session sandbox still workspace-write/never",
+  "fullAuthAccepted": false,
+  "fullT10Accepted": false,
+  "P0Passed": false,
+  "EgoPaused": true,
+  "secondMonitorStarted": false
+}

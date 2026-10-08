@@ -6,6 +6,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { Ajv } from 'ajv';
+import { validateContract } from '@localqa/contracts';
 import {
   AGENT_ROLES,
   DECISION_SCHEMA,
@@ -14,7 +15,9 @@ import {
   renderAssertionPrompt,
   renderPrompt,
   reviewPlan,
+  parametersForTool,
   runToolLoop,
+  toolSchemasForRole,
   toolsForRole,
 } from '../../agents/dist/index.js';
 import {
@@ -23,8 +26,13 @@ import {
   createGateway,
   createOpenAIAdapter,
   createStubAdapter,
+  estimateTokens,
   messageFromText,
+  OPENAI_ADAPTER_VERSION,
+  OPENAI_DIAGNOSTIC_SAMPLE_CHARS,
+  OPENAI_RESPONSE_CHAR_LIMIT,
   redactMessages,
+  redactThenSample,
   toOpenAIChatRequest,
 } from '../dist/index.js';
 
@@ -258,8 +266,36 @@ test('openai adapter keeps provider fields local', () => {
   assert.equal(body.max_completion_tokens, 32);
   assert.equal(Object.hasOwn(body, 'max_tokens'), false);
   assert.equal(body.response_format.type, 'json_schema');
+  assert.equal(body.response_format.json_schema.strict, true);
   assert.equal(body.tools[0].type, 'function');
   assert.equal(body.tools[0].function.name, 'observe');
+  const jsonObject = toOpenAIChatRequest({
+    model: 'gpt-test',
+    messages: [messageFromText('user', '只输出 JSON')],
+    maxOutputTokens: 32,
+    outputSchema: { type: 'object' },
+    tools: [{ name: 'observe', parameters: { type: 'object' } }],
+    responseFormat: 'json_object',
+  });
+  assert.equal(jsonObject.response_format.type, 'json_object');
+  assert.equal(Object.hasOwn(jsonObject, 'tools'), false);
+  assert.equal(JSON.stringify(jsonObject).includes('artifact://'), false);
+  assert.throws(
+    () =>
+      toOpenAIChatRequest({
+        model: 'gpt-test',
+        messages: [
+          {
+            role: 'user',
+            content: [{ type: 'image', artifactId: FIXTURE.imageId }],
+          },
+        ],
+        maxOutputTokens: 32,
+        outputSchema: { type: 'object' },
+        tools: [],
+      }),
+    (error) => error.code === 'MODEL_NOT_CONFIGURED',
+  );
   keep('adapter.openai-shape', {
     requestResult: 'shape',
     rawOutput: JSON.stringify(body),
@@ -745,6 +781,1439 @@ test('provider statuses map onto section 7 and are not completions', async () =>
   keep('provider.timeout', timed);
 });
 
+test('gateway uses the declared format and validates the unwrapped decision', async () => {
+  const profileId = '15151515-1515-4151-8151-151515151515';
+  const configured = 'deepseek-chat';
+  const click = {
+    name: 'click',
+    args: {
+      target: {
+        snapshotId: FIXTURE.snapshotId,
+        pageId: FIXTURE.pageId,
+        nodeId: 'tab-btn-details',
+      },
+    },
+  };
+  const decision = { toolCalls: [click], done: false };
+  let calls = 0;
+  let seen = null;
+  const gw = createGateway({
+    profiles: [
+      {
+        id: profileId,
+        version: 1,
+        name: 'json-object',
+        endpoint: 'https://example.test/v1',
+        configuredModelId: configured,
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: {
+          structuredOutput: true,
+          nativeTools: true,
+          imageInput: false,
+        },
+        responseFormat: 'json_object',
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: [],
+      },
+    ],
+    decryptKey: () => 'openai-test-key',
+    adapter: createOpenAIAdapter(async (_url, init) => {
+      calls += 1;
+      seen = JSON.parse(init.body);
+      return new Response(
+        JSON.stringify({
+          model: 'deepseek-flash',
+          choices: [
+            {
+              message: { role: 'assistant', content: JSON.stringify(decision) },
+            },
+          ],
+          usage: { prompt_tokens: 11, completion_tokens: 7 },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    }),
+  });
+  const record = await gw.generateDecision(
+    baseInput(profileId, { outputSchema: decisionSchema, toolSchemas: [] }),
+  );
+  assert.equal(calls, 1);
+  assert.equal(seen.model, configured);
+  assert.equal(seen.response_format.type, 'json_object');
+  assert.equal(Object.hasOwn(seen, 'tools'), false);
+  assert.equal(record.requestResult, 'ok');
+  assert.equal(record.modelId, configured);
+  assert.equal(record.reportedModelId, 'deepseek-flash');
+  assert.equal(record.usageSource, 'reported');
+  assert.deepEqual(record.data, decision);
+  assert.equal(
+    validateContract('ToolCall', record.data.toolCalls[0]).success,
+    true,
+  );
+  keep('g3a.json-object-decision', record);
+
+  let schemaCalls = 0;
+  const strict = createGateway({
+    profiles: [
+      {
+        id: profileId,
+        version: 1,
+        name: 'json-schema',
+        endpoint: 'https://example.test/v1',
+        configuredModelId: configured,
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: {
+          structuredOutput: true,
+          nativeTools: false,
+          imageInput: false,
+        },
+        responseFormat: 'json_schema',
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: ['16161616-1616-4161-8161-161616161616'],
+      },
+    ],
+    decryptKey: () => 'openai-test-key',
+    adapter: createOpenAIAdapter(async (_url, init) => {
+      schemaCalls += 1;
+      seen = JSON.parse(init.body);
+      return new Response(
+        JSON.stringify({
+          error: { message: 'This response_format type is unavailable now' },
+        }),
+        { status: 400, headers: { 'content-type': 'application/json' } },
+      );
+    }),
+  });
+  const rejected = await strict.generateDecision(
+    baseInput(profileId, {
+      fallbackProfileId: '16161616-1616-4161-8161-161616161616',
+    }),
+  );
+  assert.equal(schemaCalls, 1);
+  assert.equal(seen.response_format.type, 'json_schema');
+  assert.equal(seen.response_format.json_schema.strict, true);
+  assert.equal(seen.model, configured);
+  assert.equal(rejected.errorCode, 'VALIDATION_ERROR');
+  assert.equal(rejected.requestResult, 'malformed');
+  assert.equal(rejected.providerCalls, 1);
+  assert.equal(rejected.fallbackUsed, false);
+  assert.equal(rejected.reportedModelId, null);
+  assert.equal(rejected.data, null);
+  keep('g3a.no-format-downgrade', rejected);
+});
+
+test('native tool arguments are accepted only when they match ToolCall', async () => {
+  const profileId = '17171717-1717-4171-8171-171717171717';
+  function gatewayFor(payload) {
+    return createGateway({
+      profiles: [
+        {
+          id: profileId,
+          version: 1,
+          name: 'native',
+          endpoint: 'https://example.test/v1',
+          configuredModelId: 'deepseek-chat',
+          kind: 'openai_compatible',
+          dataBoundary: 'external',
+          capabilities: {
+            structuredOutput: false,
+            nativeTools: true,
+            imageInput: false,
+          },
+          responseFormat: 'native_tools',
+          encryptedApiKey: 'cipher',
+          approvedFallbackIds: [],
+        },
+      ],
+      decryptKey: () => 'openai-test-key',
+      adapter: createOpenAIAdapter(async (_url, init) => {
+        const body = JSON.parse(init.body);
+        assert.equal(Object.hasOwn(body, 'response_format'), false);
+        assert.equal(body.tools[0].function.name, 'click');
+        assert.equal(body.model, 'deepseek-chat');
+        return new Response(JSON.stringify(payload), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }),
+    });
+  }
+  const envelope = (args) => ({
+    model: 'deepseek-flash',
+    choices: [
+      {
+        message: {
+          role: 'assistant',
+          content: '',
+          tool_calls: [
+            {
+              id: 'call_1',
+              type: 'function',
+              function: { name: 'click', arguments: JSON.stringify(args) },
+            },
+          ],
+        },
+      },
+    ],
+    usage: { prompt_tokens: 12, completion_tokens: 9 },
+  });
+  const bad = await gatewayFor(
+    envelope({
+      snapshotId: 'fixture',
+      pageId: 'home',
+      nodeId: 'tab-btn-details',
+    }),
+  ).generateDecision(
+    baseInput(profileId, {
+      toolSchemas: [{ name: 'click', parameters: { type: 'object' } }],
+    }),
+  );
+  assert.equal(bad.requestResult, 'malformed');
+  assert.equal(bad.errorCode, 'VALIDATION_ERROR');
+  assert.equal(bad.providerCalls, 1);
+  assert.equal(bad.repairCount, 0);
+  assert.equal(bad.data, null);
+  assert.equal(bad.reportedModelId, 'deepseek-flash');
+  keep('g3a.native-tool-rejected', bad);
+
+  const goodArgs = {
+    target: {
+      snapshotId: FIXTURE.snapshotId,
+      pageId: FIXTURE.pageId,
+      nodeId: 'tab-btn-details',
+    },
+  };
+  const good = await gatewayFor(envelope(goodArgs)).generateDecision(
+    baseInput(profileId, {
+      toolSchemas: [{ name: 'click', parameters: { type: 'object' } }],
+    }),
+  );
+  assert.equal(good.requestResult, 'ok');
+  assert.equal(good.providerCalls, 1);
+  assert.equal(
+    validateContract('ToolCall', good.data.toolCalls[0]).success,
+    true,
+  );
+  assert.equal(good.data.toolCalls[0].args.target.nodeId, 'tab-btn-details');
+  assert.equal(good.modelId, 'deepseek-chat');
+  assert.equal(good.reportedModelId, 'deepseek-flash');
+  keep('g3a.native-tool-accepted', good);
+});
+
+test('approved images use a legal transport or fail closed', async () => {
+  const profileId = '18181818-1818-4181-8181-181818181818';
+  const png = new Uint8Array([1]);
+  let calls = 0;
+  let seen = null;
+  function profile(extra = {}) {
+    return {
+      id: profileId,
+      version: 1,
+      name: 'vision',
+      endpoint: 'https://example.test/v1',
+      configuredModelId: 'deepseek-chat',
+      kind: 'openai_compatible',
+      dataBoundary: 'external',
+      capabilities: {
+        structuredOutput: true,
+        nativeTools: false,
+        imageInput: true,
+      },
+      responseFormat: 'json_object',
+      encryptedApiKey: 'cipher',
+      approvedFallbackIds: [],
+      ...extra,
+    };
+  }
+  const imageMessage = {
+    role: 'user',
+    content: [
+      { type: 'text', text: '看图' },
+      { type: 'image', artifactId: FIXTURE.imageId },
+    ],
+  };
+  const gw = createGateway({
+    profiles: [profile()],
+    decryptKey: () => 'openai-test-key',
+    resolveArtifact(id) {
+      assert.equal(id, FIXTURE.imageId);
+      return { mediaType: 'image/png', bytes: png };
+    },
+    adapter: createOpenAIAdapter(async (_url, init) => {
+      calls += 1;
+      seen = JSON.parse(init.body);
+      return new Response(
+        JSON.stringify({
+          model: 'deepseek-flash',
+          choices: [
+            {
+              message: {
+                role: 'assistant',
+                content: JSON.stringify({ toolCalls: [], done: true }),
+              },
+            },
+          ],
+          usage: { prompt_tokens: 20, completion_tokens: 4 },
+        }),
+        { status: 200 },
+      );
+    }),
+  });
+  const sent = await gw.generateDecision(
+    baseInput(profileId, {
+      messages: [imageMessage],
+      approvedImageIds: [FIXTURE.imageId],
+      toolSchemas: [],
+    }),
+  );
+  assert.equal(calls, 1);
+  assert.equal(sent.requestResult, 'ok');
+  const url = seen.messages[0].content[1].image_url.url;
+  assert.match(url, /^data:image\/png;base64,/);
+  assert.equal(url.includes('artifact://'), false);
+  assert.equal(sent.outboundRedacted.includes('artifact://'), false);
+  assert.equal(sent.outboundRedacted.includes(url.split(',')[1]), false);
+  assert.match(sent.outboundRedacted, /data:image;base64,\[redacted\]/);
+  keep('g3a.image-data-url', sent);
+
+  const httpsGw = createGateway({
+    profiles: [profile()],
+    decryptKey: () => 'openai-test-key',
+    resolveArtifact: () => ({ url: 'https://fixture.local/shot.png' }),
+    adapter: createOpenAIAdapter(async (_url, init) => {
+      seen = JSON.parse(init.body);
+      return new Response(
+        JSON.stringify({
+          model: 'deepseek-flash',
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({ toolCalls: [], done: true }),
+              },
+            },
+          ],
+          usage: { prompt_tokens: 8, completion_tokens: 3 },
+        }),
+        { status: 200 },
+      );
+    }),
+  });
+  const httpsSent = await httpsGw.generateDecision(
+    baseInput(profileId, {
+      messages: [imageMessage],
+      approvedImageIds: [FIXTURE.imageId],
+      toolSchemas: [],
+    }),
+  );
+  assert.equal(
+    seen.messages[0].content[1].image_url.url,
+    'https://fixture.local/shot.png',
+  );
+  assert.equal(JSON.stringify(seen).includes('artifact://'), false);
+  assert.equal(httpsSent.requestResult, 'ok');
+  keep('g3a.image-https', httpsSent);
+
+  let unresolvedCalls = 0;
+  const unresolved = createGateway({
+    profiles: [profile()],
+    decryptKey: () => 'openai-test-key',
+    resolveArtifact: () => null,
+    adapter: createOpenAIAdapter(async () => {
+      unresolvedCalls += 1;
+      throw new Error('should not send');
+    }),
+  });
+  const missing = await unresolved.generateDecision(
+    baseInput(profileId, {
+      messages: [imageMessage],
+      approvedImageIds: [FIXTURE.imageId],
+      toolSchemas: [],
+    }),
+  );
+  assert.equal(unresolvedCalls, 0);
+  assert.equal(missing.errorCode, 'MODEL_NOT_CONFIGURED');
+  assert.equal(missing.providerCalls, 0);
+  keep('g3a.image-unresolved', missing);
+
+  let blindCalls = 0;
+  const blind = createGateway({
+    profiles: [
+      profile({
+        capabilities: {
+          structuredOutput: true,
+          nativeTools: false,
+          imageInput: false,
+        },
+      }),
+    ],
+    decryptKey: () => 'openai-test-key',
+    adapter: createOpenAIAdapter(async () => {
+      blindCalls += 1;
+      throw new Error('should not send');
+    }),
+  });
+  const noVision = await blind.generateDecision(
+    baseInput(profileId, {
+      messages: [imageMessage],
+      approvedImageIds: [FIXTURE.imageId],
+      toolSchemas: [],
+    }),
+  );
+  assert.equal(blindCalls, 0);
+  assert.equal(noVision.errorCode, 'MODEL_CAPABILITY_MISSING');
+  assert.equal(noVision.providerCalls, 0);
+  keep('g3a.image-capability', noVision);
+
+  let textCalls = 0;
+  const textVision = createGateway({
+    profiles: [profile()],
+    decryptKey: () => 'openai-test-key',
+    adapter: createOpenAIAdapter(async () => {
+      textCalls += 1;
+      return new Response(
+        JSON.stringify({
+          model: 'deepseek-flash',
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  criterionId: FIXTURE.criterionId,
+                  result: 'passed',
+                  reason: '正文里写着按钮',
+                  evidenceRefs: [FIXTURE.evidenceId],
+                }),
+              },
+            },
+          ],
+          usage: { prompt_tokens: 4, completion_tokens: 4 },
+        }),
+        { status: 200 },
+      );
+    }),
+  });
+  const visual = await textVision.evaluateCriterion(
+    baseInput(profileId, {
+      purpose: 'assert',
+      outputSchema: assertSchema,
+      criterion: { id: FIXTURE.criterionId, kind: 'visual' },
+      knownEvidenceIds: [FIXTURE.evidenceId],
+      messages: [messageFromText('user', '页面文字写着 Details')],
+    }),
+  );
+  assert.equal(textCalls, 0);
+  assert.equal(visual.assessment.verdictStatus, 'blocked');
+  assert.equal(visual.assessment.reasonCode, 'MODEL_CAPABILITY_MISSING');
+  assert.equal(visual.providerCalls, 0);
+  keep('g3a.visual-without-image', visual);
+
+  const bulky = createGateway({
+    profiles: [profile()],
+    decryptKey: () => 'openai-test-key',
+    resolveArtifact: () => ({
+      mediaType: 'image/png',
+      bytes: new Uint8Array(400),
+    }),
+    adapter: createOpenAIAdapter(async () => {
+      throw new Error('should not send');
+    }),
+  });
+  const over = await bulky.generateDecision(
+    baseInput(profileId, {
+      maxInputTokens: 20,
+      messages: [imageMessage],
+      approvedImageIds: [FIXTURE.imageId],
+      toolSchemas: [],
+    }),
+  );
+  assert.equal(over.errorCode, 'BUDGET_EXCEEDED');
+  assert.equal(over.providerCalls, 0);
+  assert.ok(over.inputTokens > 20);
+  keep('g3a.image-budget', over);
+});
+
+test('429 and an unapproved fallback stay on the configured model', async () => {
+  const profileId = '19191919-1919-4191-8191-191919191919';
+  const other = '16161616-1616-4161-8161-161616161616';
+  let calls = 0;
+  const models = [];
+  const gw = createGateway({
+    profiles: [
+      {
+        id: profileId,
+        version: 1,
+        name: 'primary',
+        endpoint: 'https://example.test/v1',
+        configuredModelId: 'deepseek-chat',
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: {
+          structuredOutput: true,
+          nativeTools: false,
+          imageInput: false,
+        },
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: [],
+      },
+      {
+        id: other,
+        version: 1,
+        name: 'other',
+        endpoint: 'https://other.test/v1',
+        configuredModelId: 'other-model',
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: {
+          structuredOutput: true,
+          nativeTools: false,
+          imageInput: false,
+        },
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: [],
+      },
+    ],
+    decryptKey: () => 'openai-test-key',
+    adapter: createOpenAIAdapter(async (_url, init) => {
+      calls += 1;
+      models.push(JSON.parse(init.body).model);
+      return new Response('{"error":"slow down"}', { status: 429 });
+    }),
+  });
+  const record = await gw.generateDecision(
+    baseInput(profileId, { fallbackProfileId: other }),
+  );
+  assert.equal(calls, 1);
+  assert.deepEqual(models, ['deepseek-chat']);
+  assert.equal(record.errorCode, 'RATE_LIMITED');
+  assert.equal(record.requestResult, 'rate_limited');
+  assert.equal(record.fallbackUsed, false);
+  assert.equal(record.fallbackDenied, true);
+  assert.equal(record.providerCalls, 1);
+  assert.equal(record.data, null);
+  keep('g3a.fallback-unapproved-429', record);
+
+  let probeCalls = 0;
+  const missingCaps = createGateway({
+    profiles: [
+      {
+        id: profileId,
+        version: 1,
+        name: 'none',
+        endpoint: 'https://example.test/v1',
+        configuredModelId: 'deepseek-chat',
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: {
+          structuredOutput: false,
+          nativeTools: false,
+          imageInput: false,
+        },
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: [],
+      },
+    ],
+    decryptKey: () => 'openai-test-key',
+    adapter: createOpenAIAdapter(async () => {
+      probeCalls += 1;
+      return new Response(JSON.stringify({ error: { message: 'rejected' } }), {
+        status: 400,
+      });
+    }),
+  });
+  const probe = await missingCaps.capabilityProbe(profileId, 1000);
+  const again = await missingCaps.capabilityProbe(profileId, 1000);
+  assert.equal(probeCalls, 2);
+  assert.equal(probe.errorCode, 'VALIDATION_ERROR');
+  assert.equal(again.errorCode, 'VALIDATION_ERROR');
+  assert.notEqual(probe.data?.status, 'ready');
+  assert.notEqual(probe.data?.status, 'disabled');
+  assert.notEqual(again.data?.status, 'disabled');
+  keep('g3a.no-structured-output', probe);
+});
+
+function reproducedLongEnvelope() {
+  const note = 'n'.repeat(2300);
+  const decision = { toolCalls: [], done: true, note };
+  const content = JSON.stringify(decision);
+  const raw = JSON.stringify({
+    model: 'deepseek-flash',
+    choices: [{ message: { role: 'assistant', content } }],
+    usage: { prompt_tokens: 11, completion_tokens: 100000000 },
+  });
+  return { note, decision, raw };
+}
+
+function overLimitBody() {
+  const content = JSON.stringify({ toolCalls: [], done: true });
+  const core = {
+    model: 'deepseek-flash',
+    choices: [{ message: { content } }],
+    usage: { prompt_tokens: 3, completion_tokens: 4 },
+    pad: '',
+  };
+  const room = OPENAI_RESPONSE_CHAR_LIMIT - JSON.stringify(core).length;
+  const exact = JSON.stringify({ ...core, pad: 'p'.repeat(room) });
+  assert.equal(exact.length, OPENAI_RESPONSE_CHAR_LIMIT);
+  assert.equal(JSON.parse(exact).usage.completion_tokens, 4);
+  return `${exact}x`;
+}
+
+async function sendLocal(body, status = 200, key = 'openai-test-key') {
+  const adapter = createOpenAIAdapter(async () =>
+    body instanceof Response ? body : new Response(body, { status }),
+  );
+  return adapter.send(
+    {
+      model: 'deepseek-chat',
+      endpoint: 'https://example.test/v1/chat/completions',
+      body: { model: 'deepseek-chat' },
+      apiKey: key,
+    },
+    new AbortController().signal,
+  );
+}
+
+test('a long completion is parsed whole and the log stays a sample', async () => {
+  const { note, decision, raw } = reproducedLongEnvelope();
+  assert.equal(note.length, 2300);
+  assert.equal(raw.length, 2489);
+  assert.ok(raw.indexOf('"usage"') > OPENAI_DIAGNOSTIC_SAMPLE_CHARS);
+  assert.throws(() => JSON.parse(raw.slice(0, OPENAI_DIAGNOSTIC_SAMPLE_CHARS)));
+
+  const direct = await sendLocal(raw, 200);
+  assert.equal(direct.errorCode, null);
+  assert.equal(direct.raw.length, 2489);
+  assert.equal(direct.logSample.length, OPENAI_DIAGNOSTIC_SAMPLE_CHARS);
+  assert.notEqual(direct.logSample, direct.raw);
+  assert.throws(() => JSON.parse(direct.logSample));
+  assert.equal(direct.reportedModelId, 'deepseek-flash');
+  assert.deepEqual(direct.usage, { inputTokens: 11, outputTokens: 100000000 });
+
+  const profileId = '20202020-2020-4020-8020-202020202020';
+  let calls = 0;
+  let seen = null;
+  const gw = createGateway({
+    profiles: [
+      {
+        id: profileId,
+        version: 1,
+        name: 'long',
+        endpoint: 'https://example.test/v1',
+        configuredModelId: 'deepseek-chat',
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: {
+          structuredOutput: true,
+          nativeTools: false,
+          imageInput: false,
+        },
+        responseFormat: 'json_object',
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: [],
+      },
+    ],
+    decryptKey: () => 'openai-test-key',
+    adapter: createOpenAIAdapter(async (_url, init) => {
+      calls += 1;
+      seen = JSON.parse(init.body);
+      return new Response(raw, { status: 200 });
+    }),
+  });
+  const longSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['toolCalls', 'done', 'note'],
+    properties: {
+      done: { type: 'boolean' },
+      note: { type: 'string', minLength: 2300 },
+      toolCalls: { type: 'array', items: { type: 'object' } },
+    },
+  };
+  const record = await gw.generateDecision(
+    baseInput(profileId, { outputSchema: longSchema, toolSchemas: [] }),
+  );
+  assert.equal(calls, 1);
+  assert.equal(seen.model, 'deepseek-chat');
+  assert.equal(record.adapterVersion, OPENAI_ADAPTER_VERSION);
+  assert.equal(OPENAI_ADAPTER_VERSION, 'openai-compatible.2');
+  assert.equal(record.requestResult, 'ok');
+  assert.equal(record.errorCode, null);
+  assert.equal(record.modelId, 'deepseek-chat');
+  assert.equal(record.reportedModelId, 'deepseek-flash');
+  assert.equal(record.usageSource, 'reported');
+  assert.equal(record.inputTokens, 11);
+  assert.equal(record.outputTokens, 100000000);
+  assert.equal(record.data.note.length, 2300);
+  assert.equal(record.data.note, decision.note);
+  assert.equal(record.providerCalls, 1);
+  assert.equal(record.fallbackUsed, false);
+  assert.equal(record.rawOutput.length, OPENAI_DIAGNOSTIC_SAMPLE_CHARS);
+  assert.throws(() => JSON.parse(record.rawOutput));
+  keep('g3b.long-envelope', record);
+});
+
+test('non-json, http errors, and over-limit bodies are not successful completions', async () => {
+  const junk = `not-json ${'x'.repeat(2500)}`;
+  const broken = await sendLocal(junk, 200);
+  assert.ok(junk.length > OPENAI_DIAGNOSTIC_SAMPLE_CHARS);
+  assert.equal(broken.raw, junk);
+  assert.equal(broken.logSample.length, OPENAI_DIAGNOSTIC_SAMPLE_CHARS);
+  assert.equal(broken.errorCode, null);
+  assert.equal(broken.usage, null);
+  assert.equal(broken.reportedModelId, null);
+
+  const profileId = '21212121-2121-4121-8121-212121212121';
+  let junkCalls = 0;
+  const junkGw = createGateway({
+    profiles: [
+      {
+        id: profileId,
+        version: 1,
+        name: 'junk',
+        endpoint: 'https://example.test/v1',
+        configuredModelId: 'deepseek-chat',
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: {
+          structuredOutput: true,
+          nativeTools: false,
+          imageInput: false,
+        },
+        responseFormat: 'json_object',
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: ['23232323-2323-4232-8232-232323232323'],
+      },
+    ],
+    decryptKey: () => 'openai-test-key',
+    adapter: createOpenAIAdapter(async () => {
+      junkCalls += 1;
+      return new Response(junk, { status: 200 });
+    }),
+  });
+  const junkRecord = await junkGw.generateDecision(
+    baseInput(profileId, {
+      fallbackProfileId: '23232323-2323-4232-8232-232323232323',
+    }),
+  );
+  assert.equal(junkCalls, 2);
+  assert.equal(junkRecord.requestResult, 'malformed');
+  assert.equal(junkRecord.errorCode, 'VALIDATION_ERROR');
+  assert.equal(junkRecord.data, null);
+  assert.notEqual(junkRecord.usageSource, 'reported');
+  assert.equal(junkRecord.fallbackUsed, false);
+  assert.deepEqual(
+    junkRecord.rawOutput.split('\n').map((part) => part.length),
+    [OPENAI_DIAGNOSTIC_SAMPLE_CHARS, OPENAI_DIAGNOSTIC_SAMPLE_CHARS],
+  );
+  keep('g3b.non-json', junkRecord);
+
+  const errorBody = 'e'.repeat(3000);
+  const httpError = await sendLocal(errorBody, 400);
+  assert.equal(httpError.errorCode, 'VALIDATION_ERROR');
+  assert.equal(httpError.usage, null);
+  assert.equal(httpError.reportedModelId, null);
+  assert.equal(httpError.raw.length, 3000);
+  assert.equal(httpError.logSample.length, OPENAI_DIAGNOSTIC_SAMPLE_CHARS);
+  let errorCalls = 0;
+  const errorGw = createGateway({
+    profiles: [
+      {
+        id: profileId,
+        version: 1,
+        name: 'http-error',
+        endpoint: 'https://example.test/v1',
+        configuredModelId: 'deepseek-chat',
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: {
+          structuredOutput: true,
+          nativeTools: false,
+          imageInput: false,
+        },
+        responseFormat: 'json_schema',
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: [],
+      },
+    ],
+    decryptKey: () => 'openai-test-key',
+    adapter: createOpenAIAdapter(async () => {
+      errorCalls += 1;
+      return new Response(errorBody, { status: 400 });
+    }),
+  });
+  const errorRecord = await errorGw.generateDecision(baseInput(profileId));
+  assert.equal(errorCalls, 1);
+  assert.equal(errorRecord.errorCode, 'VALIDATION_ERROR');
+  assert.equal(errorRecord.requestResult, 'malformed');
+  assert.equal(errorRecord.data, null);
+  assert.equal(errorRecord.providerCalls, 1);
+  assert.equal(errorRecord.rawOutput.length, OPENAI_DIAGNOSTIC_SAMPLE_CHARS);
+  assert.equal(errorRecord.fallbackUsed, false);
+  keep('g3b.http-error-sample', errorRecord);
+
+  const huge = overLimitBody();
+  assert.equal(huge.length, OPENAI_RESPONSE_CHAR_LIMIT + 1);
+  const refused = await sendLocal(huge, 200);
+  assert.equal(refused.errorCode, 'BUDGET_EXCEEDED');
+  assert.equal(refused.raw, '');
+  assert.equal(refused.usage, null);
+  assert.equal(refused.reportedModelId, null);
+  assert.equal(refused.logSample.length, OPENAI_DIAGNOSTIC_SAMPLE_CHARS);
+  assert.throws(() => JSON.parse(refused.logSample));
+
+  const fallbackId = '24242424-2424-4242-8242-242424242424';
+  let hugeCalls = 0;
+  const models = [];
+  const hugeGw = createGateway({
+    profiles: [
+      {
+        id: profileId,
+        version: 1,
+        name: 'over-limit',
+        endpoint: 'https://example.test/v1',
+        configuredModelId: 'deepseek-chat',
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: {
+          structuredOutput: true,
+          nativeTools: false,
+          imageInput: false,
+        },
+        responseFormat: 'json_object',
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: [fallbackId],
+      },
+      {
+        id: fallbackId,
+        version: 1,
+        name: 'other',
+        endpoint: 'https://example.test/v1',
+        configuredModelId: 'other-model',
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: {
+          structuredOutput: true,
+          nativeTools: false,
+          imageInput: false,
+        },
+        responseFormat: 'json_object',
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: [],
+      },
+    ],
+    decryptKey: () => 'openai-test-key',
+    adapter: createOpenAIAdapter(async (_url, init) => {
+      hugeCalls += 1;
+      models.push(JSON.parse(init.body).model);
+      return new Response(huge, { status: 200 });
+    }),
+  });
+  const hugeRecord = await hugeGw.generateDecision(
+    baseInput(profileId, { fallbackProfileId: fallbackId }),
+  );
+  assert.equal(hugeCalls, 1);
+  assert.deepEqual(models, ['deepseek-chat']);
+  assert.equal(hugeRecord.errorCode, 'BUDGET_EXCEEDED');
+  assert.equal(hugeRecord.requestResult, 'budget_exceeded');
+  assert.equal(hugeRecord.data, null);
+  assert.equal(hugeRecord.providerCalls, 1);
+  assert.equal(hugeRecord.repairCount, 0);
+  assert.equal(hugeRecord.fallbackUsed, false);
+  assert.equal(hugeRecord.fallbackDenied, false);
+  assert.notEqual(hugeRecord.usageSource, 'reported');
+  assert.equal(hugeRecord.outputTokens, null);
+  assert.equal(hugeRecord.reportedModelId, null);
+  keep('g3b.over-limit', hugeRecord);
+});
+
+const simulatedKey = 'sim-key-g3c-boundary-0123456789abcdef';
+const simulatedPrefix = simulatedKey.slice(0, 24);
+
+function assertNoKeyFragment(text) {
+  assert.equal(text.includes(simulatedKey), false);
+  assert.equal(text.includes(simulatedPrefix), false);
+}
+
+function chunkedResponse(body, status) {
+  const encoder = new TextEncoder();
+  return new Response(
+    new globalThis.ReadableStream({
+      start(controller) {
+        for (
+          let offset = 0;
+          offset < body.length;
+          offset += OPENAI_DIAGNOSTIC_SAMPLE_CHARS
+        ) {
+          controller.enqueue(
+            encoder.encode(
+              body.slice(offset, offset + OPENAI_DIAGNOSTIC_SAMPLE_CHARS),
+            ),
+          );
+        }
+        controller.close();
+      },
+    }),
+    { status },
+  );
+}
+
+function envelopeCrossingSecret() {
+  const wrap = (note) =>
+    JSON.stringify({
+      model: 'deepseek-flash',
+      choices: [
+        {
+          message: {
+            role: 'assistant',
+            content: JSON.stringify({ toolCalls: [], done: true, note }),
+          },
+        },
+      ],
+      usage: { prompt_tokens: 11, completion_tokens: 5 },
+    });
+  const at = wrap('Q').indexOf('Q');
+  const pad = OPENAI_DIAGNOSTIC_SAMPLE_CHARS - simulatedPrefix.length - at;
+  const note = `${'n'.repeat(pad)}${simulatedKey}${'n'.repeat(30)}`;
+  const raw = wrap(note);
+  assert.equal(
+    raw.indexOf(simulatedKey),
+    OPENAI_DIAGNOSTIC_SAMPLE_CHARS - simulatedPrefix.length,
+  );
+  assert.ok(
+    raw.indexOf(simulatedKey) + simulatedKey.length >
+      OPENAI_DIAGNOSTIC_SAMPLE_CHARS,
+  );
+  return { raw, note };
+}
+
+test('secrets that cross the diagnostic sample are redacted before the cut', async () => {
+  const dangling = simulatedPrefix;
+  const cutAtCap = `${'z'.repeat(90)}${dangling}`;
+  assertNoKeyFragment(redactThenSample(cutAtCap, simulatedKey, true));
+  assert.equal(
+    redactThenSample(cutAtCap, simulatedKey, false).includes(dangling),
+    true,
+  );
+
+  const profileId = '25252525-2525-4252-8252-252525252525';
+  const { raw, note } = envelopeCrossingSecret();
+  const normal = await sendLocal(chunkedResponse(raw, 200), 200, simulatedKey);
+  assert.equal(normal.errorCode, null);
+  assert.equal(normal.raw, raw);
+  assert.equal(normal.raw.includes(simulatedKey), true);
+  assert.equal(normal.logSample.length, OPENAI_DIAGNOSTIC_SAMPLE_CHARS);
+  assertNoKeyFragment(normal.logSample);
+  assert.equal(normal.reportedModelId, 'deepseek-flash');
+  assert.deepEqual(normal.usage, { inputTokens: 11, outputTokens: 5 });
+
+  let normalCalls = 0;
+  const normalGw = createGateway({
+    profiles: [
+      {
+        id: profileId,
+        version: 3,
+        name: 'secret-normal',
+        endpoint: 'https://example.test/v1',
+        configuredModelId: 'deepseek-chat',
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: {
+          structuredOutput: true,
+          nativeTools: false,
+          imageInput: false,
+        },
+        responseFormat: 'json_object',
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: [],
+      },
+    ],
+    decryptKey: () => simulatedKey,
+    adapter: createOpenAIAdapter(async () => {
+      normalCalls += 1;
+      return chunkedResponse(raw, 200);
+    }),
+  });
+  const normalRecord = await normalGw.generateDecision(
+    baseInput(profileId, {
+      outputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['toolCalls', 'done', 'note'],
+        properties: {
+          done: { type: 'boolean' },
+          note: { type: 'string' },
+          toolCalls: { type: 'array', items: { type: 'object' } },
+        },
+      },
+      toolSchemas: [],
+    }),
+  );
+  assert.equal(normalCalls, 1);
+  assert.equal(normalRecord.requestResult, 'ok');
+  assert.equal(normalRecord.errorCode, null);
+  assert.equal(normalRecord.usageSource, 'reported');
+  assert.equal(normalRecord.inputTokens, 11);
+  assert.equal(normalRecord.outputTokens, 5);
+  assert.equal(normalRecord.data.note, note);
+  assert.equal(normalRecord.providerCalls, 1);
+  assert.equal(normalRecord.fallbackUsed, false);
+  assert.equal(normalRecord.rawOutput.length, OPENAI_DIAGNOSTIC_SAMPLE_CHARS);
+  assertNoKeyFragment(normalRecord.rawOutput);
+  assertNoKeyFragment(
+    JSON.stringify({
+      rawOutput: normalRecord.rawOutput,
+      outbound: normalRecord.outboundRedacted,
+    }),
+  );
+  keep('g3b.secret-normal', {
+    requestResult: normalRecord.requestResult,
+    errorCode: normalRecord.errorCode,
+    usageSource: normalRecord.usageSource,
+    inputTokens: normalRecord.inputTokens,
+    outputTokens: normalRecord.outputTokens,
+    providerCalls: normalRecord.providerCalls,
+    fallbackUsed: false,
+    rawOutput: normalRecord.rawOutput,
+    data: { noteLength: normalRecord.data.note.length },
+  });
+
+  const errorBody = `${'e'.repeat(OPENAI_DIAGNOSTIC_SAMPLE_CHARS - simulatedPrefix.length)}${simulatedKey}${'e'.repeat(700)}`;
+  assert.ok(
+    errorBody.indexOf(simulatedKey) + simulatedKey.length >
+      OPENAI_DIAGNOSTIC_SAMPLE_CHARS,
+  );
+  const httpError = await sendLocal(
+    chunkedResponse(errorBody, 400),
+    400,
+    simulatedKey,
+  );
+  assert.equal(httpError.errorCode, 'VALIDATION_ERROR');
+  assert.equal(httpError.raw, errorBody);
+  assert.equal(httpError.usage, null);
+  assert.equal(httpError.reportedModelId, null);
+  assertNoKeyFragment(httpError.logSample);
+  let errorCalls = 0;
+  const errorGw = createGateway({
+    profiles: [
+      {
+        id: profileId,
+        version: 3,
+        name: 'secret-http',
+        endpoint: 'https://example.test/v1',
+        configuredModelId: 'deepseek-chat',
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: {
+          structuredOutput: true,
+          nativeTools: false,
+          imageInput: false,
+        },
+        responseFormat: 'json_schema',
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: [],
+      },
+    ],
+    decryptKey: () => simulatedKey,
+    adapter: createOpenAIAdapter(async () => {
+      errorCalls += 1;
+      return chunkedResponse(errorBody, 400);
+    }),
+  });
+  const errorRecord = await errorGw.generateDecision(baseInput(profileId));
+  assert.equal(errorCalls, 1);
+  assert.equal(errorRecord.errorCode, 'VALIDATION_ERROR');
+  assert.equal(errorRecord.requestResult, 'malformed');
+  assert.equal(errorRecord.data, null);
+  assert.equal(errorRecord.providerCalls, 1);
+  assert.equal(errorRecord.repairCount, 0);
+  assert.equal(errorRecord.fallbackUsed, false);
+  assertNoKeyFragment(errorRecord.rawOutput);
+  keep('g3b.secret-http-error', {
+    requestResult: errorRecord.requestResult,
+    errorCode: errorRecord.errorCode,
+    providerCalls: errorRecord.providerCalls,
+    repairCount: errorRecord.repairCount,
+    fallbackUsed: false,
+    rawOutput: errorRecord.rawOutput,
+    data: null,
+  });
+
+  const head = 'h'.repeat(
+    OPENAI_DIAGNOSTIC_SAMPLE_CHARS - simulatedPrefix.length,
+  );
+  const over = `${head}${simulatedKey}${'t'.repeat(OPENAI_RESPONSE_CHAR_LIMIT + 80 - head.length - simulatedKey.length)}`;
+  assert.ok(over.length > OPENAI_RESPONSE_CHAR_LIMIT);
+  assert.ok(
+    over.indexOf(simulatedKey) + simulatedKey.length <
+      OPENAI_RESPONSE_CHAR_LIMIT,
+  );
+  const refused = await sendLocal(
+    chunkedResponse(over, 200),
+    200,
+    simulatedKey,
+  );
+  assert.equal(refused.errorCode, 'BUDGET_EXCEEDED');
+  assert.equal(refused.raw, '');
+  assert.equal(refused.usage, null);
+  assert.equal(refused.reportedModelId, null);
+  assert.equal(refused.logSample.length, OPENAI_DIAGNOSTIC_SAMPLE_CHARS);
+  assertNoKeyFragment(refused.logSample);
+  const fallbackId = '26262626-2626-4262-8262-262626262626';
+  let overCalls = 0;
+  const overGw = createGateway({
+    profiles: [
+      {
+        id: profileId,
+        version: 3,
+        name: 'secret-over-limit',
+        endpoint: 'https://example.test/v1',
+        configuredModelId: 'deepseek-chat',
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: {
+          structuredOutput: true,
+          nativeTools: false,
+          imageInput: false,
+        },
+        responseFormat: 'json_object',
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: [fallbackId],
+      },
+      {
+        id: fallbackId,
+        version: 1,
+        name: 'other',
+        endpoint: 'https://example.test/v1',
+        configuredModelId: 'other-model',
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: {
+          structuredOutput: true,
+          nativeTools: false,
+          imageInput: false,
+        },
+        responseFormat: 'json_object',
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: [],
+      },
+    ],
+    decryptKey: () => simulatedKey,
+    adapter: createOpenAIAdapter(async () => {
+      overCalls += 1;
+      return chunkedResponse(over, 200);
+    }),
+  });
+  const overRecord = await overGw.generateDecision(
+    baseInput(profileId, { fallbackProfileId: fallbackId }),
+  );
+  assert.equal(overCalls, 1);
+  assert.equal(overRecord.errorCode, 'BUDGET_EXCEEDED');
+  assert.equal(overRecord.requestResult, 'budget_exceeded');
+  assert.equal(overRecord.data, null);
+  assert.equal(overRecord.providerCalls, 1);
+  assert.equal(overRecord.repairCount, 0);
+  assert.equal(overRecord.fallbackUsed, false);
+  assert.equal(overRecord.fallbackDenied, false);
+  assert.equal(overRecord.outputTokens, null);
+  assert.equal(overRecord.reportedModelId, null);
+  assertNoKeyFragment(overRecord.rawOutput);
+  keep('g3b.secret-over-limit', {
+    requestResult: overRecord.requestResult,
+    errorCode: overRecord.errorCode,
+    providerCalls: overRecord.providerCalls,
+    repairCount: 0,
+    fallbackUsed: false,
+    fallbackDenied: false,
+    outputTokens: null,
+    rawOutput: overRecord.rawOutput,
+    data: null,
+  });
+});
+
+test('tool parameters are inlined and an untested profile is still probed', async () => {
+  const click = parametersForTool('click');
+  assert.equal(JSON.stringify(click).includes('"$ref"'), false);
+  assert.equal(click.type, 'object');
+  assert.equal(click.additionalProperties, false);
+  assert.deepEqual(click.required, ['target']);
+  assert.equal(click.properties.target.type, 'object');
+  assert.equal(click.properties.target.additionalProperties, false);
+  assert.deepEqual(click.properties.target.required, [
+    'snapshotId',
+    'pageId',
+    'nodeId',
+  ]);
+  assert.equal(click.properties.target.properties.snapshotId.format, 'uuid');
+  assert.equal(click.properties.target.properties.pageId.format, 'uuid');
+  assert.equal(click.properties.target.properties.nodeId.maxLength, 120);
+  assert.equal(click.properties.target.properties.frameId.maxLength, 120);
+  assert.deepEqual(toolSchemasForRole('planner'), []);
+  assert.deepEqual(toolSchemasForRole('finalizer'), []);
+  const explorer = toolSchemasForRole('explorer');
+  assert.equal(
+    explorer.some((tool) => tool.name === 'click'),
+    true,
+  );
+  assert.equal(
+    explorer.some((tool) => tool.name === 'finish_case'),
+    false,
+  );
+  assert.deepEqual(
+    explorer.find((tool) => tool.name === 'click').parameters,
+    click,
+  );
+  const submit = parametersForTool('submit_case');
+  assert.equal(JSON.stringify(submit).includes('#/$defs/JsonValue'), true);
+  assert.equal(typeof submit.$defs.JsonValue, 'object');
+
+  const profileId = 'a3c0a3c0-a3c0-43c0-83c0-a3c0a3c0a3c0';
+  const messages = [messageFromText('user', '观察：保存按钮。')];
+  const bare = estimateTokens(JSON.stringify(messages));
+  let budgetCalls = 0;
+  const budgetGw = createGateway({
+    profiles: [
+      {
+        id: profileId,
+        version: 2,
+        name: 'json-object-budget',
+        endpoint: 'https://example.test/v1',
+        configuredModelId: 'deepseek-chat',
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: {
+          structuredOutput: true,
+          nativeTools: true,
+          imageInput: false,
+        },
+        responseFormat: 'json_object',
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: [],
+      },
+    ],
+    decryptKey: () => 'openai-test-key',
+    adapter: createOpenAIAdapter(async () => {
+      budgetCalls += 1;
+      throw new Error('budget should stop before send');
+    }),
+  });
+  const budgetRecord = await budgetGw.generateDecision(
+    baseInput(profileId, {
+      messages,
+      maxInputTokens: bare,
+      toolSchemas: [{ name: 'click', parameters: click }],
+    }),
+  );
+  assert.equal(budgetCalls, 0);
+  assert.equal(budgetRecord.providerCalls, 0);
+  assert.equal(budgetRecord.requestResult, 'budget_exceeded');
+  assert.equal(budgetRecord.errorCode, 'BUDGET_EXCEEDED');
+  assert.ok(budgetRecord.inputTokens > bare);
+  keep('g3c.tool-parameters', {
+    requestResult: budgetRecord.requestResult,
+    errorCode: budgetRecord.errorCode,
+    providerCalls: 0,
+    inputTokens: budgetRecord.inputTokens,
+    rawOutput: 'click NodeTarget inlined; planner empty; hint counted',
+    data: { plannerTools: 0, explorerClick: true },
+  });
+
+  let seen = null;
+  let sent = 0;
+  const shown = createGateway({
+    profiles: [
+      {
+        id: profileId,
+        version: 2,
+        name: 'json-object-hint',
+        endpoint: 'https://example.test/v1',
+        configuredModelId: 'deepseek-chat',
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: {
+          structuredOutput: true,
+          nativeTools: true,
+          imageInput: false,
+        },
+        responseFormat: 'json_object',
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: [],
+      },
+    ],
+    decryptKey: () => 'openai-test-key',
+    adapter: createOpenAIAdapter(async (_url, init) => {
+      sent += 1;
+      seen = JSON.parse(init.body);
+      return new Response(
+        JSON.stringify({
+          model: 'deepseek-chat',
+          choices: [
+            {
+              message: {
+                role: 'assistant',
+                content: JSON.stringify({
+                  toolCalls: [
+                    {
+                      name: 'click',
+                      args: {
+                        target: {
+                          snapshotId: FIXTURE.snapshotId,
+                          pageId: FIXTURE.pageId,
+                          nodeId: 'tab-btn-details',
+                        },
+                      },
+                    },
+                  ],
+                  done: false,
+                }),
+              },
+            },
+          ],
+          usage: { prompt_tokens: 20, completion_tokens: 8 },
+        }),
+        { status: 200 },
+      );
+    }),
+  });
+  const shownRecord = await shown.generateDecision(
+    baseInput(profileId, {
+      toolSchemas: [{ name: 'click', parameters: click }],
+    }),
+  );
+  assert.equal(sent, 1);
+  assert.equal(seen.response_format.type, 'json_object');
+  assert.equal(Object.hasOwn(seen, 'tools'), false);
+  assert.equal(seen.model, 'deepseek-chat');
+  const hinted = seen.messages
+    .flatMap((message) => message.content)
+    .map((part) => part.text ?? '')
+    .join('\n');
+  assert.equal(hinted.includes('outputSchema='), true);
+  assert.equal(hinted.includes('snapshotId'), true);
+  assert.equal(hinted.includes('"format":"uuid"'), true);
+  assert.equal(shownRecord.requestResult, 'ok');
+  assert.equal(
+    validateContract('ToolCall', shownRecord.data.toolCalls[0]).success,
+    true,
+  );
+  keep('g3c.json-object-constraint', {
+    requestResult: shownRecord.requestResult,
+    errorCode: null,
+    providerCalls: shownRecord.providerCalls,
+    usageSource: shownRecord.usageSource,
+    rawOutput: 'json_object hint counted and ToolCall still validated',
+    data: { format: seen.response_format.type },
+  });
+
+  let probeCalls = 0;
+  let probeBody = null;
+  const untested = createGateway({
+    profiles: [
+      {
+        id: profileId,
+        version: 1,
+        name: 'untested',
+        endpoint: 'https://example.test/v1',
+        configuredModelId: 'deepseek-chat',
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: {
+          structuredOutput: false,
+          nativeTools: false,
+          imageInput: false,
+        },
+        responseFormat: 'json_object',
+        status: 'untested',
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: [],
+      },
+    ],
+    decryptKey: () => 'openai-test-key',
+    adapter: createOpenAIAdapter(async (_url, init) => {
+      probeCalls += 1;
+      probeBody = JSON.parse(init.body);
+      return new Response(
+        JSON.stringify({
+          model: 'deepseek-chat',
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  structuredOutput: false,
+                  nativeTools: true,
+                  imageInput: true,
+                }),
+              },
+            },
+          ],
+          usage: { prompt_tokens: 4, completion_tokens: 4 },
+        }),
+        { status: 200 },
+      );
+    }),
+  });
+  const probe = await untested.capabilityProbe(profileId, 1000);
+  assert.equal(probeCalls, 1);
+  assert.equal(probe.providerCalls, 1);
+  assert.equal(probeBody.response_format.type, 'json_object');
+  assert.equal(probeBody.model, 'deepseek-chat');
+  assert.equal(probe.data.status, 'degraded');
+  assert.equal(probe.data.capabilities.structuredOutput, true);
+  assert.equal(probe.data.capabilities.nativeTools, false);
+  assert.equal(probe.data.capabilities.imageInput, false);
+  assert.match(probe.data.notes.join(''), /未实测/);
+  keep('g3c.untested-probe', {
+    requestResult: probe.requestResult,
+    errorCode: probe.errorCode,
+    providerCalls: probe.providerCalls,
+    rawOutput: 'untested caps did not skip the probe',
+    data: { status: probe.data.status },
+  });
+
+  let closedCalls = 0;
+  const closed = createGateway({
+    profiles: [
+      {
+        id: profileId,
+        version: 4,
+        name: 'closed',
+        endpoint: 'https://example.test/v1',
+        configuredModelId: 'deepseek-chat',
+        kind: 'openai_compatible',
+        dataBoundary: 'external',
+        capabilities: {
+          structuredOutput: true,
+          nativeTools: true,
+          imageInput: true,
+        },
+        responseFormat: 'json_schema',
+        status: 'disabled',
+        encryptedApiKey: 'cipher',
+        approvedFallbackIds: [],
+      },
+    ],
+    decryptKey: () => 'openai-test-key',
+    adapter: createOpenAIAdapter(async () => {
+      closedCalls += 1;
+      throw new Error('disabled profile must not be probed');
+    }),
+  });
+  const closedProbe = await closed.capabilityProbe(profileId, 1000);
+  assert.equal(closedCalls, 0);
+  assert.equal(closedProbe.providerCalls, 0);
+  assert.equal(closedProbe.data.status, 'disabled');
+  assert.equal(closedProbe.data.capabilities.structuredOutput, true);
+  assert.equal(closedProbe.data.capabilities.nativeTools, true);
+  assert.equal(closedProbe.data.capabilities.imageInput, true);
+  keep('g3c.disabled-probe', {
+    requestResult: closedProbe.requestResult,
+    errorCode: closedProbe.errorCode,
+    providerCalls: 0,
+    rawOutput: 'disabled profile stayed closed',
+    data: { status: 'disabled' },
+  });
+});
+
 test('dispatcher validates tool results and registered reason codes', async () => {
   const ajv = new Ajv({ allErrors: true, strict: false });
   const validate = ajv.compile(DECISION_SCHEMA);
@@ -876,6 +2345,29 @@ test('write evidence', () => {
     'provider.5xx',
     'provider.transport',
     'provider.timeout',
+    'g3a.json-object-decision',
+    'g3a.no-format-downgrade',
+    'g3a.native-tool-rejected',
+    'g3a.native-tool-accepted',
+    'g3a.image-data-url',
+    'g3a.image-https',
+    'g3a.image-unresolved',
+    'g3a.image-capability',
+    'g3a.visual-without-image',
+    'g3a.image-budget',
+    'g3a.fallback-unapproved-429',
+    'g3a.no-structured-output',
+    'g3b.long-envelope',
+    'g3b.non-json',
+    'g3b.http-error-sample',
+    'g3b.over-limit',
+    'g3b.secret-normal',
+    'g3b.secret-http-error',
+    'g3b.secret-over-limit',
+    'g3c.tool-parameters',
+    'g3c.json-object-constraint',
+    'g3c.untested-probe',
+    'g3c.disabled-probe',
     'dispatcher.contract',
     'live-model.blocked',
   ];
@@ -893,7 +2385,7 @@ test('write evidence', () => {
       liveModelCalled: false,
       productImplemented: false,
     },
-    counts: { passed: passed.length, blocked: 1, unverified: 4 },
+    counts: { passed: passed.length, blocked: 1, unverified: 8 },
     passed: passed.map((id) => ({ id })),
     blocked: [
       {
@@ -904,14 +2396,20 @@ test('write evidence', () => {
     ],
     unverified: [
       '真实模型质量基线（固定模型下 10 条流程 × 10 次，以及 10 个错误 × 3 次）',
+      'G3-A 的 json_object、原生工具和图片传输只用本地假传输验证，本轮没有再调用真实供应商',
+      'G3-B 的长响应、非 JSON、HTTP 错误取样、超限和跨样本密钥脱敏只用本地假传输验证，没有再调用真实供应商',
       '管理员 SecretVault 解密与 KEK 挂载',
       '数据库事务里的预算预约/核销',
       '与并行中的 BrowserPort 对接',
+      'G3-C 当轮只验证了冻结格式、工具参数和失败探测的本地假传输；该轮 worker 入口尚未接线，已批准图片解析仍未做',
+      'G3-D 网关侧的保守探测与失败重试只用本地假传输验证；进程组合、Postgres 和真实供应商不在本文件里证明',
     ],
     handoff: {
       done: [
         'ModelPort：capabilityProbe、generateDecision、evaluateCriterion，以及内部 complete 的契约校验。',
-        'OpenAI-compatible adapter 单独映射 model、max_completion_tokens、json_schema 和 function tools。',
+        'OpenAI-compatible adapter 按剖面的 responseFormat 发送 json_schema、json_object 或 native tools。未声明时仍是 strict json_schema，不会在 400 后改格式或换模型。',
+        '供应商完成包会先解开 content 或 tool_calls，再做 JSON Schema 与 ToolCall 校验。图片只发送已解析的 https 或 data:image，否则能力缺失或未配置，不发送 artifact://。',
+        'OpenAI adapter openai-compatible.2 在字符上限内解析完整响应。诊断日志先对保留正文脱敏，再取 2000 字符样本。超过上限的 2xx 正文记 BUDGET_EXCEEDED，不截断后当成功；超限保留段末尾的密钥前缀也会去掉。非 2xx 仍按状态码，不把正文当完成结果。',
         'stub 八类响应：正常、格式错误、不支持图片、超时、429、重复动作、假证据 ID、未授权工具。',
         '用量区分 reported / estimated / mixed；没有 provider usage 时本地估算，空输出保持 null，不填 0。',
         '请求前脱敏；密钥只在调用前解密，日志不留原值；未批准或不存在的 fallback 不会被调用。',

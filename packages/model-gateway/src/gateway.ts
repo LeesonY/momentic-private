@@ -1,8 +1,11 @@
 import { Ajv } from 'ajv';
+import formatsPlugin from 'ajv-formats';
 import {
   parseContract,
+  validateContract,
   type ModelMessage,
   type ModelProbeResult,
+  type Criterion,
   type ModelRequest,
   type ModelResult,
 } from '@localqa/contracts';
@@ -14,8 +17,14 @@ import {
   type NormalizedCall,
   type ProviderAdapter,
   type ProviderResponse,
+  type StructuredOutputMode,
 } from './adapter.js';
-import { assertHttpsEndpoint } from './openai.js';
+import {
+  assertHttpsEndpoint,
+  imageDataUrl,
+  legalImageUrl,
+  redactThenSample,
+} from './openai.js';
 import {
   hideSecret,
   messageText,
@@ -24,7 +33,85 @@ import {
 } from './redact.js';
 import { combineUsage, estimateTokens, type UsageAttempt } from './usage.js';
 
-const ajv = new Ajv({ allErrors: true, strict: false });
+// Draft-07 is Ajv 8's default. Existing output schemas and DECISION_SCHEMA's
+// $ref/$defs compile here; draft 2020-only keywords are not interpreted.
+// Formats are ajv-formats 3.0.1 full, the same locked package contracts uses.
+// An unknown format name is rejected before any provider send.
+const ajv = new Ajv({
+  allErrors: true,
+  strict: false,
+  validateFormats: true,
+  coerceTypes: false,
+  useDefaults: false,
+  removeAdditional: false,
+});
+formatsPlugin.default(ajv, { mode: 'full' });
+
+const schemaLists = ['allOf', 'anyOf', 'oneOf'] as const;
+const schemaMaps = [
+  '$defs',
+  'definitions',
+  'properties',
+  'patternProperties',
+] as const;
+const schemaChildren = [
+  'additionalProperties',
+  'additionalItems',
+  'contains',
+  'propertyNames',
+  'not',
+  'if',
+  'then',
+  'else',
+] as const;
+
+/** Format on a schema node only. const/default/examples/enum values are instances. */
+function unsupportedFormat(schema: unknown): string | null {
+  const pending: unknown[] = [schema];
+  const seen = new Set<unknown>();
+  while (pending.length > 0) {
+    const node = pending.pop();
+    if (!node || typeof node !== 'object' || Array.isArray(node)) continue;
+    if (seen.has(node)) continue;
+    seen.add(node);
+    const record = node as Record<string, unknown>;
+    const format = record['format'];
+    if (typeof format === 'string' && !Object.hasOwn(ajv.formats, format)) {
+      return format;
+    }
+    for (const key of schemaLists) {
+      const list = record[key];
+      if (Array.isArray(list)) pending.push(...list);
+    }
+    const items = record['items'];
+    if (Array.isArray(items)) pending.push(...items);
+    else if (items && typeof items === 'object') pending.push(items);
+    for (const key of schemaChildren) {
+      const child = record[key];
+      if (child && typeof child === 'object') pending.push(child);
+    }
+    for (const key of schemaMaps) {
+      const map = record[key];
+      if (!map || typeof map !== 'object' || Array.isArray(map)) continue;
+      pending.push(...Object.values(map as Record<string, unknown>));
+    }
+    const dependencies = record['dependencies'];
+    if (
+      dependencies &&
+      typeof dependencies === 'object' &&
+      !Array.isArray(dependencies)
+    ) {
+      for (const child of Object.values(
+        dependencies as Record<string, unknown>,
+      )) {
+        if (child && typeof child === 'object' && !Array.isArray(child)) {
+          pending.push(child);
+        }
+      }
+    }
+  }
+  return null;
+}
 
 /** Thrown and returned provider codes stay on the §7 vocabulary. Unknown failures are unavailable, not timeouts. */
 function mapProviderCode(code: string): {
@@ -44,6 +131,8 @@ function mapProviderCode(code: string): {
       };
     case 'VALIDATION_ERROR':
       return { requestResult: 'malformed', errorCode: 'VALIDATION_ERROR' };
+    case 'BUDGET_EXCEEDED':
+      return { requestResult: 'budget_exceeded', errorCode: 'BUDGET_EXCEEDED' };
     default:
       return { requestResult: 'unavailable', errorCode: 'SERVICE_UNAVAILABLE' };
   }
@@ -73,9 +162,24 @@ export interface GatewayProfile {
     nativeTools: boolean;
     imageInput: boolean;
   };
+  /**
+   * How this provider accepts structured output. The shared ModelCapabilities
+   * object has no format field; callers that build this profile must set it.
+   * Omitted keeps json_schema and does not silently switch formats.
+   */
+  responseFormat?: StructuredOutputMode;
+  /**
+   * Persisted probe state. disabled is an admin close and is not probed.
+   * Anything else, including omitted or untested, can be probed again.
+   */
+  status?: 'untested' | 'ready' | 'degraded' | 'disabled';
   encryptedApiKey: string | null;
   approvedFallbackIds: readonly string[];
 }
+
+export type ResolvedArtifact =
+  | { readonly mediaType: string; readonly bytes: Uint8Array }
+  | { readonly url: string };
 
 export interface CallInput {
   taskId: string;
@@ -93,7 +197,19 @@ export interface CallInput {
   maxInputTokens?: number;
   fallbackProfileId?: string;
   knownEvidenceIds?: readonly string[];
-  criterion?: { id: string; kind: string };
+  /**
+   * Stored criterion for purpose assert. Only a canonical Criterion is sent.
+   * Free-form messages are not an expectedValue source.
+   */
+  criterion?: {
+    id: string;
+    kind: string;
+    description?: string;
+    sourceKind?: Criterion['sourceKind'];
+    sourceRef?: string;
+    locator?: Criterion['locator'];
+    expectedValue?: Criterion['expectedValue'];
+  };
 }
 
 export interface Assessment {
@@ -155,12 +271,43 @@ export interface Gateway {
   ): Promise<CallRecord>;
 }
 
+/** Canonical Criterion only. Missing required parts are not filled from messages. */
+function canonicalCriterion(value: CallInput['criterion']): Criterion | null {
+  if (!value) return null;
+  const candidate: Record<string, unknown> = {
+    id: value.id,
+    kind: value.kind,
+    description: value.description,
+    sourceKind: value.sourceKind,
+    sourceRef: value.sourceRef,
+  };
+  if (value.locator !== undefined) candidate['locator'] = value.locator;
+  if (value.expectedValue !== undefined)
+    candidate['expectedValue'] = value.expectedValue;
+  const checked = validateContract('Criterion', candidate);
+  return checked.success ? checked.data : null;
+}
+
+/** Caller-facing assert judgment. Provider JSON is not this object. */
+function publishedCriterionResult(assessment: Assessment): unknown | null {
+  if (!assessment.criterionId || !assessment.criterionResult) return null;
+  const checked = validateContract('CriterionResult', {
+    criterionId: assessment.criterionId,
+    result: assessment.criterionResult,
+    reason: assessment.reasonCode.slice(0, 2000),
+    evidenceRefs: assessment.acceptedEvidenceRefs,
+  });
+  return checked.success ? checked.data : null;
+}
+
 export function assessCriterionOutput(input: {
   data: unknown;
   expectedCriterionId: string;
   knownEvidenceIds: readonly string[];
   criterionKind: string;
   imageInput: boolean;
+  /** Visual pass requires an image URL in the provider body, not a capability flag. */
+  imageTransmitted?: boolean;
 }): Assessment {
   const known = new Set(input.knownEvidenceIds);
   const blank = (
@@ -175,6 +322,9 @@ export function assessCriterionOutput(input: {
   });
   if (input.criterionKind === 'visual' && !input.imageInput) {
     return blank('MODEL_CAPABILITY_MISSING', 'blocked');
+  }
+  if (input.criterionKind === 'visual' && input.imageTransmitted === false) {
+    return blank('NO_OBSERVATION_REF', 'inconclusive');
   }
   if (
     !input.data ||
@@ -254,10 +404,115 @@ function failure(
   };
 }
 
+export function selectStructuredOutput(
+  profile: GatewayProfile,
+): StructuredOutputMode | 'unsupported' {
+  // Stored caps start false. That is unverified, not a completed negative probe.
+  if (profile.status === 'untested') {
+    return profile.responseFormat ?? 'json_schema';
+  }
+  const mode = profile.responseFormat;
+  if (mode === 'json_schema' || mode === 'json_object') {
+    return profile.capabilities.structuredOutput ? mode : 'unsupported';
+  }
+  if (mode === 'native_tools') {
+    return profile.capabilities.nativeTools ? mode : 'unsupported';
+  }
+  if (profile.capabilities.structuredOutput) return 'json_schema';
+  if (profile.capabilities.nativeTools) return 'native_tools';
+  return 'unsupported';
+}
+
+/** Chat-completion envelopes are not the decision. Bare JSON is left as-is. */
+export function unwrapProviderOutput(raw: string): string {
+  let body: unknown;
+  try {
+    body = JSON.parse(raw) as unknown;
+  } catch {
+    return raw;
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return raw;
+  const choices = (body as { choices?: unknown }).choices;
+  if (!Array.isArray(choices) || choices.length === 0) return raw;
+  const message = (
+    choices[0] as {
+      message?: { content?: unknown; tool_calls?: unknown };
+    }
+  ).message;
+  if (!message || typeof message !== 'object') return raw;
+  if (Array.isArray(message.tool_calls) && message.tool_calls.length > 0) {
+    const toolCalls = [];
+    for (const call of message.tool_calls) {
+      const fn = (
+        call as { function?: { name?: unknown; arguments?: unknown } }
+      ).function;
+      if (
+        !fn ||
+        typeof fn.name !== 'string' ||
+        typeof fn.arguments !== 'string'
+      ) {
+        return raw;
+      }
+      try {
+        toolCalls.push({
+          name: fn.name,
+          args: JSON.parse(fn.arguments) as unknown,
+        });
+      } catch {
+        return raw;
+      }
+    }
+    return JSON.stringify({ toolCalls, done: false });
+  }
+  return typeof message.content === 'string' ? message.content : raw;
+}
+
+function toolCallsOf(value: unknown): unknown[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+  const row = value as { toolCalls?: unknown };
+  return Array.isArray(row.toolCalls) ? row.toolCalls : [];
+}
+
+function toolCallsMatchContract(value: unknown): boolean {
+  return toolCallsOf(value).every(
+    (call) => validateContract('ToolCall', call).success,
+  );
+}
+
+/** The provider body must contain each resolved image URL. Artifact ids are not images. */
+function transmittedImage(
+  body: unknown,
+  imageUrls: Readonly<Record<string, string>>,
+): boolean {
+  const urls = Object.values(imageUrls).filter((url) => legalImageUrl(url));
+  if (urls.length === 0) return false;
+  let serialized = '';
+  try {
+    serialized = JSON.stringify(body);
+  } catch {
+    return false;
+  }
+  return urls.every((url) => serialized.includes(url));
+}
+
+function redactTransport(text: string): string {
+  return text.replace(
+    /data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+/gi,
+    'data:image;base64,[redacted]',
+  );
+}
+
 export function createGateway(options: {
   profiles: readonly GatewayProfile[];
   decryptKey: (profileId: string, ciphertext: string) => string;
   adapter: ProviderAdapter;
+  /**
+   * Turns an approved artifact id into bytes or an https URL.
+   * Absent means an approved image cannot be sent.
+   */
+  resolveArtifact?: (
+    artifactId: string,
+  ) => Promise<ResolvedArtifact | null> | ResolvedArtifact | null;
 }): Gateway {
   const profiles = new Map(
     options.profiles.map((profile) => [profile.id, profile]),
@@ -395,6 +650,22 @@ export function createGateway(options: {
     }
 
     const redacted = redactMessages(input.messages, input.approvedImageIds);
+    if (redacted.droppedImageIds.length > 0) {
+      return failure({
+        method,
+        profileId: profile.id,
+        profileVersion: profile.version,
+        modelId: profile.configuredModelId,
+        adapterVersion: options.adapter.version,
+        promptVersion: input.promptVersion,
+        role: input.role,
+        purpose: input.purpose,
+        requestResult: 'not_configured',
+        errorCode: 'MODEL_NOT_CONFIGURED',
+        latencyMs: Date.now() - started,
+        providerCalls: 0,
+      });
+    }
     let messages = redacted.messages;
     const maxInput = input.maxInputTokens ?? DEFAULT_INPUT_TOKENS;
     let inputEstimate = estimateTokens(JSON.stringify(messages)) ?? 1;
@@ -402,6 +673,16 @@ export function createGateway(options: {
       const system = messages[0];
       messages = [system!, ...messages.slice(2)];
       inputEstimate = estimateTokens(JSON.stringify(messages)) ?? 1;
+    }
+    if (input.purpose === 'assert') {
+      const frozen = canonicalCriterion(input.criterion);
+      if (frozen) {
+        messages = [
+          ...messages,
+          messageFromText('user', `frozenCriterion ${JSON.stringify(frozen)}`),
+        ];
+        inputEstimate = estimateTokens(JSON.stringify(messages)) ?? 1;
+      }
     }
     if (inputEstimate > maxInput || messages.length === 0) {
       return failure({
@@ -423,9 +704,42 @@ export function createGateway(options: {
       });
     }
 
+    const outputMode =
+      input.purpose === 'probe' && profile.status !== 'disabled'
+        ? (profile.responseFormat ?? 'json_schema')
+        : selectStructuredOutput(profile);
+    if (outputMode === 'json_object') {
+      messages = [
+        ...messages,
+        messageFromText('user', jsonObjectConstraint(input)),
+      ];
+      inputEstimate = estimateTokens(JSON.stringify(messages)) ?? 1;
+      if (inputEstimate > maxInput) {
+        return failure({
+          method,
+          profileId: profile.id,
+          profileVersion: profile.version,
+          modelId: profile.configuredModelId,
+          adapterVersion: options.adapter.version,
+          promptVersion: input.promptVersion,
+          role: input.role,
+          purpose: input.purpose,
+          requestResult: 'budget_exceeded',
+          errorCode: 'BUDGET_EXCEEDED',
+          usageSource: 'estimated',
+          inputTokens: inputEstimate,
+          outputTokens: null,
+          requests: 0,
+          latencyMs: Date.now() - started,
+        });
+      }
+    }
+
     let validator: ReturnType<typeof ajv.compile> | null = null;
     if (input.purpose !== 'probe') {
       try {
+        const missing = unsupportedFormat(input.outputSchema);
+        if (missing) throw new Error(`unsupported format ${missing}`);
         validator = ajv.compile(input.outputSchema);
       } catch {
         return failure({
@@ -444,11 +758,103 @@ export function createGateway(options: {
       }
     }
 
+    const imageIds: string[] = [];
+    for (const message of messages) {
+      for (const part of message.content) {
+        if (part.type === 'image') imageIds.push(part.artifactId);
+      }
+    }
+    const visual =
+      input.purpose === 'assert' && input.criterion?.kind === 'visual';
+    const preflight = (
+      requestResult: string,
+      errorCode: string,
+      extra: Partial<CallRecord> = {},
+    ): CallRecord =>
+      failure({
+        method,
+        profileId: profile.id,
+        profileVersion: profile.version,
+        modelId: profile.configuredModelId,
+        adapterVersion: options.adapter.version,
+        promptVersion: input.promptVersion,
+        role: input.role,
+        purpose: input.purpose,
+        requestResult,
+        errorCode,
+        latencyMs: Date.now() - started,
+        providerCalls: 0,
+        ...extra,
+      });
+    if (
+      outputMode === 'unsupported' &&
+      (input.purpose === 'decide' || input.purpose === 'assert')
+    ) {
+      return preflight('capability_missing', 'MODEL_CAPABILITY_MISSING', {
+        assessment: visual
+          ? assessCriterionOutput({
+              data: null,
+              expectedCriterionId: input.criterion?.id ?? FIXTURE.criterionId,
+              knownEvidenceIds: input.knownEvidenceIds ?? [],
+              criterionKind: 'visual',
+              imageInput: false,
+            })
+          : null,
+      });
+    }
+    if (visual && (!profile.capabilities.imageInput || imageIds.length === 0)) {
+      return preflight('capability_missing', 'MODEL_CAPABILITY_MISSING', {
+        assessment: assessCriterionOutput({
+          data: null,
+          expectedCriterionId: input.criterion?.id ?? FIXTURE.criterionId,
+          knownEvidenceIds: input.knownEvidenceIds ?? [],
+          criterionKind: 'visual',
+          imageInput: false,
+        }),
+      });
+    }
+    const imageUrls: Record<string, string> = {};
+    if (imageIds.length > 0) {
+      if (!profile.capabilities.imageInput) {
+        return preflight('capability_missing', 'MODEL_CAPABILITY_MISSING');
+      }
+      if (!options.resolveArtifact) {
+        return preflight('not_configured', 'MODEL_NOT_CONFIGURED');
+      }
+      for (const artifactId of imageIds) {
+        let asset: ResolvedArtifact | null;
+        try {
+          asset = await options.resolveArtifact(artifactId);
+        } catch {
+          return preflight('unavailable', 'SERVICE_UNAVAILABLE');
+        }
+        const url =
+          asset && 'bytes' in asset
+            ? (imageDataUrl(asset.mediaType, asset.bytes) ?? '')
+            : (asset?.url ?? '');
+        if (!legalImageUrl(url)) {
+          return preflight('not_configured', 'MODEL_NOT_CONFIGURED');
+        }
+        imageUrls[artifactId] = url;
+      }
+      const maxInput = input.maxInputTokens ?? DEFAULT_INPUT_TOKENS;
+      const imageTokens =
+        estimateTokens(Object.values(imageUrls).join('')) ?? 0;
+      if (inputEstimate + imageTokens > maxInput) {
+        return preflight('budget_exceeded', 'BUDGET_EXCEEDED', {
+          usageSource: 'estimated',
+          inputTokens: inputEstimate + imageTokens,
+          outputTokens: null,
+        });
+      }
+    }
+
     const attempts: UsageAttempt[] = [];
     const raws: string[] = [];
     const outbound: string[] = [];
     let providerCalls = 0;
     let repairCount = 0;
+    let visualTransmitted = false;
     let reportedModelId: string | null = null;
     const maxOutput = Math.min(input.maxOutputTokens, DEFAULT_OUTPUT_TOKENS);
 
@@ -463,10 +869,18 @@ export function createGateway(options: {
         outputSchema: input.outputSchema,
         tools: input.toolSchemas,
         maxOutputTokens: maxOutput,
+        ...(outputMode === 'unsupported' ? {} : { responseFormat: outputMode }),
+        imageUrls,
       };
       const built = options.adapter.build(normalized);
+      if (visual && !transmittedImage(built.body, imageUrls)) {
+        throw Object.assign(new Error('VISUAL_IMAGE_ABSENT'), {
+          code: 'VISUAL_IMAGE_ABSENT',
+        });
+      }
+      if (visual) visualTransmitted = true;
       const outboundText = hideSecret(
-        redactText(JSON.stringify(built.body)),
+        redactTransport(redactText(JSON.stringify(built.body))),
         apiKey,
       );
       outbound.push(outboundText);
@@ -527,8 +941,15 @@ export function createGateway(options: {
     };
 
     const noteUsage = (response: ProviderResponse, requestText: string) => {
-      const raw = hideSecret(response.raw, apiKey);
-      raws.push(raw);
+      // Errors still have the complete body in raw. Redact that body before
+      // sampling. A pre-cut logSample cannot match a secret that crosses it.
+      // Over-limit leaves raw empty; its logSample was already redacted from
+      // the retained bound. Success logs that same redacted envelope sample.
+      const logged =
+        response.errorCode && response.raw
+          ? redactThenSample(response.raw, apiKey)
+          : (response.logSample ?? redactThenSample(response.raw, apiKey));
+      raws.push(hideSecret(redactText(logged), apiKey));
       reportedModelId = response.reportedModelId;
       if (response.usage) {
         attempts.push({
@@ -541,7 +962,7 @@ export function createGateway(options: {
       attempts.push({
         source: 'estimated',
         inputTokens: estimateTokens(requestText) ?? inputEstimate,
-        outputTokens: estimateTokens(raw),
+        outputTokens: estimateTokens(hideSecret(response.raw, apiKey)),
       });
     };
 
@@ -569,8 +990,34 @@ export function createGateway(options: {
       return finish(outcome.requestResult, outcome.errorCode, null, null);
     };
 
+    const present = (response: ProviderResponse): ProviderResponse =>
+      response.errorCode
+        ? response
+        : { ...response, raw: unwrapProviderOutput(response.raw) };
+
     try {
-      let response = await sendOnce(messages);
+      let response: ProviderResponse;
+      try {
+        response = present(await sendOnce(messages));
+      } catch (error) {
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          error.code === 'VISUAL_IMAGE_ABSENT'
+        ) {
+          return preflight('capability_missing', 'MODEL_CAPABILITY_MISSING', {
+            assessment: assessCriterionOutput({
+              data: null,
+              expectedCriterionId: input.criterion?.id ?? FIXTURE.criterionId,
+              knownEvidenceIds: input.knownEvidenceIds ?? [],
+              criterionKind: 'visual',
+              imageInput: false,
+            }),
+          });
+        }
+        throw error;
+      }
       noteUsage(response, JSON.stringify(messages));
       const stopped = stopForProvider(response);
       if (stopped) return stopped;
@@ -586,13 +1033,15 @@ export function createGateway(options: {
           `${REPAIR_MARK}：只输出一个符合 outputSchema 的 JSON 对象，不要解释。`,
         );
         messages = [...messages, repair];
-        response = await sendOnce(messages);
+        response = present(await sendOnce(messages));
         noteUsage(response, JSON.stringify(messages));
         const repairedStop = stopForProvider(response);
         if (repairedStop) return repairedStop;
         parsed = parseWithSchema(response.raw, validator);
       }
       if (!parsed.ok)
+        return finish('malformed', 'VALIDATION_ERROR', null, null);
+      if (!toolCallsMatchContract(parsed.value))
         return finish('malformed', 'VALIDATION_ERROR', null, null);
       if (input.purpose === 'assert') {
         const assessment = assessCriterionOutput({
@@ -601,15 +1050,19 @@ export function createGateway(options: {
           knownEvidenceIds: input.knownEvidenceIds ?? [],
           criterionKind: input.criterion?.kind ?? 'semantic',
           imageInput: profile.capabilities.imageInput,
+          ...(visual ? { imageTransmitted: visualTransmitted } : {}),
         });
         const requestResult =
           assessment.reasonCode === 'FAKE_EVIDENCE'
             ? 'fake_evidence'
             : assessment.verdictStatus;
+        const published = publishedCriterionResult(assessment);
+        if (!published)
+          return finish('malformed', 'VALIDATION_ERROR', null, assessment);
         return finish(
           requestResult,
           assessment.verdictStatus === 'blocked' ? assessment.reasonCode : null,
-          parsed.value,
+          published,
           assessment,
         );
       }
@@ -638,6 +1091,32 @@ export function createGateway(options: {
   return {
     capabilityProbe(profileId, timeoutMs = 1000) {
       const profile = profiles.get(profileId);
+      if (profile && profile.status === 'disabled') {
+        const record = failure({
+          method: 'capabilityProbe',
+          profileId,
+          profileVersion: profile.version,
+          modelId: profile.configuredModelId,
+          adapterVersion: options.adapter.version,
+          promptVersion: 'probe.1',
+          role: 'coordinator',
+          purpose: 'probe',
+          requestResult: 'capability_missing',
+          errorCode: 'MODEL_CAPABILITY_MISSING',
+          providerCalls: 0,
+        });
+        record.data = probeResult(
+          profileId,
+          {
+            structuredOutput: profile.capabilities.structuredOutput,
+            nativeTools: profile.capabilities.nativeTools,
+            imageInput: profile.capabilities.imageInput,
+          },
+          'disabled',
+          ['剖面已禁用'],
+        );
+        return Promise.resolve(record);
+      }
       return run('capabilityProbe', {
         taskId: FIXTURE.taskId,
         profileId,
@@ -676,32 +1155,51 @@ export function createGateway(options: {
             record.data = probeResult(
               profileId,
               {
-                structuredOutput: true,
-                nativeTools: true,
+                structuredOutput: false,
+                nativeTools: false,
                 imageInput: false,
               },
               'degraded',
-              ['图片不受支持。视觉验收不能改成文本验收。'],
+              [
+                '图片不受支持。视觉验收不能改成文本验收。',
+                '失败结果不把未实测能力写成可用。',
+              ],
             );
           }
           return record;
         }
-        const data = record.data as Record<string, unknown>;
-        const capabilities = {
-          structuredOutput: data['structuredOutput'] === true,
-          nativeTools: data['nativeTools'] === true,
-          imageInput: data['imageInput'] === true,
-        };
-        const status =
-          !capabilities.structuredOutput || !capabilities.nativeTools
-            ? 'disabled'
-            : capabilities.imageInput
-              ? 'ready'
-              : 'degraded';
-        const notes = capabilities.imageInput
-          ? []
-          : ['图片不受支持。视觉验收不能改成文本验收。'];
-        record.data = probeResult(profileId, capabilities, status, notes);
+        if (profile?.kind === 'stub') {
+          const data = record.data as Record<string, unknown>;
+          const capabilities = {
+            structuredOutput: data['structuredOutput'] === true,
+            nativeTools: data['nativeTools'] === true,
+            imageInput: data['imageInput'] === true,
+          };
+          const status =
+            !capabilities.structuredOutput || !capabilities.nativeTools
+              ? 'degraded'
+              : capabilities.imageInput
+                ? 'ready'
+                : 'degraded';
+          const notes = capabilities.imageInput
+            ? ['stub 脚本结果，不是供应商实测。']
+            : ['图片不受支持。视觉验收不能改成文本验收。'];
+          record.data = probeResult(profileId, capabilities, status, notes);
+          return record;
+        }
+        record.data = probeResult(
+          profileId,
+          {
+            structuredOutput: true,
+            nativeTools: false,
+            imageInput: false,
+          },
+          'degraded',
+          [
+            '结构化输出已由本次探测的合法 JSON 验证。',
+            '原生工具与图片未实测，保持未测，不采用模型自报。',
+          ],
+        );
         return record;
       });
     },
@@ -754,6 +1252,33 @@ export function createGateway(options: {
         request.purpose === 'assert'
           ? await run('complete', input)
           : await run('complete', input);
+      if (
+        request.purpose === 'assert' &&
+        record.data !== null &&
+        !record.errorCode
+      ) {
+        const assessment = record.assessment;
+        const candidate =
+          assessment?.criterionId && assessment.criterionResult
+            ? {
+                criterionId: assessment.criterionId,
+                result: assessment.criterionResult,
+                reason: assessment.reasonCode.slice(0, 2000),
+                evidenceRefs: assessment.acceptedEvidenceRefs,
+              }
+            : null;
+        const checked = candidate
+          ? validateContract('CriterionResult', candidate)
+          : null;
+        if (!checked?.success) {
+          record.data = null;
+          record.errorCode = 'VALIDATION_ERROR';
+          record.requestResult = 'malformed';
+          return record;
+        }
+        // Provider JSON stays in rawOutput. It does not become the judgment.
+        record.data = checked.data;
+      }
       if (record.data === null || record.errorCode) return record;
       const result: ModelResult = {
         data: record.data as ModelResult['data'],
@@ -804,6 +1329,20 @@ function parseWithSchema(
   const value = parseJson(raw);
   if (value === null || !validator) return { ok: false };
   return validator(value) ? { ok: true, value } : { ok: false };
+}
+
+function jsonObjectConstraint(input: CallInput): string {
+  const tools = input.toolSchemas.map((tool) => ({
+    name: tool.name,
+    parameters: tool.parameters,
+  }));
+  return [
+    '输出一个 JSON 对象，不要 Markdown，不要解释。',
+    '该对象必须满足 outputSchema。',
+    '若调用工具，toolCalls 的参数必须满足同名 parameters。',
+    `outputSchema=${JSON.stringify(input.outputSchema)}`,
+    `tools=${JSON.stringify(tools)}`,
+  ].join('\n');
 }
 
 export function messageFromText(

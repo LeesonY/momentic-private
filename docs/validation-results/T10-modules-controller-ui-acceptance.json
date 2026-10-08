@@ -1,0 +1,33 @@
+{
+  "at": "2026-10-06T01:44:34.908548+00:00",
+  "rootIndependent": true,
+  "locallyAccepted": true,
+  "checks": {
+    "scopeAndPreviewHelpers": 8,
+    "mockPublicMethods": 6,
+    "offlineSuiteIncludingStaticSsrAndInjectedHttp": 39,
+    "webBuild": "passed",
+    "webEslint": "passed",
+    "projectAndHistoryBusyReset": "source-inspected"
+  },
+  "sourceSha256": {
+    "apps/web/src/pages/ModulesPage.tsx": "26dcd978ba0f829aa96439afc525c1f51a236b451ae6063863bcc2d8f0dcb974",
+    "apps/web/src/utils/modulePagination.ts": "c62164f74911b0387928207bced25fbcac216091bcd4f28480ad7bba2bc4f0b3",
+    "apps/web/src/utils/moduleRoles.ts": "798888dfef205df09bbd1c70a09b810468de05b1dada041b6691f9969f919e5a",
+    "apps/web/src/components/modules/ModuleRegisterModal.tsx": "c3a1e19c87eda6cc0c4cf37a1b5fa86b6015ccf4ef1a44ac803b73001c5185af",
+    "apps/web/src/components/modules/ModuleReviewModal.tsx": "ab68b9bf06e4c4014026d9e0a9efb015d7eae42f23ae64e5685be6780c90f9f2",
+    "apps/web/src/mocks/mockClient.ts": "246b3137b3c62bac21e229e32cd05022f0b0a4d96ebea9083c269562d53cadcd",
+    "apps/web/scripts/generateClient.mjs": "bdde596618a7c93c230b1b20d35622b5dd264e8e555b8659a7e139f81a33f849",
+    "apps/web/src/api/client.ts": "14510aecfb67733380d4a4f51306a64ab4e3279076ddd640688bf519ce619678",
+    "apps/web/scripts/testModulesOffline.mjs": "fafe0c322761c699b6bbf83d7b53520b9c0ab3645f19224f52b1235705f8e4da"
+  },
+  "evidence": [
+    "T10-modules-controller-ui-final-scope.json",
+    "T10-modules-controller-ui-final-mock.json",
+    "T10-modules-controller-ui-final-offline.log"
+  ],
+  "scope": "Module frontend helpers, actual Mock/HTTP methods with injected transport and static SSR; no DOM hydration or real backend/browser workflow claimed",
+  "browserExecuted": false,
+  "P0Passed": false,
+  "G3Passed": false
+}

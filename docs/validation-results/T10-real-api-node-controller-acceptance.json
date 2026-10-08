@@ -1,0 +1,57 @@
+{
+  "at": "2026-10-07T14:40:46.836101+00:00",
+  "rootIndependent": true,
+  "workspace": "wF",
+  "agentObservedCompletion": 2513,
+  "acceptedLocally": true,
+  "actualChecksPassed": 15,
+  "client": "Actual HttpApiClient class source, real HTTP to owned API/PG; direct class construction rather than app bootstrap",
+  "mode": "VITE_MOCK=false asserted by harness; no mockClient/pretend business replies; fetch wraps owned synthetic account cookies only",
+  "sourceClientSha256": "6a1d84981df000fe0cbbd7e930ca7a678036135fc6d96116a7293ae644148d58",
+  "report": "docs/validation-results/T10-real-api-node-controller-da68780c.json",
+  "log": "docs/validation-results/T10-real-api-node-controller-first.log",
+  "resourceRechecks": [
+    {
+      "kind": "container",
+      "id": "0f958b6993642882acfde23a925fb1dc32fd9814c440a08be4c9fb65879cb5b2",
+      "absent": true
+    },
+    {
+      "kind": "volume",
+      "id": "504ed71d5904c8c96ace26a33bac7aab74ef339a581d2f6e390c35dfab0cda16",
+      "absent": true
+    }
+  ],
+  "portsClosed": true,
+  "tmpDirAbsent": true,
+  "negativeStatuses": {
+    "operator_review_preview": 403,
+    "review_tampered_reason": 422,
+    "replay_review_token": 409,
+    "list_invalid_status": 422,
+    "regression_run_unapproved_draft": 422,
+    "regression_run_archived_case": 422,
+    "archive_stale_version": 409,
+    "restore_stale_version": 409,
+    "auth_profile_approve_forbidden": 422,
+    "auth_profile_reject_with_text_forbidden": 422,
+    "input_respond_version_conflict": 409,
+    "one_time_code_approve_forbidden": 422,
+    "one_time_code_reject_with_text_forbidden": 422,
+    "viewer_create_case": 403,
+    "viewer_archive_case": 403,
+    "viewer_restore_case": 403,
+    "viewer_duplicate_in_same_viewer_project": 403
+  },
+  "notVerified": [
+    "Browser/DOM/hydration and UI interaction",
+    "Worker/browser execution of admitted runs",
+    "Latest supplier model semantics/visuals",
+    "Ordinary clarification provide path pending separate bounded probe"
+  ],
+  "followup": "Agy assigned unique per-run reports, stronger cleanup/mode assertions and ordinary clarification provide verification",
+  "browserPaused": true,
+  "P0Passed": false,
+  "singleMonitorPid": 14113,
+  "secondMonitorStarted": false
+}

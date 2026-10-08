@@ -1,0 +1,219 @@
+{
+  "title": "G3-C 冻结剖面接线与诊断样本先脱敏（本地假传输，不是 G3/P0 放行）",
+  "date": "2026-10-04",
+  "task": "G3-C",
+  "controller": "wF:p1",
+  "claims": {
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalledThisRound": false,
+    "postgresUsed": false,
+    "playwrightLaunched": false,
+    "dockerUsed": false
+  },
+  "preserved": {
+    "docs/validation-results/G3-model-minimal.json": "1ed2904b1beda6d68494cd5db37be8d2758aa69a9e5605d0be066e25baa14469",
+    "docs/validation-results/G3A-model-gateway.json": "82e8e300c1c37c9a5aa4de5a92c5e94e09fbbb128d14f5e058fa86f5bc3f70ae",
+    "docs/validation-results/G3A-independent-review.json": "4e3a79b0111876b179a96c43352f005dee386c51951028a8784e34375da23cca",
+    "docs/validation-results/G3A-independent-T04.json": "9012324e7b33dccf506aa2321dd75e878af52f8b2308160c82815fb7371386ca",
+    "docs/validation-results/G3B-model-gateway.json": "0b067a0d44fbc54e3e868daed4440c09274c4390136836607973448d55bcc029",
+    "docs/validation-results/G3B-independent-review.json": "ea652e5d4ad7bd48421e47fc4e2b6aeea3fa4c1bd941214ce09ef3f2fdba8837",
+    "docs/validation-results/G3B-independent-T04.json": "db73444cd113aaab6889d4673faf66451f213d111242e2fa103955fab984203e",
+    "docs/validation-results/G3B-agent-T04-snapshot.json": "db73444cd113aaab6889d4673faf66451f213d111242e2fa103955fab984203e",
+    "docs/validation-results/G3C-contract-increment.json": "afc7b6083c0a68ebfa82495bce29f6f74c7a519512e5e27b4905f93d15d71851",
+    "note": "以上文件本轮只读哈希，没有改内容。G3-model-minimal.json 仍是历史真实样本，本轮没有重放。"
+  },
+  "host": {
+    "node": "v26.3.0",
+    "platform": "darwin",
+    "packageManager": "npx --yes pnpm@10.34.0",
+    "note": "设计基线是 Node 24。本轮没有在 Node 24 上重跑。"
+  },
+  "t04": {
+    "rewrittenByHarness": true,
+    "passed": 53,
+    "blocked": 1,
+    "unverified": 7,
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalled": false,
+    "productImplemented": false,
+    "node": "v26.3.0",
+    "fileSha256": "e32f0fc5817f3d9d0c68be23b9d0e26b97875c091d1050b065c0d833d19ba4a1",
+    "evidenceSha256": "10bf8191ef57ff94460f538e9c92c75c8bea71757a8fccd7395fba8d166522e3",
+    "evidenceSha256Meaning": "T04 内部 evidenceSha256 只覆盖 rawOutputs，不是整份文件。",
+    "stale": "G3-B 收尾时的整份文件哈希 59798af457323130e45ce14027b6b8a1bba8a8aaf77b6124a98e129ee15580ff 已过期。那是写入 G3-C 检查项之前的 T04。",
+    "note": "verify.mjs 会覆写 T04。本轮套件再次跑完后，整份文件哈希仍是 fileSha256，与跑前一致。productImplemented 仍是 false。"
+  },
+  "adapter": {
+    "version": "openai-compatible.2",
+    "unchangedThisRound": true,
+    "diagnosticSampleChars": 2000,
+    "responseCharLimit": 65536,
+    "note": "本轮只改诊断样本的顺序：先脱敏，再取 2000 字符。解析算法没变，没有升适配器版本。"
+  },
+  "checks": [
+    {
+      "name": "scoped_lint_without_preexisting_internal",
+      "command": "./node_modules/.bin/eslint packages/model-gateway/src packages/model-gateway/scripts/verify.mjs packages/agents/src/tool-parameters.ts packages/agents/src/loop.ts packages/agents/src/index.ts packages/orchestrator/src/model.ts packages/storage/src/repositories.ts apps/api/src/frozen-model.ts apps/api/src/types.ts apps/api/src/index.ts apps/api/src/routes/models.ts",
+      "result": "passed",
+      "exitCode": 0
+    },
+    {
+      "name": "internal_ts_eslint",
+      "command": "./node_modules/.bin/eslint apps/api/src/routes/internal.ts",
+      "result": "failed_preexisting",
+      "exitCode": 1,
+      "note": "仅 internal.ts:404-406 的 kind、redaction、fileBuffer 无用赋值。这三行在工件上传路由，本轮模型接线没有改它们，也没有为了让 lint 变绿去改。"
+    },
+    {
+      "name": "typecheck_five_packages",
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/model-gateway --filter @localqa/agents --filter @localqa/storage --filter @localqa/orchestrator --filter @localqa/api typecheck",
+      "result": "passed",
+      "exitCode": 0
+    },
+    {
+      "name": "api_build",
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/api build",
+      "result": "passed",
+      "exitCode": 0,
+      "note": "在缺传输检查移到 readVersion 之前之后执行。随后的入口测试加载的是这次产物。"
+    },
+    {
+      "name": "local_gateway_suite",
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/model-gateway test",
+      "result": "passed",
+      "exitCode": 0,
+      "tests": 31,
+      "pass": 31,
+      "fail": 0,
+      "durationMs": 372.298292,
+      "note": "脚本先构建 model-gateway 与 agents，再跑 scripts/verify.mjs。31 项包含原先 29 项行为、跨样本密钥，以及工具参数/未测探测。Ajv 的 uuid/uri unknown format 警告是预期，网关没有加载 ajv-formats。真实外网调用 0。"
+    },
+    {
+      "name": "api_entry",
+      "command": "node --test --test-concurrency=1 apps/api/test/g3c-model-wiring.test.mjs",
+      "result": "passed",
+      "exitCode": 0,
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "durationMs": 229.890708,
+      "note": "createApiServer 监听 127.0.0.1 随机端口。这是本地回环上的实际 HTTP 入口，不是外网模型调用。传输由测试注入。最终这次跑在网关重建和五包 typecheck 之后。"
+    },
+    {
+      "name": "bound_model",
+      "command": "node --test --test-concurrency=1 packages/orchestrator/test/g3c-bound-model.test.mjs",
+      "result": "passed",
+      "exitCode": 0,
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "durationMs": 160.561375,
+      "note": "进程内假 coordinator。没有 Docker、共享数据库或固定端口。它证明 BoundModel.call 发出冻结格式和真实 parameters。它不是 worker 进程入口。"
+    }
+  ],
+  "logOrder": {
+    "rule": "保留正文先脱敏，再切 2000 字符诊断样本。超限时先去掉保留段末尾刚好是密钥真前缀的后缀，再脱敏取样。上限内的正文不做这个后缀剥离。",
+    "localCases": [
+      {
+        "id": "g3b.secret-normal",
+        "asserted": "合法完成包里的模拟密钥跨越第 2000 字符。适配器 raw 仍是完整正文。logSample 与网关 rawOutput 都不含完整密钥，也不含密钥前 24 字符。解析出的用量仍是 prompt 11 / completion 5。证据只保留 note 长度，不保留正文。"
+      },
+      {
+        "id": "g3b.secret-http-error",
+        "asserted": "HTTP 400 正文在第 2000 字符处切断模拟密钥。errorCode 为 VALIDATION_ERROR。raw 保留完整正文。logSample 与 rawOutput 没有密钥片段。一次调用，不进入格式修复，不换格式。"
+      },
+      {
+        "id": "g3b.secret-over-limit",
+        "asserted": "流式正文超过 65536，密钥完整落在保留上限内并跨越第 2000 字符。结果 BUDGET_EXCEEDED，raw 为空，outputTokens 为 null。已批准 fallback 未调用。logSample 与 rawOutput 没有密钥片段。另有直接断言：超限且缓冲以密钥前 24 字符结尾时会去掉该前缀；未超限时保留该前缀。"
+      }
+    ]
+  },
+  "wiring": {
+    "frozenFormat": "POST /internal/v1/model/complete 读取本次 run 冻结的 models.coordinator。请求 profileId 不一致则 409，不取凭据，不出网。缺 modelTransport 时在 readVersion 之前 409，测试断言读取次数为 0。status 不是 ready/degraded（含 untested 与 disabled）则 409，不出网。旧剖面没有 responseFormat 时按 json_schema 发送 strict json_schema。json_object 剖面发送 response_format.type=json_object，不带 tools。HTTP 400 只调用一次，不改格式，不换模型；路由沿用原有映射，把带 errorCode 的结果写成 HTTP 500 SERVICE_UNAVAILABLE。",
+    "toolParameters": "parametersForTool 取 ToolCall 同名分支的 args。无环 $ref 内联。JsonValue 这类环保留为根上的 #/$defs，并带上本地 $defs。click 的 parameters 含 target，required 为 snapshotId、pageId、nodeId，snapshotId/pageId 为 uuid，nodeId/frameId maxLength 120。planner 与 finalizer 仍无工具。assertion 不是 AgentRole，roleToolSchemas 返回空。coordinator 含 submit_case。loop 与 BoundModel 不再传空 parameters。json_object 在裁剪之后、最后一次预算检查之前追加约束文本，因此多出来的正文计入预算；网关用例把 maxInputTokens 设成原消息估算值，断言 providerCalls 为 0 且 budget_exceeded。返回的 ToolCall 仍走 validateContract。",
+    "probe": "POST /api/v1/model-profiles/{id}/probe 不再在 data 为空时伪造 ready 和三项能力。disabled 在取传输和写回之前 409，不 fetch，不 recordProbe。缺传输同样 409，且不 readVersion、不写回。未测且三项能力为 false 的剖面仍会按声明的 responseFormat 发探测；成功样本返回 structured/native true、image false，结果 status 为 degraded，recordProbe 一次，expectedVersion 为当前版本。传输 400 时响应不是 200，body 不是 ready，recordProbe 未被调用。",
+    "images": "冻结网关和 BoundModel 都没有 resolveArtifact，approvedImageIds 仍是空。未批准图片在发送前被丢掉，实际请求体没有 image_url，也没有 artifact://。这不是视觉通过。已批准但解析结果不合法时，既有网关用例仍是 MODEL_NOT_CONFIGURED 且 providerCalls 为 0。没有 imageInput 时仍是 MODEL_CAPABILITY_MISSING。本轮不猜 MIME，不放宽批准名单。"
+  },
+  "unwired": [
+    "deploy/images/worker-entry.mjs 仍是 stub。profile() 拒绝非 stub- 的 configuredModelId，能力被写成三项全 true，没有 responseFormat，decryptKey 直接抛错。本轮按范围没有改这个文件。worker 进程入口未接通冻结格式、真实适配器或凭据。",
+    "apps/api/src/index.ts 的默认 createApiContext 仍构造固定 test-stub 网关，且不设置 modelTransport，也不使用 global fetch。因此默认 API 进程上的 probe 与 complete 在出网前 409。路由代码已能使用注入传输和冻结剖面，进程组合未接通。",
+    "已批准图片与 ArtifactStore 留到下一包。冻结调用没有解析器。"
+  ],
+  "unverified": [
+    "没有调用真实供应商。历史最小样本仍是 9 次调用，本轮调用数为 0。",
+    "ModelRepository.recordProbe 与 readVersion 的 SQL、授权和 SecretVault 解密没有对 Postgres 执行。入口测试用的是假仓库。",
+    "真实供应商是否接受冻结的 json_schema、json_object 或 native_tools，本轮没有验证。",
+    "视觉字节与 mediaType 没有接线，不能当成视觉通过。",
+    "Node 24 未复跑。",
+    "apps/api/test/api.test.mjs 未跑。其中 T06-3 见 antiRegression。"
+  ],
+  "antiRegression": [
+    {
+      "id": "T06-3",
+      "status": "代码对照结论，未执行 api.test.mjs，也没有改该测试或 T10",
+      "detail": "T06-3 创建剖面后 POST probe，断言 HTTP 200 且能 parseContract('ModelProbeResult')。它不断言 status ready。create 把新剖面写成 status untested、三项能力 false。默认上下文没有 modelTransport。探针路由在伪造 ready 移除后会抛 MODEL_NOT_CONFIGURED 409，发生在 readVersion 和出网之前。按当前代码，T06-3 的 200 断言会失败。"
+    },
+    {
+      "id": "probe-classifier-disabled",
+      "status": "产品后果，本轮成功样本没有走到这条",
+      "detail": "探测成功且模型把 structuredOutput 或 nativeTools 报成 false 时，网关把 status 写成 disabled。路由会 recordProbe。写回之后，disabled 剖面不再探测。图片不支持的路径带 errorCode，路由不写回。本轮未测剖面的假响应是 structured 与 native 都为 true，所以写成 degraded，不是 disabled。"
+    },
+    {
+      "id": "complete-error-http-status",
+      "status": "沿用原路由形态，本地测试已覆盖一次 400",
+      "detail": "提供方 HTTP 400 在网关是 VALIDATION_ERROR，且不重试、不换格式。内部 complete 只要 record.errorCode 有值，仍抛 HTTP 500 SERVICE_UNAVAILABLE。调用方看不到 422。"
+    }
+  ],
+  "fileScope": {
+    "thisTask": [
+      "packages/model-gateway/src/openai.ts",
+      "packages/model-gateway/src/gateway.ts",
+      "packages/model-gateway/src/index.ts",
+      "packages/model-gateway/src/adapter.ts",
+      "packages/model-gateway/scripts/verify.mjs",
+      "packages/agents/src/tool-parameters.ts",
+      "packages/agents/src/loop.ts",
+      "packages/agents/src/index.ts",
+      "packages/orchestrator/src/model.ts",
+      "packages/orchestrator/test/g3c-bound-model.test.mjs",
+      "packages/storage/src/repositories.ts",
+      "apps/api/src/frozen-model.ts",
+      "apps/api/src/index.ts",
+      "apps/api/src/types.ts",
+      "apps/api/src/routes/models.ts",
+      "apps/api/src/routes/internal.ts",
+      "apps/api/test/g3c-model-wiring.test.mjs",
+      "docs/validation-results/T04-model.json",
+      "docs/validation-results/G3C-model-wiring.json"
+    ],
+    "storageNote": "create/update 的 responseFormat、改有效方式则新版本并清空能力、disabled 仍 disabled，是主控已落地的语义。本轮没有改这些分支，只增加 readVersion 与 recordProbe。",
+    "notEdited": [
+      "apps/api/src/app.ts",
+      "apps/api/src/routes/savedCases.ts",
+      "apps/api/test/api.test.mjs",
+      "T10 migrations and tests",
+      "apps/web",
+      "packages/orchestrator/src/core.ts",
+      "worker regression execution files",
+      "deploy/images/worker-entry.mjs",
+      "packages/model-gateway/scripts/probe-live.mjs"
+    ],
+    "worktreeNote": "git status 里还有 app.ts、savedCases、web、契约生成物、T10 等其他改动。它们不是本任务写入的。本轮没有 commit，没有 reset，没有回滚这些文件。"
+  },
+  "contractRecheck": {
+    "date": "2026-10-04",
+    "trigger": "主控接手 T10-B2 后新增 ReviewPreviewInput、POST review-preview 请求体，以及 ReviewPreview 的 expectedVersion/decision/reason。contracts 已由主控生成并 build。",
+    "modelProfile": "ModelProfile、ModelProfileCreate、ModelProfilePatch 的 responseFormat 仍是可选 json_schema|json_object|native_tools。本轮没有改这些字段，也没有改生成器。",
+    "toolCall": "schemas.json 的本次增量是 responseFormat 与 ReviewPreview。ToolCall 同名 args 没有新 hunk，工具参数生成未改。",
+    "scopeHeld": "没有改 savedCases、runs、T10 测试、migrations、apps/web，也没有改 Review 路由。",
+    "typecheck": "npx --yes pnpm@10.34.0 --filter @localqa/model-gateway --filter @localqa/agents --filter @localqa/storage --filter @localqa/orchestrator --filter @localqa/api typecheck 退出码 0。",
+    "apiEntry": "node --test --test-concurrency=1 apps/api/test/g3c-model-wiring.test.mjs：4/4，duration_ms 230.340792。",
+    "boundModel": "node --test --test-concurrency=1 packages/orchestrator/test/g3c-bound-model.test.mjs：2/2，duration_ms 156.723042。",
+    "notRerun": "没有重跑 verify.mjs，因此没有再次覆写 T04。没有重跑 api.test.mjs。真实模型调用仍是 0。",
+    "conclusion": "G3-C 源码无需因这次契约增量修改。先前的未接线与未验证项不变：worker-entry 仍是 stub，默认 API 进程仍无 modelTransport，图片解析仍留到下一包。"
+  },
+  "docker": "本任务未启动容器，未删除资源。docker ps -a 无容器。volume local 79e6b62585a476cb1d73128a4304fe0556d3526fda92d40302434fde82407472 不是本任务创建的，未删除。镜像仍在 localqa-web/api/worker/orchestrator:latest、node:24-bookworm-slim、postgres:18-alpine、mcr.microsoft.com/playwright:v1.63.0-noble，以及既有 hello-world:latest、nginx:1.27-alpine。未执行 docker volume prune。契约复核这次没有再查 Docker。",
+  "ego": "未使用"
+}

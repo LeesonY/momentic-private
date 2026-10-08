@@ -1,0 +1,31 @@
+{
+  "rootIndependent": true,
+  "cases": [
+    {
+      "name": "created record matches canonical contract and document SHA",
+      "passed": true
+    },
+    {
+      "name": "existing module requires explicit expectedVersion, no silent append",
+      "passed": true
+    },
+    {
+      "name": "project page includes every version sorted by name ASC/version DESC",
+      "passed": true
+    },
+    {
+      "name": "pagination limit/cursor expose distinct successive records",
+      "passed": true
+    },
+    {
+      "name": "new project sees its own module and does not see original project fixtures",
+      "passed": true
+    },
+    {
+      "name": "unknown project rejects creation",
+      "passed": true
+    }
+  ],
+  "scope": "Actual public Mock methods and canonical shared contract/hash; no browser/network",
+  "P0Passed": false
+}

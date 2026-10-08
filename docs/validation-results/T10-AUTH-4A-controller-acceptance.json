@@ -1,0 +1,38 @@
+{
+  "at": "2026-10-07T05:33:38.046957+00:00",
+  "rootIndependent": true,
+  "scope": "AUTH-4A pure approved-state validator only",
+  "acceptedLocally": true,
+  "originalBeforeFix": {
+    "pass": 17,
+    "rootCounterexamplesFailed": 3
+  },
+  "postFix": {
+    "packageTestsPassed": 20,
+    "rootExportChecksPassed": 5,
+    "build": "passed",
+    "eslint": "passed",
+    "diffCheck": "passed"
+  },
+  "evidence": [
+    "T10-AUTH-4A-controller-counterexamples.json",
+    "T10-AUTH-4A-controller-post-fix.json",
+    "T10-AUTH-4A-controller-final-suite.log",
+    "T10-AUTH-4A-controller-final-build.log"
+  ],
+  "hashes": {
+    "packages/browser/src/auth-state.ts": "bdee13ff7e4f42b979f45dd8674d6e4f9975b0f9b194fe9a3904104b326a2cb6",
+    "packages/browser/src/index.ts": "72272f0079f0a2dfc724d4d05161a2636af3f9a0f0e18b99d93c1a2652939395",
+    "packages/browser/test/auth-state.test.mjs": "b125d57bee6953a2aa793ddad9a05fff4f24d868f8dc21d83558d336a5e32bbf",
+    "docs/validation-results/T10-AUTH-4A-controller-repro.mjs": "1266f580d2d095930a3e196d707c965427f60913cae1f3598d3d8adfaaec2134"
+  },
+  "notValidated": [
+    "Full auth execution bridge",
+    "Real browser/session imports",
+    "Secrets/OTP/capture persistence",
+    "Supplier model validation",
+    "Release acceptance"
+  ],
+  "browserPaused": true,
+  "P0Passed": false
+}

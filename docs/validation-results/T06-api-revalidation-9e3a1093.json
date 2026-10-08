@@ -1,0 +1,112 @@
+{
+  "task": "T06",
+  "timestamp": "2026-10-05T12:36:02.446Z",
+  "node": "v26.3.0",
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "apiBaseUrl": "http://127.0.0.1:56030",
+  "baselineSha256": "e39fec2893260a68a039538b8f009465a703d0c03fd24a6ed58179dc7e70f95d",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t06-zMzI16",
+  "execution": "isolated PostgreSQL/API; local HTTP fixture; injected model transport; no browser or worker process",
+  "tests": [
+    {
+      "name": "health_probes",
+      "passed": true,
+      "details": {}
+    },
+    {
+      "name": "auth_sessions_and_rbac",
+      "passed": true,
+      "details": {}
+    },
+    {
+      "name": "model_profiles_and_probe",
+      "passed": true,
+      "details": {}
+    },
+    {
+      "name": "project_membership_and_isolation",
+      "passed": true,
+      "details": {}
+    },
+    {
+      "name": "config_and_knowledge_lifecycle",
+      "passed": true,
+      "details": {}
+    },
+    {
+      "name": "run_creation_and_idempotency",
+      "passed": true,
+      "details": {}
+    },
+    {
+      "name": "run_messages_and_context_version",
+      "passed": true,
+      "details": {}
+    },
+    {
+      "name": "sse_streaming_and_events",
+      "passed": true,
+      "details": {}
+    },
+    {
+      "name": "internal_worker_protocol",
+      "passed": true,
+      "details": {}
+    },
+    {
+      "name": "human_triage_preview_and_commit",
+      "passed": true,
+      "details": {}
+    },
+    {
+      "name": "run_cancellation_idempotent",
+      "passed": true,
+      "details": {}
+    },
+    {
+      "name": "report_and_exports",
+      "passed": true,
+      "details": {}
+    },
+    {
+      "name": "pagination_and_stable_lease_errors",
+      "passed": true,
+      "details": {}
+    },
+    {
+      "name": "artifact_range_missing_and_multipart",
+      "passed": true,
+      "details": {}
+    }
+  ],
+  "summary": {
+    "passed": 14,
+    "failed": 0
+  },
+  "ownership": {
+    "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t06-zMzI16",
+    "containerId": "cb64798b72b1c590c1755d64568287c5be78930bc1664452278c5e51629f89a4",
+    "volumes": [
+      "c91ef02a3cdf7bc43240fc9b160e4ae74c3ffdf921297206d3b34a2cd9904558"
+    ],
+    "fixturePid": 56010,
+    "apiPid": 55959,
+    "cleanup": {
+      "apiClosed": true,
+      "fixtureExited": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumesAbsent": [
+        {
+          "id": "c91ef02a3cdf7bc43240fc9b160e4ae74c3ffdf921297206d3b34a2cd9904558",
+          "absent": true
+        }
+      ],
+      "credentialsRemoved": true,
+      "baselineUnchanged": true
+    },
+    "fixtureOrigin": "http://127.0.0.1:56028",
+    "apiBaseUrl": "http://127.0.0.1:56030",
+    "pgPort": 33057
+  }
+}

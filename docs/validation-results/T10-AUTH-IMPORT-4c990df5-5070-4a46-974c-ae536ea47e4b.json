@@ -1,0 +1,121 @@
+{
+  "task": "T10-AUTH-9A-STATE-CAPTURE",
+  "tag": "4c990df5-5070-4a46-974c-ae536ea47e4b",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-import-bsJKWY",
+  "tests": [
+    {
+      "name": "exclusive and shared: normally finished capture feeds independent importer sessions and ends only one child",
+      "passed": true
+    },
+    {
+      "name": "prepare and begin concurrent CAS each grant one capability; lost replies cannot replay decryption or effect",
+      "passed": true
+    },
+    {
+      "name": "private importer rejects initializer-only methods and ordinary result/HTTP channels",
+      "passed": true
+    },
+    {
+      "name": "allocation/activation rejects wrong state or current authority before any state decryption",
+      "passed": true
+    },
+    {
+      "name": "historical tuple, revoked state, consumed grant and ciphertext/HMAC tampering fail closed",
+      "passed": true
+    },
+    {
+      "name": "historical encryption and HMAC key survive rotation, wrong receipt and changed outcome cannot charge twice",
+      "passed": true
+    },
+    {
+      "name": "RLS denies workers and project non-admin actors private importer metadata",
+      "passed": true
+    },
+    {
+      "name": "shared action budget denial reserves no import row and DB insertion failure rolls everything back",
+      "passed": true
+    },
+    {
+      "name": "real lock waits expiring prepare and begin deadlines roll the CAS back with zero decryption",
+      "passed": true
+    },
+    {
+      "name": "failure/unknown/cancelled import outcomes remain truthful and charge one action",
+      "passed": true
+    },
+    {
+      "name": "service recovery ends one expired importer without touching active sibling/state/granted lock",
+      "passed": true
+    },
+    {
+      "name": "RuntimeClient minimal facade carries the independent importer proof through grant/prepare/begin/record",
+      "passed": true
+    },
+    {
+      "name": "ciphertext changes after prepare invalidate the pinned state before begin without another decrypt",
+      "passed": true
+    },
+    {
+      "name": "record PG Step-write failure atomically preserves started receipt, pending action and reserved budget",
+      "passed": true
+    },
+    {
+      "name": "foreign state/initializer capability cannot allocate a new importer and grants pin current session proof",
+      "passed": true
+    },
+    {
+      "name": "capture followed by real initializer lease recovery remains importable with historical ended authority",
+      "passed": true
+    },
+    {
+      "name": "active importer stale proof, session binding, scope epoch/pointer and profile revocation never decrypt",
+      "passed": true
+    },
+    {
+      "name": "prepare/begin write failures roll back both private CAS and ordinary private intent state",
+      "passed": true
+    },
+    {
+      "name": "record deadline expiring on the actual budget row lock rolls back charge, Step and completion",
+      "passed": true
+    },
+    {
+      "name": "none cannot allocate importer authority: zero state decryption/session/scope/grants",
+      "passed": true
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "581dff91f3a8c901c44ecbe901073c701fb5fc3877ea5ea94e5827757fbda823",
+    "volumes": [
+      "4685bfac46f2de63873620437537ea588eba2bfd9f8863473e4350ddcf409256"
+    ],
+    "pgPort": 33266,
+    "apiPort": 63521,
+    "apiPid": 35032,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "4685bfac46f2de63873620437537ea588eba2bfd9f8863473e4350ddcf409256",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 protected state importer/CAS/private receipt/budget/Step only; synthetic captured browser state",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 20,
+    "failed": 0
+  }
+}

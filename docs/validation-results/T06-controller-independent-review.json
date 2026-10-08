@@ -1,0 +1,57 @@
+{
+  "at": "2026-10-05T12:44:52.884485+00:00",
+  "rootIndependent": true,
+  "scope": "isolated PostgreSQL/API; local HTTP fixture; injected model transport; no browser or worker process",
+  "checks": {
+    "nodeTests": true,
+    "oldT06Unchanged": true,
+    "oldArtifactsUnchanged": true,
+    "oldArtifactCount": 70
+  },
+  "cleanup": [
+    {
+      "report": "T06-api-revalidation-60136098.json",
+      "containerAbsent": true,
+      "volumesAbsent": true,
+      "portsClosed": {
+        "56403": true,
+        "56405": true,
+        "33058": true
+      },
+      "fixturePidAbsent": true,
+      "credentialFilesAbsent": {
+        "pg.env": true,
+        "kek.json": true
+      },
+      "retainedEvidenceDirectory": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t06-8WmHuS",
+      "apiPidAbsent": true
+    },
+    {
+      "report": "T06-api-revalidation-9e3a1093.json",
+      "containerAbsent": true,
+      "volumesAbsent": true,
+      "portsClosed": {
+        "56028": true,
+        "56030": true,
+        "33057": true
+      },
+      "fixturePidAbsent": true,
+      "credentialFilesAbsent": {
+        "pg.env": true,
+        "kek.json": true
+      },
+      "retainedEvidenceDirectory": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t06-zMzI16",
+      "apiPidAbsent": true
+    }
+  ],
+  "sourceSha256": {
+    "apps/api/test/api.test.mjs": "2deec0fae0c961f8bac7425f027b2f5e7d6da907bc75867f266b2bd9b5679b7b",
+    "apps/api/test/t06-fixture-wrapper.mjs": "aff800cc17043644950162f0c512ce21cd94f59c7db471d6bc1ff96b90035d26"
+  },
+  "notVerified": [
+    "real browser",
+    "real model",
+    "P0 release"
+  ],
+  "P0Passed": false
+}

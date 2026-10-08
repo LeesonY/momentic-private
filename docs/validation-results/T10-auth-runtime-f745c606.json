@@ -1,0 +1,44 @@
+{
+  "tag": "f745c606",
+  "execution": "Own PG/API/RuntimeClient, no browser or provider",
+  "tests": [
+    {
+      "name": "none is a frozen approved anonymous policy, not a request for manual credentials",
+      "passed": false,
+      "observedAnonymousPolicyAllowed": false
+    },
+    {
+      "name": "auth resolve must reject the caller stale context instead of rebuilding it from the database",
+      "passed": false,
+      "observedHttpStatus": 200,
+      "returnedOwnedSyntheticSecret": true
+    },
+    {
+      "name": "auth resolve must bind the caller worker identity to the lease",
+      "passed": false,
+      "observedHttpStatus": 200,
+      "returnedOwnedSyntheticSecret": true
+    }
+  ],
+  "ownership": {
+    "directory": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-runtime-DSFcWi",
+    "containerId": "bdea9a380f9282c9078d4f7e7c916cf0e106899cd4e30469478c275740c0d036",
+    "volumes": [
+      "74e1ee5a45b5c1d0cd5eda3b81695e553d20356979b1dba0da9546e24e257e62"
+    ],
+    "apiOrigin": "http://127.0.0.1:63047",
+    "pgPort": 33062
+  },
+  "P0Passed": false,
+  "cleanup": {
+    "removeStatus": 0,
+    "containerAbsent": true,
+    "volumesAbsent": [
+      {
+        "id": "74e1ee5a45b5c1d0cd5eda3b81695e553d20356979b1dba0da9546e24e257e62",
+        "absent": true
+      }
+    ],
+    "secretDirectoryRemoved": true
+  }
+}

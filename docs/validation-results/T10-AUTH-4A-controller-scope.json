@@ -1,0 +1,36 @@
+{
+  "at": "2026-10-06T01:37:18.848Z",
+  "rootDecision": true,
+  "scope": "AUTH-4A pure approved-state validation only",
+  "basedOn": "T10-AUTH-3-interface-plan.md revision3",
+  "fullAuthDesignFrozen": false,
+  "limits": {
+    "cookies": 50,
+    "origins": 30,
+    "localStorageKeysPerOrigin": 32,
+    "maxValueUtf8Bytes": 4096,
+    "maxSerializedUtf8Bytes": 65536
+  },
+  "errors": {
+    "shapeOrSize": "VALIDATION_ERROR",
+    "originBoundary": "TARGET_NOT_ALLOWED"
+  },
+  "rules": [
+    "No browser, context, profile broker, vault, database or provider operations in this stage",
+    "Input JSON text or plain owned object; no executable tags, unsafe prototypes, accessors or dangerous object keys",
+    "Only declared cookie/origin/localStorage properties; finite valid cookie expiry, typed flags and SameSite",
+    "Origins must be canonical HTTP(S) origins inside the supplied approved origin set; cookie host must match an approved host after leading-dot and case normalization",
+    "Reject duplicate origin, duplicate localStorage keys and duplicate cookie name/domain/path identities",
+    "Return a detached validated value and never include input contents in failure text",
+    "This parser does not prove successful authentication; capture must later reject an empty or non-transferable result"
+  ],
+  "authStateHelpersAuthorized": true,
+  "sessionExecutionAuthorized": false,
+  "outstanding": [
+    "Private credential execution port is not yet specified/wired",
+    "Current approvedAuthState origins injection has implicit goto; must be removed or granted before any runtime auth-state import",
+    "Full grant/record/budget/lock/OTP/capture execution and current-lease retry atomicity remain unverified"
+  ],
+  "browserPaused": true,
+  "P0Passed": false
+}

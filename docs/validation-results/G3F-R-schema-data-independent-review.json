@@ -1,0 +1,48 @@
+{
+  "results": [
+    {
+      "case": "const object field format is data",
+      "requestResult": "ok",
+      "errorCode": null,
+      "sends": 1,
+      "passed": true
+    },
+    {
+      "case": "default object field format is data",
+      "requestResult": "ok",
+      "errorCode": null,
+      "sends": 1,
+      "passed": true
+    },
+    {
+      "case": "examples object field format is data",
+      "requestResult": "ok",
+      "errorCode": null,
+      "sends": 1,
+      "passed": true
+    },
+    {
+      "case": "enum object field format is data",
+      "requestResult": "ok",
+      "errorCode": null,
+      "sends": 1,
+      "passed": true
+    },
+    {
+      "case": "unknown nested schema format rejects before send",
+      "requestResult": "malformed",
+      "errorCode": "VALIDATION_ERROR",
+      "sends": 0,
+      "passed": true
+    },
+    {
+      "case": "invalid UUID still rejects after one repair",
+      "requestResult": "malformed",
+      "errorCode": "VALIDATION_ERROR",
+      "sends": 2,
+      "passed": true
+    }
+  ],
+  "scope": "Local injected transport; no PG/browser/external model",
+  "P0Passed": false
+}

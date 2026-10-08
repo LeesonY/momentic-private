@@ -1,0 +1,83 @@
+{
+  "task": "T10-AUTH-5-SESSION-AUTHORITY",
+  "tag": "ac3185d6-0d01-4942-96b4-40c6aabf85de",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-session-GOwDTG",
+  "tests": [
+    {
+      "name": "011 Migration RLS protection: non-admin roles and workers cannot query protected tables",
+      "passed": true
+    },
+    {
+      "name": "Full lifecycle: allocate session (authEpoch=1, allocated) -> re-allocate idempotent -> issue ticket -> activate CAS -> query -> end",
+      "passed": false,
+      "code": "SERVICE_UNAVAILABLE",
+      "message": "SERVICE_UNAVAILABLE"
+    },
+    {
+      "name": "Task summary check: non-auth tasks cannot allocate auth session (POLICY_DENIED)",
+      "passed": true
+    },
+    {
+      "name": "Anonymous mode=none policy produces zero rows and zero allocation (POLICY_DENIED)",
+      "passed": true
+    },
+    {
+      "name": "Revoked auth profile blocks allocation and all session operations (AUTH_FAILED)",
+      "passed": false,
+      "code": "SERVICE_UNAVAILABLE",
+      "message": "SERVICE_UNAVAILABLE"
+    },
+    {
+      "name": "Revoked auth scope blocks all session operations (AUTH_FAILED)",
+      "passed": false,
+      "code": "SERVICE_UNAVAILABLE",
+      "message": "SERVICE_UNAVAILABLE"
+    },
+    {
+      "name": "Strict proof verification: wrong workerId, fencingToken, contextVersion, or expired lease reject (LEASE_EXPIRED)",
+      "passed": false,
+      "code": "SERVICE_UNAVAILABLE",
+      "message": "SERVICE_UNAVAILABLE"
+    },
+    {
+      "name": "Concurrent allocateAuthSession on the same task+fencing yields exactly one session row",
+      "passed": false,
+      "code": "SERVICE_UNAVAILABLE",
+      "message": "SERVICE_UNAVAILABLE"
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "c06dadc7b08e26da755c1068f12bc2104235f07a492719354b726722280de6dc",
+    "volumes": [
+      "632ae093c55c74971ddf3310a5c778fcfecd0e7bb9d760d0a6a55cdd640a7dac"
+    ],
+    "pgPort": 33138,
+    "apiPort": 58881,
+    "apiPid": 12985,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "632ae093c55c74971ddf3310a5c778fcfecd0e7bb9d760d0a6a55cdd640a7dac",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 session authority ledger and private Runtime/Coordinator facade only",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 5
+  }
+}

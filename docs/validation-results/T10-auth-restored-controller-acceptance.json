@@ -1,0 +1,42 @@
+{
+  "at": "2026-10-05T23:50:56.363960+00:00",
+  "rootIndependent": true,
+  "workspace": "wF",
+  "tests": {
+    "apiAuthBinding": 8,
+    "runtimeFrozenAuthAndProof": 10,
+    "workerPgFakeBrowserIncludingNoneAndRevokedNone": 17,
+    "total": 35,
+    "failed": 0
+  },
+  "log": "T10-auth-restored-controller-regression.log",
+  "cleanupEvidence": "T10-auth-restored-controller-cleanup.json",
+  "scope": "Actual isolated PG/API/RuntimeClient/Worker.once; synthetic fake browser observations and injected local transport only. Mode none is an explicitly approved anonymous policy.",
+  "verified": [
+    "Default and explicit profile ID/version binding",
+    "Frozen none metadata versus updated head",
+    "Revoked profile and incorrect worker/context/fencing proof rejected",
+    "Valid leased credential material retained",
+    "Unconnected storage-state mode still waits; regression form/storage-state still 422",
+    "Actual Worker replay with none; revocation before preflight has no browser/action intent"
+  ],
+  "sourceSha256": {
+    "apps/api/test/t10-auth-runtime.test.mjs": "f1c0e649746c0a9fdf067a442e37ad85ed237bceb73a7c72af686dc0dec43555",
+    "apps/api/test/t10-auth-binding.test.mjs": "44b054bfcd3ca97e401af3c3f9be5bfcddaf91be041a40fc08f5b71db93ac04a",
+    "apps/worker/test/t10-b5-fakebrowser.test.mjs": "0ed9381636a3982adc7eed6128d4170ddeb235899d2c88c1c14051475e07c8fc",
+    "apps/api/src/runAuth.ts": "9667d6ff670dc3b81e7dcef32e4f6dd2b55382bcd7b03ca6db9d8a0252c994c0",
+    "apps/api/src/routes/internal.ts": "3950bed4e7c0195170ad994129ab878827b73cab94a6ec3929ea64d9d42aa4b8",
+    "packages/orchestrator/src/runtime.ts": "3e7d2c2d9af7dde65643c079db6b82972b596bac778573b1a59c428f39184d83",
+    "packages/orchestrator/src/core.ts": "5db533fed506f0f0f39043b3cf6bf490ebca3b8b9ada51200151f96a61b5b88e"
+  },
+  "notVerified": [
+    "Form/storage-state execution adapters and exclusive-run authentication lease",
+    "Real browser/UI/P95",
+    "Current real provider G3",
+    "Full T10/P0 acceptance"
+  ],
+  "P0Passed": false,
+  "fullAuthAccepted": false,
+  "EgoPaused": true,
+  "accessRestored": true
+}

@@ -1,0 +1,19 @@
+{
+  "rootIndependent": true,
+  "checks": [
+    {
+      "name": "latest version ignores candidates from another project",
+      "passed": false
+    },
+    {
+      "name": "actual page helper rejects foreign project records",
+      "passed": false
+    },
+    {
+      "name": "reason binding uses exact returned text",
+      "passed": true
+    }
+  ],
+  "scope": "Actual product helpers with injected page; no browser/network",
+  "P0Passed": false
+}

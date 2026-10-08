@@ -57,9 +57,143 @@ import type {
   RunMessagePage,
   LoginInput,
   LoginResult,
+  SavedCaseYamlExport,
+  SavedCaseYamlImport,
+  SavedCaseArchiveInput,
+  SavedCaseRestoreInput,
+  SavedCaseDuplicateInput,
+  RegressionModuleCreate,
+  RegressionModuleRecord,
+  RegressionModuleRecordPage,
+  RegressionModuleReviewCommit,
+  RegressionModuleReviewPreview,
+  RegressionModuleReviewPreviewInput,
+  RegressionModuleVersion,
 } from '@localqa/contracts';
 
-export type { RunMessage, RunMessagePage };
+import type {
+  SavedCase,
+  SavedCaseCreate,
+  SavedCasePage,
+  SavedCaseVersion,
+  SavedCaseVersionCreate,
+  SavedCaseVersionPage,
+  ReviewPreview,
+  ReviewPreviewInput,
+  ReviewCommit,
+  RegressionRunCreate,
+  RegressionDocument,
+  Criterion,
+  ReplayStep,
+  Schedule,
+  ScheduleCreate,
+  SchedulePage,
+  SchedulePatch,
+  ApiKey,
+  ApiKeyCreate,
+  ApiKeyCreated,
+  ApiKeyPage,
+  CacheStats,
+  RepairProposal,
+  RepairProposalCreate,
+  RepairProposalPage,
+} from '../../../../packages/contracts/src/generated/types.ts';
+
+export type {
+  User,
+  UserCreate,
+  UserPatch,
+  UserPage,
+  Project,
+  ProjectCreate,
+  ProjectPatch,
+  ProjectPage,
+  MemberUpdate,
+  MemberPage,
+  Environment,
+  EnvironmentCreate,
+  EnvironmentPatch,
+  EnvironmentPage,
+  AuthProfile,
+  AuthProfileCreate,
+  AuthProfilePatch,
+  AuthProfilePage,
+  Knowledge,
+  KnowledgeCreate,
+  KnowledgePatch,
+  KnowledgePage,
+  ModelProfile,
+  ModelProfileCreate,
+  ModelProfilePatch,
+  ModelProfilePage,
+  ModelProbeResult,
+  Run,
+  RunCreate,
+  RunPage,
+  RunConfig,
+  BudgetOverrides,
+  MessageInput,
+  InputRequest,
+  InputResponse,
+  CaseRecord,
+  CaseRecordPage,
+  CaseAttemptPage,
+  TaskPage,
+  Step,
+  StepPage,
+  RunEventPage,
+  Finding,
+  FindingPage,
+  TriageInput,
+  TriagePreview,
+  TriageCommit,
+  Report,
+  Export,
+  ExportInput,
+  Artifact,
+  Health,
+  LoginInput,
+  LoginResult,
+  RunMessage,
+  RunMessagePage,
+  SavedCaseYamlExport,
+  SavedCaseYamlImport,
+  SavedCaseArchiveInput,
+  SavedCaseRestoreInput,
+  SavedCaseDuplicateInput,
+  RegressionModuleCreate,
+  RegressionModuleRecord,
+  RegressionModuleRecordPage,
+  RegressionModuleReviewCommit,
+  RegressionModuleReviewPreview,
+  RegressionModuleReviewPreviewInput,
+  RegressionModuleVersion,
+  SavedCase,
+  SavedCaseCreate,
+  SavedCasePage,
+  SavedCaseVersion,
+  SavedCaseVersionCreate,
+  SavedCaseVersionPage,
+  ReviewPreview,
+  ReviewPreviewInput,
+  ReviewCommit,
+  RegressionRunCreate,
+  RegressionDocument,
+  Criterion,
+  ReplayStep,
+  Schedule,
+  ScheduleCreate,
+  SchedulePage,
+  SchedulePatch,
+  ApiKey,
+  ApiKeyCreate,
+  ApiKeyCreated,
+  ApiKeyPage,
+  CacheStats,
+  RepairProposal,
+  RepairProposalCreate,
+  RepairProposalPage,
+};
 
 export type PublicOperationName =
   | 'login'
@@ -113,12 +247,43 @@ export type PublicOperationName =
   | 'getExport'
   | 'downloadArtifact'
   | 'getArtifact'
+  | 'listSavedCases'
+  | 'createSavedCase'
+  | 'archiveSavedCase'
+  | 'restoreSavedCase'
+  | 'duplicateSavedCase'
+  | 'importSavedCaseYaml'
+  | 'exportSavedCaseYaml'
+  | 'createRegressionModule'
+  | 'listRegressionModules'
+  | 'listRegressionModuleVersions'
+  | 'previewRegressionModuleReview'
+  | 'reviewRegressionModuleVersion'
+  | 'listSavedCaseVersions'
+  | 'createSavedCaseVersion'
+  | 'previewSavedCaseReview'
+  | 'commitSavedCaseReview'
+  | 'createRegressionRun'
+  | 'listSchedules'
+  | 'createSchedule'
+  | 'updateSchedule'
+  | 'runScheduleNow'
+  | 'listApiKeys'
+  | 'createApiKey'
+  | 'revokeApiKey'
+  | 'getCacheStats'
+  | 'listRepairProposals'
+  | 'createRepairProposal'
   | 'healthLive'
   | 'healthReady';
 
 export interface PaginationQuery {
   cursor?: string;
   limit?: number;
+}
+
+export interface SavedCaseListQuery extends PaginationQuery {
+  status?: 'active' | 'archived' | 'all';
 }
 
 export interface ListRunsQuery extends PaginationQuery {
@@ -286,4 +451,102 @@ export interface ApiClient {
   getArtifact(artifactId: string): Promise<Artifact>;
   healthLive(): Promise<Health>;
   healthReady(): Promise<Health>;
+
+  // Saved Cases (Case Library & Versioning)
+  listSavedCases(
+    projectId: string,
+    query?: SavedCaseListQuery,
+  ): Promise<SavedCasePage>;
+  createSavedCase(
+    projectId: string,
+    input: SavedCaseCreate,
+  ): Promise<SavedCase>;
+  listSavedCaseVersions(
+    caseId: string,
+    query?: PaginationQuery,
+  ): Promise<SavedCaseVersionPage>;
+  createSavedCaseVersion(
+    caseId: string,
+    input: SavedCaseVersionCreate,
+  ): Promise<SavedCaseVersion>;
+  previewSavedCaseReview(
+    versionId: string,
+    input: ReviewPreviewInput,
+  ): Promise<ReviewPreview>;
+  commitSavedCaseReview(
+    versionId: string,
+    input: ReviewCommit,
+  ): Promise<SavedCaseVersion>;
+  importSavedCaseYaml(
+    projectId: string,
+    input: SavedCaseYamlImport,
+  ): Promise<SavedCase>;
+  exportSavedCaseYaml(versionId: string): Promise<SavedCaseYamlExport>;
+  archiveSavedCase(
+    caseId: string,
+    input: SavedCaseArchiveInput,
+  ): Promise<SavedCase>;
+  restoreSavedCase(
+    caseId: string,
+    input: SavedCaseRestoreInput,
+  ): Promise<SavedCase>;
+  duplicateSavedCase(
+    caseId: string,
+    input: SavedCaseDuplicateInput,
+  ): Promise<SavedCase>;
+
+  // Regression Runs
+  createRegressionRun(input: RegressionRunCreate): Promise<Run>;
+
+  // Schedules
+  listSchedules(
+    projectId: string,
+    query?: PaginationQuery,
+  ): Promise<SchedulePage>;
+  createSchedule(projectId: string, input: ScheduleCreate): Promise<Schedule>;
+  updateSchedule(scheduleId: string, input: SchedulePatch): Promise<Schedule>;
+  runScheduleNow(scheduleId: string): Promise<Run>;
+
+  // API Keys
+  listApiKeys(projectId: string, query?: PaginationQuery): Promise<ApiKeyPage>;
+  createApiKey(projectId: string, input: ApiKeyCreate): Promise<ApiKeyCreated>;
+  revokeApiKey(keyId: string): Promise<ApiKey>;
+
+  // Cache & Repair Proposals
+  getCacheStats(runId: string): Promise<CacheStats>;
+  listRepairProposals(
+    caseId: string,
+    query?: PaginationQuery,
+  ): Promise<RepairProposalPage>;
+  createRepairProposal(
+    caseId: string,
+    input: RepairProposalCreate,
+  ): Promise<RepairProposal>;
+
+  // Regression Modules (Module Management & Two-Stage Review)
+  createRegressionModule(
+    projectId: string,
+    input: RegressionModuleCreate,
+  ): Promise<RegressionModuleRecord>;
+  listRegressionModules(
+    projectId: string,
+    query?: PaginationQuery,
+  ): Promise<RegressionModuleRecordPage>;
+  listRegressionModuleVersions(
+    projectId: string,
+    moduleName: string,
+    query?: PaginationQuery,
+  ): Promise<RegressionModuleRecordPage>;
+  previewRegressionModuleReview(
+    projectId: string,
+    moduleName: string,
+    version: number,
+    input: RegressionModuleReviewPreviewInput,
+  ): Promise<RegressionModuleReviewPreview>;
+  reviewRegressionModuleVersion(
+    projectId: string,
+    moduleName: string,
+    version: number,
+    input: RegressionModuleReviewCommit,
+  ): Promise<RegressionModuleRecord>;
 }

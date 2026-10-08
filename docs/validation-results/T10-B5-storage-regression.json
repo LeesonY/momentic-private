@@ -1,0 +1,27 @@
+{
+  "tag": "6ab22e6d",
+  "scope": "Existing real PostgreSQL storage suite; no browser or provider",
+  "containerId": "651c1fa48bb413416d82454266c7dde8f4a3f876fd5b1e216b7799b22873fcc0",
+  "migrations": [
+    "001_core.sql",
+    "002_invariants.sql",
+    "003_access.sql",
+    "004_hardening.sql",
+    "005_project_default_model.sql",
+    "006_run_messages_redaction.sql",
+    "007_p1_saved_cases.sql",
+    "008_saved_case_review_previews.sql",
+    "009_regression_bindings.sql"
+  ],
+  "sourceSha256": "d50b816c331fbd18a42d0aa530eaddbeba0e1cdd9fb5199bfef309ed5ac1b109",
+  "exitCode": 0,
+  "testSummary": [
+    "# tests 32",
+    "# pass 32",
+    "# fail 0",
+    "# skipped 0",
+    "# duration_ms 3671.156542"
+  ],
+  "containerRemoved": true,
+  "temporaryFilesRemoved": true
+}

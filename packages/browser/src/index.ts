@@ -1,4 +1,6 @@
 export * from './types.js';
+export * from './auth-state.js';
+export * from './private-auth.js';
 export * from './port.js';
 export * from './redaction.js';
 export * from './policy.js';

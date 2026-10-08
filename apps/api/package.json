@@ -17,11 +17,12 @@
   "dependencies": {
     "@localqa/contracts": "workspace:*",
     "@localqa/domain": "workspace:*",
-    "@localqa/storage": "workspace:*",
+    "@localqa/model-gateway": "workspace:*",
     "@localqa/orchestrator": "workspace:*",
     "@localqa/report": "workspace:*",
-    "@localqa/model-gateway": "workspace:*",
-    "pg": "^8.13.1"
+    "@localqa/storage": "workspace:*",
+    "pg": "^8.13.1",
+    "yaml": "2.9.1"
   },
   "devDependencies": {
     "@types/node": "24.19.1",

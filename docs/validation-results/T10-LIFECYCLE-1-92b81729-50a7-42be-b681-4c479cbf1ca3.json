@@ -1,0 +1,215 @@
+{
+  "task": "T10-LIFECYCLE",
+  "tag": "92b81729-50a7-42be-b681-4c479cbf1ca3",
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-life-Gjuwza",
+  "tests": [
+    {
+      "name": "lifecycle roundtrip: create -> approve v1 (head version=2) -> archive (version=3) -> list status filter -> restore (version=4, baseline preserved) -> regression run",
+      "passed": true
+    },
+    {
+      "name": "sequential archive admission rejection (not concurrency): archived case rejected with 422; frozen run remains immune",
+      "passed": true
+    },
+    {
+      "name": "concurrency & optimistic locks: stale expectedVersion, repeat same state (409), upper bound 2147483647 (422)",
+      "passed": true
+    },
+    {
+      "name": "duplicate in same project: explicit sourceVersionId, active case with draft v1 (never inherits approved), slug conflict (409)",
+      "passed": true
+    },
+    {
+      "name": "cross-project duplicate: RBAC ladder (404/403/201), source version mismatch (404), and module SHA mismatch defense (422)",
+      "passed": true
+    },
+    {
+      "name": "visible viewer gets 403 before write-RLS locking; hidden case gets 404; invalid UUID gets 422",
+      "passed": true
+    },
+    {
+      "name": "real interleaving: paused archive blocks admission; commit rejects without run insertion",
+      "passed": true
+    },
+    {
+      "name": "real interleaving: paused admission SHARE lock blocks archive; frozen run survives; double archive has one success",
+      "passed": true
+    },
+    {
+      "name": "recursive duplicate rejects missing source/target, stored SHA forgery, child mismatch/missing and cycles without writes",
+      "passed": true
+    },
+    {
+      "name": "PG copy depth boundary: case plus eight module calls succeeds; ninth call is 422 with zero writes",
+      "passed": true
+    },
+    {
+      "name": "bounded dependency traversal: repeated DAG passes, exact 100-step budget and document shape reject with cached queries and zero writes",
+      "passed": true
+    }
+  ],
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "3d692be1959f30f54d6c414df8debc7b3f127b514da2b9481620a2e9549ab666",
+    "volumes": [
+      "8784349e7ac91d0aaf0afa3ec46297d24f7f9e894b26314db4148c7b5dba1a7b"
+    ],
+    "pgPort": 33116,
+    "apiPort": 58507,
+    "apiPid": 1718,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "8784349e7ac91d0aaf0afa3ec46297d24f7f9e894b26314db4148c7b5dba1a7b",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "PG/API admission only; no browser, Worker.once, worker-entry or real model",
+    "Case lifecycle verified with real database locks and immutable audit",
+    "P0=false; FakeBrowser/real model acceptance remains unverified"
+  ],
+  "lockObservations": [
+    {
+      "blockerPid": 81,
+      "pending": true,
+      "rows": [
+        {
+          "pid": 73,
+          "state": "active",
+          "wait_event_type": "Lock",
+          "wait_event": "transactionid",
+          "blockers": [
+            81
+          ],
+          "query": "SELECT id, status FROM saved_cases WHERE project_id = $1 AND id = ANY($2::uuid[]) ORDER BY id ASC FOR SHARE"
+        }
+      ]
+    },
+    {
+      "blockerPid": 86,
+      "pending": true,
+      "rows": [
+        {
+          "pid": 73,
+          "state": "active",
+          "wait_event_type": "Lock",
+          "wait_event": "transactionid",
+          "blockers": [
+            86
+          ],
+          "query": "SELECT id, project_id, slug, name, status, current_approved_version_id, version, created_at FROM saved_cases WHERE id = $1 FOR UPDATE"
+        }
+      ]
+    }
+  ],
+  "fixtureSeeds": [
+    {
+      "fixture": "T10-LIFECYCLE historical source-missing draft",
+      "tag": "92b81729-50a7-42be-b681-4c479cbf1ca3",
+      "caseId": "6bdac4bf-0780-438d-87eb-c7df5c0c378e",
+      "versionId": "1b0f1877-8116-4f37-a17e-9cf9618e8cf6",
+      "sourceSlug": "historical-source-missing-92b81729-50a7-42be-b681-4c479cbf1ca3",
+      "documentSha256": "f9a55fa3c6b6d94ff33f657380d692258f469b265f1175f11563e99da55c0047",
+      "auditId": "2e538389-564e-4696-9008-9ad2ed49b097",
+      "mode": "historical-source-missing"
+    }
+  ],
+  "dependencyQueries": [
+    {
+      "label": "source",
+      "moduleQueries": 1,
+      "status": 422
+    },
+    {
+      "label": "target",
+      "moduleQueries": 1,
+      "status": 422
+    },
+    {
+      "label": "forged",
+      "moduleQueries": 1,
+      "status": 422
+    },
+    {
+      "label": "different",
+      "moduleQueries": 2,
+      "status": 422
+    },
+    {
+      "label": "missing-source",
+      "moduleQueries": 2,
+      "status": 422
+    },
+    {
+      "label": "missing-target",
+      "moduleQueries": 2,
+      "status": 422
+    },
+    {
+      "label": "cycle",
+      "moduleQueries": 1,
+      "status": 422
+    },
+    {
+      "label": "valid-recursive",
+      "moduleQueries": 2,
+      "status": 201
+    },
+    {
+      "label": "depth-eight",
+      "moduleQueries": 8,
+      "expectedModuleQueries": 8,
+      "status": 201
+    },
+    {
+      "label": "depth-nine",
+      "moduleQueries": 8,
+      "expectedModuleQueries": 8,
+      "status": 422
+    },
+    {
+      "label": "repeated-dag",
+      "moduleQueries": 2,
+      "expectedModuleQueries": 2,
+      "status": 201
+    },
+    {
+      "label": "expanded-at-limit",
+      "moduleQueries": 1,
+      "expectedModuleQueries": 1,
+      "status": 201
+    },
+    {
+      "label": "expanded-over-limit",
+      "moduleQueries": 1,
+      "expectedModuleQueries": 1,
+      "status": 422
+    },
+    {
+      "label": "empty-child-before-fanout",
+      "moduleQueries": 2,
+      "expectedModuleQueries": 2,
+      "status": 422
+    },
+    {
+      "label": "document-over-limit",
+      "moduleQueries": 1,
+      "expectedModuleQueries": 1,
+      "status": 422
+    }
+  ],
+  "summary": {
+    "passed": 11,
+    "failed": 0
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "at": "2026-10-06T00:40:54.705924+00:00",
+  "rootIndependent": true,
+  "accepted": true,
+  "scope": "YAML frontend offline, actual public Mock/generated HTTP methods with injected response; actual backend YAML separately locally accepted",
+  "checks": {
+    "independentActualMethodCases": 12,
+    "yamlOffline": 28,
+    "staticSsrSuites": 4,
+    "existingWebGuards": 70,
+    "fixtureLifecycle": 32,
+    "offlineTelemetry": 10,
+    "typecheckAndViteBuild": "passed",
+    "webEslint": "passed",
+    "publicClientOperations": 72
+  },
+  "sourceSha256": {
+    "apps/web/src/mocks/mockClient.ts": "41a2e9c81169078d7ef23592201de243be8f889259e43f355947f202415b98cf",
+    "apps/web/src/mocks/data.ts": "c8a71b745a4c019e9cf3b96ce1e94fe75aac1c5ec10698e4133c6782580a5325",
+    "apps/web/src/api/client.ts": "12ae583d13f27e13acd3cb2542aa52f09ec29d4aa0830c56e16610de381345ed",
+    "apps/web/scripts/generateClient.mjs": "38974e11aa2224d8cbf4afc67733c59fea81c3393c2b9a56148e4433373c494c",
+    "apps/web/src/utils/yamlValidation.ts": "0dc8b7d5bceaebbd8d46a7b8a89160dbcc565cb38882bd3386a72bda1294ccc2",
+    "apps/web/src/utils/provenance.ts": "3485bbd554a740b04be974003c649f531b5b49cc175b3e0b7742005093c71ff7",
+    "apps/web/scripts/testYamlUiOffline.mjs": "3aeafdefa65505816850bfbb3a195bc87e6d2426824a0edcc37af72cfa3e6787",
+    "apps/web/src/pages/SavedCasesPage.tsx": "982e67b98ef93f114e29f49399083c447a8b7dd2c8130c681cb74025c63d1e43",
+    "apps/web/src/components/saved-cases/RegressionRunModal.tsx": "a65c8f0090348c4c7b1c7fe2b4d1ce7e39e9639445879ebddcd8fac9e87737a5",
+    "apps/web/src/components/saved-cases/SaveToLibraryModal.tsx": "baffe126dc333e33164d30e80a92e058a19ea90d84daf2180568df4816317756",
+    "apps/web/src/components/saved-cases/SavedCaseEditorModal.tsx": "035cee60585e2fd63630afa5d862eca68223b428cb863d93ac7e40b6f95ed336",
+    "apps/web/src/components/saved-cases/SavedCaseReviewModal.tsx": "ab1648de9187a92b6c1faa26ed16c2ddd64a55efd6e94bd57e05b570f1d705de",
+    "apps/web/src/components/saved-cases/SavedCaseYamlExportModal.tsx": "fb5dddb85f2f5d76c05e09c100ba1a01391986ab45c6722e1299820775000962",
+    "apps/web/src/components/saved-cases/SavedCaseYamlImportModal.tsx": "038ef9458a9d1d76c3a59a2212076fcd1306b63ae00f566a2989e3239f5d5cc9"
+  },
+  "evidence": "T10-yaml-ui-controller-after-corrections.json",
+  "fixedFindings": [
+    "Selected-project identity/list visibility and queryable draft",
+    "Canonical document SHA instead of raw YAML or pseudo-hash fallback",
+    "Legacy project compatibility and existing schedule/API-key fixtures",
+    "Unknown project rejection and version export source/mismatch checks"
+  ],
+  "limitations": [
+    "No browser/hydration/event-P95 screenshots",
+    "Mock generates synthetic draft, not a real YAML parser",
+    "Real supplier/model and form/storage-state/exclusive-run execution remain unaccepted"
+  ],
+  "browserExecuted": false,
+  "EgoPaused": true,
+  "P0Passed": false,
+  "externalProductModelRequests": 0
+}

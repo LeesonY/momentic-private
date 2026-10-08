@@ -28,6 +28,8 @@ const adminId = await bootstrapDb.auth(
 );
 await bootstrapDb.close();
 if (!adminId) throw new Error('Bootstrap admin before starting API');
+// Production composition: no allowTestStub. createApiContext uses global fetch
+// unless a caller injects modelTransport. This entry does not inject one.
 const context = createApiContext({
   serviceActor: { userId: adminId },
   platformSlots: slots,

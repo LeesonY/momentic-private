@@ -4,6 +4,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from 'react';
 import type {
   Run,
@@ -12,6 +13,7 @@ import type {
   Finding,
   Report,
   InputRequest,
+  InputResponse,
   RunEvent,
   BudgetUsed,
 } from '@localqa/contracts';
@@ -73,6 +75,15 @@ export function RunStoreProvider({
   const [error, setError] = useState<string | null>(null);
 
   const [sseClient, setSseClient] = useState<SseClient | null>(null);
+
+  // Identity and in-flight tracking refs for input responses
+  const runIdRef = useRef(runId);
+  runIdRef.current = runId;
+
+  const activeInputRequestRef = useRef(activeInputRequest);
+  activeInputRequestRef.current = activeInputRequest;
+
+  const respondingInputRef = useRef<string | boolean | null>(false);
 
   // 1. Fetch initial REST snapshot
   const loadSnapshot = useCallback(async () => {
@@ -311,14 +322,65 @@ export function RunStoreProvider({
     decision: 'provide' | 'approve' | 'reject',
     text?: string,
   ) => {
-    if (!activeInputRequest) return;
-    await defaultApiClient.respondToInput(runId, activeInputRequest.id, {
-      expectedVersion: activeInputRequest.version,
+    // 1. Capture target request and run identity from current refs
+    const targetRequest = activeInputRequestRef.current;
+    const targetRunId = runIdRef.current;
+    if (!targetRequest || !targetRunId) return;
+
+    const capturedRequestId = targetRequest.id;
+    const capturedVersion = targetRequest.version;
+    const lockToken = `${targetRunId}:${capturedRequestId}:${capturedVersion}`;
+
+    // 2. Synchronous in-flight lock held per run/request/version scope
+    if (respondingInputRef.current === lockToken) return;
+
+    // 3. Reject payload must strictly omit text key
+    const payload: InputResponse = {
+      expectedVersion: capturedVersion,
       decision,
-      text,
-    });
-    setActiveInputRequest(null);
-    setRun((prev) => (prev ? { ...prev, status: 'running' } : null));
+    };
+    if (decision !== 'reject' && text !== undefined && text !== '') {
+      payload.text = text;
+    }
+
+    respondingInputRef.current = lockToken;
+    try {
+      const result: InputRequest = await defaultApiClient.respondToInput(
+        targetRunId,
+        capturedRequestId,
+        payload,
+      );
+
+      // 4. Strict check on returned InputRequest object
+      const expectedStatus = decision === 'reject' ? 'rejected' : 'resolved';
+      if (!result) {
+        throw new Error('INVALID_INPUT_RESPONSE');
+      }
+      if (result.id !== capturedRequestId || result.runId !== targetRunId) {
+        throw new Error('INVALID_INPUT_RESPONSE_IDENTITY');
+      }
+      if (result.version !== capturedVersion + 1) {
+        throw new Error('INVALID_INPUT_RESPONSE_VERSION');
+      }
+      if (result.status !== expectedStatus) {
+        throw new Error('INVALID_INPUT_RESPONSE_STATUS');
+      }
+
+      // 5. Late response guard: only clear activeInputRequest if still on the same run and request version
+      if (
+        runIdRef.current === targetRunId &&
+        activeInputRequestRef.current?.id === capturedRequestId &&
+        activeInputRequestRef.current?.version === capturedVersion
+      ) {
+        setActiveInputRequest(null);
+      }
+      // Note: Do NOT arbitrarily set run.status to 'running'; run status is managed strictly by server SSE / read polling.
+    } finally {
+      // 6. Only release if the lock still belongs to this scope
+      if (respondingInputRef.current === lockToken) {
+        respondingInputRef.current = false;
+      }
+    }
   };
 
   const retrySse = () => {

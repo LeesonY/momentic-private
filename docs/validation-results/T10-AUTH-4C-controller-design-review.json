@@ -1,0 +1,39 @@
+{
+  "at": "2026-10-07T06:39:17.279501+00:00",
+  "rootIndependent": true,
+  "document": "docs/validation-results/T10-AUTH-4C-session-authority-plan.md",
+  "sha256": "593b186d7cd73ff4be5d9fdbd8ea4a4e33deebd9b8d88778f233b7dd7f529af8",
+  "readOnlyDeliveryReviewed": true,
+  "fullAuthDesignFrozen": false,
+  "implementationAuthorized": false,
+  "sourceFactsChecked": [
+    "claim/work/validateLease ownership and stage/context behavior",
+    "finish pending check and old result.stage source",
+    "Worker options.contextId and trace=false",
+    "Internal result shortcut bypasses recordAction",
+    "SecretVault existing AAD scope"
+  ],
+  "proposalStrengths": [
+    "Server session registry distinct from arbitrary contextId",
+    "Current proof/epoch/session execution CAS and no crash replay",
+    "Keyed full-state HMAC rather than redacted fingerprint",
+    "Capture atomic commit and system handoff after capture-before-finish crash",
+    "Importer session differs from historical capturing session; siblings retain run lock"
+  ],
+  "notRuntimeValidated": [
+    "Proposed registry/activation/executeAuth APIs and tables",
+    "Ciphertext state/capture/import epoch bindings",
+    "Global new lock order/profile revocation conflict domain",
+    "Physical browser freshness/privacy/origin enforcement"
+  ],
+  "confirmedExistingDefect": {
+    "report": "T10-INTERNAL-ACTION-ROOT-0975c6ea-dad1-4cff-9082-a3e989fa0a00.json",
+    "passed": 0,
+    "failed": 3,
+    "scope": "Real isolated PG/API; no browser/provider",
+    "firstRunFixtureError": "T10-INTERNAL-ACTION-ROOT-f29a86a6-7f38-41ff-92ea-c6545bb8b910.json used incomplete Coordinator.start config; corrected via actual public API, not counted as product defect"
+  },
+  "decision": "Readonly plan reviewed; repair existing HTTP action-result boundary first. No auth/session execution or migration authorization",
+  "browserPaused": true,
+  "P0Passed": false
+}

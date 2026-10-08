@@ -13,6 +13,12 @@ const statusMap: Record<string, { className: string; text: string }> = {
   blocked: { className: 'badge-warning', text: '受阻' },
   inconclusive: { className: 'badge-neutral', text: '不确定' },
   not_run: { className: 'badge-neutral', text: '未执行' },
+  not_evaluated: { className: 'badge-neutral', text: '未判定' },
+  unknown: { className: 'badge-neutral', text: '未知' },
+
+  // Execution modes
+  regression: { className: 'badge-primary', text: '回归模式 (Regression)' },
+  smoke: { className: 'badge-info', text: '冒烟模式 (Smoke)' },
 
   // Finding confirmations
   confirmed: { className: 'badge-danger', text: '已独立复现确认' },
@@ -20,6 +26,7 @@ const statusMap: Record<string, { className: string; text: string }> = {
   unconfirmed: { className: 'badge-neutral', text: '无法复现' },
 
   // Run status
+  queued: { className: 'badge-info', text: '排队中 (Queued)' },
   running: { className: 'badge-info', text: '执行中' },
   awaiting_input: { className: 'badge-warning', text: '等待补充输入' },
   completed: { className: 'badge-success', text: '调度已完成' },
@@ -37,6 +44,13 @@ const statusMap: Record<string, { className: string; text: string }> = {
   owner: { className: 'badge-primary', text: '项目 Owner' },
   operator: { className: 'badge-info', text: 'Operator' },
   viewer: { className: 'badge-neutral', text: 'Viewer 只读' },
+
+  // Case Review Status
+  draft: { className: 'badge-warning', text: '草稿 (待审查)' },
+  approved: { className: 'badge-success', text: '已批准 (有效基线)' },
+  rejected: { className: 'badge-danger', text: '已拒绝' },
+  active: { className: 'badge-success', text: '活跃' },
+  archived: { className: 'badge-neutral', text: '已归档' },
 };
 
 export const StatusBadge: React.FC<BadgeProps> = ({
@@ -44,14 +58,15 @@ export const StatusBadge: React.FC<BadgeProps> = ({
   label,
   size = 'md',
 }) => {
-  const meta = statusMap[status.toLowerCase()] || {
+  const normalizedStatus = (status || 'unknown').toLowerCase();
+  const meta = statusMap[normalizedStatus] || {
     className: 'badge-neutral',
-    text: label || status,
+    text: label || status || '未知',
   };
   return (
     <span
       className={`badge ${meta.className} ${size === 'sm' ? 'badge-sm' : ''}`}
-      data-testid={`badge-${status.toLowerCase()}`}
+      data-testid={`badge-${normalizedStatus}`}
     >
       {label || meta.text}
     </span>

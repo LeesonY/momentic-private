@@ -1,0 +1,46 @@
+{
+  "task": "T10-AUTH-1",
+  "status": "completed",
+  "p0Accepted": false,
+  "completeAuthAccepted": false,
+  "completeT10Accepted": false,
+  "ownedCodeFiles": [
+    "apps/api/src/routes/runs.ts",
+    "apps/api/src/routes/savedCases.ts",
+    "apps/api/src/runAuth.ts",
+    "apps/api/test/t10-auth-binding.test.mjs"
+  ],
+  "verifiedCommands": [
+    {"command": "npx --yes pnpm@10.34.0 exec eslint apps/api/src/runAuth.ts apps/api/src/routes/runs.ts apps/api/src/routes/savedCases.ts apps/api/test/t10-auth-binding.test.mjs", "exitCode": 0},
+    {"command": "npx --yes pnpm@10.34.0 exec prettier --check apps/api/src/runAuth.ts apps/api/src/routes/runs.ts apps/api/src/routes/savedCases.ts apps/api/test/t10-auth-binding.test.mjs", "exitCode": 0},
+    {"command": "node --check apps/api/test/t10-auth-binding.test.mjs", "exitCode": 0},
+    {"command": "node --test apps/api/test/t10-auth-binding.test.mjs", "exitCode": 0, "passedTests": 8, "failedTests": 0}
+  ],
+  "executedTestEvidence": "docs/validation-results/T10-AUTH-1-2ca2e3d3-f6b5-4877-aa5e-0505c5bc39b1.json",
+  "initialFailedEvidence": "docs/validation-results/T10-AUTH-1-ab396496-0554-4b5c-a37a-80611fc21c36.json",
+  "plannedTestCount": 8,
+  "executedPgApiTestCount": 8,
+  "passedTestCount": 8,
+  "resourcesCleaned": {
+    "containerId": "578f6f725e0cde2a05652517ccb5582b25ebe7ef1900e7b6f208196c41026c32",
+    "volumeId": "0665322a162ab2fb8037386e82f97aca32cbc7d5577bb70db654626b1e65f417",
+    "pgPort": 33065,
+    "apiPort": 59401,
+    "credentialsRemoved": true
+  },
+  "implementation": [
+    "Shared admission helper resolveRunAuth resolves same-project current AuthProfile metadata and validates active/non-revoked, environment equality (null permits project-wide), and all run allowed origins within profile-approved origins",
+    "Smoke explicitly passes resolved default or explicit authProfileId together with frozen authProfileVersion to Coordinator.start",
+    "Regression selects input.authProfileId ?? environment.defaultAuthProfileId and permits only none; form/storage_state retain explicit 422 not connected yet",
+    "No auth secrets enter compiler or normal variables; no anonymous fallback for configured unsupported regression modes"
+  ],
+  "testFixtureLimitations": [
+    "AuthProfilePatch has no mode field; none-to-form head movement is explicitly marked controlled owned SQL version fixture, not API mode update support",
+    "Frozen old none is checked through run-to-version SQL; RuntimeClient/HTTP auth proof tests belong to Root and are not part of these eight tests",
+    "No browser, worker-entry or real model; injected model transport forbids calls (0 calls recorded)",
+    "No original report overwritten; results use UUID-specific filenames and exact owned Docker IDs/volumes with port and credential-file cleanup checks"
+  ],
+  "gapAuditPath": "docs/validation-results/T10-AUTH-gap-audit.md",
+  "rootOwnership": ["orchestrator core/runtime", "internal auth resolve proof protection", "contracts/OpenAPI internal headers", "apps/api/test/t10-auth-runtime.test.mjs"],
+  "notVerified": ["form/storage_state execution", "real browser/model acceptance", "full auth/T10/P0"]
+}

@@ -1,0 +1,36 @@
+{
+  "task": "G3C-contract-and-storage-increment",
+  "P0Passed": false,
+  "G3Passed": false,
+  "changes": [
+    "Optional responseFormat added to ModelProfile, ModelProfileCreate and ModelProfilePatch; existing required fields and 78 operations preserved.",
+    "Explicit mode stored in new model-profile documents; effective mode change clears capabilities and marks the new version untested, while keeping disabled profiles disabled.",
+    "Raw MessageInput MSG_DEBUG logging removed from runs route."
+  ],
+  "verified": [
+    "Contracts regeneration/check/build",
+    "Legacy profile/create compatibility and three explicit mode validation; invalid/null modes rejected",
+    "Storage typecheck/build, scoped lint and formatting",
+    "API build",
+    "Independent existing T10 API suite 3/3; no remaining new Docker containers, volumes or networks"
+  ],
+  "limitations": [
+    "Storage typecheck initially read stale contract declarations while the contract build was in progress; rerun after the build passed.",
+    "Explicit responseFormat database roundtrip and capability reset behavior still require dedicated runtime verification.",
+    "T10 API suite covers queued creation, not worker DSL replay; its sourceRunCaseId and isolated negative-case coverage remain incomplete.",
+    "P0 API 14/14 is currently an agent report, not independently rerun in this turn.",
+    "Ego paused; no browser or real supplier calls were made."
+  ],
+  "assigned": {
+    "grok": "G3-C actual model wiring, log boundary redaction, tool args, probe failure behavior",
+    "pi": "T10-B2 confirmation binding/source saving/meaningful validation coverage",
+    "agy": "Continue T10-C and regenerate/check web client against current contract"
+  },
+  "recordedAt": "2026-10-04T05:30:38.626823+00:00",
+  "contractHashes": {
+    "docs/build_contracts.py": "9ef35e48b06c8e0ba35f32ca852d7f76c0cb950f0efc370553676c4203ac06e1",
+    "docs/contracts/domain.schema.json": "5a60378e7d9ca17d66e941ddb973be2cd80144142f945e2f340d4cf559454259",
+    "docs/contracts/openapi.json": "44cc83fd196ed39a36cb2096c873dc9a77c459af6ef70501c0029f1c8f4a4b00",
+    "packages/contracts/src/generated/manifest.json": "84f223eddab307a59c6cd2d41ec9b0e3908bd29ee254ac0b0cb8d8bf6a866da0"
+  }
+}

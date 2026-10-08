@@ -11,8 +11,12 @@ export type {
 } from './adapter.js';
 export {
   OPENAI_ADAPTER_VERSION,
+  OPENAI_DIAGNOSTIC_SAMPLE_CHARS,
+  OPENAI_RESPONSE_CHAR_LIMIT,
   toOpenAIChatRequest,
   createOpenAIAdapter,
+  redactThenSample,
+  stripTrailingSecretPrefix,
 } from './openai.js';
 export { createStubAdapter } from './stub.js';
 export { redactText, redactMessages, hideSecret } from './redact.js';
@@ -21,7 +25,11 @@ export {
   assessCriterionOutput,
   createGateway,
   messageFromText,
+  selectStructuredOutput,
+  unwrapProviderOutput,
 } from './gateway.js';
+export type { ResolvedArtifact } from './gateway.js';
+export { imageDataUrl, legalImageUrl } from './openai.js';
 export type {
   Assessment,
   CallInput,

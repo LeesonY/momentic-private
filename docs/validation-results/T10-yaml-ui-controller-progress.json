@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-06T00:30:52.019422+00:00",
+  "rootIndependent": true,
+  "originalActualMethodCounterexamples": {
+    "passedAfterFix": 4,
+    "script": "T10-yaml-ui-controller-repro.mjs"
+  },
+  "agentSuiteIndependentlyRerun": {
+    "offlineChecks": 24,
+    "staticSsrSuites": 4,
+    "clientOperations": 72
+  },
+  "newActualPublicMockFlowCounterexamples": {
+    "passed": 0,
+    "failed": 2,
+    "evidence": "T10-yaml-ui-second-controller-counterexamples.json",
+    "scope": "Selected-project list visibility and synthetic document canonical SHA"
+  },
+  "accepted": false,
+  "browserExecuted": false,
+  "P0Passed": false,
+  "EgoPaused": true
+}

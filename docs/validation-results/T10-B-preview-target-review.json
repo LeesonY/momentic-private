@@ -1,0 +1,9 @@
+{
+  "task": "T10-B-preview-target-review",
+  "finding": "Review preview currently stores saved-case-version ID in a field constrained to findings. Deferring the same FK does not support the new target type.",
+  "scope": "Code inspection of savedCases.ts and migration 008; transaction failure diagnosis inferred from the mismatch, not independently executed against a database.",
+  "dispatch": "T10 主控定位到当前 review 的具体数据库缺口：新建的 008_review_preview_fk.sql 只是把 confirmation_previews(project_id,finding_id) → findings 的同一个 FK 改为 DEFERRABLE INITIALLY DEFERRED，目标表仍是 findings。preview 写入的却是 saved_case_version.id，延期到 COMMIT 仍会因目标不存在而失败；这不是 draft 状态的问题，也不能靠延迟 FK 解决。请保留已验收 P0 的 findings/triage FK 语义，为 saved-case review 建有正确 project_id/version_id FK 的专用 preview 表（或同等明确的类型化目标设计），并按 actor、版本、目标、操作/内容、TTL 和一次消费校验确认绑定；不要创建假 finding 或移除 P0 外键绕过。按你的范围完善迁移/API/测试，清掉临时 DEBUG 日志，复跑新增 T10 审查及 P0 triage 防回归。真实前端仍未放行。",
+  "P0Passed": false,
+  "browserUsed": false,
+  "recordedAt": "2026-10-04T04:35:14.573188+00:00"
+}

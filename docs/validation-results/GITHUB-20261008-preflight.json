@@ -1,0 +1,68 @@
+{
+  "at": "2026-10-08T02:37:42.787372+00:00",
+  "purpose": "Prepare current LocalQA development snapshot for an explicitly authorized private GitHub repository",
+  "targetRepository": "LeesonY/momentic-private",
+  "baseCommit": "f1dad77d09077536a269896d8247ba18dd0dcc0d",
+  "previousCommits": 55,
+  "checks": {
+    "workspaceBuild": {
+      "packages": 11,
+      "passed": true
+    },
+    "workspaceTypecheck": {
+      "packages": 11,
+      "passed": true
+    },
+    "ci": {
+      "command": "npx --yes pnpm@10.34.0 run ci",
+      "passed": true,
+      "contractsTests": 155,
+      "modelGatewayTests": 31,
+      "scope": "Contracts, lint, format, types and synthetic model responses; no supplier model call"
+    },
+    "extendedLint": {
+      "passed": true,
+      "scope": "Root configured lint plus API, orchestrator and Worker"
+    },
+    "authPureRegression": {
+      "passed": 73,
+      "failed": 0,
+      "scope": "Approved-state, mock locator, private port, Worker auth helpers and API policy mapper; no browser or database"
+    },
+    "credentials": {
+      "candidateFiles": 905,
+      "historyBlobsScanned": 664,
+      "historyCommits": 55,
+      "providerOrGitHubTokenOrPrivateKeyPatternHits": 0,
+      "jwtPatternHits": 0,
+      "otherLiteralMatches": "Reviewed as local fixtures, placeholder/dynamic database URLs and descriptive metadata",
+      "limitations": "Pattern checks do not prove absence of every secret. Actual env/key/certificate/runtime secret files are excluded by gitignore."
+    }
+  },
+  "preparationRepairs": [
+    "Updated README to reflect implemented packages and incomplete acceptance",
+    "Applied existing Prettier configuration to 62 flagged source/test files",
+    "Removed one unused test import",
+    "Updated the legacy public operation count from52 to80 after T10 API expansion",
+    "Preserved Markdown line breaks while removing staged trailing whitespace"
+  ],
+  "evidencePreserved": {
+    "T04PreviousSha256": "8b8ee1b48d1d828478b4c77670b1e2413e0a937b8560e7b940155f0e7feb823c",
+    "T04OriginalRestored": true,
+    "freshCiReport": "GITHUB-20261008-model-ci.json",
+    "initialFailureLogs": "Local ignored .tmp/github-publication-20261008",
+    "historicalReports": "Preserved; source formatting changes mean historical hashes remain tied to their original runs"
+  },
+  "notVerified": [
+    "Full P1/T10 acceptance",
+    "Complete authentication Worker main-path wiring, OTP and crash handoff",
+    "Real browser/UI hydration and live regression workflow",
+    "Real supplier/model quality verification of current implementation",
+    "Production deployment readiness"
+  ],
+  "P0Passed": false,
+  "G3Passed": false,
+  "browserPaused": true,
+  "repositoryPrivateRequired": true,
+  "published": false
+}

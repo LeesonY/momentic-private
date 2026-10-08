@@ -1,0 +1,47 @@
+{
+  "at": "2026-10-05T06:42:53.780316+00:00",
+  "pi": "T10-B5 real Worker.once wiring with PG/FakeBrowser only; core/runtime action source + worker + locator single writer",
+  "agy": "T10-C2 frontend execution/source/verdict provenance, browser remains paused",
+  "grok": "G3-E approved real artifact bytes and frozen model image product path, local fake transport only",
+  "root": "Readiness migration9, export integration, independent review and evidence",
+  "verified": {
+    "B4AndSavedCases": 16,
+    "G3D4PgAndGateway": 31,
+    "GatewayRegression": 31,
+    "FixtureLifecycle": 26,
+    "WebGuards": 32
+  },
+  "browserPaused": true,
+  "P0Passed": false,
+  "singleMonitorPid": 95898,
+  "sourceHashesCapturedAfterTests": {
+    "packages/orchestrator/src/regression-plan.ts": "3c6ec2e7167afd1d225e51ad053b504b5d6588d7b4ab113fcec65f8ba23a8880",
+    "packages/orchestrator/src/core.ts": "480fb5612fa4952731e2c7ea00e257fb99534699fac9b490f3d8ee504f96a5ae",
+    "packages/storage/migrations/009_regression_bindings.sql": "35d5c1075093de8e1256794e57e844ebc3906103bb790e5818504459af6356dd",
+    "packages/model-gateway/src/gateway.ts": "2671c3ba6d938c839190e188ea0cd98f1d9700c95cc0cd6d5bcb5a8746d73d99",
+    "packages/orchestrator/src/model.ts": "ac8993c4f805d76f0f9db327394827227a4fa6368466a5d0c86cc032787dfa61",
+    "apps/web/scripts/t10FixtureLifecycle.mjs": "812f9599273ad6031589de210f19afb86fc900b9a9c2eccaeab3ab7dbf55a802"
+  },
+  "scope": "Local PostgreSQL, injected Response and pure tests. No real browser or supplier calls. No G3/T10/P0 gate passed.",
+  "rootIntegration": {
+    "exportRegressionPlan": true,
+    "apiUsesPublicPackageExport": true,
+    "apiBuild": true,
+    "readinessRequires009": true,
+    "readinessPgVerified": {
+      "withAllNine": true,
+      "missing009": false,
+      "healthProbeWith009ExitCode": 0,
+      "healthProbeMissing009ExitCode": 1,
+      "ownMigrationLedgerRestored": true,
+      "ownFixtureCleaned": true
+    },
+    "storageMigrationAssertionUpdatedToNine": true,
+    "fullStorageSuiteNotRunThisStage": true,
+    "imagesRebuilt": false,
+    "browserUsed": false,
+    "realSupplierCalls": 0,
+    "gitDiffCheck": true
+  },
+  "updatedAt": "2026-10-05T06:50:05.140852+00:00"
+}

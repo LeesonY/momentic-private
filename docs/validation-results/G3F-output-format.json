@@ -1,0 +1,45 @@
+{
+  "title": "G3-F 输出 format 严格校验（注入 Response，不是 G3/P0 放行）",
+  "date": "2026-10-05",
+  "task": "G3-F",
+  "keeps": "不覆盖 T10-B5-agent-readonly-review、G3E-approved-image、G3E-R-png-decode、G3D*、T04-model。本文件是单独证据。",
+  "claims": {
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalledThisRound": false,
+    "postgresUsed": false,
+    "playwrightLaunched": false,
+    "workerEntryExecuted": false,
+    "workerCoreRuntimeEdited": false,
+    "egoUsed": false,
+    "secondMonitor": false,
+    "contractExportAdded": false,
+    "toolCallsMatchContractRemoved": false
+  },
+  "sourceSha256": {
+    "packages/model-gateway/src/gateway.ts": "2acbb89318d1c62ff25960c3e637dab0572c2160fb91f08002878609dadc600a",
+    "packages/model-gateway/test/g3f-output-format.test.mjs": "926cf6464e16edb3de6f51aeff98ccbad273b2d5901864724bc9c7aea63b6568",
+    "packages/model-gateway/package.json": "ebeff712a79393882494470d5b857f14ec1a5d50f5a3104d07c481eeae6ecfbd",
+    "packages/model-gateway/dist/gateway.js": "a87f24dfbc99d0b2ea3b6c1b06553fb97c1f64b4ad40cb2d16ad5b83dda281b4"
+  },
+  "dependency": "ajv-formats 3.0.1，与 packages/contracts 已锁定的同一版本。model-gateway 增加显式依赖。pnpm-lock 只给该包补上 ajv-formats@3.0.1(ajv@8.20.0)。没有新写 UUID/URI 正则。没有改 contracts 导出。",
+  "draft": "输出 schema 仍由 Ajv 8.20.0 默认的 draft-07 编译。现有 outputSchema 与 DECISION_SCHEMA 的 $ref/$defs、oneOf、const、format 都在这只编译器里。没有改用 Ajv2020。draft 2020 才有的关键字（prefixItems、unevaluatedProperties、dependentRequired）这里不解释；strict 仍是 false，未知关键字不会因此变成发送前错误。format 名称不在 ajv-formats 3.0.1 full 已注册集合里时，编译前抛错，provider 调用为 0。已注册的 format 由该库实际执行，不关 logger。ToolCall 的规范检查仍是 contracts 的 Ajv2020 + ajv-formats full，经 toolCallsMatchContract，没有删。",
+  "rootReproAfterFix": "createGateway + createOpenAIAdapter(注入 Response)。outputSchema 为 {type:object, additionalProperties:false, required:[value], properties.value format uuid 或 uri}，模型输出 {value:not-valid}。两次都是 requestResult malformed、errorCode VALIDATION_ERROR、data null。因为这是 schema 失败，沿用原有的一次修复重试：providerCalls 2、repairCount 1。修复仍返回 not-valid 时不再发第三次。合法 uuid 11111111-1111-4111-8111-111111111111 与 uri https://example.com/a 为 ok、errorCode null、data 原对象、providerCalls 1、repairCount 0。",
+  "repairBudget": "一次修复成功：第一次 not-valid，第二次合法 uuid。requestResult repaired，providerCalls 2，repairCount 1，两次上报 usage 各 prompt 4、completion 2，合计 inputTokens 8、outputTokens 4、requests 2、usageSource reported。没有新增第二次修复预算。",
+  "otherFormats": "date-time 正例 2026-10-05T00:00:00Z 为 ok；not-valid 为 malformed 且 providerCalls 2。uri-reference 正例 /docs/readme 为 ok；http://exa mple.com/a 为 malformed 且 providerCalls 2。",
+  "noSend": "format not-a-format，以及 required 不是数组的非法 schema：fetch 0 次，providerCalls 0，repairCount 0，requests 0，malformed / VALIDATION_ERROR，data null。",
+  "modes": "同一 uuid schema 与同一 observe 工具。json_schema 请求体带 response_format.type=json_schema 且 json_schema.strict true，同时带 tools。native_tools 请求体有 tools、没有 response_format。两种模式非法值都是 malformed 且 2 次发送，合法值都是 ok 且 1 次发送。",
+  "toolCall": "outputSchema 仅为 {type:object}、没有 format 时，click 的 snapshotId/pageId 为 not-valid：仍由 toolCallsMatchContract 拒绝，malformed / VALIDATION_ERROR，data null，providerCalls 1，repairCount 0。同一非法 click 放进 DECISION_SCHEMA：format 先失败，修复一次后仍非法，malformed / VALIDATION_ERROR，providerCalls 2，repairCount 1。合法 uuid 的 click 对 DECISION_SCHEMA 为 ok、providerCalls 1。这与修复前「format 被忽略所以契约拒绝只有 1 次发送」不同；结果码没有变成 ok。",
+  "warnings": "uuid/uri 正负例期间没有出现 unknown format 警告。不是把 logger 关掉。",
+  "tests": {
+    "command": "node --test --test-concurrency=1 packages/model-gateway/test/g3f-output-format.test.mjs packages/model-gateway/test/g3d4-assert-complete.test.mjs packages/model-gateway/test/g3e-image-assert.test.mjs",
+    "result": "16/16",
+    "duration_ms": 446.338917,
+    "g3f": "6/6",
+    "g3d4": "4/4",
+    "g3e": "6/6",
+    "node": "host node running the command; design node remains 24. This round did not start node:24-bookworm-slim.",
+    "verifyMjs": "未跑 packages/model-gateway/scripts/verify.mjs，因为它会重写 docs/validation-results/T04-model.json。"
+  },
+  "notVerified": "没有 Postgres、浏览器、worker-entry、BoundModel 租约、付费或外网模型。probe 目的仍不编译 outputSchema。draft 2020 专有关键字仍不因本轮变成发送前错误。verify.mjs 全套未重跑。"
+}

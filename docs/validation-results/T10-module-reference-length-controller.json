@@ -1,0 +1,9 @@
+{
+  "rootIndependent": true,
+  "registrationAccepted": true,
+  "nameChars": 120,
+  "referenceChars": 122,
+  "referencingAccepted": false,
+  "scope": "Actual generated contract and module name helper; no PG/browser/network",
+  "P0Passed": false
+}

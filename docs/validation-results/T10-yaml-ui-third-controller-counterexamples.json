@@ -1,0 +1,52 @@
+{
+  "rootIndependent": true,
+  "results": [
+    {
+      "name": "new import matches SavedCase contract",
+      "passed": true
+    },
+    {
+      "name": "queryable synthetic draft matches SavedCaseVersion",
+      "passed": true
+    },
+    {
+      "name": "import remains in selected project list and detail",
+      "passed": false,
+      "message": "mock.getSavedCase is not a function"
+    },
+    {
+      "name": "draft SHA equals canonical stored document SHA",
+      "passed": true
+    },
+    {
+      "name": "export mirrors selected stored version ID and SHA",
+      "passed": true
+    },
+    {
+      "name": "unknown project rejected without case persistence",
+      "passed": true
+    },
+    {
+      "name": "legacy project compatibility returns canonical identity and stays queryable",
+      "passed": false,
+      "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'proj_mock_ecommerce_01'\n- '00000000-0000-4000-8000-000000000001'\n"
+    },
+    {
+      "name": "missing WebCrypto rejects import without persistence or fake SHA",
+      "passed": false,
+      "message": "Missing expected rejection."
+    },
+    {
+      "name": "digest rejection rejects import without persistence or fake SHA",
+      "passed": false,
+      "message": "Missing expected rejection."
+    },
+    {
+      "name": "generated export client rejects another version response",
+      "passed": true
+    }
+  ],
+  "scope": "Actual public methods and shared backend hash oracle; browser/network not used",
+  "P0Passed": false,
+  "verificationCorrection": "The prior detail assertion used nonexistent getSavedCase; that failure is not a product defect. Root removed it; three genuine SHA/legacy cases retained."
+}

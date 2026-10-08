@@ -1,0 +1,63 @@
+{
+  "task": "T10-AUTH-6-ACTIONS-LEDGER",
+  "tag": "83824ad7-e68a-46c3-ac99-39aa7396f885",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-actions-2rvV0i",
+  "tests": [
+    {
+      "name": "recordAuthObservation: registers sanitized snapshot bound to auth session and epoch",
+      "passed": true
+    },
+    {
+      "name": "grantAuth: generates AuthPermit, reserves budget, enforces action/slot pairing, snapshot provenance and requestId idempotency",
+      "passed": true
+    },
+    {
+      "name": "beginAuthExecution CAS state (issued -> started), single-execution, and exclusive run lock",
+      "passed": true
+    },
+    {
+      "name": "recordAuth: requires started grant and receipt match, settles budget, updates Step, and rejects ordinary channels",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Ordinary recordHttpAction must reject private auth intents"
+    },
+    {
+      "name": "Failed outcome in recordAuth charges actions:1 and releases initializing exclusive lock",
+      "passed": true
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "3b46684469a74ecd33398c347d99314da826b83b595c2f42d402316b401b0f0f",
+    "volumes": [
+      "a010c59b9eb362ede07754f7f744107b063374bd2985511e04572c6ece3821f2"
+    ],
+    "pgPort": 33147,
+    "apiPort": 64677,
+    "apiPid": 15974,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "a010c59b9eb362ede07754f7f744107b063374bd2985511e04572c6ece3821f2",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 private auth actions ledger, provenance, CAS begin, and exclusive run lock only",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1
+  }
+}

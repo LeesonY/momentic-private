@@ -1,0 +1,40 @@
+{
+  "task": "G3B-independent-review",
+  "P0Passed": false,
+  "G3Passed": false,
+  "verified": {
+    "typecheck": true,
+    "scopedLint": true,
+    "build": true,
+    "localTests": {
+      "passed": 29,
+      "failed": 0
+    },
+    "longBodyAndUsage": true
+  },
+  "reproduced": {
+    "issue": "Diagnostic sample is cut before API-key redaction; a synthetic key crossing character 2000 leaves its first 24 characters in rawOutput.",
+    "realKeysUsed": false,
+    "realNetworkCalls": 0
+  },
+  "conclusion": "long_body_fix_passes_log_boundary_requires_fix",
+  "next": "G3-C log redaction, persisted format/runtime wiring, canonical tool args, failed probe behavior",
+  "unverified": [
+    "Live supplier/model",
+    "Complete G3",
+    "Approved image transport/runtime wiring",
+    "Node 24"
+  ],
+  "dispatch": {
+    "pane": "wF:p4",
+    "prompt": "G3-B 主控已独立复跑：typecheck、scoped lint、build 和 29/29 本地测试通过，长合法正文/usage 保留确认通过。新增局部反例未通过：原始 HTTP400 错误正文在第2000字符处截断一条完全模拟的 API key，gateway.noteUsage 再 hideSecret(response.logSample) 已无法匹配完整 key，rawOutput 留下 key 前24字符。我没有使用真实密钥，网络调用0。请先修成脱敏后再取诊断样本，并覆盖正常正文、HTTP错误、超限流的跨采样边界密钥，避免超限路径同样留下片段；保留完整有界解析与29项行为。\n新任务 G3-C：接通持久化模型配置和真实工具参数，仍零付费/真实外网模型调用。共享契约已由我统一生成并check/build通过：ModelProfile / Create / Patch 新增可选 responseFormat（json_schema/json_object/native_tools），旧 required 和78操作不变，默认仍json_schema。storage ModelRepository.create/update 我已改好：保存该字段；改变有效方式创建新版本并清空能力为未验证，禁用仍禁用；存储typecheck/lint通过。不要改这些已定的字段/生成器，保持版本语义。\n你的增量范围：packages/model-gateway（日志修复、格式/输出提示与测试）、packages/agents 的工具参数生成与loop、packages/orchestrator/src/model.ts；为实际入口接线可改 apps/api/src/index.ts、types.ts、routes/models.ts、routes/internal.ts，以及 ModelRepository 中必要的内部 probe/credential 读取方法。避开 apps/api app.ts/savedCases.ts、T10 migrations/tests、apps/web、orchestrator/core.ts、worker/regression 执行文件，分别属于 pi/agy。\n目标：\n1. 每次模型调用从本次已授权并冻结的 profile/version 取得输出方式、provider 与凭据；旧profile仍按默认，400不静默换方式或模型。核实实际产品入口（internal model RPC/worker），测试要从实际入口证明所发请求使用冻结方式，不只测手工new GatewayProfile。若入口有待接线，准确标未完成。\n2. 工具参数由唯一 ToolCall 契约同名分支的 args 生成，自洽处理引用，保留 NodeTarget UUID/target/类型/required 和角色工具边界，替换 loop/model 里空壳parameters。JSON对象模式下模型仍要收到可理解的输出/工具约束，增加的请求内容仍计预算；返回ToolCall继续严格校验。\n3. 当前 API models.ts 在probeRecord.data为空时伪造 ready/三项能力，这是确认的产品缺陷；移除成功回退。生产默认index.ts也只有固定test-stub。接线时真实剖面必须实际取到；新剖面caps初始false/status untested不能被当成已测不支持而永远跳过探测；disabled保持关闭。probe失败明确失败/未知，不写ready，不替真实能力作保证；能力写回须遵守版本与并发条件。测试传输必须显式注入，本轮不调用外网。\n4. approved 图片/ArtifactStore 暂留到下一包，缺合法解析器或能力时正确阻断，不能伪装视觉通过。不要猜mime或放宽授权。\n加必要的入口/冻结版本/失败probe/ToolCall参数/日志边界测试；使用独立文件和唯一测试资源，不与pi共享DB/固定端口/临时文件。不要改api.test.mjs或T10测试来隐藏兼容失败；报告真实防回归问题给我。新增 G3C-model-wiring.json，保留全部历史和主控独立证据；不要全仓commit/reset；Ego仍暂停。完成报告严格区分本地、真实模型、未接线和未验证。"
+  },
+  "recordedAt": "2026-10-04T05:14:55.589951+00:00",
+  "sourceHashes": {
+    "packages/model-gateway/src/openai.ts": "9713258d3e4894d4a0b61eb7f94a3cffa6880b1544fc2920e655751753fd98e2",
+    "packages/model-gateway/src/gateway.ts": "e248e13fdc7fd17c57fec254f378627ebc5ed395d0890f9ebfad507a27212529",
+    "packages/model-gateway/src/adapter.ts": "49f9ec7ec9b45635db67c68fbe211620bd717f56ef8522d2661f346770925a32",
+    "packages/model-gateway/scripts/verify.mjs": "6a2c02d48ac4e5103b363beeff392726c6bf594ac404562869339708ce1574ca"
+  },
+  "evidenceSha256": "db73444cd113aaab6889d4673faf66451f213d111242e2fa103955fab984203e"
+}

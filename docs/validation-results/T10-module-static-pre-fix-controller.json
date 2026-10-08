@@ -1,0 +1,27 @@
+{
+  "rootIndependent": true,
+  "scope": "Actual moduleTemplate.ts helper, no PG/browser/provider",
+  "checks": [
+    {
+      "name": "unclosed expression rejected",
+      "expected": "reject",
+      "passed": false
+    },
+    {
+      "name": "unmatched closing expression rejected",
+      "expected": "reject",
+      "passed": false
+    },
+    {
+      "name": "illegal expression inside nested expectedValue rejected",
+      "expected": "reject",
+      "passed": false
+    },
+    {
+      "name": "approved legacy child with invalid criterion reference rejected",
+      "expected": "reject",
+      "passed": false
+    }
+  ],
+  "P0Passed": false
+}

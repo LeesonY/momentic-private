@@ -1,0 +1,19 @@
+{
+  "rootIndependent": true,
+  "cases": [
+    {
+      "name": "saved case allows eight module invocations consistent with runtime compiler",
+      "passed": true
+    },
+    {
+      "name": "saved case rejects the ninth invocation",
+      "passed": true
+    },
+    {
+      "name": "registration still counts the template itself as one future module invocation",
+      "passed": true
+    }
+  ],
+  "scope": "Pure actual compiler and API static helper; no PG, browser or provider",
+  "P0Passed": false
+}

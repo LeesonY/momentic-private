@@ -1,0 +1,37 @@
+{
+  "at": "2026-10-07T17:50:58.248586+00:00",
+  "rootIndependent": true,
+  "acceptedLocally": true,
+  "problem": "Storage POLICY_DENIED was returned as HTTP500, including private service diagnostics if present",
+  "change": "API translates service POLICY_DENIED to existing HTTP FORBIDDEN/403 and a constant message; existing DomainError run/input/action reason mapping remains VALIDATION_ERROR422 as specified by prior tests. No new HTTP meaning assigned to the contract reason vocabulary.",
+  "before": {
+    "passed": 1,
+    "failed": 2,
+    "log": "T10-AUTH9-policy-error-controller-before.log"
+  },
+  "after": {
+    "passed": 3,
+    "failed": 0,
+    "log": "T10-AUTH9-policy-error-controller-final.log"
+  },
+  "scope": "Actual toApiErrorResponse + actual request-handler stream/catch boundary with a synthetic rejecting route; no listening socket or DB",
+  "checks": {
+    "apiBuild": "passed",
+    "apiTypecheck": "passed",
+    "targetedLint": "passed",
+    "lintLog": "T10-AUTH9-policy-error-controller-lint.log"
+  },
+  "fixtureChange": "Import PG test updated from observed500/POLICY_DENIED to403/FORBIDDEN; original assertions/hash retained in T10-AUTH9-import-policy-fixture-baseline.json",
+  "notVerified": [
+    "Independent real PG importer after API status fix",
+    "Full worker importer/OTP/handoff/main entry",
+    "Real browser and supplier"
+  ],
+  "sourceSha256": {
+    "apps/api/src/errors.ts": "6c55b4d42ccb07887386eff7965a050fc208c1c5f9d59011974473fde2f5a049",
+    "apps/api/test/t10-policy-error-controller.test.mjs": "6b27f007a6195125afe6b94ed7fb3e10dd23fb55e7465284da925cf5d1bc432a",
+    "apps/api/test/t10-auth-import.test.mjs": "5465f171f3dd8de8aa77d320b5a0a6742e92727948507c97e03b192771e6bee1"
+  },
+  "browserPaused": true,
+  "P0Passed": false
+}

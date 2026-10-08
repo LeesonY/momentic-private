@@ -25,3 +25,20 @@ export function setUseMock(enabled: boolean): void {
 export function isUsingMock(): boolean {
   return defaultApiClient instanceof MockApiClient;
 }
+
+declare global {
+  interface Window {
+    __LOCALQA_API_CLIENT__?: ApiClient;
+    __LOCALQA_CLIENT_TYPE__?: 'MockApiClient' | 'HttpApiClient';
+    __LOCALQA_IS_MOCK__?: boolean;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.__LOCALQA_API_CLIENT__ = defaultApiClient;
+  window.__LOCALQA_CLIENT_TYPE__ =
+    defaultApiClient instanceof MockApiClient
+      ? 'MockApiClient'
+      : 'HttpApiClient';
+  window.__LOCALQA_IS_MOCK__ = defaultApiClient instanceof MockApiClient;
+}

@@ -1,0 +1,192 @@
+{
+  "title": "G3-A 模型网关产品路径修复（本地传输回归，不是 G3/P0 放行）",
+  "date": "2026-10-04",
+  "task": "G3-A",
+  "controller": "wF:p1",
+  "claims": {
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalledThisRound": false,
+    "postgresUsed": false,
+    "playwrightLaunched": false,
+    "dockerUsed": false
+  },
+  "priorSample": {
+    "file": "docs/validation-results/G3-model-minimal.json",
+    "overwritten": false,
+    "G3Passed": false,
+    "liveModelCalled": true,
+    "note": "历史最小样本保留。该文件记录的是修复前的真模型探测，不是本轮复验。"
+  },
+  "host": {
+    "node": "v26.3.0",
+    "platform": "darwin",
+    "packageManager": "npx --yes pnpm@10.34.0",
+    "note": "设计基线是 Node 24。本轮没有在 Node 24 上重跑。"
+  },
+  "command": "npx --yes pnpm@10.34.0 --filter @localqa/model-gateway test",
+  "commandCwd": "仓库根目录",
+  "commandNote": "裸 pnpm 不在 PATH。该命令会 tsc 构建 model-gateway 与 agents，再 node --test --test-concurrency=1 scripts/verify.mjs。verify.mjs 会覆写 docs/validation-results/T04-model.json。",
+  "result": {
+    "exitCode": 0,
+    "tests": 27,
+    "pass": 27,
+    "fail": 0,
+    "durationMs": 364.31925,
+    "t04": {
+      "rewrittenByHarness": true,
+      "passed": 42,
+      "blocked": 1,
+      "unverified": 5,
+      "G3Passed": false,
+      "P0Passed": false,
+      "liveModelCalled": false,
+      "productImplemented": false,
+      "node": "v26.3.0",
+      "evidenceSha256": "e1a28d86b6c7f5a7077a21a0f39c8d7f5c383f9d5a0649df92d4db07ea8c237a",
+      "productImplementedNote": "T04 的 productImplemented 仍由 verify.mjs 写成 false。这不表示 model-gateway 源码没改；它只表示该验收文件不把本轮当作产品完成或 G3/P0。"
+    }
+  },
+  "fileScope": {
+    "product": [
+      "packages/model-gateway/src/adapter.ts",
+      "packages/model-gateway/src/openai.ts",
+      "packages/model-gateway/src/gateway.ts",
+      "packages/model-gateway/src/index.ts"
+    ],
+    "testsAndEvidence": [
+      "packages/model-gateway/scripts/verify.mjs",
+      "docs/validation-results/T04-model.json",
+      "docs/validation-results/G3A-model-gateway.json"
+    ],
+    "notModified": [
+      "docs/validation-results/G3-model-minimal.json",
+      "docs/contracts",
+      "packages/storage",
+      "apps/web",
+      "packages/orchestrator",
+      "packages/agents",
+      "apps/api",
+      "apps/worker",
+      "ArtifactStore"
+    ]
+  },
+  "behavior": {
+    "structuredOutput": "selectStructuredOutput：显式 responseFormat 仅在对应能力为 true 时使用（json_schema/json_object 要 structuredOutput，native_tools 要 nativeTools）。未设置时，structuredOutput 为 true 则 json_schema，否则 nativeTools 为 true 则 native_tools，否则 unsupported。400 不会改成 json_object，也不会换模型。请求体 model 始终是 configuredModelId。HTTP 200 的响应 model 记入 reportedModelId；4xx 的 reportedModelId 为 null。",
+    "validation": "成功响应先 unwrapProviderOutput：chat envelope 的 content 字符串，或 tool_calls 解成 {toolCalls:[{name,args}],done:false}。args 只做 JSON.parse，不把扁平字段收进 args.target。再经调用方 JSON Schema。任一 toolCalls 项未通过 validateContract('ToolCall') 则 malformed / VALIDATION_ERROR，且不再修理。空 toolCalls 可以通过。既有一次格式修理仍只针对 schema 失败。",
+    "images": "不再发送 artifact://。合法地址仅 https:// 或 data:image/(png|jpeg|gif|webp);base64。未批准图片仍在 redactMessages 丢弃。视觉断言在 imageInput 为 false 或没有已批准图片时，请求前返回 MODEL_CAPABILITY_MISSING，providerCalls 为 0。已批准图片但 imageInput 为 false 同样不发送。没有 resolveArtifact、解析为 null 或 URL 非法：MODEL_NOT_CONFIGURED，不发送。解析抛错：SERVICE_UNAVAILABLE。图片 token 超 maxInputTokens：BUDGET_EXCEEDED，不发送。出站日志把 data URL 收成 data:image;base64,[redacted]。",
+    "fallbackAndErrors": "fallback 只在 rate_limited 或 timeout，且 fallback id 同时在 approvedFallbackIds 和已加载剖面里。429 未批准 fallback 只打配置模型一次。400 不是可重试结果。429 仍是 RATE_LIMITED，其他 4xx 仍是 VALIDATION_ERROR，abort 仍是 MODEL_TIMEOUT。用量、脱敏、预算估算和空输出保持 null 的既有政策未改。"
+  },
+  "localCases": [
+    {
+      "id": "g3a.json-object-decision",
+      "transport": "本地 fetch，HTTP 200，content 为决策 JSON，响应 model 为 deepseek-flash",
+      "asserted": "请求 model 为 deepseek-chat，response_format.type 为 json_object，无 tools。generateDecision requestResult ok，modelId 为配置值，reportedModelId 为 deepseek-flash，usageSource reported，ToolCall 校验成功。一次调用。"
+    },
+    {
+      "id": "g3a.no-format-downgrade",
+      "transport": "本地 fetch，HTTP 400，message 为 This response_format type is unavailable now",
+      "asserted": "请求保持 strict json_schema 和 deepseek-chat。一次调用。VALIDATION_ERROR / malformed，data null，reportedModelId null，fallbackUsed false。该 fallback id 写在 approvedFallbackIds 里但剖面未加载，故 fallbackDenied true；400 本身也不可进入 fallback。"
+    },
+    {
+      "id": "g3a.native-tool-rejected",
+      "transport": "本地 fetch，HTTP 200，tool_calls arguments 为扁平 snapshotId fixture / pageId home",
+      "asserted": "请求无 response_format，带 click tool，model 为 deepseek-chat。不改写成 args.target。malformed / VALIDATION_ERROR，repairCount 0，一次调用，reportedModelId 仍为 deepseek-flash，data null。"
+    },
+    {
+      "id": "g3a.native-tool-accepted",
+      "transport": "本地 fetch，HTTP 200，tool_calls arguments 为带 uuid 的 args.target",
+      "asserted": "requestResult ok，validateContract ToolCall 成功，modelId deepseek-chat，reportedModelId deepseek-flash。"
+    },
+    {
+      "id": "g3a.image-data-url",
+      "transport": "本地 fetch。resolveArtifact 返回 1 字节 image/png",
+      "asserted": "出站为 data:image/png 的 base64，日志为 data:image;base64,[redacted]。无 artifact://。"
+    },
+    {
+      "id": "g3a.image-https",
+      "transport": "本地 fetch。resolveArtifact 返回 https://fixture.local/shot.png",
+      "asserted": "出站 image_url 为该 https 地址。无 artifact://。"
+    },
+    {
+      "id": "g3a.image-unresolved",
+      "transport": "resolver 返回 null",
+      "asserted": "0 次 fetch。MODEL_NOT_CONFIGURED / not_configured。"
+    },
+    {
+      "id": "g3a.image-capability",
+      "transport": "imageInput false，且有已批准图片",
+      "asserted": "0 次 fetch。MODEL_CAPABILITY_MISSING。"
+    },
+    {
+      "id": "g3a.visual-without-image",
+      "transport": "imageInput true，消息无图片；假传输若被调用会返回文本通过",
+      "asserted": "0 次 fetch。capability_missing，assessment blocked，reasonCode MODEL_CAPABILITY_MISSING。视觉没有当成文本通过。"
+    },
+    {
+      "id": "g3a.image-budget",
+      "transport": "400 字节点，maxInputTokens 20",
+      "asserted": "0 次 fetch。BUDGET_EXCEEDED，inputTokens 大于 20。"
+    },
+    {
+      "id": "g3a.fallback-unapproved-429",
+      "transport": "本地 fetch，HTTP 429。第二剖面已加载但不在 approvedFallbackIds",
+      "asserted": "一次 fetch，请求 model 只有 deepseek-chat。RATE_LIMITED / rate_limited，fallbackUsed false，fallbackDenied true，data null。"
+    },
+    {
+      "id": "g3a.no-structured-output",
+      "transport": "structuredOutput 与 nativeTools 都为 false",
+      "asserted": "capabilityProbe 0 次 fetch。data.status disabled，两个能力布尔值保持 false。"
+    },
+    {
+      "id": "provider.timeout",
+      "transport": "既有本地 abort",
+      "asserted": "仍为 MODEL_TIMEOUT / timeout，空输出不是 0。"
+    }
+  ],
+  "ajv": {
+    "observation": "测试打印 unknown format uuid/uri ignored。网关 Ajv 没有 ajv-formats，调用方 outputSchema 上的 format 被忽略。",
+    "toolCall": "ToolCall 的 uuid 由 @localqa/contracts 的 validateContract 执行。本轮拒绝的原生样本是扁平 args，失败点是契约形状，不是网关把 format 警告当成测试失败。本轮没有另跑 uuid 对照脚本，也没有新增 ajv-formats 依赖。"
+  },
+  "unverified": [
+    "没有再调用真实供应商。json_object、原生工具参数和图片 data URL / https 都只经过本地假传输。",
+    "orchestrator、API、worker 仍未设置 responseFormat 或 resolveArtifact。真实 DeepSeek 的 generateDecision 若走这些调用点，默认仍发 strict json_schema，预期仍是 400 / VALIDATION_ERROR。",
+    "ArtifactStore 未接到 resolveArtifact。已批准图片在产品调用链上仍不会被合法送出。",
+    "Node 24 未复跑。真实模型 429、超时计费、视觉质量和 10×10 基线都未在本轮验证。",
+    "G3 与 P0 不放行。"
+  ],
+  "wiringForController": [
+    {
+      "gap": "结构化输出方式无法放进冻结的 ModelCapabilities / ModelProfile。",
+      "contract": "docs/contracts/domain.schema.json ModelCapabilities 只有 structuredOutput、nativeTools、imageInput，additionalProperties false。",
+      "runtime": "GatewayProfile.responseFormat 是可选字段，不在共享契约里。未设置时 decide/assert 仍发 strict json_schema。",
+      "callSites": [
+        "packages/orchestrator/src/model.ts createGateway 约第 274 行。剖面来自 options.profile，并与 model_profile_versions.document 的 configuredModelId、endpoint 对照。没有 responseFormat。",
+        "apps/api/src/index.ts 约第 55 行，测试 stub 网关，imageInput false，无 responseFormat。",
+        "apps/worker/test/integration.test.mjs profile() 约第 67 行，三项能力为 true，无 responseFormat。"
+      ],
+      "needed": "调用方在交给 createGateway 的剖面上显式设置 responseFormat。DeepSeek 这条要 json_object 才能避开历史样本里的 json_schema 400。持久化进 ModelProfile 需要改契约，本任务没有改。"
+    },
+    {
+      "gap": "没有把 ArtifactStore 接到网关。",
+      "gateway": "createGateway({ resolveArtifact(artifactId) })。返回 { mediaType, bytes: Uint8Array } 或 { url }，url 必须是 https。只按 artifactId 查找。",
+      "store": "packages/orchestrator/src/artifacts.ts ArtifactStore.get(projectId, runId, artifactId) 返回 Buffer，不带 mediaType，也不返回 https URL。签名对不上。",
+      "caller": "orchestrator model.ts 的 CallInput 固定 approvedImageIds 为 []。未批准图片在 redactMessages 被丢掉，随后不会进入 resolveArtifact。artifacts 表查出的 id 只进 knownEvidenceIds。",
+      "needed": "接线方同时给出已批准 artifactId，以及能由 artifactId 取回 mediaType 加字节或 https URL 的解析器。缺任一则图片请求在发出前失败，不会再发 artifact://。"
+    },
+    {
+      "gap": "发给供应商的 tool parameters 仍是空对象，不是 ToolCall 契约。",
+      "sites": [
+        "packages/agents/src/loop.ts 约第 70 行：{ type: object, additionalProperties: false }。",
+        "packages/orchestrator/src/model.ts 约第 289 行：{ type: object }。"
+      ],
+      "current": "网关校验返回值，不改写出站 parameters，也不把扁平 args 收成 args.target。要让供应商按契约填 target，需要改 agents 或 orchestrator。"
+    },
+    {
+      "gap": "网关 Ajv 忽略 format uuid/uri。",
+      "current": "ToolCall 形状和 uuid 依赖 contracts.validateContract。没有安装 ajv-formats。"
+    }
+  ],
+  "docker": "本任务未启动容器，未删除资源。docker ps -a 无容器。volume 仍有 local 79e6b62585a476cb1d73128a4304fe0556d3526fda92d40302434fde82407472，非本任务创建，未删除。镜像仍在 localqa-web/api/worker/orchestrator:latest、node:24-bookworm-slim、postgres:18-alpine、mcr.microsoft.com/playwright:v1.63.0-noble，以及既有 hello-world:latest、nginx:1.27-alpine。未执行 docker volume prune。",
+  "ego": "未使用"
+}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useApp } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
 import type { Run } from '@localqa/contracts';
@@ -103,6 +103,70 @@ const WorkbenchContent: React.FC<{
 
   const [inputMsg, setInputMsg] = useState('');
   const [sendingMsg, setSendingMsg] = useState(false);
+  const [, setInputResponding] = useState(false);
+  const inputRespondingRef = useRef(false);
+  const activeInputScopeRef = useRef<{
+    runId: string;
+    requestId: string;
+    epoch: number;
+  } | null>(null);
+  const scopeEpochRef = useRef(0);
+
+  useEffect(() => {
+    scopeEpochRef.current += 1;
+    if (activeInputRequest && run) {
+      activeInputScopeRef.current = {
+        runId: run.id,
+        requestId: activeInputRequest.id,
+        epoch: scopeEpochRef.current,
+      };
+    } else {
+      activeInputScopeRef.current = null;
+    }
+    inputRespondingRef.current = false;
+    setInputResponding(false);
+  }, [run?.id, activeInputRequest?.id]);
+
+  const handleRespondInput = useCallback(
+    async (decision: 'provide' | 'approve' | 'reject', text?: string) => {
+      if (!activeInputRequest || !run) return;
+      if (inputRespondingRef.current) return; // Prevent duplicate/concurrent submissions
+
+      const capturedEpoch = scopeEpochRef.current;
+      const capturedRunId = run.id;
+      const capturedRequestId = activeInputRequest.id;
+      const isAuthKind =
+        activeInputRequest.kind === 'auth_profile' ||
+        activeInputRequest.kind === 'one_time_code';
+
+      // Security invariant: auth kinds strictly only permit reject; never transmit plaintext credentials
+      if (isAuthKind) {
+        if (decision !== 'reject') {
+          throw new Error('认证服务当前尚未接线，仅允许拒绝操作');
+        }
+        text = undefined;
+      }
+      if (decision === 'reject') {
+        text = undefined;
+      }
+
+      inputRespondingRef.current = true;
+      setInputResponding(true);
+      try {
+        await respondInput(decision, text);
+      } finally {
+        if (
+          scopeEpochRef.current === capturedEpoch &&
+          activeInputScopeRef.current?.runId === capturedRunId &&
+          activeInputScopeRef.current?.requestId === capturedRequestId
+        ) {
+          inputRespondingRef.current = false;
+          setInputResponding(false);
+        }
+      }
+    },
+    [activeInputRequest, run, respondInput],
+  );
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,6 +223,41 @@ const WorkbenchContent: React.FC<{
           />
         )}
 
+        {/* Queued Run Notice Banner */}
+        {run.status === 'queued' && (
+          <div
+            className="card"
+            style={{
+              marginBottom: '16px',
+              padding: '12px 16px',
+              backgroundColor: 'var(--color-bg-subtle)',
+              borderLeft: '4px solid var(--color-info)',
+            }}
+            data-testid="queued-run-notice"
+          >
+            <div
+              style={{
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                color: 'var(--color-text-main)',
+              }}
+            >
+              🕒 运行排队中 (Queued)
+            </div>
+            <div
+              style={{
+                fontSize: '0.8rem',
+                color: 'var(--color-text-muted)',
+                marginTop: '2px',
+              }}
+            >
+              该运行处于任务排队队列中，等待 Worker
+              节点领取，尚未执行回放。通过结论及用例判定将在 Worker 真实执行后由
+              verdict 字段判定。
+            </div>
+          </div>
+        )}
+
         {/* Run Top Header */}
         <div className="card" style={{ marginBottom: '16px' }}>
           <div
@@ -174,6 +273,21 @@ const WorkbenchContent: React.FC<{
                 运行: <code>{run.id}</code>
               </h2>
               <StatusBadge status={isPartial ? 'partial' : run.status} />
+              {run.executionMode === 'regression' ? (
+                <span
+                  className="badge badge-primary"
+                  data-testid="badge-execution-mode"
+                >
+                  回归模式 (Regression)
+                </span>
+              ) : (
+                <span
+                  className="badge badge-info"
+                  data-testid="badge-execution-mode"
+                >
+                  冒烟模式 (Smoke)
+                </span>
+              )}
               <span className="badge badge-neutral">
                 上下文版本: v{run.contextVersion}
               </span>
@@ -189,6 +303,47 @@ const WorkbenchContent: React.FC<{
               </button>
             )}
           </div>
+
+          {/* Regression Mode Banner */}
+          {run.executionMode === 'regression' && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 12px',
+                backgroundColor: 'var(--color-primary-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.8rem',
+                color: 'var(--color-text-main)',
+                marginBottom: '8px',
+              }}
+              data-testid="workbench-regression-banner"
+            >
+              <div>
+                <strong>
+                  {run.status === 'queued'
+                    ? '自动化回归排队等待中 (Worker 待调度):'
+                    : run.status === 'running'
+                      ? '自动化回归回放执行中:'
+                      : run.status === 'completed'
+                        ? '自动化回归已完成:'
+                        : run.status === 'failed'
+                          ? '自动化回归执行失败:'
+                          : run.status === 'cancelled'
+                            ? '自动化回归已取消:'
+                            : '自动化回归运行:'}{' '}
+                </strong>
+                关联用例均受已审查批准的冻结基线版本与用例库来源约束
+              </div>
+              <span
+                className="badge badge-primary"
+                style={{ fontSize: '0.7rem' }}
+              >
+                {cases.length} 个回归用例
+              </span>
+            </div>
+          )}
 
           <div
             style={{
@@ -244,13 +399,17 @@ const WorkbenchContent: React.FC<{
         </div>
 
         {/* Lifecycle Phase Progress */}
-        <PhaseProgress currentPhase={run.phase} status={run.status} />
+        <PhaseProgress
+          currentPhase={run.phase}
+          status={run.status}
+          executionMode={run.executionMode}
+        />
 
         {/* Input Request Bar (when awaiting_input) */}
         {activeInputRequest && (
           <InputRequestBar
             request={activeInputRequest}
-            onRespond={respondInput}
+            onRespond={handleRespondInput}
           />
         )}
 
@@ -477,6 +636,7 @@ const WorkbenchContent: React.FC<{
         tasks={tasks}
         report={report}
         runId={activeRunId}
+        run={run}
       />
     </div>
   );

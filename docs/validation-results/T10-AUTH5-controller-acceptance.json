@@ -1,0 +1,53 @@
+{
+  "at": "2026-10-07T14:13:07.096636+00:00",
+  "rootIndependent": true,
+  "scope": "AUTH-5 foundational local acceptance only; AUTH-6 active and full auth still incomplete",
+  "sessions": {
+    "rootPgPassed": 11,
+    "initialRootFailed": 2,
+    "report": "T10-AUTH5-SESSION-ROOT-357ec994-16b2-48dc-a28c-c260210af48d.json",
+    "ownedResourcesIndependentlyRecheckedAbsent": true
+  },
+  "privatePort": {
+    "rootPassed": 16,
+    "privatePackageCases": 15,
+    "approvedStatePackageCases": 20,
+    "nodeRunnerSubtests": 21,
+    "build": "passed",
+    "eslint": "passed",
+    "report": "T10-AUTH5-private-port-controller-current.json",
+    "grokReplacedByClaude": true,
+    "realRuntimeCaptureCASAccepted": false
+  },
+  "inputUi": {
+    "rootStoreCallbackPassed": 5,
+    "offlineAndActualCallbackCasesPassed": 21,
+    "initialRootStoreFailed": 2,
+    "build": "passed",
+    "eslint": "passed",
+    "report": "T10-AUTH5-input-store-controller-current.json",
+    "browserOrHydrationAccepted": false
+  },
+  "inputApi": "T10-AUTH5-input-controller-acceptance.json",
+  "sourceSha256": {
+    "packages/orchestrator/src/auth-execution.ts": "a04af4122644a0adffdacf0869f528709fbc1de872c62a30954b1aa70c21b8d6",
+    "packages/storage/migrations/011_auth_execution_sessions.sql": "76efe7bd1615fbdd5a89bf5098169c93adea3142a54e10195763332ddbe07486",
+    "packages/browser/src/private-auth.ts": "a8de6fe8858c839e6ac1ad5bef7c74fb26fc7880cf7b94a69341e79b99a17ee3",
+    "packages/browser/test/private-auth.test.mjs": "d41d70d3e4d886b4c302f753cc95cc694f2f8353efd77c9d619e3f40f926f899",
+    "apps/web/src/components/workbench/InputRequestBar.tsx": "b3bc365c966d8541b3a83338283d183d9a162a12df4a69bbf732e659ff0725a4",
+    "apps/web/src/pages/WorkbenchPage.tsx": "d8a491ecf139ba7a04b2c84c59b9281cee7e7957bc5c7f815d5c93a07ead8402",
+    "apps/web/src/state/RunStore.tsx": "336e895b7ef35652b77beaa753845527978092e221762c27152e85ec6e8f765a",
+    "apps/web/scripts/testAuthInputOffline.mjs": "c11726b1204d217f351c8c0f8de4cfe83efed8dcbddaa0f2f05460fcf21c718e"
+  },
+  "notVerified": [
+    "Full Worker.once authentication flow",
+    "Capture/OTP/exclusive/recovery/handoff complete implementation",
+    "Actual service execution/capture gate wiring",
+    "Real browser/hydration or website authentication",
+    "Latest supplier model verification"
+  ],
+  "browserPaused": true,
+  "P0Passed": false,
+  "singleMonitorPid": 14113,
+  "concurrentSecondMonitorStarted": false
+}

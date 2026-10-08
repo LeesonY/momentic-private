@@ -77,8 +77,17 @@ export type Contract =
   | ProjectCreate
   | ProjectPage
   | ProjectPatch
+  | RegressionBinding
   | RegressionDocument
+  | RegressionModuleCreate
+  | RegressionModuleRecord
+  | RegressionModuleRecordPage
+  | RegressionModuleReviewCommit
+  | RegressionModuleReviewPreview
+  | RegressionModuleReviewPreviewInput
+  | RegressionModuleVersion
   | RegressionRunCreate
+  | RegressionStepSource
   | RepairProposal
   | RepairProposalCreate
   | RepairProposalPage
@@ -87,6 +96,7 @@ export type Contract =
   | Reproduction
   | ReviewCommit
   | ReviewPreview
+  | ReviewPreviewInput
   | RoleModels
   | Run
   | RunConfig
@@ -97,11 +107,16 @@ export type Contract =
   | RunMessagePage
   | RunPage
   | SavedCase
+  | SavedCaseArchiveInput
   | SavedCaseCreate
+  | SavedCaseDuplicateInput
   | SavedCasePage
+  | SavedCaseRestoreInput
   | SavedCaseVersion
   | SavedCaseVersionCreate
   | SavedCaseVersionPage
+  | SavedCaseYamlExport
+  | SavedCaseYamlImport
   | Schedule
   | ScheduleCreate
   | SchedulePage
@@ -295,6 +310,40 @@ export type AuthProfileCreate = {
  * @maxItems 100
  */
 export type NetworkEntries = NetworkEntry[];
+export type ReplayStep =
+  | {
+      kind: "navigate";
+      url: string;
+    }
+  | {
+      kind: "click";
+      locator: Locator;
+    }
+  | {
+      kind: "type_text";
+      locator: Locator;
+      text: string;
+    }
+  | {
+      kind: "assert";
+      criterionId: string;
+    }
+  | {
+      kind: "ai_action";
+      goal: string;
+      /**
+       * @minItems 1
+       * @maxItems 20
+       */
+      criteriaIds: [string, ...string[]];
+    }
+  | {
+      kind: "module";
+      ref: string;
+      arguments?: {
+        [k: string]: JsonValue | undefined;
+      };
+    };
 export type Finding = {
   id: string;
   runId: string;
@@ -333,40 +382,6 @@ export type ModelPart =
       type: "image";
       artifactId: string;
     };
-export type ReplayStep =
-  | {
-      kind: "navigate";
-      url: string;
-    }
-  | {
-      kind: "click";
-      locator: Locator;
-    }
-  | {
-      kind: "type_text";
-      locator: Locator;
-      text: string;
-    }
-  | {
-      kind: "assert";
-      criterionId: string;
-    }
-  | {
-      kind: "ai_action";
-      goal: string;
-      /**
-       * @minItems 1
-       * @maxItems 20
-       */
-      criteriaIds: [string, ...string[]];
-    }
-  | {
-      kind: "module";
-      ref: string;
-      arguments?: {
-        [k: string]: JsonValue | undefined;
-      };
-    };
 export type RunEvent = {
   schemaVersion: 1;
   id: string;
@@ -402,6 +417,7 @@ export interface ActionReservation {
   fencingToken: number;
   contextVersion: number;
   toolCall: ToolCall;
+  regressionSource?: RegressionStepSource;
 }
 export interface NodeTarget {
   snapshotId: string;
@@ -432,6 +448,19 @@ export interface Locator {
   by: "role" | "label" | "test_id" | "text" | "css";
   value: string;
   name?: string;
+}
+export interface RegressionStepSource {
+  documentId: string;
+  stepIndex: number;
+  /**
+   * @minItems 0
+   * @maxItems 8
+   */
+  modulePath: {
+    ref: string;
+    sha256: string;
+    invocationStepIndex: number;
+  }[];
 }
 export interface ActionResult {
   outcome: "succeeded" | "failed" | "unknown" | "cancelled";
@@ -707,6 +736,53 @@ export interface CaseDefinition {
    * @maxItems 20
    */
   criteria: [Criterion, ...Criterion[]];
+  regression?: RegressionBinding;
+}
+export interface RegressionBinding {
+  sourceVersionId: string;
+  sourceDocumentSha256: string;
+  document: RegressionDocument;
+  /**
+   * @minItems 0
+   * @maxItems 100
+   */
+  moduleSnapshots: RegressionModuleVersion[];
+  snapshotDocumentSha256?: string;
+}
+export interface RegressionDocument {
+  schemaVersion: 1;
+  kind: "localqa/test";
+  id: string;
+  name: string;
+  variables?: {
+    [k: string]: string | number | boolean | undefined;
+  };
+  /**
+   * @minItems 1
+   * @maxItems 20
+   */
+  criteria: [Criterion, ...Criterion[]];
+  /**
+   * @minItems 1
+   * @maxItems 100
+   */
+  steps: [ReplayStep, ...ReplayStep[]];
+  /**
+   * @minItems 0
+   * @maxItems 10
+   */
+  fixtureRefs?: {
+    id: string;
+    version: number;
+  }[];
+}
+export interface RegressionModuleVersion {
+  projectId: string;
+  name: string;
+  version: number;
+  sha256: string;
+  document: RegressionDocument;
+  reviewStatus: "draft" | "approved" | "rejected";
 }
 export interface CaseRecord {
   definition: CaseDefinition;
@@ -972,6 +1048,7 @@ export interface ModelProfile {
   capabilities: ModelCapabilities;
   status: "untested" | "ready" | "degraded" | "disabled";
   version: number;
+  responseFormat?: "json_schema" | "json_object" | "native_tools";
 }
 export interface ModelProfileCreate {
   name: string;
@@ -980,6 +1057,7 @@ export interface ModelProfileCreate {
   adapter: "openai_compatible";
   dataBoundary: "internal" | "external";
   apiKey?: string;
+  responseFormat?: "json_schema" | "json_object" | "native_tools";
 }
 export interface ModelProfilePage {
   /**
@@ -996,6 +1074,7 @@ export interface ModelProfilePatch {
   configuredModelId?: string;
   apiKey?: string;
   status?: "disabled" | "untested";
+  responseFormat?: "json_schema" | "json_object" | "native_tools";
 }
 export interface ModelRequest {
   taskId: string;
@@ -1011,6 +1090,7 @@ export interface ModelRequest {
   outputSchema: {
     [k: string]: unknown | undefined;
   };
+  criterionId?: string;
 }
 export interface ModelResult {
   data: JsonValue;
@@ -1052,32 +1132,58 @@ export interface ProjectPatch {
   status?: "active" | "archived";
   defaultModelProfileId?: string | null;
 }
-export interface RegressionDocument {
-  schemaVersion: 1;
-  kind: "localqa/test";
-  id: string;
+export interface RegressionModuleCreate {
   name: string;
-  variables?: {
-    [k: string]: string | number | boolean | undefined;
-  };
-  /**
-   * @minItems 1
-   * @maxItems 20
-   */
-  criteria: [Criterion, ...Criterion[]];
-  /**
-   * @minItems 1
-   * @maxItems 100
-   */
-  steps: [ReplayStep, ...ReplayStep[]];
+  document: RegressionDocument;
+  expectedVersion?: number;
+}
+export interface RegressionModuleRecord {
+  projectId: string;
+  name: string;
+  version: number;
+  sha256: string;
+  document: RegressionDocument;
+  reviewStatus: "draft" | "approved" | "rejected";
+  createdBy: string | null;
+  createdAt: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+}
+export interface RegressionModuleRecordPage {
   /**
    * @minItems 0
-   * @maxItems 10
+   * @maxItems 100
    */
-  fixtureRefs?: {
-    id: string;
-    version: number;
-  }[];
+  items: RegressionModuleRecord[];
+  nextCursor: string | null;
+}
+export interface RegressionModuleReviewCommit {
+  expectedVersion: number;
+  decision: "approve" | "reject";
+  reason: string;
+  confirmationToken: string;
+}
+export interface RegressionModuleReviewPreview {
+  projectId: string;
+  moduleName: string;
+  version: number;
+  documentSha256: string;
+  expectedVersion: number;
+  decision: "approve" | "reject";
+  reason: string;
+  diff: string;
+  /**
+   * @minItems 0
+   * @maxItems 20
+   */
+  risks: string[];
+  confirmationToken: string;
+  expiresAt: string;
+}
+export interface RegressionModuleReviewPreviewInput {
+  expectedVersion: number;
+  decision: "approve" | "reject";
+  reason: string;
 }
 export interface RegressionRunCreate {
   projectId: string;
@@ -1180,6 +1286,7 @@ export interface Run {
   createdAt: string;
   updatedAt: string;
   version: number;
+  executionMode?: "smoke" | "regression";
 }
 export interface RunConfig {
   /**
@@ -1239,6 +1346,9 @@ export interface ReviewCommit {
 }
 export interface ReviewPreview {
   versionId: string;
+  expectedVersion: number;
+  decision: "approve" | "reject";
+  reason: string;
   diff: string;
   /**
    * @minItems 0
@@ -1247,6 +1357,11 @@ export interface ReviewPreview {
   risks: string[];
   confirmationToken: string;
   expiresAt: string;
+}
+export interface ReviewPreviewInput {
+  expectedVersion: number;
+  decision: "approve" | "reject";
+  reason: string;
 }
 export interface RunCreate {
   projectId: string;
@@ -1299,11 +1414,20 @@ export interface SavedCase {
   version: number;
   createdAt: string;
 }
+export interface SavedCaseArchiveInput {
+  expectedVersion: number;
+}
 export interface SavedCaseCreate {
   slug: string;
   name: string;
   document?: RegressionDocument;
   sourceRunCaseId?: string;
+}
+export interface SavedCaseDuplicateInput {
+  targetProjectId?: string;
+  newSlug: string;
+  newName: string;
+  sourceVersionId: string;
 }
 export interface SavedCasePage {
   /**
@@ -1312,6 +1436,9 @@ export interface SavedCasePage {
    */
   items: SavedCase[];
   nextCursor: string | null;
+}
+export interface SavedCaseRestoreInput {
+  expectedVersion: number;
 }
 export interface SavedCaseVersion {
   id: string;
@@ -1336,6 +1463,16 @@ export interface SavedCaseVersionPage {
    */
   items: SavedCaseVersion[];
   nextCursor: string | null;
+}
+export interface SavedCaseYamlExport {
+  versionId: string;
+  sourceDocumentSha256: string;
+  yaml: string;
+}
+export interface SavedCaseYamlImport {
+  slug: string;
+  name: string;
+  yaml: string;
 }
 export interface Schedule {
   id: string;
@@ -1397,6 +1534,7 @@ export interface Step {
   evidenceRefs: string[];
   createdAt: string;
   finishedAt: string | null;
+  regressionSource?: RegressionStepSource;
 }
 export interface StepPage {
   /**
@@ -1558,8 +1696,17 @@ export interface ContractTypes {
   ProjectCreate: ProjectCreate;
   ProjectPage: ProjectPage;
   ProjectPatch: ProjectPatch;
+  RegressionBinding: RegressionBinding;
   RegressionDocument: RegressionDocument;
+  RegressionModuleCreate: RegressionModuleCreate;
+  RegressionModuleRecord: RegressionModuleRecord;
+  RegressionModuleRecordPage: RegressionModuleRecordPage;
+  RegressionModuleReviewCommit: RegressionModuleReviewCommit;
+  RegressionModuleReviewPreview: RegressionModuleReviewPreview;
+  RegressionModuleReviewPreviewInput: RegressionModuleReviewPreviewInput;
+  RegressionModuleVersion: RegressionModuleVersion;
   RegressionRunCreate: RegressionRunCreate;
+  RegressionStepSource: RegressionStepSource;
   RepairProposal: RepairProposal;
   RepairProposalCreate: RepairProposalCreate;
   RepairProposalPage: RepairProposalPage;
@@ -1568,6 +1715,7 @@ export interface ContractTypes {
   Reproduction: Reproduction;
   ReviewCommit: ReviewCommit;
   ReviewPreview: ReviewPreview;
+  ReviewPreviewInput: ReviewPreviewInput;
   RoleModels: RoleModels;
   Run: Run;
   RunConfig: RunConfig;
@@ -1578,11 +1726,16 @@ export interface ContractTypes {
   RunMessagePage: RunMessagePage;
   RunPage: RunPage;
   SavedCase: SavedCase;
+  SavedCaseArchiveInput: SavedCaseArchiveInput;
   SavedCaseCreate: SavedCaseCreate;
+  SavedCaseDuplicateInput: SavedCaseDuplicateInput;
   SavedCasePage: SavedCasePage;
+  SavedCaseRestoreInput: SavedCaseRestoreInput;
   SavedCaseVersion: SavedCaseVersion;
   SavedCaseVersionCreate: SavedCaseVersionCreate;
   SavedCaseVersionPage: SavedCaseVersionPage;
+  SavedCaseYamlExport: SavedCaseYamlExport;
+  SavedCaseYamlImport: SavedCaseYamlImport;
   Schedule: Schedule;
   ScheduleCreate: ScheduleCreate;
   SchedulePage: SchedulePage;

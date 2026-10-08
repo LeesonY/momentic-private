@@ -1,0 +1,36 @@
+{
+  "scope": "Pure Node, transpiled actual source; synthetic primitives only",
+  "sourceSha256": "63754133deb990c6ef12824cff4a85fdbdd6530877612d04d34a209af7989864",
+  "checks": [
+    {
+      "name": "Permit mutated during async gate cannot change the approved navigation",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Expected values to be strictly equal:\n\ntrue !== false\n"
+    },
+    {
+      "name": "Credential snapshot metadata is redacted on fill",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Expected values to be strictly equal:\n\ntrue !== false\n"
+    },
+    {
+      "name": "Later submit snapshot retains redaction of previously filled credentials",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Expected values to be strictly equal:\n\ntrue !== false\n"
+    },
+    {
+      "name": "Export started before close cannot return state after the instance is closed",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Missing expected rejection."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 4
+  },
+  "browserPaused": true,
+  "P0Passed": false
+}

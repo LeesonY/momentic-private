@@ -1,0 +1,28 @@
+{
+  "scope": "Pure Node, transpiled actual source; synthetic primitives only",
+  "sourceSha256": "3fe2bcf32b371bb9de1a9b8b330fdbb0d97dc7ba8014eb0ec4206ee24b0d8cc1",
+  "checks": [
+    {
+      "name": "Permit mutated during async gate cannot change the approved navigation",
+      "passed": true
+    },
+    {
+      "name": "Credential snapshot metadata is redacted on fill",
+      "passed": true
+    },
+    {
+      "name": "Later submit snapshot retains redaction of previously filled credentials",
+      "passed": true
+    },
+    {
+      "name": "Export started before close cannot return state after the instance is closed",
+      "passed": true
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0
+  },
+  "browserPaused": true,
+  "P0Passed": false
+}

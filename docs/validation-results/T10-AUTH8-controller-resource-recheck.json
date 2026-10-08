@@ -1,0 +1,11 @@
+{
+  "checks": {
+    "container:fc81326436a66a6a4f942deba5072f3143e7f86eff6e44c21e3f2724bc3be6f9": true,
+    "volume:81f424cb8013c0133e37674024486f746dc5e32ad1eee1b0dd9aebe5e238e2ba": true,
+    "pgPortClosed": true,
+    "apiPortClosed": true,
+    "keysAbsent": true,
+    "evidenceRetained": true
+  },
+  "retained": "Owned evidence directory, ownership ledger and redacted Artifact bytes; credentials removed"
+}

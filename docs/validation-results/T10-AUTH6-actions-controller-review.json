@@ -1,0 +1,33 @@
+{
+  "at": "2026-10-07T14:32:26.171277+00:00",
+  "workspace": "wF",
+  "rootIndependent": true,
+  "delivery": "pi idle2493 AUTH6 private action ledger",
+  "report": "docs/validation-results/T10-AUTH6-ACTIONS-ROOT-8cf9c112-daad-4308-b093-a6478103f88c.json",
+  "passed": 6,
+  "failed": 9,
+  "accepted": false,
+  "failedChecks": [
+    "Root: authoritative server permit is directly usable by the actual private port",
+    "Root: same private result retry is idempotent and charges only once",
+    "Root: changed snapshot on a private result retry conflicts",
+    "Root: expired auth session cannot record under a still-live task lease",
+    "Root: observation UUID cannot be rebound to another session or run",
+    "Root: foreign or missing evidence cannot be charged as a successful auth report",
+    "Root: task interruption releases the initializing exclusive lock and ends the private attempt",
+    "Root: ordinary finish cannot approve auth stage without a committed auth state",
+    "Root: viewer cannot read private execution receipts from action_intents"
+  ],
+  "piRepairDispatched": {
+    "pane": "wF:p2",
+    "observedWorkingSeq": 2512
+  },
+  "claudeProgress": "Actual auth-flow.ts implementation, typecheck fixes in progress; interface mismatch and constant error-code feedback delivered",
+  "agyProgress": "Actual ApiClient/owned PG fixture work in progress; no completion acceptance",
+  "fixtureClarification": "Root changed sampleSnapshot redacted flag to true after baseline run for upcoming strict privacy validation; initial failure evidence retained",
+  "cleanupIndependentlyRechecked": true,
+  "browserPaused": true,
+  "P0Passed": false,
+  "singleMonitorPid": 14113,
+  "secondMonitorStarted": false
+}

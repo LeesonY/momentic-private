@@ -1,0 +1,111 @@
+{
+  "task": "T10-AUTH-9A-STATE-CAPTURE",
+  "tag": "084e615e-9160-40d7-b974-eac550f38871",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-import-RvC6S4",
+  "tests": [
+    {
+      "name": "exclusive and shared: normally finished capture feeds independent importer sessions and ends only one child",
+      "passed": true
+    },
+    {
+      "name": "prepare and begin concurrent CAS each grant one capability; lost replies cannot replay decryption or effect",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "The validation function is expected to return \"true\". Received false\n\nCaught error:\n\nStorageError: VALIDATION_ERROR"
+    },
+    {
+      "name": "private importer rejects initializer-only methods and ordinary result/HTTP channels",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "The validation function is expected to return \"true\". Received false\n\nCaught error:\n\nStorageError: LEASE_EXPIRED"
+    },
+    {
+      "name": "allocation/activation rejects wrong state or current authority before any state decryption",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- '6e8f38a0-9b75-4a02-a9e0-c2111372d974'\n"
+    },
+    {
+      "name": "historical tuple, revoked state, consumed grant and ciphertext/HMAC tampering fail closed",
+      "passed": false,
+      "code": "POLICY_DENIED",
+      "message": "POLICY_DENIED"
+    },
+    {
+      "name": "historical encryption and HMAC key survive rotation, wrong receipt and changed outcome cannot charge twice",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ '431b8063-f9b6-42e7-b5da-f244bbaafa40'\n- '634aebda-d602-4989-84bd-830a6b19828b'\n"
+    },
+    {
+      "name": "RLS denies workers and project non-admin actors private importer metadata",
+      "passed": false,
+      "code": "POLICY_DENIED",
+      "message": "POLICY_DENIED"
+    },
+    {
+      "name": "shared action budget denial reserves no import row and DB insertion failure rolls everything back",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ '56100b84-ba64-46fd-94cb-ce90df409f33'\n- '90bb377a-23ef-4d36-8293-64ca2e278281'\n"
+    },
+    {
+      "name": "real lock waits expiring prepare and begin deadlines roll the CAS back with zero decryption",
+      "passed": false,
+      "code": "POLICY_DENIED",
+      "message": "POLICY_DENIED"
+    },
+    {
+      "name": "failure/unknown/cancelled import outcomes remain truthful and charge one action",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ '1765d75d-b5c6-469b-8de9-cbbdef4a171b'\n- '32553334-84cf-42f2-92ff-e8550a48131e'\n"
+    },
+    {
+      "name": "service recovery ends one expired importer without touching active sibling/state/granted lock",
+      "passed": false,
+      "code": "POLICY_DENIED",
+      "message": "POLICY_DENIED"
+    },
+    {
+      "name": "none cannot allocate importer authority: zero state decryption/session/scope/grants",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "The validation function is expected to return \"true\". Received false\n\nCaught error:\n\nStorageError: AUTH_FAILED"
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "cfc120fe75f877da13473e9fe050c45e9a7edb1655822fba1f8ef82aa2c2a670",
+    "volumes": [
+      "ed3424791c3c2de59e81ff9d6a3c11d6b5f47f048cf46f0f73a7086b3fa372ed"
+    ],
+    "pgPort": 33252,
+    "apiPort": 55079,
+    "apiPid": 33079,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "ed3424791c3c2de59e81ff9d6a3c11d6b5f47f048cf46f0f73a7086b3fa372ed",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 protected state importer/CAS/private receipt/budget/Step only; synthetic captured browser state",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 11
+  }
+}

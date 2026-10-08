@@ -1,0 +1,22 @@
+{
+  "at": "2026-10-07T15:08:40.878487+00:00",
+  "rootIndependent": true,
+  "scope": "Existing clarification provide API lock-order repair and owned actual HttpApiClient/HTTP/PG harness evidence cleanup",
+  "rootCause": "runs.respond held outer db.actor run/input locks while calling Coordinator.resolveClarification that opened a second transaction waiting on the same run",
+  "repair": "Return a private dispatch marker, commit readonly validation transaction, then call coordinator which rechecks and atomically resolves expectedVersion",
+  "initialFailedReport": "T10-real-api-node-e39f735b.json",
+  "finalReport": "T10-real-api-node-075f2aae.json",
+  "apiChecksPassed": 16,
+  "t06ApiRegressionPassed": 14,
+  "t06Report": "T06-api-revalidation-22d74301.json",
+  "build": "passed",
+  "eslint": "passed",
+  "resourceCleanupIndependentlyRechecked": true,
+  "retained": "Per-run reports, logs and temporary ownership ledgers/reproduction materials; credential files removed",
+  "sourceSha256": {
+    "apps/api/src/routes/runs.ts": "e901df1bb840231ea187c4fc37b6bd0b09514f2c363dd4ffe8861d6502d6c9b5",
+    "apps/web/scripts/testT10RealApiNode.mjs": "e430480f04efe3c62bc32f223796d7fe1cd24c1ceacfb8878f03e472fb4823b5"
+  },
+  "browserPaused": true,
+  "P0Passed": false
+}

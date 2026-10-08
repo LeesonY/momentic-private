@@ -1,0 +1,7 @@
+{
+  "path": "apps/api/test/t10-auth-import.test.mjs",
+  "sha256": "cb41546b54574d8bedb9c29c049c05af61b859aa219c5da893c631e93275269d",
+  "originalAssertion": "  // Existing API mapper has no POLICY_DENIED status mapping. Keep the observed\n  // 500 explicit; Root owns the API-level 403 correction outside this tranche.\n  assert.equal(http.status, 500, JSON.stringify(httpBody));\n  assert.equal(httpBody.code, 'POLICY_DENIED');",
+  "agentDelivery": "T10-AUTH9A-pi-delivery.md",
+  "originalObservedReport": "T10-AUTH-IMPORT-4b02e577-6932-47af-b266-55400f353936.json"
+}

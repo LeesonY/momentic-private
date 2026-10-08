@@ -1,0 +1,32 @@
+{
+  "at": "2026-10-07T06:08:57.566Z",
+  "rootIndependent": true,
+  "cases": [
+    {
+      "name": "actual helper finds approved metadata on the later page without inventing v1",
+      "passed": true
+    },
+    {
+      "name": "actual helper rejects foreign-case and malformed page data",
+      "passed": true
+    },
+    {
+      "name": "duplicate UUID casing is deduplicated when canonical content agrees",
+      "passed": true
+    },
+    {
+      "name": "same version identity with conflicting document is rejected",
+      "passed": true
+    },
+    {
+      "name": "repeated cursor is rejected promptly",
+      "passed": true
+    },
+    {
+      "name": "search cap is distinct from genuine exhausted empty history",
+      "passed": true
+    }
+  ],
+  "scope": "Actual version-page helper, injected canonical pages; no browser/PG/provider",
+  "P0Passed": false
+}

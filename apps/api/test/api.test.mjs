@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test, before, after } from 'node:test';
+import { test as nodeTest, before, after } from 'node:test';
 import { spawnSync, spawn } from 'node:child_process';
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import {
@@ -8,16 +8,19 @@ import {
   mkdirSync,
   readFileSync,
   existsSync,
+  mkdtempSync,
+  cpSync,
 } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import http from 'node:http';
 import pg from 'pg';
 import { parseContract } from '@localqa/contracts';
 import {
   Database,
   AccountsRepository,
-  ProjectRepository,
   SecretVault,
   migrate,
 } from '@localqa/storage';
@@ -29,8 +32,19 @@ import { StorageError } from '@localqa/storage';
 import { DomainError } from '@localqa/domain';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-const testEvidenceDir = `${root}apps/api/.evidence`;
-mkdirSync(testEvidenceDir, { recursive: true, mode: 0o700 });
+const testEvidenceDir = mkdtempSync(join(tmpdir(), 'localqa-t06-'));
+// Keep old evidence untouched and copy the baseline before any test starts.
+const baselineDir = `${testEvidenceDir}/baseline`;
+mkdirSync(baselineDir, { mode: 0o700 });
+const baselinePath = `${root}docs/validation-results/T06-api.json`;
+const baselineSha256 = existsSync(baselinePath)
+  ? createHash('sha256').update(readFileSync(baselinePath)).digest('hex')
+  : null;
+if (baselineSha256) cpSync(baselinePath, `${baselineDir}/T06-api.json`);
+const oldArtifacts = `${root}apps/api/.evidence/artifacts`;
+if (existsSync(oldArtifacts))
+  cpSync(oldArtifacts, `${baselineDir}/artifacts`, { recursive: true });
+console.log(`[Test Evidence] ${testEvidenceDir}`);
 
 const tag = randomUUID().slice(0, 8);
 const pgContainer = `localqa-t06-pg-${tag}`;
@@ -55,7 +69,33 @@ writeFileSync(
 );
 
 let pgConnection;
-let db, vault, apiContext, apiServer, apiPort, baseUrl, fixtureProcess;
+let db,
+  vault,
+  apiContext,
+  apiServer,
+  apiPort,
+  baseUrl,
+  fixtureProcess,
+  fixtureOrigin;
+let pgContainerId;
+const ownership = {
+  evidenceDir: testEvidenceDir,
+  containerId: null,
+  volumes: [],
+  fixturePid: null,
+  apiPid: process.pid,
+  cleanup: {},
+};
+function saveOwnership() {
+  writeFileSync(
+    `${testEvidenceDir}/ownership.json`,
+    JSON.stringify(ownership, null, 2) + '\n',
+    { mode: 0o600 },
+  );
+}
+saveOwnership();
+const seedKey = `localqa-t06-seed-${tag}`;
+const modelProbeCalls = [];
 let adminCookie, operatorCookie, viewerCookie;
 let adminUser, operatorUser, viewerUser;
 let projectAlpha,
@@ -72,13 +112,27 @@ const facts = {
   node: process.version,
   postgres: null,
   apiBaseUrl: null,
-  totalRoutesCovered: 60,
+  baselineSha256,
+  evidenceDir: testEvidenceDir,
+  execution:
+    'isolated PostgreSQL/API; local HTTP fixture; injected model transport; no browser or worker process',
   tests: [],
   summary: {
     passed: 0,
     failed: 0,
   },
 };
+
+function test(name, fn) {
+  return nodeTest(name, async () => {
+    try {
+      await fn();
+    } catch (error) {
+      recordTest(name, false, { code: error?.code ?? 'TEST_FAILED' });
+      throw error;
+    }
+  });
+}
 
 function recordTest(name, passed, details = {}) {
   facts.tests.push({ name, passed, details });
@@ -142,8 +196,20 @@ before(async () => {
       'postgres:18-alpine',
     ]);
     assert.equal(runRes.status, 0, `Docker run failed: ${runRes.stderr}`);
+    pgContainerId = runRes.stdout.toString().trim();
+    assert.match(pgContainerId, /^[a-f0-9]{64}$/);
+    ownership.containerId = pgContainerId;
+    saveOwnership();
+    const inspected = spawnSync('docker', ['inspect', pgContainerId], {
+      encoding: 'utf8',
+    });
+    assert.equal(inspected.status, 0);
+    ownership.volumes = JSON.parse(inspected.stdout)[0]
+      .Mounts.filter((mount) => mount.Type === 'volume')
+      .map((mount) => mount.Name);
+    saveOwnership();
 
-    const portRes = spawnSync('docker', ['port', pgContainer, '5432/tcp'], {
+    const portRes = spawnSync('docker', ['port', pgContainerId, '5432/tcp'], {
       encoding: 'utf8',
     });
     const mappedPort = portRes.stdout.trim().split(':').at(-1);
@@ -154,7 +220,7 @@ before(async () => {
     for (let i = 0; i < 60; i++) {
       const probe = spawnSync('docker', [
         'exec',
-        pgContainer,
+        pgContainerId,
         'pg_isready',
         '-h',
         '127.0.0.1',
@@ -209,27 +275,72 @@ before(async () => {
     });
 
     // 5. Start Test Fixture Server
-    console.log('[Test Setup] Starting test fixture on port 8085...');
     fixtureProcess = spawn(
       process.execPath,
-      [`${root}packages/test-fixture/server.js`],
+      [fileURLToPath(new URL('./t06-fixture-wrapper.mjs', import.meta.url))],
       {
-        env: { ...process.env, PORT: '8085' },
-        stdio: 'ignore',
+        stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
       },
     );
-    await delay(200);
+    ownership.fixturePid = fixtureProcess.pid;
+    saveOwnership();
+    const [fixture] = await once(fixtureProcess, 'message', {
+      signal: AbortSignal.timeout(10000),
+    });
+    assert.equal(fixture.pid, fixtureProcess.pid);
+    assert.ok(Number.isInteger(fixture.port) && fixture.port > 0);
+    fixtureOrigin = `http://127.0.0.1:${fixture.port}`;
+    ownership.fixtureOrigin = fixtureOrigin;
+    saveOwnership();
+    const fixtureResponse = await fetch(`${fixtureOrigin}/`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    assert.equal(fixtureResponse.status, 200);
+    await fixtureResponse.arrayBuffer();
 
     // 6. Create API Context and start HTTP Server
     const artifactsDir = `${testEvidenceDir}/artifacts`;
     mkdirSync(artifactsDir, { recursive: true, mode: 0o700 });
 
+    const modelTransport = async (url) => {
+      const target = String(url);
+      modelProbeCalls.push(target);
+      let host;
+      try {
+        host = new URL(target).host;
+      } catch {
+        host = '';
+      }
+      if (host !== 'example.com') {
+        throw new Error('local model transport refused unexpected host');
+      }
+      return new Response(
+        JSON.stringify({
+          model: 'test-stub',
+          choices: [
+            {
+              message: {
+                role: 'assistant',
+                content: JSON.stringify({
+                  structuredOutput: false,
+                  nativeTools: true,
+                  imageInput: true,
+                }),
+              },
+            },
+          ],
+          usage: { prompt_tokens: 4, completion_tokens: 4 },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    };
     apiContext = createApiContext({
       connectionString: pgConnection,
       vault,
       artifactsDir,
       serviceActor: { userId: adminUser.id },
       publicOrigin: 'http://localhost',
+      modelTransport,
     });
 
     apiServer = createApiServer(apiContext);
@@ -239,11 +350,15 @@ before(async () => {
         apiPort = addr.port;
         baseUrl = `http://127.0.0.1:${apiPort}`;
         facts.apiBaseUrl = baseUrl;
+        ownership.apiBaseUrl = baseUrl;
+        ownership.pgPort = Number(mappedPort);
+        saveOwnership();
         console.log(`[Test Setup] API server listening at ${baseUrl}`);
         resolve();
       });
     });
   } catch (err) {
+    recordTest('setup', false, { code: err?.code ?? 'SETUP_FAILED' });
     console.error('BEFORE HOOK ERROR:', err);
     throw err;
   }
@@ -252,11 +367,27 @@ before(async () => {
 after(async () => {
   console.log('[Test Teardown] Cleaning up services and containers...');
   if (apiServer) {
-    await new Promise((resolve) => apiServer.close(resolve));
+    await new Promise((resolve) => {
+      apiServer.close(resolve);
+      apiServer.closeAllConnections();
+    });
+    ownership.cleanup.apiClosed = !apiServer.listening;
   }
-  if (fixtureProcess) {
-    fixtureProcess.kill();
+  if (
+    fixtureProcess &&
+    fixtureProcess.exitCode === null &&
+    fixtureProcess.signalCode === null
+  ) {
+    const exited = once(fixtureProcess, 'exit');
+    fixtureProcess.kill('SIGTERM');
+    const force = setTimeout(() => fixtureProcess.kill('SIGKILL'), 3000);
+    await exited;
+    clearTimeout(force);
   }
+  ownership.cleanup.fixtureExited =
+    !fixtureProcess ||
+    fixtureProcess.exitCode !== null ||
+    fixtureProcess.signalCode !== null;
   if (apiContext?.db) {
     await apiContext.db.close().catch(() => {});
   }
@@ -264,17 +395,64 @@ after(async () => {
     await db.close().catch(() => {});
   }
 
-  // Remove docker container
-  spawnSync('docker', ['rm', '--force', '--volumes', pgContainer]);
+  // Only the exact container created in this invocation may be destroyed.
+  if (pgContainerId) {
+    const removed = spawnSync(
+      'docker',
+      ['rm', '--force', '--volumes', pgContainerId],
+      { encoding: 'utf8' },
+    );
+    ownership.cleanup.removeStatus = removed.status;
+    const inspect = spawnSync(
+      'docker',
+      ['container', 'inspect', pgContainerId],
+      { encoding: 'utf8' },
+    );
+    ownership.cleanup.containerAbsent =
+      inspect.status !== 0 && /no such container/i.test(inspect.stderr);
+    ownership.cleanup.volumesAbsent = ownership.volumes.map((id) => {
+      const check = spawnSync('docker', ['volume', 'inspect', id], {
+        encoding: 'utf8',
+      });
+      return {
+        id,
+        absent: check.status !== 0 && /no such volume/i.test(check.stderr),
+      };
+    });
+  }
 
   // Clean files
   rmSync(envFile, { force: true });
   rmSync(kekFile, { force: true });
 
   // Write facts evidence
-  const resultsPath = `${root}docs/validation-results/T06-api.json`;
-  writeFileSync(resultsPath, JSON.stringify(facts, null, 2) + '\n');
+  ownership.cleanup.credentialsRemoved =
+    !existsSync(envFile) && !existsSync(kekFile);
+  ownership.cleanup.baselineUnchanged =
+    baselineSha256 ===
+    (existsSync(baselinePath)
+      ? createHash('sha256').update(readFileSync(baselinePath)).digest('hex')
+      : null);
+  saveOwnership();
+  facts.ownership = ownership;
+  const resultsPath = `${root}docs/validation-results/T06-api-revalidation-${tag}.json`;
+  writeFileSync(
+    `${testEvidenceDir}/results.json`,
+    JSON.stringify(facts, null, 2) + '\n',
+    { flag: 'wx', mode: 0o600 },
+  );
+  writeFileSync(resultsPath, JSON.stringify(facts, null, 2) + '\n', {
+    flag: 'wx',
+    mode: 0o600,
+  });
   console.log(`[Test Complete] Results written to ${resultsPath}`);
+  assert.equal(ownership.cleanup.baselineUnchanged, true);
+  assert.equal(ownership.cleanup.fixtureExited, true);
+  if (pgContainerId) {
+    assert.equal(ownership.cleanup.removeStatus, 0);
+    assert.equal(ownership.cleanup.containerAbsent, true);
+    assert.ok(ownership.cleanup.volumesAbsent.every((volume) => volume.absent));
+  }
 });
 
 test('T06-1: Health Probes', async () => {
@@ -393,6 +571,7 @@ test('T06-3: Model Profiles & Capability Probes', async () => {
       configuredModelId: 'test-stub',
       adapter: 'openai_compatible',
       dataBoundary: 'internal',
+      apiKey: seedKey,
     },
   });
   assert.equal(createModelRes.status, 201);
@@ -415,6 +594,15 @@ test('T06-3: Model Profiles & Capability Probes', async () => {
   assert.equal(probeRes.status, 200);
   assert.equal(probeRes.json.profileId, testModelProfile.id);
   parseContract('ModelProbeResult', probeRes.json);
+  assert.equal(modelProbeCalls.length, 1);
+  assert.equal(modelProbeCalls[0].startsWith('https://example.com/'), true);
+  assert.equal(probeRes.json.status, 'degraded');
+  assert.notEqual(probeRes.json.status, 'ready');
+  assert.equal(probeRes.json.capabilities.structuredOutput, true);
+  assert.equal(probeRes.json.capabilities.nativeTools, false);
+  assert.equal(probeRes.json.capabilities.imageInput, false);
+  assert.match(probeRes.json.notes.join(''), /未实测/);
+  assert.equal(JSON.stringify(probeRes.json).includes(seedKey), false);
 
   recordTest('model_profiles_and_probe', true);
 });
@@ -568,7 +756,7 @@ test('T06-4: Projects, Members, and Strict Cross-Project Isolation (Zero Existen
   const betaRun = await apiRequest('POST', '/api/v1/runs', {
     cookie: adminCookie,
     headers: { 'Idempotency-Key': `beta-${randomUUID()}` },
-    body: { projectId: projectBeta.id, targetUrl: 'http://localhost:8085/' },
+    body: { projectId: projectBeta.id, targetUrl: `${fixtureOrigin}/` },
   });
   assert.equal(betaRun.status, 202);
   const crossRun = await apiRequest('GET', `/api/v1/runs/${betaRun.json.id}`, {
@@ -624,7 +812,7 @@ test('T06-4: Projects, Members, and Strict Cross-Project Isolation (Zero Existen
   const ownerRun = await apiRequest('POST', '/api/v1/runs', {
     cookie: operatorCookie,
     headers: { 'Idempotency-Key': randomUUID() },
-    body: { projectId: ownerProject.id, targetUrl: 'http://localhost:8085/' },
+    body: { projectId: ownerProject.id, targetUrl: `${fixtureOrigin}/` },
   });
   assert.equal(ownerRun.status, 202);
   assert.notEqual(ownerRun.json.id, null);
@@ -640,8 +828,8 @@ test('T06-5: Environment, AuthProfile, and Knowledge Configuration', async () =>
       cookie: viewerCookie,
       body: {
         name: 'Alpha Staging',
-        baseUrl: 'http://localhost:8085',
-        allowedOrigins: ['http://localhost:8085'],
+        baseUrl: fixtureOrigin,
+        allowedOrigins: [fixtureOrigin],
         tlsPolicy: 'strict',
       },
     },
@@ -656,8 +844,8 @@ test('T06-5: Environment, AuthProfile, and Knowledge Configuration', async () =>
       cookie: adminCookie,
       body: {
         name: 'Alpha Test Fixture',
-        baseUrl: 'http://localhost:8085',
-        allowedOrigins: ['http://localhost:8085'],
+        baseUrl: fixtureOrigin,
+        allowedOrigins: [fixtureOrigin],
         tlsPolicy: 'strict',
         excludedPaths: ['/admin'],
       },
@@ -675,13 +863,14 @@ test('T06-5: Environment, AuthProfile, and Knowledge Configuration', async () =>
       body: {
         name: 'Test Auth Profile',
         mode: 'none',
-        allowedOrigins: ['http://localhost:8085'],
+        allowedOrigins: [fixtureOrigin],
         environmentId: environmentAlpha.id,
       },
     },
   );
   assert.equal(authRes.status, 201);
   authProfileAlpha = parseContract('AuthProfile', authRes.json);
+  assert.equal(authProfileAlpha.environmentId, environmentAlpha.id);
 
   // Operator creates Knowledge
   const knowRes = await apiRequest(
@@ -734,7 +923,7 @@ test('T06-6: Run Creation, Idempotency-Key Deduplication & Conflict', async () =
     headers: { 'Idempotency-Key': 'key-view-01' },
     body: {
       projectId: projectAlpha.id,
-      targetUrl: 'http://localhost:8085/',
+      targetUrl: `${fixtureOrigin}/`,
     },
   });
   assert.equal(viewRun.status, 403);
@@ -744,7 +933,7 @@ test('T06-6: Run Creation, Idempotency-Key Deduplication & Conflict', async () =
     cookie: operatorCookie,
     body: {
       projectId: projectAlpha.id,
-      targetUrl: 'http://localhost:8085/',
+      targetUrl: `${fixtureOrigin}/`,
     },
   });
   assert.equal(noKey.status, 422);
@@ -753,7 +942,7 @@ test('T06-6: Run Creation, Idempotency-Key Deduplication & Conflict', async () =
   const idempotencyKey = `idemp-${randomUUID()}`;
   const runPayload = {
     projectId: projectAlpha.id,
-    targetUrl: 'http://localhost:8085/',
+    targetUrl: `${fixtureOrigin}/`,
     environmentId: environmentAlpha.id,
     brief: 'Smoke exploration of fixture home',
   };
@@ -1122,7 +1311,7 @@ test('T06-9: Internal Worker Protocol (/internal/v1/*) and Service Identity', as
       contextVersion: lease.contextVersion,
       toolCall: {
         name: 'navigate',
-        args: { url: 'http://localhost:8085/' },
+        args: { url: `${fixtureOrigin}/` },
       },
     },
   });
@@ -1138,10 +1327,12 @@ test('T06-9: Internal Worker Protocol (/internal/v1/*) and Service Identity', as
       headers: {
         'X-Lease-Token': lease.leaseToken,
         'X-Worker-Id': 'worker-node-1',
+        'X-Fencing-Token': String(lease.fencingToken),
+        'X-Context-Version': String(lease.contextVersion),
       },
       body: {
         outcome: 'succeeded',
-        summary: 'Navigated to http://localhost:8085/',
+        summary: `Navigated to ${fixtureOrigin}/`,
         evidenceRefs: [],
         resultHash: createHash('sha256').update('nav-outcome').digest('hex'),
       },
@@ -1176,7 +1367,7 @@ test('T06-9: Internal Worker Protocol (/internal/v1/*) and Service Identity', as
 
 test('T06-10: Human Triage Preview Token and Single-Use Consumption', async () => {
   // Insert a test finding directly in DB
-  const testCase = smokeCase(testRun, 'http://localhost:8085/');
+  const testCase = smokeCase(testRun, `${fixtureOrigin}/`);
   const caseId = testCase.id;
   const cHash = criteriaHash(testCase);
   const findingId = randomUUID();

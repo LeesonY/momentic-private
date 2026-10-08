@@ -1,0 +1,62 @@
+{
+  "at": "2026-10-06T01:12:27.481412+00:00",
+  "rootIndependent": true,
+  "moduleApiLocallyAccepted": true,
+  "checks": {
+    "modulePgApi": 12,
+    "storagePg": 32,
+    "pureStaticAndCompiler": 11,
+    "compilerReplayLocator": 27,
+    "contractBoundaries": 9,
+    "apiBuild": "passed",
+    "contractEngineeringCheck": "passed"
+  },
+  "evidence": "docs/validation-results/T10-MODULES-1-95220c4d-4dea-4e8f-bb43-c4d0f191b40c.json",
+  "cleanup": {
+    "apiClosed": true,
+    "removeStatus": 0,
+    "containerAbsent": true,
+    "volumes": [
+      {
+        "id": "4c30fe7c78a46781108165f913f69f2ee10f7e7910a894c4c3ee8db836100395",
+        "absent": true
+      }
+    ],
+    "credentialsAbsent": true,
+    "pgPortClosed": true,
+    "apiPortClosed": true
+  },
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "sourceSha256": {
+    "apps/api/src/moduleTemplate.ts": "0ee8ff0810077c49d0ebc9fc568f8d03d9467393681bcbbe3a09c61cf8dd4cad",
+    "apps/api/src/routes/regressionModules.ts": "ff7c1facba9cb8c04d1b5b956572735a7fc5634e58c971a37d783dec4b0de8e3",
+    "apps/api/src/app.ts": "2074f9a6d379ab991ee08ed1b18f4504a8ab79e72a9e98cd3d5f95ef0bba58c0",
+    "packages/storage/migrations/010_regression_module_reviews.sql": "dbeb2f05b58d8fc0c27e353cf23dd0247ebecdfd280555d9ea0631d6e71ea5ba",
+    "docs/build_contracts.py": "9194e432a444b65ba1f679f92d4459bf53b834b5d912949a5a422d91c27ed208",
+    "packages/contracts/src/generated/manifest.json": "c868564b1c0846fd845641f1ef4780dcfd242cc99c589be538c39807392825a2",
+    "deploy/images/readiness.mjs": "d258aef6ca3b266e05a1a7f86af546d0a592e55276c7503cdaec91317725c6ee",
+    "deploy/scripts/health-probe.mjs": "cba846cf781402cfdec3872927dec5c919ab8987cccae6632ef98939898b5ef6"
+  },
+  "scope": "Module registration/review/RBAC/concurrency/upgrade/admission snapshot only; real execution not asserted",
+  "moduleUiAccepted": false,
+  "browserExecuted": false,
+  "P0Passed": false,
+  "existingRegression": {
+    "initialJointPassed": 56,
+    "initialJointFailed": 1,
+    "uniqueCases": 57,
+    "failureCause": "test fixture app INSERT approved blocked by new010 policy",
+    "correctedWorkerFixturePassed": 17,
+    "correctedWorkerFixtureFailed": 0,
+    "productCodeWeakened": false
+  },
+  "cleanupIndependentRecheck": {
+    "at": "2026-10-06T01:20:21.455945+00:00",
+    "noContainersPresent": true,
+    "onlyPreExisting79e6VolumeRemains": true,
+    "temporaryFixtureFilesRemoved": true,
+    "note": "Public fixture evidence/results and migration copies retained; credentials and owned ports/containers/volumes removed"
+  },
+  "workerFixtureSourceSha256": "1d6b32024ff0bd7cf8e0f93d249ec6e536a5e9a1ec8bd27a3323c03b035c8920"
+}

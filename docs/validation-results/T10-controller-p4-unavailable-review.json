@@ -1,0 +1,42 @@
+{
+  "at": "2026-10-08T02:14:05.506160+00:00",
+  "workspace": "wF",
+  "event": "claude/p4 unavailable_or_replaced at2026-10-08T02:05:40Z",
+  "monitorObservation": {
+    "agent": "claude",
+    "state": "unavailable_or_replaced",
+    "owned": false
+  },
+  "expectedIdentity": {
+    "agent": "claude",
+    "cwd": "/Users/dcp/Documents/公司/momentic",
+    "terminal_id": "term_65cd6a7adf51aa",
+    "pane_id": "wF:p4"
+  },
+  "directRead": "Current managed profile rejects herdr agent get wF:p4 with Operation not permitted",
+  "conclusion": "Former p4 identity cannot be confirmed; unavailable versus actual exit/replacement not resolved. No task sent and no new occupant claimed.",
+  "implementationPreserved": "AUTH9B Root importer source/test hashes match their accepted local report; previous Claude source/evidence retained",
+  "controlActions": {
+    "monitorRestarted": false,
+    "secondMonitorStarted": false,
+    "baselineRebound": false,
+    "paneRestarted": false
+  },
+  "singleMonitorPid": 14113,
+  "heartbeat": "2026-10-08T02:13:40.927017+00:00",
+  "pi": {
+    "agent": "pi",
+    "state": "idle",
+    "state_change_seq": 2572,
+    "completion_seq": 2572,
+    "session": {
+      "agent": "pi",
+      "kind": "path",
+      "source": "herdr:pi",
+      "value": "/Users/dcp/.pi/agent/sessions/--Users-dcp-Documents-公司-momentic--/2026-10-02T07-48-47-754Z_01a0fb96-520a-71a2-9a82-96701c65ec78.jsonl"
+    },
+    "owned": true
+  },
+  "browserPaused": true,
+  "P0Passed": false
+}

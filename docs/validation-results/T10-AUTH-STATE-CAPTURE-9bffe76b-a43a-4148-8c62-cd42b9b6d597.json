@@ -1,0 +1,81 @@
+{
+  "task": "T10-AUTH-7A-STATE-CAPTURE",
+  "tag": "9bffe76b-a43a-4148-8c62-cd42b9b6d597",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-state-2WNg29",
+  "tests": [
+    {
+      "name": "013 Migration RLS protection: non-admin roles and workers cannot query capture tables",
+      "passed": true
+    },
+    {
+      "name": "SecretVault keyedHmac domain separation and verification",
+      "passed": true
+    },
+    {
+      "name": "authMaterial: returns decrypted material in private memory; mode=none is rejected",
+      "passed": true
+    },
+    {
+      "name": "Full capture flow: recordAuthCriterion (gate) -> issueCaptureGrant -> beginAuthCapture CAS -> captureAuthState atomic commit",
+      "passed": true
+    },
+    {
+      "name": "recordAuthCriterion rejects unpassed results and pending intents",
+      "passed": true
+    },
+    {
+      "name": "recordAuthCriterion rejects storage_state without frozen criterion and foreign snapshots",
+      "passed": true
+    },
+    {
+      "name": "captureAuthState rejects un-started grants and wrong tickets",
+      "passed": true
+    },
+    {
+      "name": "none admission creates no authority and private material never decrypts",
+      "passed": true
+    },
+    {
+      "name": "settled new actions and new observations each invalidate a previous success gate",
+      "passed": true
+    },
+    {
+      "name": "Session past expires_at fails captureAuthState with LEASE_EXPIRED",
+      "passed": true
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "ef8e74a51d73cf4df070f8d35b83cfe463a7a269d1abbc85fc45cca5a97d48e3",
+    "volumes": [
+      "4754a64b4f4525af9deaca4907751a290b92f52d6004206947d86f9dad71a661"
+    ],
+    "pgPort": 33242,
+    "apiPort": 51876,
+    "apiPid": 31385,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "4754a64b4f4525af9deaca4907751a290b92f52d6004206947d86f9dad71a661",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 auth material, success gates, capture grants, canonical keyed HMAC and encrypted run auth state only",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 10,
+    "failed": 0
+  }
+}

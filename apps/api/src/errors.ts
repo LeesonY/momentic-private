@@ -49,11 +49,20 @@ export function toApiErrorResponse(
     status = error.status ?? STATUS_MAP[code] ?? 500;
     details = error.details;
   } else if (error instanceof StorageError) {
-    code = error.code === 'SCOPE_CHANGED' ? 'LEASE_EXPIRED' : error.code;
+    // Service policy reasons use the existing HTTP permission error; they do
+    // not become server failures or redefine the run/action reason vocabulary.
+    code =
+      error.code === 'SCOPE_CHANGED'
+        ? 'LEASE_EXPIRED'
+        : error.code === 'POLICY_DENIED'
+          ? 'FORBIDDEN'
+          : error.code;
     message =
-      code === 'LEASE_EXPIRED'
-        ? 'Lease or scope is no longer current'
-        : error.message;
+      error.code === 'POLICY_DENIED'
+        ? 'Operation is forbidden by policy'
+        : code === 'LEASE_EXPIRED'
+          ? 'Lease or scope is no longer current'
+          : error.message;
     status = STATUS_MAP[code] ?? 500;
   } else if (error instanceof DomainError) {
     code = (

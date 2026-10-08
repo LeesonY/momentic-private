@@ -474,5 +474,146 @@
       "recommendationForHarness": "在导航至 /#/workbench 前必须显式确认登录成功状态（例如确认 currentUser 存在或等待 url 变为 /#/home），避免在未登录状态下直接导航至工作台；并在不同步骤中维持会话或复用带有 Cookie 的上下文。"
     }
   },
-  "conclusion": "PASS - apps/web 生产构建产物已全面对接真实 apps/api 后端与 PostgreSQL 18 数据库。完成了生产容器下 Ring 0-4 的全链路闭环验证：确认了生产镜像目录错位问题并予以修复，在真实的 Chromium 浏览器中端到端验证了消息卡片呈现、消息 Marker 上屏、5 组同钟打点时延采样（P95 = 47ms），并对 SSE 真断线重连、Partial 预算耗尽、受阻 (Blocked) 三大关键状态完成了真实后端环境下的截图取证。针对 harness 的 20 秒等待超时，已实测排除了前端选择器缺失、首屏慢、路由未命中的假设，定位根因为未登录状态下路由守卫拦截停留在登录页，给出了对应的 harness 修复方案。"
+  "p1CaseLibraryAndRegression": {
+    "task": "T10: 用例库与回归（前端部分）",
+    "completedAt": "2026-10-04T04:01:20.000Z",
+    "status": "PASSED_FRONTEND_CONTRACT_VERIFIED",
+    "executionMode": "mock_offline_contract_simulation",
+    "realBackendIntegrationStatus": "WAITING_FOR_BACKEND_SIGNAL",
+    "explicitDisclosure": {
+      "statement": "本节记录的 8 张屏幕截图及全流程验证均在前端生产构建产物（apps/web/dist）搭配离线契约 Mock 客户端（MockApiClient）下执行。真实 apps/api 后端与共享数据库目前尚在 pi 收尾阶段，主控尚未独立验收，因此本节明确不将 Mock 成绩宣称为真实后端联调通过。P0 历史真实后端及真实容器联调结论（Ring 0~4、消息上屏 P95=47ms、三态真截图）保持完好独立，不受覆盖。",
+      "verifiedScope": "前端生产 Bundle、HashRouter 路由守卫与跳转、用例库检索/过滤、判定准则与执行步骤卡片解析、密码学 SHA-256 审计展示、草稿版本递增状态机、对齐 P0 的两阶段安全审查确认模态窗（Token/Diff/TTL/Commit）、回归重跑启动模态窗与运行工作台平滑跳转（202 Accepted 接收并绑定 runId）、OpenAPI 70 个公共操作完全同步且无类型吞匿。",
+      "uncoveredScopeAwaitingRealBackend": [
+        "真实 UI 与 Worker 全链路闭环：Root 已完成 T10-B2 后端 7/7 API + 真实 PG 测试（已绑定主体/文档hash/expectedVersion/decision/reason与actor/TTL/一次消费，文档/审批metadata不可改与本case approved基线约束），但前端真实无头浏览器 UI 交互与 Worker 真实执行回放/判定报告尚未验收，处于 WAITING 状态",
+        "HTTP 代理测试与真实后端明确划界：testHttpHelper.mjs (8/8 PASS) 仅为进程内临时 Mock 服务对反向代理传输、SSE 直通及契约请求响应协议形状的单元验证，绝不能等同或声称真实后端/数据库已联调通过",
+        "PostgreSQL 真实物理数据落库：等待 Root 的隔离测试 fixture 就绪信号进行真实数据库状态审计与清理账本校验",
+        "受控测试种子与环境模型参数化：e2e 脚本已对齐 --project-id / --case-id / --environment-id / --model-profile-id 参数入口与 cleanupLedger 全量追踪（含 case、v2 版本、regression run 与 smoke case 提取项），缺受控种子时严格阻断 (BLOCKED_WAITING_FOR_SEEDS)"
+      ]
+    },
+    "reproducibleEntry": {
+      "script": "apps/web/scripts/e2eT10Flow.mjs",
+      "reproduceMockCommand": "pnpm --filter @localqa/web test:t10",
+      "realApiCommand": "pnpm --filter @localqa/web test:t10 --real",
+      "httpHelperTestCommand": "node apps/web/scripts/testHttpHelper.mjs",
+      "mockEvidenceReport": "apps/web/.evidence/mock/t10-mock-verification.json",
+      "realEvidenceReport": "apps/web/.evidence/real/<taskSlug>/t10-real-verification.json",
+      "historicalScreenshotsDirectory": "apps/web/.evidence/screenshots/"
+    },
+    "scopeVerification": {
+      "caseLibraryPage": {
+        "page": "SavedCasesPage.tsx",
+        "route": "/#/saved-cases",
+        "features": [
+          "项目用例库列表展示与分页拉取 (listSavedCases)",
+          "文本与 Slug 模糊即时过滤检索",
+          "按活跃 (active) / 已归档 (archived) 状态多重过滤",
+          "有效回归基线标识 (currentApprovedVersionId)",
+          "批量多选用例快速启动回归测试"
+        ],
+        "screenshot": ".evidence/screenshots/t10-01-saved-cases-list.png",
+        "verified": true
+      },
+      "caseDetailAndImmutability": {
+        "page": "SavedCaseDetailPage.tsx",
+        "route": "/#/saved-case-detail?caseId=...",
+        "features": [
+          "当前激活版本判定准则 (Criteria) 结构化解析展示",
+          "执行回放步骤 (Replay Steps) 序列卡片化展示",
+          "双子视图无缝切换：契约定义与步骤 / 版本历史与审计",
+          "版本历史不可变审计表：严格展现版本链递增 (v1, v2...)、审核状态 (draft/approved/rejected)、密码学指纹 (SHA-256)、创建人与时间、审查人与时间",
+          "不可变历史保证：编辑动作派生新版本，旧版本及哈希指纹永久留存、不被擦除或覆写"
+        ],
+        "screenshot": ".evidence/screenshots/t10-02-saved-case-detail.png",
+        "verified": true
+      },
+      "saveAndVersionFlow": {
+        "components": ["SaveToLibraryModal.tsx", "SavedCaseEditorModal.tsx"],
+        "features": [
+          "冒烟运行工作台与用例详情页直达入口：从冒烟测试用例一键【保存到用例库】",
+          "自动提取提取用例标题、判定准则、执行步骤并生成标准规范的 RegressionDocument 契约对象",
+          "初始入库生成 v1 版本，状态为 draft (草稿待审)",
+          "可视化用例编辑器：支持增删改查判定准则与步骤，提交后生成递增的新版本草稿 v(N+1)，历史版本完整保留"
+        ],
+        "screenshots": [
+          ".evidence/screenshots/t10-03-saved-case-editor.png",
+          ".evidence/screenshots/t10-08-save-to-library-modal.png"
+        ],
+        "verified": true
+      },
+      "humanReviewUI": {
+        "component": "SavedCaseReviewModal.tsx",
+        "conformanceToP0Triage": "严格对齐 P0 人工审查预览机制与 T10-B2 契约：",
+        "features": [
+          "两阶段审查交互：第一阶段请求 preview，第二阶段确认 commit",
+          "契约输入强校验：ReviewPreviewInput={expectedVersion,decision,reason} (reason 必填且非空)",
+          "版本绑定校验：expectedVersion 严格为 SavedCaseVersion.version (当前用例版本序号，例如草稿 v2)，非父 SavedCase.version",
+          "决议安全确认令牌 (Confirmation Token) 绑定 version_id、document_hash、actor、expectedVersion、decision、reason 及 TTL/单次核销",
+          "服务器镜像回显：ReviewPreview 响应镜像 expectedVersion、decision、reason，UI 预览区显式展示该判定内容而非原始不透明 token 字符串",
+          "客户端防护失效重置：当决议 (decision)、理由 (reason)、目标版本变化或 300s TTL 倒计时过期时，自动清空旧 preview 并拒绝复用旧 token",
+          "统一差异对比 (Unified Diff) 与风险提示 (Risks Callout) 展示变更内容",
+          "批准 (Approve) 成功后，该版本正式生效为项目最新推荐回归基线"
+        ],
+        "screenshots": [
+          ".evidence/screenshots/t10-04-review-preview.png",
+          ".evidence/screenshots/t10-05-review-approved.png"
+        ],
+        "verified": true
+      },
+      "regressionRunLauncher": {
+        "component": "RegressionRunModal.tsx",
+        "features": [
+          "仅允许选择已批准 (approved) 的有效基线版本发起回归测试，草稿版本严格禁用",
+          "测试环境与登录认证凭据联动选择",
+          "预算限制重写 (Budget Overrides)：最大时长、最大模型调用次数、最大动作数",
+          "幂等性保障：客户端自动注入 Idempotency-Key 请求头",
+          "复用现有运行工作台：POST /api/v1/regression-runs 调度成功后自动跳转至 /#/workbench?runId=... 进行实时流式追踪与报告呈现"
+        ],
+        "screenshots": [
+          ".evidence/screenshots/t10-06-regression-modal.png",
+          ".evidence/screenshots/t10-07-regression-workbench.png"
+        ],
+        "verified": true
+      },
+      "auditableProvenanceAndState": {
+        "components": [
+          "WorkbenchPage.tsx",
+          "TaskCaseTabs.tsx",
+          "CaseDetailPage.tsx",
+          "PhaseProgress.tsx",
+          "Badge.tsx"
+        ],
+        "features": [
+          "规范字段全面可审计展示：顶栏与运行横幅明确显示 Run.executionMode (回归模式 regression vs 冒烟模式 smoke)",
+          "用例级回归源溯源卡片 (data-testid='regression-provenance-card')：展示 CaseDefinition.regression 的 sourceVersionId、sourceDocumentSha256、snapshotDocumentSha256、文档 schemaVersion 及 moduleSnapshots 清单；缺失字段显式展示【未验证】警示，严禁伪造默认值",
+          "步骤级出处标记：StepItem 显示 step.regressionSource (documentId、stepIndex、modulePath)；回归模式下缺失 regressionSource 显式显示【⚠️ 步骤出处: 未验证】",
+          "排队与未执行状态严禁伪造为已完成回放：Run.status='queued' 时 PhaseProgress 阶段标示为 QUEUED (排队等待Worker)，没有任何阶段被标记为 active 或 completed；Workbench 显示 queued-run-notice 提示 Worker 尚未领取调度；尝试次数 (attempts) 严格按真实长度显示 (0次)，严禁捏造为 1 次",
+          "裁决状态严格源自真实 verdict 字段：CaseRecord.outcome='not_run' 或 verdict 为 null 时，判定结果严格为 null，严禁显示为通过 (passed)；判定分解表各准则状态严格映射为 not_evaluated 或 real verdict.criterionResults，通过/无结论/失败严格从真实 verdict.status 判定",
+          "报告页可审计摘要：Report tab 展示 execution-mode 徽章卡片与 regression-audit 摘要卡片，汇总受审回归用例数、通过溯源数及未验证数"
+        ],
+        "verified": true
+      },
+      "contractAndCodeQuality": {
+        "publicOperationsSynchronized": 70,
+        "contractCheckCommand": "node apps/web/scripts/generateClient.mjs --check (PASS: 70 ops)",
+        "contractValidationStrictness": "严格类型标注 ContractName，完全移除 Unknown contract 异常吞匿，契约解析不符合 Schema 立即抛错",
+        "sharedHttpProxyHelper": "抽取 apps/web/scripts/httpProxyHelper.mjs 共享模块，供 e2eT10Flow.mjs 与 testHttpHelper.mjs 同源复用",
+        "httpProxyRealismTests": "node apps/web/scripts/testHttpHelper.mjs (8/8 PASS): 仅作为反向代理协议层单元测试（测试临时端口、Host/Cookie对齐、SSE首帧直通、502 JSON不出HTML、契约字段镜像与Token重放拦截验证，确认端点对齐 /saved-case-versions/:id/review），不声明真实后端通过",
+        "clientSwitchingVerified": "通过 window.__LOCALQA_CLIENT_TYPE__、window.__LOCALQA_IS_MOCK__ 及 UI 顶栏模式指示器双重验证 HttpApiClient 与 MockApiClient 切换",
+        "realModeSeedIsolation": "提供 --project-id / --case-id / --environment-id / --model-profile-id 等受控种子参数化入口，使用唯一 taskSlug 隔离执行与清理账本，缺受控种子时安全阻断 (BLOCKED_WAITING_FOR_SEEDS)",
+        "modelProfileSeedValidation": "抽取独立纯函数 validateProjectAndModelProfile：选项目后先 await window.__LOCALQA_CURRENT_PROJECT__.id 精确匹配 targetProjectId；严格要求可证明的 defaultModelProfileId 存在且与给定 seed 一致，缺失或不一致时立即抛错阻断，严禁静默覆写既有默认模型；缺参时明确沿用项目默认配置",
+        "regressionRunEffectiveConfigModels": "抽取独立纯函数 validateRegressionRunModelBindings：在回归启动响应中严格核对 effectiveConfig.models 的全部 5 项必填角色 (coordinator, explorer, executor, assertion, reproducer) 绑定均实际使用同一已声明的冻结模型配置及探针探测后实际版本 (probedVersion >= 2)，杜绝仅核对 Project 默认即宣称 Run 验证完成。新增版本严格校验反例：同 profileId 但旧版本 (version: 1) 或任意未冻结野版本 (version: 99) 均被严格拦截 (ROLE_MODEL_BINDING_MISMATCH)。同时在 mock 离线模式中彻底移除手造 mockRunData 伪证，将离线模型配置如实标记为 UNVERIFIED_IN_MOCK_MODE",
+        "versionNumberDifferentiation": "页面 SavedCaseDetailPage.tsx 显式注入 data-case-version={caseRecord.version} 测试属性，e2e 脚本从 DOM 动态读取实际父 SavedCase.version。批准 v1 与创建草稿 v2 后均动态断言实际版本递增变更；validateVersionDifferentiation 严格要求父子及待审三版本均为正整数 (> 0)，严厉拒绝 null、空串、0、负数及浮点数（杜绝 Number(null)=0 伪差异），证明父逻辑版本 (3) 与待审草稿版本 (2) 严格不同且预期版本绑定子版本",
+        "threeStateStepAccountingAndExitCode": "抽取独立纯函数 createStepRecorder：废弃单一布尔 passed，引入 passed、failed、unverified 三态记录与独立计数器；权威锁定 status 与 passed 字段，杜绝 details 载荷覆写未验证标记。抽取纯函数 verificationExitCode：失败返回 1、存在未验证或空运行返回 2、严格全通过返回 0；e2eT10Flow.mjs 实际根据其设置 process.exitCode 与进程退出",
+        "provenanceAndVerdictGuards": "抽取独立纯函数 validateRegressionRunProvenance 与 validateCaseVerdictState，并在 C2-R/C2-R2 中深度强化与统一：1) validateRegressionRunProvenance 严格采用 @localqa/contracts 的 canonical RegressionBinding 与 RegressionStepSource 校验器，涵盖 sourceVersionId UUID、sourceDocumentSha256 64位十六进制正则、canonical document 对象结构、moduleSnapshots 数组，以及可选的 snapshotDocumentSha256 严格校验（存在时校验64位十六进制，缺省作为合法历史文档不误拒）；校验 run/case 关联 (c.definition.runId === run.id) 以及 stepIndex 步骤边界与上限 (<= 99)；2) 产品 UI 辅助函数 apps/web/src/utils/provenance.ts 彻底告别弱检查，完全统一接入 canonical validateContract('RegressionBinding', regression) 校验器：对非法 UUID、非法文档 Schema、负版本模块快照及非法指纹实施强拦截，并提取精准到字段路径的校验错误清单；合法历史缺省快照指纹完整保留兼容；3) validateCaseVerdictState 实施严格 fail closed：针对 outcome='passed' 但 verdict 为 undefined/null/非对象 的异常输入，安全返回 code='MISSING_VERDICT'，绝对不抛出 TypeError，绝对不宣称 completed replay 或 passed；4) PhaseProgress SSR 阶段防伪：抽取 computePhaseTimeline 与 validatePhaseTimelineStates，在 cancelled 或 failed 终止时，当前与后续阶段绝对不标记为 completed；回归模式下跳过的 explore 与 plan 绝对不标记为 completed；queued 状态下没有任何阶段标记为 active 或 completed；5) UI 统一溯源状态判定与裁决边界对齐：用例列表 (TaskCaseTabs)、用例详情 (CaseDetailPage) 及报告审计 (TaskCaseTabs Report) 统一使用 getRegressionProvenanceStatus，字段完整统称【来源信息完整】（绝不把存在宣称为独立验证），字段缺失/格式非法显式呈现【来源信息不完整 (未验证)】及错误清单；显式标注未验证状态独立于运行裁决 (Verdict)，未验证绝不是测试结论；queued 回归时工作台横幅准确展示【自动化回归排队等待中 (Worker 待调度)】，彻底移除 canonical CaseDefinition.regression 代码术语",
+        "verificationHelpersUnitTests": "node apps/web/scripts/testT10VerificationHelpers.mjs (70/70 PASS): 覆盖项目与模型配置校验 (6)、全 5 角色及探针版本冻结与反例 (7)、正整数版本边界与差异性 (8)、详情注入防护与三态计数 (6)、三态退出码 (5)、canonical 回归溯源契约及全部严格反例 (14)、裁决状态与未定义TypeError防崩保护 (8)、PhaseProgress 生命周期阶段计算与 SSR 终止防伪校验 (7)、以及实际产品 UI 工具 apps/web/src/utils/provenance.ts 直接针对性正负断言校验 (9: 包含合法完整、合法历史缺省快照、非法UUID、非法源SHA、非法快照SHA、负版本模块快照、非法文档Schema、null/undefined对象以及独立验证/裁决语义防混淆断言)",
+        "t10FixtureLifecycle": "apps/web/scripts/t10FixtureLifecycle.mjs 提供完整真实契约生命周期：1) 显式注入只接受本地 fixture 端点的 fakeModelTransport，生成受控模型凭据加密存储并记录于 0600 文件，通过 POST /api/v1/model-profiles/:id/probe 真实触发探测，核对 status='degraded'、capabilities.structuredOutput=true 且记录请求；2) 探测后动态读取真实 ModelProfile.version (>= 2，因 recordProbe 自动自增)，写入不含秘密的 ledger 与 createdIds 元数据；3) 运行冻结绑定验证：核对 run.effectiveConfig.models 全部 5 角色真实绑定该时点的 profileId 与 probedModelVersion；后续 health 检查严格按入参 createdIds.modelProfileVersion 校验，严禁用最新 head 覆写已冻结版本；4) 真实数据反例断言：在 API 真实 Run 数据上注入坏版本（reproducer 角色为旧版本 1 或全角色为野版本 99）均严格判定失败；5) 独立随机端口启动受控 HTML 测试应用（提供 data-testid='controlled-fixture-app' 真实网页），作为 environment.baseUrl，健康核验严格断言 HTML 就绪，彻底禁止将 API 根 404 伪当应用就绪；6) T10-C2 真实 API 回归溯源与排队校验 (verifyRegressionRunApiProvenance)：通过受控 HTML 应用保存用例、经两阶段审查批准 v1、调度发起真实回归运行；断言 API 返回 executionMode='regression'、status='queued'，用例初始 outcome='not_run'、verdict=null；经 validateCaseVerdictState 断言不可伪称为已完成回放且拦截反例，经 validateRegressionRunProvenance 证实 API 生成的 CaseDefinition.regression 契约绑定 100% 完整；7) 异常中断清理与故障注入保护：prepare 跟踪资源栈与真实 64 位 container ID，遇异常逆序自毁；故障注入测试 node apps/web/scripts/testT10FixtureLifecycle.mjs (32/32 PASS) 证明正常准备、探针、健康核验、版本反例、真实 API 溯源调度、以及中途失败只清自身真实容器与目录，无残留容器/端口/服务，不触碰既有 8085/样本/630 空间",
+        "ledgerRealIdTracking": "cleanupLedger 严格提取并记录真实创建资源 UUID (saved_case id, v1/v2 version id, launched run id, smoke converted case id, probed modelProfileVersion)；缺少真实 ID 时严格标记为 UNVERIFIED_PENDING_REAL_ID，不以 mock slug/序号充当真实凭据",
+        "protocolAssertionDelineation": "e2eT10Flow.mjs 中预览与确认使用显式 page.waitForResponse 并 await JSON 解析，避免 page.on 异步竞态；离线 Mock 模式仅断言 UI 控件状态并将 HTTP 协议标记为 UNVERIFIED_IN_MOCK_MODE，不因 isRealMode=false 伪称协议通过",
+        "typecheck": "tsc --noEmit (0 errors)",
+        "lint": "eslint src scripts (0 errors)",
+        "build": "vite build production bundle (PASS, 612ms)"
+      }
+    }
+  },
+  "conclusion": "WAITING - apps/web 维持 WAITING_FOR_BACKEND_SIGNAL 状态。1) C2-R2 产品 UI 来源检查统一与直接测试覆盖：src/utils/provenance.ts 彻底重构为接入 canonical validateContract('RegressionBinding', regression)，杜绝非法 UUID、非法文档 Schema、负版本模块通过校验；保留合法历史缺省 snapshotSHA；单测新增针对实际 src 模块的 9 项正反直接断言；用例列表、用例详情与报告审计统一展示【来源信息完整】/【来源信息不完整 (未验证)】与校验错误详情；显式隔离来源说明与判定裁决，确保未验证绝不代表失败或裁决；2) 无浏览器静态与生命周期检查全数通过：testT10VerificationHelpers (70/70 PASS)、testT10FixtureLifecycle (32/32 PASS)、testHttpHelper (8/8 PASS)、generateClient --check (70 ops)、tsc --noEmit (0 errors)、eslint (0 errors)、vite build (PASS)、git diff --check (0 errors)；3) 严守真实性边界：绝不将 70 项纯守卫、32 项 API 夹具或 8 项 HTTP 代理通过声称为真实浏览器 UI 或真实 Worker 回放闭环已通过；Ego 浏览器保持暂停，静待 Root 验收并下发 UI/Worker 放行信号。"
 }

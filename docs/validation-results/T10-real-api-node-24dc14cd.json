@@ -1,0 +1,160 @@
+{
+  "task": "T10-REAL-API-NODE-INTEGRATION",
+  "tag": "24dc14cd",
+  "clientSha256": "6a1d84981df000fe0cbbd7e930ca7a678036135fc6d96116a7293ae644148d58",
+  "command": "node apps/web/scripts/testT10RealApiNode.mjs",
+  "timestamp": "2026-10-07T15:15:41.303Z",
+  "environment": {
+    "nodeVersion": "v26.3.0",
+    "viteMock": false,
+    "clientSourcePath": "/Users/dcp/Documents/公司/momentic/apps/web/src/api/client.ts"
+  },
+  "ownership": {
+    "containerId": "a24b864560b01d8d207d4bb5c720de81f15cecfec053a80eedf0f49ffbc94d1f",
+    "containerName": "localqa-t10-realapi-24dc14cd",
+    "volumes": [
+      "aa8a366c2378bb3190800513aa06be2ca078ec99f19e866bd430a6ffb6d825bf"
+    ],
+    "pgPort": 33192,
+    "apiPort": 63858,
+    "tmpDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-real-api-24dc14cd-xDyybC"
+  },
+  "negativeStatuses": {
+    "operator_review_preview": 403,
+    "review_tampered_reason": 422,
+    "replay_review_token": 409,
+    "list_invalid_status": 422,
+    "regression_run_unapproved_draft": 422,
+    "regression_run_archived_case": 422,
+    "archive_stale_version": 409,
+    "restore_stale_version": 409,
+    "auth_profile_approve_forbidden": 422,
+    "auth_profile_reject_with_text_forbidden": 422,
+    "input_respond_version_conflict": 409,
+    "one_time_code_approve_forbidden": 422,
+    "one_time_code_reject_with_text_forbidden": 422,
+    "viewer_create_case": 403,
+    "viewer_archive_case": 403,
+    "viewer_restore_case": 403,
+    "viewer_duplicate_in_same_viewer_project": 403
+  },
+  "limitations": [
+    "Real HTTP API and PostgreSQL container integration only",
+    "HttpApiClient over HTTP and isolated PostgreSQL; no browser, DOM, hydration, or actual worker run execution",
+    "FakeBrowser/model deferred; external model transport calls strictly forbidden",
+    "Zero browser / ReactDOM / hydration / Playwright execution (Ego paused)",
+    "P0Passed: false"
+  ],
+  "tests": [
+    {
+      "name": "HttpApiClient.createSavedCase creates active case with initial draft v1 and null approved version",
+      "passed": true,
+      "durationMs": 29
+    },
+    {
+      "name": "HttpApiClient.createSavedCaseVersion creates draft v2 and increments head version",
+      "passed": true,
+      "durationMs": 7
+    },
+    {
+      "name": "HttpApiClient preview & commit review approves v2 and increments case head version to 3",
+      "passed": true,
+      "durationMs": 44
+    },
+    {
+      "name": "HttpApiClient.listSavedCases filters by active, archived and all",
+      "passed": true,
+      "durationMs": 29
+    },
+    {
+      "name": "HttpApiClient.listSavedCases pagination honors limit and non-overlapping cursor traversal",
+      "passed": true,
+      "durationMs": 7
+    },
+    {
+      "name": "HttpApiClient.createRegressionRun accepts approved version and creates queued/pending run",
+      "passed": true,
+      "durationMs": 76
+    },
+    {
+      "name": "HttpApiClient.createRegressionRun rejects unapproved draft with 422",
+      "passed": true,
+      "durationMs": 4
+    },
+    {
+      "name": "HttpApiClient.createRegressionRun rejects archived case with 422",
+      "passed": true,
+      "durationMs": 18
+    },
+    {
+      "name": "HttpApiClient.archiveSavedCase and restoreSavedCase enforce strict version increments",
+      "passed": true,
+      "durationMs": 17
+    },
+    {
+      "name": "HttpApiClient.duplicateSavedCase creates unapproved draft v1 with distinct UUID in same project",
+      "passed": true,
+      "durationMs": 12
+    },
+    {
+      "name": "HttpApiClient.duplicateSavedCase copies cross-project to target project",
+      "passed": true,
+      "durationMs": 10
+    },
+    {
+      "name": "HttpApiClient.respondToInput rejects approve and text on auth_profile with 422, accepts clean reject",
+      "passed": true,
+      "durationMs": 53
+    },
+    {
+      "name": "HttpApiClient.respondToInput rejects approve and text on one_time_code with 422, accepts clean reject",
+      "passed": true,
+      "durationMs": 23
+    },
+    {
+      "name": "Viewer has read-only access in Project A: list allowed, create/archive/restore forbidden with 403",
+      "passed": true,
+      "durationMs": 16
+    },
+    {
+      "name": "Viewer in source Project A can duplicate to target Project B if user has operator role in target B",
+      "passed": true,
+      "durationMs": 18
+    },
+    {
+      "name": "HttpApiClient.respondToInput ordinary clarification provide resolves through the actual API",
+      "passed": true,
+      "durationMs": 40
+    },
+    {
+      "name": "HttpApiClient.respondToInput concurrent provide on same input version yields one 200 and one 409 with zero double-writes",
+      "passed": true,
+      "durationMs": 51
+    }
+  ],
+  "cleanup": {
+    "containerRemoved": true,
+    "pgPortClosed": true,
+    "apiPortClosed": true,
+    "tmpDirRemoved": false,
+    "containerAbsent": true,
+    "volumes": [
+      {
+        "id": "aa8a366c2378bb3190800513aa06be2ca078ec99f19e866bd430a6ffb6d825bf",
+        "absent": true
+      }
+    ],
+    "credentialsAbsent": true,
+    "tmpDirRetained": true,
+    "retainedReason": "Ownership ledger and reproduction artifacts retained; no credentials",
+    "modelTransportCalls": 0,
+    "errors": []
+  },
+  "summary": {
+    "totalChecks": 17,
+    "passedChecks": 17,
+    "allPassed": true
+  },
+  "browserPaused": true,
+  "P0Passed": false
+}

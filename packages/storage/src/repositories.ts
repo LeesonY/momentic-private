@@ -742,6 +742,9 @@ export class ModelRepository {
         name: data.name,
         endpoint: data.endpoint,
         configuredModelId: data.configuredModelId,
+        ...(data.responseFormat === undefined
+          ? {}
+          : { responseFormat: data.responseFormat }),
         adapter: data.adapter,
         dataBoundary: data.dataBoundary,
         capabilities: {
@@ -834,6 +837,19 @@ export class ModelRepository {
       const dto = parseContract('ModelProfile', {
         ...row.document,
         ...patch,
+        ...(patch.responseFormat !== undefined &&
+        patch.responseFormat !== (row.document.responseFormat ?? 'json_schema')
+          ? {
+              capabilities: {
+                structuredOutput: false,
+                nativeTools: false,
+                imageInput: false,
+              },
+              status:
+                patch.status ??
+                (row.document.status === 'disabled' ? 'disabled' : 'untested'),
+            }
+          : {}),
         version: expectedVersion + 1,
       });
       modelEndpoint(dto);
@@ -871,6 +887,128 @@ export class ModelRepository {
         [id, dto.version, dto, credential],
       );
       await audit(client, 'model.updated', id, null, dto.version);
+      return dto;
+    });
+  }
+
+  /**
+   * Read one frozen version and, when a credential row exists, decrypt it
+   * with the same binding create/update used. Pass projectId to require a grant.
+   */
+  async readVersion(
+    actor: Actor,
+    profileId: string,
+    version: number,
+    projectId?: string,
+  ): Promise<{ document: ModelProfile; apiKey: string | null }> {
+    return this.db.actor(actor, async (client) => {
+      const params = projectId
+        ? [profileId, version, projectId]
+        : [profileId, version];
+      const row = (
+        await client.query<{
+          document: unknown;
+          credential_id: string | null;
+          ciphertext: Buffer | null;
+          nonce: Buffer | null;
+          auth_tag: Buffer | null;
+          key_version: number | null;
+        }>(
+          projectId
+            ? `SELECT v.document, v.credential_id, s.ciphertext, s.nonce, s.auth_tag, s.key_version
+               FROM model_profile_versions v
+               JOIN model_profile_grants g ON g.profile_id = v.profile_id
+               LEFT JOIN platform_secrets s ON s.id = v.credential_id
+               WHERE v.profile_id = $1 AND v.version = $2 AND g.project_id = $3`
+            : `SELECT v.document, v.credential_id, s.ciphertext, s.nonce, s.auth_tag, s.key_version
+               FROM model_profile_versions v
+               LEFT JOIN platform_secrets s ON s.id = v.credential_id
+               WHERE v.profile_id = $1 AND v.version = $2`,
+          params,
+        )
+      ).rows[0];
+      if (!row) throw new StorageError('NOT_FOUND');
+      const document = parseContract('ModelProfile', row.document);
+      if (
+        !row.credential_id ||
+        !row.ciphertext ||
+        !row.nonce ||
+        !row.auth_tag ||
+        row.key_version == null
+      ) {
+        return { document, apiKey: null };
+      }
+      const apiKey = this.vault.decrypt(
+        {
+          ciphertext: row.ciphertext,
+          nonce: row.nonce,
+          authTag: row.auth_tag,
+          keyVersion: row.key_version,
+        },
+        {
+          projectId: profileId,
+          secretId: row.credential_id,
+          purpose: 'model',
+        },
+      );
+      return { document, apiKey };
+    });
+  }
+
+  /**
+   * Write probed capabilities only when expectedVersion is still current and
+   * the profile is not disabled. A conflict or a disabled row writes nothing.
+   */
+  async recordProbe(
+    actor: Actor,
+    profileId: string,
+    expectedVersion: number,
+    next: {
+      capabilities: ModelProfile['capabilities'];
+      status: 'ready' | 'degraded' | 'disabled';
+    },
+  ): Promise<ModelProfile | null> {
+    return this.db.actor(actor, async (client) => {
+      await requireAdmin(client);
+      const row = (
+        await client.query<{
+          document: unknown;
+          credential_id: string | null;
+        }>(
+          `SELECT v.document, v.credential_id
+           FROM model_profiles p
+           JOIN model_profile_versions v
+             ON v.profile_id = p.id AND v.version = p.version
+           WHERE p.id = $1
+           FOR UPDATE OF p`,
+          [profileId],
+        )
+      ).rows[0];
+      if (!row) throw new StorageError('NOT_FOUND');
+      const current = parseContract('ModelProfile', row.document);
+      if (current.version !== expectedVersion)
+        throw new StorageError('VERSION_CONFLICT');
+      if (current.status === 'disabled') return null;
+      const dto = parseContract('ModelProfile', {
+        ...current,
+        capabilities: next.capabilities,
+        status: next.status,
+        version: expectedVersion + 1,
+      });
+      if (
+        !(
+          await client.query(
+            'UPDATE model_profiles SET version=version+1 WHERE id=$1 AND version=$2',
+            [profileId, expectedVersion],
+          )
+        ).rowCount
+      )
+        throw new StorageError('VERSION_CONFLICT');
+      await client.query(
+        'INSERT INTO model_profile_versions(profile_id,version,document,credential_id) VALUES($1,$2,$3,$4)',
+        [profileId, dto.version, dto, row.credential_id],
+      );
+      await audit(client, 'model.probed', profileId, null, dto.version);
       return dto;
     });
   }
@@ -1174,7 +1312,7 @@ export async function runDTO(
   await authorize(client, projectId, 'read');
   const row = (
     await client.query<{ dto: unknown }>(
-      `SELECT jsonb_build_object('id',id,'projectId',project_id,'creatorId',creator_id,'targetUrl',display_url,'status',status,'phase',phase,'completion',completion,'terminationReason',termination_reason,'contextVersion',context_version,'version',version,'effectiveConfig',effective_config,'budgetUsed',COALESCE((SELECT b.used FROM run_budgets b WHERE b.run_id=runs.id),budget_used),'createdAt',to_char(created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),'updatedAt',to_char(updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')) AS dto FROM runs WHERE project_id=$1 AND id=$2`,
+      `SELECT jsonb_build_object('id',id,'projectId',project_id,'creatorId',creator_id,'targetUrl',display_url,'executionMode',execution_mode,'status',status,'phase',phase,'completion',completion,'terminationReason',termination_reason,'contextVersion',context_version,'version',version,'effectiveConfig',effective_config,'budgetUsed',COALESCE((SELECT b.used FROM run_budgets b WHERE b.run_id=runs.id),budget_used),'createdAt',to_char(created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),'updatedAt',to_char(updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')) AS dto FROM runs WHERE project_id=$1 AND id=$2`,
       [projectId, id],
     )
   ).rows[0];

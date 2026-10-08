@@ -1,0 +1,74 @@
+{
+  "title": "G3-E 已批准图片读取（唯一 Postgres、临时文件、注入 Response，不是 G3/P0 放行）",
+  "date": "2026-10-05",
+  "task": "G3-E",
+  "claims": {
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalledThisRound": false,
+    "playwrightLaunched": false,
+    "workerEntryExecuted": false,
+    "workerImageRebuilt": false,
+    "egoUsed": false,
+    "contractFieldAdded": false,
+    "indexExportAdded": false,
+    "runtimeEditedThisRound": false
+  },
+  "rule": {
+    "read": "只读当前 project、run、task。SQL 列与 document 的 id、projectId、runId、taskId 必须一致。status 必须是 available，redaction 必须是 applied 或 not_needed。声明的 sha256 与 byteLength 必须与文件一致。PNG 必须有合法 CRC、13 字节且宽高至少为 1 的 IHDR、至少一个非空 IDAT、最后是空 IEND，且没有尾随字节。JPEG 必须有 SOI、宽高至少为 1 的 SOF、至少一个熵字节的 SOS，以及结尾 EOI。仅有 PNG 签名或 JPEG FF D8 FF 不是图片。kind 与 contentUrl 都不作为类型或出站 URL。符号链接与越出 store 的路径拒绝。get() 未放宽。",
+    "order": "validateLease 在查图片和读文件之前。imageInput 不为 true 时，在 SQL 与读盘之前返回 MODEL_CAPABILITY_MISSING。没有 readApprovedImage 时，在读盘之前返回 MODEL_NOT_CONFIGURED。声明长度超过 25MB 时在读盘之前返回 ARTIFACT_TOO_LARGE。document 归属不一致时在读盘之前返回 NOT_FOUND。gateway 对未进入 approvedImageIds 的图片在 send 之前返回 MODEL_NOT_CONFIGURED，redactMessages 本身仍只丢弃。读到的 bytes 由既有 imageDataUrl 变成 data URL。没有第二套预算，也没有 fallback profile。",
+    "judgment": "purpose=assert 且 errorCode 为 null 时，evaluateCriterion 与 BoundModel.call 的 CallRecord.data 是 CriterionResult。HTTP complete 仍把它包进 ModelResult.data。rawOutput 保留脱敏后的 provider 文本，不能把 raw passed 覆盖 not_evaluated 或 unknown。视觉准则只有在即将发送的 provider body 里含有合法 data URL 或 https 图片时才能进入 passed。只发文本、或 body 里只剩 artifact id，在 send 之前返回 MODEL_CAPABILITY_MISSING，provider 为 0，结果不是 passed。",
+    "runtimeGap": "HEAD 的 RuntimeClient 构造函数保存 ArtifactStore，但 new BoundModel 只收到调用方 options，没有把 readApprovedImage 接上。不需要新的构造参数。最小接入是把已有 options 展开并覆盖 readApprovedImage: (input) => this.#artifacts.readApprovedImage(input)。worker-entry 已经把 ArtifactStore 作为第三个参数传入，options 本身仍不带 reader；接入点在 RuntimeClient 内即可。本轮没有改 runtime.ts。工作区该文件另有未提交的这段转发，与 grant(source) 改动在一起。"
+  },
+  "postgres": {
+    "container": "localqa-g3e-pg-cd58b982",
+    "port": 32901,
+    "bind": "127.0.0.1 random port, not 5432 or 8085",
+    "image": "postgres:18-alpine",
+    "duration_ms": 2451.777,
+    "tests": "23/23",
+    "transport": "注入的本地 Response。请求头只记录与运行时 key 是否相等的布尔值，证据与账本不含 key。",
+    "png": "visual、imageInput true、redaction not_needed。provider 1。出站 image_url 是该文件 bytes 的 data:image/png;base64。无 artifact://，无 contentUrl。HTTP 200，data.result passed，reason OBSERVED，evidenceRefs 仅该 artifact。HTTP 与 model_requests 不含 base64 与 key。账本 settled，reported inputTokens 11、outputTokens 4、charged.totalTokens 15。",
+    "jpeg": "semantic、redaction applied。文件是 1x1 baseline JPEG，含 SOF0 与 SOS，不是 APP0+EOI。出站是 data:image/jpeg;base64，同一结算。",
+    "emptyRefs": "图片已发出，provider 1。HTTP data.result not_evaluated，reason NO_OBSERVATION_REF，evidenceRefs 空。对外 JSON 不含 provider claims pass。",
+    "negatives": "坏 hash、GIF、仅 PNG 签名、仅 FF D8 FF、APP0+EOI 且无 SOF 为 422 VALIDATION_ERROR。missing、degraded、failed、其他 task、未知 id 为 404。列 task_id 属于当前任务但 document.taskId 被改成另一个 id 时为 404，provider 0；该行的 status 仍是 available、redaction 仍是 not_needed。redaction failed 为 422。声明长度 25MB+1 且磁盘上是匹配 hash 的小 PNG，为 413，不是 200。结构完整且约 49KB 的 PNG 为 500 BUDGET_EXCEEDED，账本 0。modelCalls 已用尽的小 PNG 为 500 BUDGET_EXCEEDED，provider 0。imageInput false 加坏 hash 为 500 MODEL_CAPABILITY_MISSING，不是 422；冻结 version 2 的 imageInput 仍是 false。contextVersion 不符与 cancelled，磁盘为坏 hash，结果是 409 LEASE_EXPIRED，不是 422。符号链接指向 store 外的合法 PNG，且声明 hash 与该 PNG 一致，结果是 422，provider 0。以上拒绝项 provider 0，budget_reservations 与 model_requests 为 0。",
+    "inProcess": "BoundModel.call purpose=assert，provider 返回 passed 且 evidenceRefs 空。errorCode null，data.result not_evaluated，reason NO_OBSERVATION_REF，data 没有 configuredModelId 或 usage。rawOutput 仍含 passed。未传 readApprovedImage 时，imageInput true 的坏 hash 图片抛 MODEL_NOT_CONFIGURED，provider 0，账本 0，不是 VALIDATION_ERROR。",
+    "visualNoImage": "imageInput true 且没有 image part：500 MODEL_CAPABILITY_MISSING，provider 0，账本 0，没有文字 pass。"
+  },
+  "helperReview": {
+    "script": "docs/validation-results/G3E-progress-independent-review.mjs",
+    "sourceSha256": "780a7bb7987ff303d81d617ba03c8540dffdfe09aad8ba8772c7ed1bad8f1756",
+    "earlierFailingSha256": "1178afe46e311011b1d4f18360ab422607eafd4a02c9fd6e003782673e5ac826",
+    "results": "当前源码复跑 3/3：完整 1x1 RGBA PNG accepted image/png；仅 8 字节 PNG 签名 rejected VALIDATION_ERROR；仅 3 字节 JPEG rejected VALIDATION_ERROR。1178afe4 是更早只认文件头的源码，那次 8 字节与 3 字节会被接受。脚本 scope 仍是 helper，不是组合路径验收。"
+  },
+  "related": {
+    "g3d2": "apps/api/test/g3d2-lease-ledger.test.mjs 27/27。容器 localqa-g3d4-pg-aa4515b7，端口 32900，duration_ms 10137.190166。原拒绝项与 D4 正常化 assessment 仍过。",
+    "hostNonPg": "g3c-model-wiring、g3d-process-wiring、g3c-bound-model、g3d-process-model、g3d4 gateway、g3e gateway 共 24/24，duration_ms 1128.51775。新增两项：视觉文本里带 artifact id 不发送；出站 body 只保留 artifact id 时 provider 为 0 且不是 passed。",
+    "node24": "本轮没有在 node:24 上复跑。上一轮同一套旧 22 项曾在 node:24-bookworm-slim v24.21.0、--network none 下 22/22。新增的两项视觉负例只在宿主机跑过。",
+    "g3cFixture": "g3c 的 HTTP 400 用例原先带一个未批准 image part。该图片仍不在该请求里。422、seen.length 1 仍由该文件覆盖。未批准图片的 0 发送由本文件的 PG 与 gateway 用例覆盖。"
+  },
+  "pi": {
+    "callData": "errorCode 为 null 时，BoundModel.call 与 gateway.evaluateCriterion 的 CallRecord.data 是 CriterionResult：criterionId、result（passed|failed|not_evaluated|unknown）、reason（评估原因码，不是 provider 原句）、evidenceRefs。rawOutput 只作诊断。assessment 仍是内部判断。",
+    "http": "POST /internal/v1/model/complete 的 200 body 是 ModelResult，其 data 是同一个 CriterionResult。errorCode 有值时路由抛错，不把 data 当判定。",
+    "worker": "worker 源码在回归路径只用 assertion.assessment。未改 worker，也未执行 worker-entry。",
+    "reader": "HEAD RuntimeClient 不转发 ArtifactStore.readApprovedImage。最小变更不增加构造参数，只在 new BoundModel 时覆盖 options.readApprovedImage。本轮没有改 runtime.ts。工作区未提交 diff 里已经有这三行，旁边是 grant 的可选 RegressionStepSource。不要在这个脏文件上再叠一次。"
+  },
+  "unverified": [
+    "没有先对改前 dist 单独保留一次红跑。",
+    "没有跑 verify.mjs，所以没有重写 T04-model.json。",
+    "没有执行 worker-entry，没有重建镜像，没有启动浏览器，没有调用付费 provider。",
+    "HEAD 持久源码仍没有这条 E 接线。工作区 API complete 会在 readApprovedImage 存在时传入。",
+    "产品读取路径返回的是校验后的 bytes，再由 gateway 生成 data URL。既有 resolveArtifact 返回 https URL 的 gateway 分支没有在这条产品 PG 上重跑。",
+    "imageDataUrl 仍接受调用方显式传入的 image/gif 与 image/webp。产品 helper 不返回这两种类型。",
+    "没有测硬链接。目录符号链接没有单独用例；文件符号链接已拒绝。",
+    "node:24 没有跑这份 PG。",
+    "fake Response 不是 G3 或 P0 放行。"
+  ],
+  "cleanup": {
+    "removedContainers": ["localqa-g3e-pg-cd58b982", "localqa-g3d4-pg-aa4515b7"],
+    "dockerPs": "empty",
+    "volumes": ["79e6b62585a476cb1d73128a4304fe0556d3526fda92d40302434fde82407472"],
+    "imagesUnchanged": true,
+    "ego": "未使用"
+  }
+}

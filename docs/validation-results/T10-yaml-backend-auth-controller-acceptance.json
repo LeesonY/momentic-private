@@ -1,0 +1,83 @@
+{
+  "at": "2026-10-06T00:25:51.055456+00:00",
+  "rootIndependent": true,
+  "yamlApi": 5,
+  "authBindingApi": 8,
+  "runtimeAuth": 11,
+  "workerFakeBrowser": 17,
+  "total": 41,
+  "failed": 0,
+  "storagePgRegression": 32,
+  "noneMaterial": {
+    "unusedSecretReturned": false,
+    "vaultDecryptCalls": 0
+  },
+  "cleanup": [
+    {
+      "report": "T10-AUTH-1-f75129e0-efc2-4fb8-9ab5-74f43d63827d.json",
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "063aac6b47563fa82dd689c28559926e9eb0f2dd57ccfe2114effbde40ef15ba",
+          "absent": true
+        }
+      ],
+      "portsClosed": {
+        "33074": true,
+        "50199": true
+      },
+      "credentialsAbsent": true,
+      "evidenceDirectoryRetained": true
+    },
+    {
+      "report": "T10-auth-runtime-94ff0f04.json",
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "327b899116c29ad05085a4b6fa2de0f53d79b80606be2fae86b90f8ad9ce6260",
+          "absent": true
+        }
+      ],
+      "portsClosed": {
+        "33075": true,
+        "50220": true
+      },
+      "credentialsAbsent": true,
+      "evidenceDirectoryRetained": false
+    },
+    {
+      "report": "T10-YAML-1-2780f855-879b-4a4c-ae05-a11a1156e518.json",
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "51b6284732cc0335845863073557e5d6e1f52df77aaf967c6ac4227c70b3a4af",
+          "absent": true
+        }
+      ],
+      "portsClosed": {
+        "33076": true,
+        "50232": true
+      },
+      "credentialsAbsent": true,
+      "evidenceDirectoryRetained": true
+    }
+  ],
+  "inventoryRestored": true,
+  "oldT06ReportAnd70ArtifactsUnchanged": true,
+  "sourceSha256": {
+    "apps/api/src/yaml.ts": "1292df9672f03b0420d83b6935d7535f58639c096563b73b1876d0f346877ce5",
+    "apps/api/src/routes/savedCases.ts": "f76f3e7d3a5c52ca34c2f3ad9a2bd87ef7b9ef53d47e514b22be86beb7f3321f",
+    "packages/storage/src/leases.ts": "21f6b4f2afb9e608ef3875599d83806988086419b026991d45331bb9bb630b94",
+    "apps/api/test/t10-yaml.test.mjs": "c8ccfaf6e51931727fbb1204eb71148c3caef03b8d00147177e3801d177a403b",
+    "apps/api/test/t10-auth-runtime.test.mjs": "a73c36550ce4b8f616c86f44f8e0a34b463a613f7bac27f1fe91113bae149f67",
+    "apps/worker/test/t10-b5-fakebrowser.test.mjs": "0ed9381636a3982adc7eed6128d4170ddeb235899d2c88c1c14051475e07c8fc"
+  },
+  "limitations": [
+    "Browser/UI execution not run",
+    "Form/storage_state/exclusive-run adapters incomplete",
+    "YAML UI corrections still pending independent review",
+    "Real G3 and P0 not released"
+  ],
+  "P0Passed": false,
+  "EgoPaused": true
+}

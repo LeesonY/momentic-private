@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-05T12:48:07.821462+00:00",
+  "rootIndependent": true,
+  "initialFormatCounterexamples": {
+    "passed": 3,
+    "failed": 0,
+    "providerCallsPerInvalidValue": 2,
+    "warningCount": 0
+  },
+  "agentLocalTests": {
+    "command": "node --test --test-concurrency=1 packages/model-gateway/test/g3f-output-format.test.mjs packages/model-gateway/test/g3d4-assert-complete.test.mjs packages/model-gateway/test/g3e-image-assert.test.mjs",
+    "passed": 16,
+    "failed": 0
+  },
+  "build": true,
+  "typecheck": true,
+  "notAccepted": true,
+  "newIndependentCounterexamples": {
+    "passed": 2,
+    "failed": 4,
+    "evidence": "G3F-schema-data-pre-fix-independent-review.json"
+  },
+  "sourceSha256": {
+    "packages/model-gateway/src/gateway.ts": "2acbb89318d1c62ff25960c3e637dab0572c2160fb91f08002878609dadc600a",
+    "packages/model-gateway/dist/gateway.js": "a87f24dfbc99d0b2ea3b6c1b06553fb97c1f64b4ad40cb2d16ad5b83dda281b4",
+    "packages/model-gateway/test/g3f-output-format.test.mjs": "926cf6464e16edb3de6f51aeff98ccbad273b2d5901864724bc9c7aea63b6568"
+  },
+  "scope": "Injected Response only; no PG/browser/external model",
+  "P0Passed": false
+}

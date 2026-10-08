@@ -1,0 +1,32 @@
+{
+  "tag": "175def44",
+  "execution": "Own PG/API/RuntimeClient, no browser or provider",
+  "tests": [
+    {
+      "name": "none policy never returns unused stored credential material",
+      "passed": false,
+      "returnedUnusedSyntheticSecret": true
+    }
+  ],
+  "ownership": {
+    "directory": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-runtime-OogC0x",
+    "containerId": "e400ce1e5a2fb95b159eafa6eb298f78200107928ff82540d92ba3565e40498a",
+    "volumes": [
+      "ad68a3aad1ebbe626d529df32d9430f77afc50c0662f5a0e48d57843c42e3f69"
+    ],
+    "apiOrigin": "http://127.0.0.1:49872",
+    "pgPort": 33073
+  },
+  "P0Passed": false,
+  "cleanup": {
+    "removeStatus": 0,
+    "containerAbsent": true,
+    "volumesAbsent": [
+      {
+        "id": "ad68a3aad1ebbe626d529df32d9430f77afc50c0662f5a0e48d57843c42e3f69",
+        "absent": true
+      }
+    ],
+    "secretDirectoryRemoved": true
+  }
+}

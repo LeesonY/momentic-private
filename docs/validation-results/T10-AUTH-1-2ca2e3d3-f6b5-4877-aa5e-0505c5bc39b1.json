@@ -1,0 +1,73 @@
+{
+  "task": "T10-AUTH-1",
+  "setup": "ready",
+  "modelTransportCalls": 0,
+  "tag": "2ca2e3d3-f6b5-4877-aa5e-0505c5bc39b1",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-auth-CgWMs0",
+  "tests": [
+    {
+      "name": "default none ID and version are both frozen for smoke and regression",
+      "passed": true
+    },
+    {
+      "name": "explicit project-wide none overrides environment default for both routes",
+      "passed": true
+    },
+    {
+      "name": "frozen none version survives a synthetic new form head; new regression refuses form",
+      "passed": true
+    },
+    {
+      "name": "unknown, cross-project and revoked profiles reject for both routes",
+      "passed": true
+    },
+    {
+      "name": "environment-bound profile rejects wrong or omitted environment for both routes",
+      "passed": true
+    },
+    {
+      "name": "every run allowed origin must be approved, including environment extra origins",
+      "passed": true
+    },
+    {
+      "name": "form/storage_state bind legally in smoke but explicit/default regression remains 422",
+      "passed": true
+    },
+    {
+      "name": "identical retry reuses each run; profile/default configuration changes conflict",
+      "passed": true
+    }
+  ],
+  "ownership": {
+    "containerId": "578f6f725e0cde2a05652517ccb5582b25ebe7ef1900e7b6f208196c41026c32",
+    "volumes": [
+      "0665322a162ab2fb8037386e82f97aca32cbc7d5577bb70db654626b1e65f417"
+    ],
+    "pgPort": 33065,
+    "apiPort": 59401,
+    "apiPid": 65694,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "0665322a162ab2fb8037386e82f97aca32cbc7d5577bb70db654626b1e65f417",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "PG/API admission only; no browser, Worker.once, worker-entry or real model",
+    "Frozen none metadata checked by SQL; RuntimeClient execution is Root-owned and not tested here",
+    "Form/storage_state regression remains unsupported; P0/T10 not accepted"
+  ],
+  "summary": {
+    "passed": 8,
+    "failed": 0
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "rootIndependent": true,
+  "scope": "Actual AuthStateService importer reader and SecretVault crypto over explicitly synthetic query rows; no real PG/lease/permission/effect/browser claims",
+  "tests": [
+    {
+      "name": "Historical ended capture is validated with actual encryption and HMAC before returning synthetic state",
+      "passed": true
+    },
+    {
+      "name": "Fingerprint-only authority read decrypts zero material",
+      "passed": true
+    },
+    {
+      "name": "Wrong current epoch rejects before decryption",
+      "passed": true
+    },
+    {
+      "name": "Revoked state and unconsumed capture do not produce material",
+      "passed": true
+    },
+    {
+      "name": "Historical tuple mismatch is rejected before decryption",
+      "passed": true
+    },
+    {
+      "name": "Consistent tampering of database historical columns is still rejected by the encrypted envelope",
+      "passed": true
+    },
+    {
+      "name": "Ciphertext tampering cannot yield imported state",
+      "passed": true
+    },
+    {
+      "name": "Changed cookie value in a valid ciphertext is rejected by historical full-state HMAC",
+      "passed": true
+    },
+    {
+      "name": "Encryption and HMAC historical key survive a real in-memory key-ring rotation",
+      "passed": true
+    },
+    {
+      "name": "Replacing the historical key cannot validate the captured state",
+      "passed": true
+    }
+  ],
+  "summary": {
+    "passed": 10,
+    "failed": 0
+  },
+  "sourceSha256": {
+    "../../packages/orchestrator/src/auth-state-service.ts": "b45f287af9a93c66329a7cd2d8fdc1ca5af058842992238e9099ad0c6dd79ec6",
+    "../../packages/orchestrator/src/auth-import-service.ts": "943b27aeac680601f12b75f4c4b35c2c20c4d2ec7fd618c2ee8b760e3a5c9b77",
+    "../../packages/storage/src/crypto.ts": "c42dbee3f446a3c0a219a8e382f70d83e690048379c3026b4e9e4371d6c98be8"
+  }
+}

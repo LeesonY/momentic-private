@@ -1,0 +1,27 @@
+{
+  "rootIndependent": true,
+  "checks": [
+    {
+      "name": "created module record matches canonical nullable-author contract",
+      "passed": false,
+      "message": "The expression evaluated to a falsy value:\n\n  assert.ok(validateContract('RegressionModuleRecord',first).success)\n"
+    },
+    {
+      "name": "next version requires explicit expectedVersion",
+      "passed": false,
+      "message": "Missing expected rejection."
+    },
+    {
+      "name": "project list includes every version in canonical name/version order",
+      "passed": false,
+      "message": "Expected values to be strictly equal:\n\n1 !== 3\n"
+    },
+    {
+      "name": "project list respects pagination limit and cursor",
+      "passed": false,
+      "message": "Expected values to be strictly equal:\n\n2 !== 1\n"
+    }
+  ],
+  "scope": "Actual current public Mock methods; no browser/network",
+  "P0Passed": false
+}

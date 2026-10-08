@@ -1,0 +1,92 @@
+{
+  "title": "G3-D3 assert 冻结准则（独立 Postgres，本地 Response，不是 G3/P0 放行）",
+  "date": "2026-10-05",
+  "task": "G3-D3",
+  "claims": {
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalledThisRound": false,
+    "playwrightLaunched": false,
+    "workerEntryExecuted": false,
+    "workerImageRebuilt": false,
+    "egoUsed": false
+  },
+  "rule": {
+    "source": "docs/03-data-and-api.md：purpose=assert 必须显式提供 criterionId，并从当前租约的已冻结 RunCase 核对；缺失或不匹配不调用模型，不从 messages 猜。合法 assert 仍走同一租约、预算预约和用量核销。",
+    "implementation": "criterionId 只允许 purpose=assert。请求的 profileId 与冻结绑定不一致时仍是 MODEL_NOT_CONFIGURED，先于准则检查。assert 缺 criterionId，或非 assert 带了 criterionId，都是 VALIDATION_ERROR，发生在 profile()、provider 和账本之前。assert 只查询 project_id=当前 scope 且 id=当前 job.case_id 且 frozen 的 run_cases，再按 criteria.id 精确匹配。未知、另一条 case、另一项目、未冻结，都是 NOT_FOUND。命中后把 {id, kind} 传给 gateway.complete 的 criterion，并追加一条只含该冻结 id/kind 的 user 消息。消息里的其他 id 不作为准则来源。",
+    "statuses": "缺字段或非 assert 带 criterionId：HTTP 422 VALIDATION_ERROR。准则不在当前冻结用例：HTTP 404 NOT_FOUND。coordinator 做 assert：HTTP 403 FORBIDDEN。profile 不匹配：HTTP 409 MODEL_NOT_CONFIGURED。"
+  },
+  "preserved": {
+    "docs/validation-results/G3-model-minimal.json": "1ed2904b1beda6d68494cd5db37be8d2758aa69a9e5605d0be066e25baa14469",
+    "docs/validation-results/G3A-model-gateway.json": "82e8e300c1c37c9a5aa4de5a92c5e94e09fbbb128d14f5e058fa86f5bc3f70ae",
+    "docs/validation-results/G3A-independent-review.json": "4e3a79b0111876b179a96c43352f005dee386c51951028a8784e34375da23cca",
+    "docs/validation-results/G3A-independent-T04.json": "9012324e7b33dccf506aa2321dd75e878af52f8b2308160c82815fb7371386ca",
+    "docs/validation-results/G3B-model-gateway.json": "0b067a0d44fbc54e3e868daed4440c09274c4390136836607973448d55bcc029",
+    "docs/validation-results/G3B-independent-review.json": "ea652e5d4ad7bd48421e47fc4e2b6aeea3fa4c1bd941214ce09ef3f2fdba8837",
+    "docs/validation-results/G3B-independent-T04.json": "db73444cd113aaab6889d4673faf66451f213d111242e2fa103955fab984203e",
+    "docs/validation-results/G3B-agent-T04-snapshot.json": "db73444cd113aaab6889d4673faf66451f213d111242e2fa103955fab984203e",
+    "docs/validation-results/G3C-contract-increment.json": "afc7b6083c0a68ebfa82495bce29f6f74c7a519512e5e27b4905f93d15d71851",
+    "docs/validation-results/G3C-model-wiring.json": "8bdb093e241573513b8415d042ff484c5fd8dfa68d836e5722c0cb40e3fb512c",
+    "docs/validation-results/G3D-process-wiring.json": "0efc3e164061b42faa71b83ba59109e7435093e8a2dcd4b692f81ea00e4994e1",
+    "docs/validation-results/G3D2-lease-ledger.json": "25d7a2fc909e1bded6264d60444c1a88d1e6c03ed1fc926a3a3b24524b19b6cb",
+    "docs/validation-results/T04-model.json": "f7def1515e0ed949cbe3fd3bb06d266e3c11e81f4e7ab18f46a580e85ba839e1",
+    "note": "本轮没有改这些文件，没有重放真实样本，没有跑 verify.mjs，没有跑 api.test.mjs。T06-api.json 本轮未写，当前全文哈希是 e39fec2893260a68a039538b8f009465a703d0c03fd24a6ed58179dc7e70f95d。G3-D2 的 criterionGap 已被 Root 的契约字段补上；本文件不改写那份历史。"
+  },
+  "host": {
+    "node": "v26.3.0",
+    "platform": "darwin",
+    "node24Image": "node:24-bookworm-slim",
+    "node24Version": "v24.21.0",
+    "postgresImage": "postgres:18-alpine"
+  },
+  "red": {
+    "meaning": "先得到 green 后，临时把 complete() 恢复为丢弃 criterionId、loadFrozen 恢复为不要求 assert、不拒绝其他 purpose、查询不带 frozen，再对同一测试文件重建 dist。测完源码已按原哈希恢复并重新构建。传输仍是注入的本地 Response。",
+    "container": "localqa-g3d3-pg-b64c512a",
+    "port": 32873,
+    "duration_ms": 9656.181083,
+    "result": "20 项里 13 通过、7 失败。通过含原 11 项，以及角色不匹配 403、profile 不匹配 409。",
+    "positive": "正确 current case 的 assert 已返回 HTTP 200，provider 调用 1，model 为 g3d2-model-v1，response_format 为 json_schema，没有 tools。随后断言失败：发出的 body 不含 frozenCriterion id=g3d3.current.semantic kind=semantic。",
+    "denial": "缺 criterionId、未知 id、另一条 case、另一项目、未冻结、decide 却带 criterionId：每一项都是 fetches 1、HTTP 200、响应体没有错误码。账本行数没有测到，因为断言先停在 provider 调用。",
+    "stillHeld": "coordinator 做 assert 仍是 HTTP 403 FORBIDDEN，provider 0。错误 profile 仍是 HTTP 409 MODEL_NOT_CONFIGURED，provider 0。"
+  },
+  "green": {
+    "container": "localqa-g3d3-pg-778325e8",
+    "port": 32872,
+    "bind": "127.0.0.1 random port, not 5432 or 8085",
+    "duration_ms": 9947.068583,
+    "tests": "20/20",
+    "prior11": "原 11 项仍通过：5 个租约拒绝 HTTP 409 LEASE_EXPIRED，modelCalls/totalTokens 用尽 HTTP 500 BUDGET_EXCEEDED，都是 provider 0 且两类账本行 0。合法 decide 仍结算 reported totalTokens 15，绑定 version 2 而不是最新 version 3。供应商 HTTP 400 仍是 API 422，账本 settled 且 usageSource estimated。并发仍是状态 200 与 500、provider 1、used.modelCalls 1。未 grant 的 BoundModel.call 仍是 NOT_FOUND、provider 0、账本 0。",
+    "frozenCriterion": "executor 租约指向当前 frozen RunCase，请求 criterionId 为 g3d3.current.semantic。消息只写了 g3d3.message.decoy，没有写冻结 id。HTTP 200，provider 1。body 含 frozenCriterion id=g3d3.current.semantic kind=semantic，也含被原样转发的 decoy。body 不含 g3d3.other.semantic、g3d3.foreign.semantic、smoke.visible。model 是 g3d2-model-v1，不是最新 g3d2-model-v2。response_format.type 是 json_schema。没有 tools。版本 2 凭据匹配为 true，版本 3 凭据匹配为 false。",
+    "validLedger": "budget_reservations 一条，kind model，status settled，charged.modelCalls 1，charged.totalTokens 15。model_requests 一条，status settled，role assertion，profileVersion 2，usageSource reported，configuredModelId g3d2-model-v1，inputTokens 11，outputTokens 4。run_budgets.used 同样是 modelCalls 1、totalTokens 15，reserved.modelCalls 为 0。账本 JSON 与发出 body 都不含凭据值。",
+    "zeroProvider": "缺 criterionId：HTTP 422 VALIDATION_ERROR。未知 id、另一条 case 的 id、另一项目里才有的 id、未冻结用例上的同一 id：都是 HTTP 404 NOT_FOUND。decide 带当前用例的 criterionId：HTTP 422 VALIDATION_ERROR。coordinator 做 assert：HTTP 403 FORBIDDEN。错误 profileId：HTTP 409 MODEL_NOT_CONFIGURED。以上每一项 provider 调用 0，budget_reservations 0，model_requests 0。"
+  },
+  "otherTests": {
+    "host14": "g3c-model-wiring、g3d-process-wiring、g3c-bound-model、g3d-process-model 共 14/14，duration_ms 315.561083。原有 422、调用次数、json_object、无 tools、model id、409 不匹配、预算、超时和凭据隔离断言都保留。executor 的 assert 成功请求补了当前冻结 criterionId，假查询只在 SQL 含 frozen 且 case id 是当前用例时返回该准则。",
+    "node24": "同一 14 项在 node:24-bookworm-slim 上 14/14，duration_ms 801.030841。镜像内 node -v 为 v24.21.0。Postgres fixture 没有放进该镜像。"
+  },
+  "source": {
+    "modelSha256": "061372e5a77471a054f15403fc3d6f277cdef23004d3b80694002bb9279f4167",
+    "edited": "packages/orchestrator/src/model.ts；apps/api/test/g3d2-lease-ledger.test.mjs；apps/api/test/g3d-process-wiring.test.mjs；本证据文件。",
+    "notEdited": "internal.ts 模型路由未改，parseContract 已接受可选 criterionId 并整份交给 complete()。core.ts、runtime.ts、index.ts、contracts、迁移、savedCases、web、worker 执行 DSL 未改。"
+  },
+  "b4": {
+    "fact": "Run.executionMode 仍是可选字段，P0 required 未变。migration 9 尚未出现，runs 没有 execution_mode 列，runDTO 也不选出该字段。本轮没有改 core、runtime、repositories、ModelRepository、index 或契约生成器。",
+    "container": "localqa-g3d3-pg-17a72241",
+    "port": 32874,
+    "duration_ms": 9977.634958,
+    "tests": "22/22",
+    "modelRequest": "ModelRequest additionalProperties 仍为 false。请求体同时带 executionMode=regression、RegressionBinding 和 RegressionStepSource 时，HTTP 422 VALIDATION_ERROR，provider 0，budget_reservations 0，model_requests 0。这些字段没有进入 BoundModel。",
+    "storedBinding": "冻结 RunCase 的 document.regression 保存了 RegressionBinding 和 approved RegressionModuleVersion。该租约的 assert 仍核对当前 criterionId，HTTP 200，provider 1，body 含 frozenCriterion id=g3d3.current.semantic kind=semantic。body 不含回归文档 id，也不含 executionMode。budget_reservations 一条 settled，charged.modelCalls 1；model_requests 一条 settled，role assertion；used.modelCalls 1，reserved.modelCalls 0。"
+  },
+  "unverified": [
+    "没有执行 worker-entry，没有启动 Chromium 或浏览器。",
+    "没有真实外网或付费模型调用。本轮真实外网模型调用 0。",
+    "没有重跑 model-gateway verify.mjs，也没有重跑 apps/api/test/api.test.mjs。",
+    "图片和 ArtifactStore 仍未接入。",
+    "没有重建 localqa 镜像，没有碰 8085 上已有 fixture。",
+    "探测路由仍走冻结网关，不写这条 worker 账本。",
+    "worker call() 与 HTTP complete 共用 loadFrozen，因此 assert 同样要求冻结准则；本轮没有执行 worker-entry 来覆盖进程入口。",
+    "Root 对原 11 项的独立复跑不是本文件，也不等于 G3 放行。",
+    "G3 与 P0 都不放行。"
+  ]
+}

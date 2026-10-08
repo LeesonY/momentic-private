@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-06T00:02:56.915675+00:00",
+  "rootReviewBeforeExecution": true,
+  "sourceSha256": {
+    "apps/api/src/yaml.ts": "ed0db56b7c86943d80129067496f8c176ffc31515a51487551b9802ba57334a0",
+    "apps/api/src/routes/savedCases.ts": "357745b5ff2163a7a87cda881c0773cef8b2d62e3eefaf27e9e94c8c664cacc0",
+    "apps/api/test/t10-yaml.test.mjs": "d6fa57d1410ce26f3e69283863b1dcd21257564610dc4c0fa06990de55ec567e",
+    "apps/api/package.json": "a539fc8be85c39117fd50a1230b89dc07c3199223f493731f99fbfb15afc6f5b",
+    "pnpm-lock.yaml": "3a8e525e54673897480d162e9d8e1265c3d60ecf91e1b8c0b33bb91c5e784cfe"
+  },
+  "knownFixtureIssue": "xpath is not a supported Locator.by; five canonical strategies only",
+  "scope": "Source/static readiness, not runtime acceptance",
+  "P0Passed": false
+}

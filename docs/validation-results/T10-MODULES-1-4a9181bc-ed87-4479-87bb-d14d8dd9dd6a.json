@@ -1,0 +1,89 @@
+{
+  "task": "T10-MODULES",
+  "tag": "4a9181bc-ed87-4479-87bb-d14d8dd9dd6a",
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-mod-ZOh6qC",
+  "tests": [
+    {
+      "name": "valid module with slash in name: encoded route %2F roundtrip, review approval and list pagination",
+      "passed": true
+    },
+    {
+      "name": "RBAC matrix across all 5 endpoints: operator creates draft, owner reviews, viewer read-only, cross-project 404 zero existence leaks",
+      "passed": true
+    },
+    {
+      "name": "invalid UUID, numbers, and templates return 422 without SQL 503 error; dot/dot-dot segment prohibited",
+      "passed": true
+    },
+    {
+      "name": "cross-actor token hidden (409), replay protection, TTL expiry and content tampering",
+      "passed": true
+    },
+    {
+      "name": "concurrency: race on initial creation and expectedVersion optimistic lock",
+      "passed": true
+    },
+    {
+      "name": "real migration 001-009 -> seed approved -> migration 010 verifies null audit metadata without backfilling timestamps",
+      "passed": true
+    },
+    {
+      "name": "module recursion depth: 8 invocations legal with real compileRegression, 9th rejected; static step limit 100",
+      "passed": true
+    },
+    {
+      "name": "legal unbound vars and env template registers and approves; execution without variable rejects; illegal expressions in locator/criteria/arguments return 422 zero persistence",
+      "passed": true
+    },
+    {
+      "name": "direct operator INSERT approved rejected by RLS/trigger; owner mutation of approved document/metadata rejected by immutable guard",
+      "passed": true
+    },
+    {
+      "name": "full vertical workflow: module draft -> review approve -> saved case references module -> regression run freezes binding",
+      "passed": true
+    },
+    {
+      "name": "11th regression: uppercase and mixed-case projectId URL paths normalize canonically and do not falsely trigger 409 VERSION_CONFLICT on review",
+      "passed": true
+    },
+    {
+      "name": "12th regression: 120-character module name registers, reviews and survives saved-case reference and frozen regression run binding",
+      "passed": true
+    }
+  ],
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "971167402d886f5227aee927fd2e41b434c869cf4015a659dfd475f673ee894a",
+    "volumes": [
+      "1938ec46224305e2010522e98db35f2d679457e405437c7695878ecc8836bede"
+    ],
+    "pgPort": 33111,
+    "apiPort": 57707,
+    "apiPid": 1070,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "1938ec46224305e2010522e98db35f2d679457e405437c7695878ecc8836bede",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "PG/API admission only; no browser, Worker.once, worker-entry or real model",
+    "Full compiler integration verified statically and via regression binding",
+    "P0=false; FakeBrowser/real model acceptance remains unverified"
+  ],
+  "summary": {
+    "passed": 12,
+    "failed": 0
+  }
+}

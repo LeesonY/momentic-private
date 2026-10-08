@@ -1,0 +1,108 @@
+{
+  "at": "2026-10-07T05:48:50.008360+00:00",
+  "rootIndependent": true,
+  "acceptedLocally": true,
+  "scope": "SavedCase archive/restore/explicit duplication/status listing and regression admission; actual isolated PG/API only",
+  "verification": {
+    "pgApiPassedAcrossSeparateRuns": 24,
+    "pgRuns": [
+      {
+        "report": "T10-LIFECYCLE-1-92b81729-50a7-42be-b681-4c479cbf1ca3.json",
+        "passed": 11,
+        "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+        "cleanup": {
+          "apiClosed": true,
+          "removeStatus": 0,
+          "containerAbsent": true,
+          "volumes": [
+            {
+              "id": "8784349e7ac91d0aaf0afa3ec46297d24f7f9e894b26314db4148c7b5dba1a7b",
+              "absent": true
+            }
+          ],
+          "credentialsAbsent": true,
+          "pgPortClosed": true,
+          "apiPortClosed": true
+        }
+      },
+      {
+        "report": "T10-LIFECYCLE-ROOT-2c5f41fd-30e1-4174-93f5-c90ca21588ab.json",
+        "passed": 12,
+        "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+        "cleanup": {
+          "apiClosed": true,
+          "removeStatus": 0,
+          "containerAbsent": true,
+          "volumes": [
+            {
+              "id": "787aaec9fc0918ac70cc6fec04ad08b737d700eaed2fe8a994ad2d02767642e5",
+              "absent": true
+            }
+          ],
+          "credentialsAbsent": true,
+          "pgPortClosed": true,
+          "apiPortClosed": true
+        }
+      },
+      {
+        "report": "T10-LIFECYCLE-ROOT-f64a5a00-12db-424a-a91c-558d2507f7cd.json",
+        "passed": 1,
+        "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+        "cleanup": {
+          "apiClosed": true,
+          "removeStatus": 0,
+          "containerAbsent": true,
+          "volumes": [
+            {
+              "id": "480f849d2f417fc82a844d7fcebecb027dce7aa1c4be1a5285d4891a1ab4c782",
+              "absent": true
+            }
+          ],
+          "credentialsAbsent": true,
+          "pgPortClosed": true,
+          "apiPortClosed": true
+        }
+      }
+    ],
+    "existingRegressionPassed": 45,
+    "existingRegressionLog": "T10-lifecycle-controller-existing-regression.log",
+    "pureDepthPassed": 3,
+    "priorStaticPassed": 11,
+    "build": "passed",
+    "eslint": "passed",
+    "diffCheck": "passed"
+  },
+  "repairs": [
+    "Recursive source/target approved module digest/document matching, missing references/cycles/depth/fixtures rejected before inserts",
+    "Reachable module query caching and bounded100 executable-step traversal",
+    "Visibleviewer403 before write-RLS locking, hidden404, integer overflow422",
+    "Savedcase depth starts0; registration default1 unchanged",
+    "Owned historical source-missing test fixture; production source creation policy retained"
+  ],
+  "trueConcurrency": [
+    "Archive first blocks admission; archive commit rejects new run without insert",
+    "Admission SHARE first blocks archive until frozen run commit; queued snapshot remains immutable",
+    "Two actual archive requests at one expectedVersion yield200+409 and one increment"
+  ],
+  "failureReportsRetained": true,
+  "sourceSha256": {
+    "apps/api/src/routes/caseLifecycle.ts": "40b1b8763c19097cbe270a60b6878e414609044a01faac1c7267815a7c8a9505",
+    "apps/api/src/routes/savedCases.ts": "83540223d77948fede21a13fe525c3b7853ec17e35face95bd25744e187fd693",
+    "apps/api/src/moduleTemplate.ts": "5dc117e4d8578a695956a9a53f1725b42be79dd5e8b00fc24dc6e2a6714b2237",
+    "apps/api/src/app.ts": "94fbeebcfb62c6cc5d2d47d9c5d0ab22d204184b3593c4b3b4a8ef4da6e79fd9",
+    "apps/api/test/t10-case-lifecycle.test.mjs": "02e40f9f95030cb2101cc34039cfa2e4b3258cc9fdcc668e968551682932a363",
+    "docs/build_contracts.py": "8023481ff78b72f67109076f0fe3cc6fd405b1330dd74bed0bc3794ddbadc098",
+    "docs/contracts/openapi.json": "ddceb630257db333b30abe2fce9f918c502ac1a28d34134de1686729134c2d58",
+    "docs/validation-results/T10-lifecycle-controller-pg-repro.mjs": "979e73093d6581008420445c8098d5ccaa2e0dcbd50e3d5d7908ac349a5b87f6"
+  },
+  "cleanup": "Exact owned containers/volumes/ports and credentials confirmed absent per report; pre-existing volume79e6b62585a476cb1d73128a4304fe0556d3526fda92d40302434fde82407472 retained",
+  "notVerified": [
+    "Lifecycle UI delayed callbacks/pagination repair pending",
+    "Actual browser/session/hydration",
+    "Full form/storage-state auth and OTP execution",
+    "Real supplier model acceptance of latest code",
+    "P0/P1 release"
+  ],
+  "browserPaused": true,
+  "P0Passed": false
+}

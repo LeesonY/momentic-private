@@ -1,0 +1,105 @@
+{
+  "at": "2026-10-07T17:24:41.255938+00:00",
+  "rootIndependent": true,
+  "workspace": "wF",
+  "privateRedaction": {
+    "passed": 2,
+    "failed": 0,
+    "evidence": "T10-AUTH8C-observation-controller-90a64758-0711-4ba8-a35a-bbb52986fe4c.json",
+    "before": "T10-AUTH8C-observation-controller-4e236452-c1cc-4bd6-a3c0-bd6f30f4cf9f.json",
+    "acceptedLocally": true
+  },
+  "workerAuthPure": {
+    "passed": 37,
+    "failed": 0,
+    "log": "T10-AUTH8C-controller-pure-final.log",
+    "scope": "Actual modules with explicit Fake dependencies, no real browser"
+  },
+  "actualRuntimeCaptureFinish": {
+    "passed": 1,
+    "failed": 0,
+    "evidence": "T10-AUTH7-STATE-ROOT-b172c5a9-61b0-45af-9bd1-57c2012cc802.json",
+    "scope": "Actual RuntimeClient/private services/flow/port/PG and owned Artifact, synthetic browser primitives"
+  },
+  "freshSnapshotFullPg": {
+    "acceptedLocally": false,
+    "before": "T10-AUTH7-STATE-ROOT-da0fa7d3-536e-49f7-8f68-64d98fcc35de.json",
+    "fixtureCorrection": "Actual flow completed, but Root assertion queried tool_call.target instead of the actual tool_call.args.target. Corrected fixture; original report retained.",
+    "rerun": "blocked at Docker setup by managed permissions",
+    "log": "T10-AUTH8C-fresh-flow-controller-rerun.log"
+  },
+  "permissions": {
+    "source": "Environment changed to managed workspace-write with restricted network and approval never",
+    "herdrCli": "Operation not permitted",
+    "docker": "permission denied connecting to unix:///Users/dcp/.colima/default/docker.sock",
+    "nativeUi": "Herdr display-name unresolved; app inventory shows carrier iTerm2 but Computer Use explicitly refuses this app for safety reasons",
+    "approvalsRequested": false,
+    "bypassesAttempted": false
+  },
+  "pi": {
+    "userRestoredModel": true,
+    "sessionUnchanged": true,
+    "state": {
+      "agent": "pi",
+      "state": "working",
+      "state_change_seq": 2560,
+      "completion_seq": null,
+      "session": {
+        "agent": "pi",
+        "kind": "path",
+        "source": "herdr:pi",
+        "value": "/Users/dcp/.pi/agent/sessions/--Users-dcp-Documents-公司-momentic--/2026-10-02T07-48-47-754Z_01a0fb96-520a-71a2-9a82-96701c65ec78.jsonl"
+      },
+      "owned": true
+    },
+    "handoffReceived": "Native pi records d9fcc0f4/b4a554f2, AUTH9A scope consumed; auth-import-service.ts and014 authored",
+    "acceptedLocally": false
+  },
+  "claude": {
+    "state": {
+      "agent": "claude",
+      "state": "idle",
+      "state_change_seq": 2565,
+      "completion_seq": 2565,
+      "session": null,
+      "owned": true
+    },
+    "next": "Importer worker integration follows pi service acceptance; new CLI dispatch currently unavailable"
+  },
+  "sourceSha256": {
+    "apps/worker/src/auth-flow.ts": "fbcc2890098b236f9fec0ac5da5f8c6f3b24d4f5615ce9ccbb5cca4e8ed37f0d",
+    "apps/worker/src/auth-adapters.ts": "92fcfc3295ae8418da08379018f5dab8ff5c407f7b4ada70f87b7454efb6cb10",
+    "apps/worker/src/auth-services.ts": "319d32ead415c4a3aae40dd054ee4f9775939f8bafa6856a478c97ba4ec4215c",
+    "packages/browser/src/private-auth.ts": "66ef83fc0b6876595b12be5963af80e069d4450eff76afe0cdff54b169b49604",
+    "apps/api/test/t10-auth-state-capture-controller.test.mjs": "c664eb6c44a404d097f2d8ef9e632f54686b1dccd1c4c07aa344aabb638b15a0"
+  },
+  "singleMonitorPid": 14113,
+  "monitorHeartbeat": "2026-10-07T17:16:08.381178+00:00",
+  "secondMonitorStarted": false,
+  "browserPaused": true,
+  "P0Passed": false,
+  "fullAuthAccepted": false,
+  "accidentalTestInclusion": {
+    "file": "packages/browser/test/browser.test.mjs",
+    "cause": "Root used a file glob without checking that this old T03 integration file requires a real browser",
+    "actual": "Node before hook failed waiting for local fixture; no success assertion or browser-run claim",
+    "log": "T10-AUTH8C-controller-browser-pure.log",
+    "status": "Checking initialization/cleanup and limiting all further tests to explicit helper files",
+    "browserLaunched": false,
+    "reason": "The before hook threw before new BrowserManager; all integration children were cancelled. Source issues SIGTERM to its own fixture before throwing and in after hook.",
+    "cleanup": "Own fixture termination paths confirmed in source; independent PID/port recheck unavailable because managed permissions also reject ps/network. No other process was killed.",
+    "agentMixedSuite": "Claude logs report41/41 for a glob that includes the17 T03 browser integration cases. This count is excluded from pure-Node acceptance; its no-browser claim is not independently established."
+  },
+  "browserHelpersPure": {
+    "nodeRunnerPassed": 24,
+    "failed": 0,
+    "log": "T10-AUTH8C-controller-browser-helpers-only.log",
+    "files": [
+      "auth-state.test.mjs",
+      "private-auth.test.mjs",
+      "regression-locator.test.mjs"
+    ],
+    "scope": "Explicit helper files only: 20 state cases, one private-port script containing20 checks, three injected DOM locator cases; overlapping checks not added as coverage"
+  },
+  "lint": "Root targeted worker/browser/API controller files passed"
+}

@@ -1,0 +1,106 @@
+{
+  "task": "T10-LIFECYCLE-ROOT",
+  "tag": "2c5f41fd-30e1-4174-93f5-c90ca21588ab",
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-life-MeL0q3",
+  "tests": [
+    {
+      "name": "lifecycle roundtrip: create -> approve v1 (head version=2) -> archive (version=3) -> list status filter -> restore (version=4, baseline preserved) -> regression run",
+      "passed": true
+    },
+    {
+      "name": "archive vs regression-runs admission race defense: archived case rejected with 422 in FOR SHARE transaction; frozen run remains immune",
+      "passed": true
+    },
+    {
+      "name": "concurrency & optimistic locks: stale expectedVersion, repeat same state (409), upper bound 2147483647 (422)",
+      "passed": true
+    },
+    {
+      "name": "duplicate in same project: explicit sourceVersionId, active case with draft v1 (never inherits approved), slug conflict (409)",
+      "passed": true
+    },
+    {
+      "name": "cross-project duplicate: RBAC ladder (404/403/201), source version mismatch (404), and module SHA mismatch defense (422)",
+      "passed": true
+    },
+    {
+      "name": "Root: recursive child dependency divergence refuses copying with zero destination writes",
+      "passed": true
+    },
+    {
+      "name": "Root: equal stored module SHA with divergent canonical document refuses copying",
+      "passed": true
+    },
+    {
+      "name": "Root: actual concurrent archive requests yield one success and one VERSION_CONFLICT",
+      "passed": true
+    },
+    {
+      "name": "Root: viewer cannot mutate a visible head and invalid UUID is 422",
+      "passed": true
+    },
+    {
+      "name": "Root: real FOR SHARE admission blocks concurrent archive until frozen run commit",
+      "passed": true
+    },
+    {
+      "name": "Root: copying permits eight module invocations and refuses the ninth with zero writes",
+      "passed": true
+    },
+    {
+      "name": "Root: explicit historical source stays fixed and fixture copy rejects before writes",
+      "passed": true
+    }
+  ],
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "b7eba752268d8b2f5af68dd0a15dd8b64a66ae1962bc0ece4a915ebeb7e946e3",
+    "volumes": [
+      "787aaec9fc0918ac70cc6fec04ad08b737d700eaed2fe8a994ad2d02767642e5"
+    ],
+    "pgPort": 33114,
+    "apiPort": 58125,
+    "apiPid": 1438,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "787aaec9fc0918ac70cc6fec04ad08b737d700eaed2fe8a994ad2d02767642e5",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "PG/API admission only; no browser, Worker.once, worker-entry or real model",
+    "Independent counterexamples and isolated concurrency checks; conclusions only reflect assertions in this run",
+    "P0=false; FakeBrowser/real model acceptance remains unverified"
+  ],
+  "recursiveCopy": {
+    "status": 422,
+    "topShaEqual": true,
+    "childShaEqual": false,
+    "destinationRows": 0
+  },
+  "canonicalCopy": {
+    "status": 422,
+    "storedShaEqual": true,
+    "canonicalDocEqual": false,
+    "destinationRows": 0
+  },
+  "admissionLock": {
+    "observedPgLockWait": true,
+    "archivePendingBeforeCommit": true,
+    "waitingCount": 1
+  },
+  "summary": {
+    "passed": 12,
+    "failed": 0
+  }
+}

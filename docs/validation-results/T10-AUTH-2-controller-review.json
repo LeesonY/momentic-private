@@ -1,0 +1,28 @@
+{
+  "at": "2026-10-06T00:54:05.413479+00:00",
+  "rootIndependent": true,
+  "reviewedSha256": {
+    "docs/validation-results/T10-AUTH-2-readonly-agent-review.md": "c6fbb16691e6154f204e0888ce79f8a659f6008cba1b03fe8eddfc7fda813504",
+    "docs/validation-results/T10-AUTH-2-counterexamples.mjs": "daaf2d9dde250d050f9aed746ccf761b17e4ac06e6886025ef4227159cdac806",
+    "docs/validation-results/T10-AUTH-2-counterexamples-7fd173dd.json": "03734d4ded0d7783d4c0dc8fd3cdade5445ed20966d7fe60910f3b69ee68b413"
+  },
+  "classification": "Known unimplemented auth execution bridge; no new independently demonstrated product defect",
+  "observations": [
+    "none secret bypass remains corrected; current auth stage evidence41/41 unchanged",
+    "two none queued runs do not demonstrate concurrent credential login or a held-lock violation",
+    "plain DSL sentinel and intentionally reflecting FakeBrowser do not establish broker/vault credential disclosure",
+    "origins implicit goto path remains unconnected by current Worker"
+  ],
+  "cleanupIndependentlyChecked": {
+    "containerId": "5dc77373b3e1bb9531ad60f40d151d57b563b81118a3c2931618a6f481b898c0",
+    "containerAbsent": true,
+    "volumeId": "7139c3816633d341867a95488c08f48a679a65e5688cb9028c2bfc72800902a7",
+    "volumeAbsent": true,
+    "directoryAbsent": true,
+    "existing79e6VolumePreserved": true
+  },
+  "newPgRerun": false,
+  "browserExecuted": false,
+  "P0Passed": false,
+  "nextTask": "Bounded readonly auth interface plan; no product mutations authorized to grok in this task"
+}

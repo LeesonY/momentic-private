@@ -1,0 +1,81 @@
+{
+  "task": "T10-AUTH-5-SESSION-AUTHORITY",
+  "tag": "fb960245-2e5a-43a5-96f6-b53e620b305b",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-session-BiEQXh",
+  "tests": [
+    {
+      "name": "011 Migration RLS protection: non-admin roles and workers cannot query protected tables",
+      "passed": true
+    },
+    {
+      "name": "Full lifecycle: allocate session (authEpoch=1, allocated) -> re-allocate idempotent -> issue ticket -> activate CAS -> query -> end",
+      "passed": true
+    },
+    {
+      "name": "Task summary check: non-auth tasks cannot allocate auth session (POLICY_DENIED)",
+      "passed": true
+    },
+    {
+      "name": "Anonymous mode=none policy produces zero rows and zero allocation (POLICY_DENIED)",
+      "passed": true
+    },
+    {
+      "name": "Revoked auth profile blocks allocation and all session operations (AUTH_FAILED)",
+      "passed": false,
+      "code": "P0001",
+      "message": "VERSION_CONFLICT"
+    },
+    {
+      "name": "Revoked auth scope blocks all session operations (AUTH_FAILED)",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"code\":\"RATE_LIMITED\",\"message\":\"RATE_LIMITED\",\"requestId\":\"13e34db2-7e85-43c9-a967-0fcc4d85eb15\"}\n\n429 !== 202\n"
+    },
+    {
+      "name": "Strict proof verification: wrong workerId, fencingToken, contextVersion, or expired lease reject (LEASE_EXPIRED)",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"code\":\"RATE_LIMITED\",\"message\":\"RATE_LIMITED\",\"requestId\":\"3e999b0c-3054-44eb-916a-aa53b62292f9\"}\n\n429 !== 202\n"
+    },
+    {
+      "name": "Concurrent allocateAuthSession on the same task+fencing yields exactly one session row",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "{\"code\":\"RATE_LIMITED\",\"message\":\"RATE_LIMITED\",\"requestId\":\"7f25a808-791c-4167-8bb5-7f056eaf1893\"}\n\n429 !== 202\n"
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "545bc6c2d684b498ebf085bd4a5a28a5acb8f5c1aa8886cd76850f3b53eb4d8a",
+    "volumes": [
+      "7f06418d66d6495d0b6a46c82d4e57ee71f02e4935132d523027e75f942f0c13"
+    ],
+    "pgPort": 33132,
+    "apiPort": 56731,
+    "apiPid": 11564,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "7f06418d66d6495d0b6a46c82d4e57ee71f02e4935132d523027e75f942f0c13",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 session authority ledger and private Runtime/Coordinator facade only",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 4
+  }
+}

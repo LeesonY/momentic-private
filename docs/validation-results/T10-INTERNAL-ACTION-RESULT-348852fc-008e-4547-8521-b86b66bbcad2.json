@@ -1,0 +1,101 @@
+{
+  "task": "T10-INTERNAL-ACTION-RESULT",
+  "tag": "348852fc-008e-4547-8521-b86b66bbcad2",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-action-result-cAWci4",
+  "tests": [
+    {
+      "name": "Root counterexample: forged combined proof and individual wrong token/worker/fencing/context make zero writes",
+      "passed": true
+    },
+    {
+      "name": "strict mandatory headers and integer syntax; invalid UUID/unknown ID; cookie and snapshot body cannot bypass",
+      "passed": true
+    },
+    {
+      "name": "legitimate result settles once, computes server hash, fixes summary, preserves Step metadata; same retry/step alias do not charge twice",
+      "passed": true
+    },
+    {
+      "name": "full payload differs: opaque resultHash, summary, outcome, evidence and order cannot masquerade as retry",
+      "passed": true
+    },
+    {
+      "name": "current proof required: expired rejects with zero writes",
+      "passed": true
+    },
+    {
+      "name": "current proof required: released rejects with zero writes",
+      "passed": true
+    },
+    {
+      "name": "current proof required: old-fencing rejects with zero writes",
+      "passed": true
+    },
+    {
+      "name": "current proof required: context-changed rejects with zero writes",
+      "passed": true
+    },
+    {
+      "name": "current proof required: cancelled rejects with zero writes",
+      "passed": true
+    },
+    {
+      "name": "Root counterexample: released lease cannot overwrite or repeat a recorded result",
+      "passed": true
+    },
+    {
+      "name": "missing/foreign artifact and cross-task proof reject; own evidence accepted; alias resolves actual intent",
+      "passed": true
+    },
+    {
+      "name": "HTTP cancelled preserves status and conservatively charges one action, not success",
+      "passed": true
+    },
+    {
+      "name": "HTTP unknown preserves status and conservatively charges one action, not success",
+      "passed": true
+    },
+    {
+      "name": "HTTP failed preserves status and conservatively charges one action, not success",
+      "passed": true
+    },
+    {
+      "name": "ordinary Runtime record keeps its original canonical hash and retry semantics",
+      "passed": true
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "87280ad8b814a19b1be1ffbe499e6c2607fb011f9bc4e7aba7a2a3fc8b4ccf96",
+    "volumes": [
+      "acd65ed693bd176b36b0b09f4cea984ff410ad71873132d39402a6945c0850fd"
+    ],
+    "pgPort": 33178,
+    "apiPort": 59882,
+    "apiPid": 20898,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "acd65ed693bd176b36b0b09f4cea984ff410ad71873132d39402a6945c0850fd",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 and HTTP result boundary only; no browser, worker-entry, Worker.once or provider",
+    "Owned role-only task fixture permits a synthetic navigate intent; no page action executed",
+    "P0=false; AUTH4C not implemented"
+  ],
+  "summary": {
+    "passed": 15,
+    "failed": 0
+  }
+}

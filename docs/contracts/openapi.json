@@ -2705,6 +2705,38 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "archived",
+                "all"
+              ]
+            }
           }
         ],
         "responses": {
@@ -2780,6 +2812,635 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SavedCaseCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/saved-cases/{caseId}/archive": {
+      "post": {
+        "operationId": "archiveSavedCase",
+        "tags": [
+          "P0"
+        ],
+        "summary": "archiveSavedCase",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "caseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "archiveSavedCase",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedCase"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable, redacted error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedCaseArchiveInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/saved-cases/{caseId}/restore": {
+      "post": {
+        "operationId": "restoreSavedCase",
+        "tags": [
+          "P0"
+        ],
+        "summary": "restoreSavedCase",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "caseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "restoreSavedCase",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedCase"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable, redacted error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedCaseRestoreInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/saved-cases/{caseId}/duplicate": {
+      "post": {
+        "operationId": "duplicateSavedCase",
+        "tags": [
+          "P0"
+        ],
+        "summary": "duplicateSavedCase",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "caseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "duplicateSavedCase",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedCase"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable, redacted error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedCaseDuplicateInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/saved-cases/import": {
+      "post": {
+        "operationId": "importSavedCaseYaml",
+        "tags": [
+          "P0"
+        ],
+        "summary": "importSavedCaseYaml",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "importSavedCaseYaml",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedCase"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable, redacted error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedCaseYamlImport"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/saved-case-versions/{versionId}/yaml": {
+      "get": {
+        "operationId": "exportSavedCaseYaml",
+        "tags": [
+          "P0"
+        ],
+        "summary": "exportSavedCaseYaml",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "exportSavedCaseYaml",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedCaseYamlExport"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable, redacted error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/regression-modules": {
+      "post": {
+        "operationId": "createRegressionModule",
+        "tags": [
+          "P0"
+        ],
+        "summary": "createRegressionModule",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "createRegressionModule",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegressionModuleRecord"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable, redacted error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegressionModuleCreate"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listRegressionModules",
+        "tags": [
+          "P0"
+        ],
+        "summary": "listRegressionModules",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "listRegressionModules",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegressionModuleRecordPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable, redacted error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/regression-modules/{moduleName}/versions": {
+      "get": {
+        "operationId": "listRegressionModuleVersions",
+        "tags": [
+          "P0"
+        ],
+        "summary": "listRegressionModuleVersions",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "moduleName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1,
+              "pattern": "^(?!\\.{1,2}(?:/|$))(?!.*?/\\.{1,2}(?:/|$))[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "listRegressionModuleVersions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegressionModuleRecordPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable, redacted error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/regression-modules/{moduleName}/versions/{version}/review-preview": {
+      "post": {
+        "operationId": "previewRegressionModuleReview",
+        "tags": [
+          "P0"
+        ],
+        "summary": "previewRegressionModuleReview",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "moduleName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1,
+              "pattern": "^(?!\\.{1,2}(?:/|$))(?!.*?/\\.{1,2}(?:/|$))[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*$"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "previewRegressionModuleReview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegressionModuleReviewPreview"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable, redacted error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegressionModuleReviewPreviewInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/regression-modules/{moduleName}/versions/{version}/review": {
+      "post": {
+        "operationId": "reviewRegressionModuleVersion",
+        "tags": [
+          "P0"
+        ],
+        "summary": "reviewRegressionModuleVersion",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "moduleName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1,
+              "pattern": "^(?!\\.{1,2}(?:/|$))(?!.*?/\\.{1,2}(?:/|$))[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*$"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "reviewRegressionModuleVersion",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegressionModuleRecord"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable, redacted error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegressionModuleReviewCommit"
               }
             }
           }
@@ -2929,6 +3590,16 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewPreviewInput"
               }
             }
           }
@@ -4008,6 +4679,34 @@
               "maxLength": 2000,
               "minLength": 1
             }
+          },
+          {
+            "name": "X-Worker-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 200,
+              "minLength": 1
+            }
+          },
+          {
+            "name": "X-Fencing-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            }
+          },
+          {
+            "name": "X-Context-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            }
           }
         ],
         "responses": {
@@ -4984,6 +5683,9 @@
             },
             "maxItems": 20,
             "minItems": 1
+          },
+          "regression": {
+            "$ref": "#/components/schemas/RegressionBinding"
           }
         },
         "required": [
@@ -5451,6 +6153,14 @@
           "version": {
             "type": "integer",
             "minimum": 1
+          },
+          "responseFormat": {
+            "type": "string",
+            "enum": [
+              "json_schema",
+              "json_object",
+              "native_tools"
+            ]
           }
         },
         "required": [
@@ -5502,6 +6212,14 @@
             "type": "string",
             "maxLength": 1000,
             "writeOnly": true
+          },
+          "responseFormat": {
+            "type": "string",
+            "enum": [
+              "json_schema",
+              "json_object",
+              "native_tools"
+            ]
           }
         },
         "required": [
@@ -5754,6 +6472,13 @@
           "version": {
             "type": "integer",
             "minimum": 1
+          },
+          "executionMode": {
+            "type": "string",
+            "enum": [
+              "smoke",
+              "regression"
+            ]
           }
         },
         "required": [
@@ -7513,6 +8238,9 @@
           },
           "toolCall": {
             "$ref": "#/components/schemas/ToolCall"
+          },
+          "regressionSource": {
+            "$ref": "#/components/schemas/RegressionStepSource"
           }
         },
         "required": [
@@ -7695,6 +8423,11 @@
           },
           "outputSchema": {
             "type": "object"
+          },
+          "criterionId": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[a-zA-Z0-9_.-]+$"
           }
         },
         "required": [
@@ -7947,6 +8680,14 @@
               "disabled",
               "untested"
             ]
+          },
+          "responseFormat": {
+            "type": "string",
+            "enum": [
+              "json_schema",
+              "json_object",
+              "native_tools"
+            ]
           }
         },
         "required": [
@@ -8076,6 +8817,9 @@
                 "type": "null"
               }
             ]
+          },
+          "regressionSource": {
+            "$ref": "#/components/schemas/RegressionStepSource"
           }
         },
         "required": [
@@ -9838,7 +10582,7 @@
               },
               "ref": {
                 "type": "string",
-                "maxLength": 120,
+                "maxLength": 131,
                 "pattern": "^[a-zA-Z0-9_./-]+@[1-9][0-9]*$"
               },
               "arguments": {
@@ -9935,6 +10679,423 @@
         ],
         "additionalProperties": false
       },
+      "RegressionModuleVersion": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[a-zA-Z0-9_./-]+$"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sha256": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "document": {
+            "$ref": "#/components/schemas/RegressionDocument"
+          },
+          "reviewStatus": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "approved",
+              "rejected"
+            ]
+          }
+        },
+        "required": [
+          "projectId",
+          "name",
+          "version",
+          "sha256",
+          "document",
+          "reviewStatus"
+        ],
+        "additionalProperties": false
+      },
+      "RegressionModuleCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^(?!\\.{1,2}(?:/|$))(?!.*?/\\.{1,2}(?:/|$))[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*$"
+          },
+          "document": {
+            "$ref": "#/components/schemas/RegressionDocument"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "name",
+          "document"
+        ],
+        "additionalProperties": false
+      },
+      "RegressionModuleRecord": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[a-zA-Z0-9_./-]+$"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "sha256": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "document": {
+            "$ref": "#/components/schemas/RegressionDocument"
+          },
+          "reviewStatus": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "approved",
+              "rejected"
+            ]
+          },
+          "createdBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewedBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "projectId",
+          "name",
+          "version",
+          "sha256",
+          "document",
+          "reviewStatus",
+          "createdBy",
+          "createdAt",
+          "reviewedBy",
+          "reviewedAt"
+        ],
+        "additionalProperties": false
+      },
+      "RegressionModuleRecordPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RegressionModuleRecord"
+            },
+            "maxItems": 100,
+            "minItems": 0
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "RegressionModuleReviewPreviewInput": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "decision",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "RegressionModuleReviewPreview": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "moduleName": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^(?!\\.{1,2}(?:/|$))(?!.*?/\\.{1,2}(?:/|$))[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*$"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "documentSha256": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1
+          },
+          "diff": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "risks": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 1000
+            },
+            "maxItems": 20,
+            "minItems": 0
+          },
+          "confirmationToken": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "projectId",
+          "moduleName",
+          "version",
+          "documentSha256",
+          "expectedVersion",
+          "decision",
+          "reason",
+          "diff",
+          "risks",
+          "confirmationToken",
+          "expiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "RegressionModuleReviewCommit": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1
+          },
+          "confirmationToken": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "decision",
+          "reason",
+          "confirmationToken"
+        ],
+        "additionalProperties": false
+      },
+      "RegressionBinding": {
+        "type": "object",
+        "properties": {
+          "sourceVersionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceDocumentSha256": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "document": {
+            "$ref": "#/components/schemas/RegressionDocument"
+          },
+          "moduleSnapshots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RegressionModuleVersion"
+            },
+            "maxItems": 100,
+            "minItems": 0
+          },
+          "snapshotDocumentSha256": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "sourceVersionId",
+          "sourceDocumentSha256",
+          "document",
+          "moduleSnapshots"
+        ],
+        "additionalProperties": false
+      },
+      "RegressionStepSource": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[a-zA-Z0-9_.-]+$"
+          },
+          "stepIndex": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 99
+          },
+          "modulePath": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ref": {
+                  "type": "string",
+                  "maxLength": 131,
+                  "pattern": "^[a-zA-Z0-9_./-]+@[1-9][0-9]*$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "maxLength": 64,
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "invocationStepIndex": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 99
+                }
+              },
+              "required": [
+                "ref",
+                "sha256",
+                "invocationStepIndex"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 8,
+            "minItems": 0
+          }
+        },
+        "required": [
+          "documentId",
+          "stepIndex",
+          "modulePath"
+        ],
+        "additionalProperties": false
+      },
       "SavedCase": {
         "type": "object",
         "properties": {
@@ -10019,6 +11180,114 @@
         "required": [
           "slug",
           "name"
+        ],
+        "additionalProperties": false
+      },
+      "SavedCaseArchiveInput": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "expectedVersion"
+        ],
+        "additionalProperties": false
+      },
+      "SavedCaseRestoreInput": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "expectedVersion"
+        ],
+        "additionalProperties": false
+      },
+      "SavedCaseDuplicateInput": {
+        "type": "object",
+        "properties": {
+          "targetProjectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "newSlug": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[a-zA-Z0-9_.-]+$"
+          },
+          "newName": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "sourceVersionId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "newSlug",
+          "newName",
+          "sourceVersionId"
+        ],
+        "additionalProperties": false
+      },
+      "SavedCaseYamlImport": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[a-zA-Z0-9_.-]+$"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "yaml": {
+            "type": "string",
+            "maxLength": 262144,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "yaml"
+        ],
+        "additionalProperties": false
+      },
+      "SavedCaseYamlExport": {
+        "type": "object",
+        "properties": {
+          "versionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceDocumentSha256": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "yaml": {
+            "type": "string",
+            "maxLength": 262144,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "versionId",
+          "sourceDocumentSha256",
+          "yaml"
         ],
         "additionalProperties": false
       },
@@ -10115,12 +11384,55 @@
         ],
         "additionalProperties": false
       },
+      "ReviewPreviewInput": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "decision",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
       "ReviewPreview": {
         "type": "object",
         "properties": {
           "versionId": {
             "type": "string",
             "format": "uuid"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1
           },
           "diff": {
             "type": "string",
@@ -10146,6 +11458,9 @@
         },
         "required": [
           "versionId",
+          "expectedVersion",
+          "decision",
+          "reason",
           "diff",
           "risks",
           "confirmationToken",
@@ -10169,7 +11484,8 @@
           },
           "reason": {
             "type": "string",
-            "maxLength": 2000
+            "maxLength": 2000,
+            "minLength": 1
           },
           "confirmationToken": {
             "type": "string",

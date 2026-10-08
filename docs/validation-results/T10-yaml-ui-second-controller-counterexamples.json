@@ -1,0 +1,16 @@
+{
+  "rootIndependent": true,
+  "results": [
+    {
+      "name": "import into selected current mock project remains visible in its list",
+      "passed": false,
+      "returnedProjectMatches": false
+    },
+    {
+      "name": "synthetic draft SHA represents the actual synthetic document",
+      "passed": false
+    }
+  ],
+  "scope": "Actual mock public methods; no browser/network",
+  "P0Passed": false
+}

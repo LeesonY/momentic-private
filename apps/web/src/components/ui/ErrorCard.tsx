@@ -6,10 +6,11 @@ export type ErrorType =
   | 'missing_evidence'
   | 'model_error'
   | 'budget_exhausted'
-  | 'partial_report';
+  | 'partial_report'
+  | 'generic';
 
 interface ErrorCardProps {
-  type: ErrorType;
+  type?: ErrorType;
   message?: string;
   details?: string;
   onRetry?: () => void;
@@ -86,10 +87,19 @@ const errorConfigs: Record<
     border: 'var(--color-info-border)',
     icon: '📑',
   },
+  generic: {
+    title: '发生错误',
+    defaultMessage: '系统操作异常，请检查网络或配置后重试。',
+    badge: '错误',
+    color: 'var(--color-danger-text)',
+    bg: 'var(--color-danger-bg)',
+    border: 'var(--color-danger-border)',
+    icon: '⚠️',
+  },
 };
 
 export const ErrorCard: React.FC<ErrorCardProps> = ({
-  type,
+  type = 'generic',
   message,
   details,
   onRetry,

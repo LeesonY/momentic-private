@@ -1,0 +1,141 @@
+{
+  "title": "G3-D 进程接线与模型仓库（本地假传输和独立 Postgres，不是 G3/P0 放行）",
+  "date": "2026-10-04",
+  "task": "G3-D",
+  "controller": "wF:p1",
+  "claims": {
+    "G3Passed": false,
+    "P0Passed": false,
+    "liveModelCalledThisRound": false,
+    "playwrightLaunched": false,
+    "workerEntryExecuted": false,
+    "workerImageRebuilt": false
+  },
+  "preserved": {
+    "docs/validation-results/G3-model-minimal.json": "1ed2904b1beda6d68494cd5db37be8d2758aa69a9e5605d0be066e25baa14469",
+    "docs/validation-results/G3A-model-gateway.json": "82e8e300c1c37c9a5aa4de5a92c5e94e09fbbb128d14f5e058fa86f5bc3f70ae",
+    "docs/validation-results/G3A-independent-review.json": "4e3a79b0111876b179a96c43352f005dee386c51951028a8784e34375da23cca",
+    "docs/validation-results/G3A-independent-T04.json": "9012324e7b33dccf506aa2321dd75e878af52f8b2308160c82815fb7371386ca",
+    "docs/validation-results/G3B-model-gateway.json": "0b067a0d44fbc54e3e868daed4440c09274c4390136836607973448d55bcc029",
+    "docs/validation-results/G3B-independent-review.json": "ea652e5d4ad7bd48421e47fc4e2b6aeea3fa4c1bd941214ce09ef3f2fdba8837",
+    "docs/validation-results/G3B-independent-T04.json": "db73444cd113aaab6889d4673faf66451f213d111242e2fa103955fab984203e",
+    "docs/validation-results/G3B-agent-T04-snapshot.json": "db73444cd113aaab6889d4673faf66451f213d111242e2fa103955fab984203e",
+    "docs/validation-results/G3C-contract-increment.json": "afc7b6083c0a68ebfa82495bce29f6f74c7a519512e5e27b4905f93d15d71851",
+    "docs/validation-results/G3C-model-wiring.json": "8bdb093e241573513b8415d042ff484c5fd8dfa68d836e5722c0cb40e3fb512c",
+    "note": "以上文件本轮只读哈希，没有改内容。G3-model-minimal.json 仍是历史真实样本，本轮没有重放。G3-C 证据里「worker 未接线、默认 API 无传输」是当时的结论，本文件不改那份历史。"
+  },
+  "host": {
+    "node": "v26.3.0",
+    "platform": "darwin",
+    "packageManager": "npx --yes pnpm@10.34.0",
+    "node24Image": "node:24-bookworm-slim",
+    "node24Version": "v24.21.0"
+  },
+  "realProcess": {
+    "meaning": "进程入口和同一配置构建函数。不是已启动的 API/Worker 容器，也不是真实供应商。",
+    "createApiContext": "未注入 modelTransport 时 resolveModelTransport() 等于 globalThis.fetch。未设置 allowTestStub 时，上下文网关是空剖面的 openai-compatible，探测固定 stub id 得到 MODEL_NOT_CONFIGURED，不是 ready。",
+    "apiEntry": "deploy/images/api-entry.mjs 的 createApiContext 调用不传 allowTestStub，也不传 modelTransport。node --check 通过。入口进程没有执行。",
+    "workerEntry": "deploy/images/worker-entry.mjs 去掉「非 stub 即拒绝启动」。LOCALQA_ALLOW_TEST_STUB=1 仍走 stub 且 decryptKey 抛错。否则 createWorkerModelOptions 使用 globalThis.fetch，并用 ModelRepository.readVersion 读取冻结版本、responseFormat 和凭据。租约、心跳、取消仍由现有 Worker.once 承担。node --check 通过。入口没有执行，因为它会启动 Chromium。",
+    "sameBuilder": "packages/orchestrator/src/process-model.ts 的 createWorkerModelOptions 被 worker-entry 调用。凭据按 profileId:version 分槽，encryptedApiKey 是这个非密钥槽名，不再是固定的 set，也不按 profile id 共用。测试直接调用这个函数：冻结 json_object、configuredModelId、对应版本的凭据进入 Authorization，请求体不含凭据。",
+    "credentialIsolation": "同一剖面 version 1 与 version 2 并发 profile()，两边都进入 load 后才返回。随后两个网关同时 capabilityProbe。version 1 的 Authorization 只等于 version 1 的凭据，version 2 只等于 version 2；槽名互相不等于凭据值。旧槽名 set 解出空字符串。主机测试 4/4，duration_ms 150.043542。node:24-bookworm-slim 上同一文件 4/4，duration_ms 136.564367。证据文件不记录凭据值。",
+    "roleSelection": "POST /internal/v1/model/complete 读取 jobs.role 与 runs.effective_config，经 frozenModelSelection 选择绑定。explorer+decide 使用 models.explorer 的另一 id/version/model，请求 coordinator id 为 409 且零次 fetch。executor+assert 使用 models.assertion，不使用 models.executor。",
+    "images": "localqa-api:latest、localqa-worker:latest、localqa-orchestrator:latest、localqa-web:latest 本轮没有重建。正在运行的镜像仍是旧入口，直到之后的镜像构建。"
+  },
+  "localFakeTransport": {
+    "meaning": "测试注入的 fetch 返回本地 Response 或立即 AbortError。没有调用全球 fetch，也没有访问真实模型供应商。",
+    "networkModelCalls": 0,
+    "gatewaySuite": "31/31，duration_ms 336.343667。Ajv 对 uuid/uri 的 unknown format 警告仍在，未加 ajv-formats。",
+    "httpEntry": "g3c-model-wiring 4 项与 g3d-process-wiring 4 项一起 8/8，duration_ms 562.571083。",
+    "boundAndBuilder": "g3c-bound-model 2 项与 g3d-process-model 3 项一起 5/5，duration_ms 417.01575。",
+    "node24": "同一 13 个纯测试在 node:24-bookworm-slim（v24.21.0）上 13/13，duration_ms 881.470228。没有在该镜像里跑 Postgres 或 api.test.mjs。",
+    "roleCounterexample": "explorer 任务 purpose=decide 发出 explore-model、version 7、json_schema，工具名等于 explorer 角色；coordinator id 不发出。executor 任务 purpose=assert 发出 assert-model、version 9、json_object，且没有 tools。coordinator 任务才发出 coord-model 与 version 3。",
+    "errorClassification": {
+      "http400": "body code VALIDATION_ERROR，HTTP 422。不再改成 500。零次换格式或换模型。",
+      "http429": "body code RATE_LIMITED，HTTP 429。",
+      "abort": "body code MODEL_TIMEOUT。契约没有给这个码 HTTP 状态，所以响应是 500。不是 SERVICE_UNAVAILABLE，也不是 200。",
+      "budget": "超长单条消息在 fetch 之前返回 body code BUDGET_EXCEEDED，HTTP 同样是 500，因为契约状态为空。provider 调用次数 0。",
+      "unconfigured": "缺凭据或 profile 与冻结绑定不一致为 MODEL_NOT_CONFIGURED，HTTP 409，零次 fetch。",
+      "note": "失败响应没有 data，也没有写成 ready。"
+    },
+    "probe": "模型自报 nativeTools/imageInput 为 true 时，写回仍是 structuredOutput true、nativeTools false、imageInput false、status degraded，notes 含「未测」。失败的 400 探测可立刻再探，recordProbe 不被调用，不会写成 disabled。管理员 status=disabled 不发出请求。json_object 的不合 schema 结果修复一次后仍是 422 VALIDATION_ERROR，两次请求都保持 json_object 和同一 model。"
+  },
+  "postgres": {
+    "meaning": "本任务自建的 Postgres 18，不是与 Root 共享的库或固定端口。",
+    "container": "localqa-g3d-pg-dcdca8e6",
+    "image": "postgres:18-alpine",
+    "publish": "127.0.0.1 随机端口 32863，不是 5432，也不是 8085",
+    "migrationsApplied": 8,
+    "migrationsInclude": ["001_core.sql", "007_p1_saved_cases.sql", "008_saved_case_review_previews.sql"],
+    "serverVersion": "PostgreSQL 18.6 on aarch64-unknown-linux-musl",
+    "test": "apps/api/test/g3d-model-repository.test.mjs 1/1，duration_ms 2314.719833",
+    "proved": [
+      "create 持久化 responseFormat=json_object，初始能力全 false，status=untested",
+      "readVersion 解密出创建时的凭据；未授权 projectId 为 NOT_FOUND；grant 之后同一 project 可以读",
+      "非管理员 recordProbe 为 FORBIDDEN",
+      "recordProbe 写入 version+1，保留 responseFormat 和原 credential_id，status=degraded，native/image 仍 false",
+      "改 responseFormat 并换凭据得到新版本：能力清空为未验证，旧版本仍是旧 json_object 和旧凭据",
+      "管理员 status=disabled 保持 disabled；对该版本 recordProbe 返回 null，不新增行",
+      "同一 expectedVersion 的两次 recordProbe 恰有一次 VERSION_CONFLICT，最终只有一个新版本，且不是 disabled"
+    ],
+    "cleanup": "测试 after 执行 docker rm -f --volumes 只针对该容器。结束后 docker ps -a 为空。没有 volume prune。卷 79e6b62585a476cb1d73128a4304fe0556d3526fda92d40302434fde82407472 仍在，不是本任务创建的。"
+  },
+  "apiSuite": {
+    "command": "node --test --test-concurrency=1 apps/api/test/api.test.mjs",
+    "nodeTest": "14 passed, 0 failed, duration_ms 18774.602292",
+    "container": "localqa-t06-pg-447d3127，随机端口，结束后已由该测试的 after 删除",
+    "modelInit": "只改了模型初始化：注入只接受 example.com 的本地传输，并给剖面一个运行时生成的种子凭据。探针 HTTP 仍断言 200。自报 native/image 为 true，落库结果是 degraded，structured true，native false，image false。权限、协议、消息、SSE、分诊断言没有删除，也没有放宽状态码。",
+    "t06FileSha256": "50c4d96710a2f74c08d3dab3c1335b0cd55461c05bcb47e45eaafd551ef6c0a8",
+    "t06PreviousSha256": "8867f0045c2782185cc15755d70eaedccaa63f478ddaa5fe531cc7d59cf88446",
+    "secretScan": "T06-api.json 不含种子前缀、apiKey、password 或 Bearer",
+    "log": "通过中的用例打印过一次 GET_MESSAGES_ERROR NOT_FOUND。这是 apps/api/src/routes/runs.ts 里原有的 console.error，跨项目不存在时会打。本轮没有改 runs.ts，也没有把它当成失败去补。",
+    "port8085": "开跑前 8085 已被 PID 88198 占用，命令是 packages/test-fixture/server.js，启动于 2026-10-02。本轮没有杀它，也没有改夹具端口。跑完监听者仍是这个 PID。T06 自起的夹具进程没有成为 8085 的监听者，依赖夹具的断言若打到 8085，打到的是这个既有进程。"
+  },
+  "t04": {
+    "rewrittenByHarness": true,
+    "passed": 53,
+    "blocked": 1,
+    "unverified": 8,
+    "claims": {
+      "G3Passed": false,
+      "P0Passed": false,
+      "liveModelCalled": false,
+      "productImplemented": false
+    },
+    "node": "v26.3.0",
+    "fileSha256": "f7def1515e0ed949cbe3fd3bb06d266e3c11e81f4e7ab18f46a580e85ba839e1",
+    "evidenceSha256": "2b6a6bdb17f6a22ed4d584da480b6127a00c10c64d183a41cbc4811fd1b313a4",
+    "evidenceSha256Meaning": "T04 内部 evidenceSha256 只覆盖 rawOutputs，不是整份文件。",
+    "stale": "本轮跑 verify.mjs 之前的整份文件哈希 e32f0fc5817f3d9d0c68be23b9d0e26b97875c091d1050b065c0d833d19ba4a1 已过期。更早的 59798af4 也不是当前文件。"
+  },
+  "checks": [
+    {
+      "name": "typecheck_five_packages",
+      "result": "passed",
+      "exitCode": 0
+    },
+    {
+      "name": "scoped_lint",
+      "result": "passed",
+      "exitCode": 0,
+      "note": "model-gateway、process-model、model.ts、api index/types/models.ts。不含 internal.ts。"
+    },
+    {
+      "name": "internal_ts_eslint",
+      "result": "failed_preexisting",
+      "exitCode": 1,
+      "note": "仅 internal.ts:412-414 的 kind、redaction、fileBuffer 无用赋值，仍在工件上传路由。本轮没有为了 lint 去改它们。"
+    }
+  ],
+  "unverified": [
+    "真实供应商、付费调用和图片字节。本轮网络模型调用为 0。",
+    "ArtifactStore 与已批准图片仍留到下一包。缺解析器或 imageInput 时继续阻断，没有猜 MIME。",
+    "worker-entry 与 api-entry 没有作为进程执行。localqa-*:latest 没有重建，容器里的入口仍是旧文件。",
+    "BoundModel 在真实事务里的 grant 查询没有对 Postgres 跑，只跑了独立的 readVersion/recordProbe。",
+    "MODEL_TIMEOUT 与 BUDGET_EXCEEDED 的 HTTP 状态仍是 500，因为契约 ERROR_HTTP_STATUS 对这两个码是空。响应体码没有被改成 SERVICE_UNAVAILABLE。",
+    "deploy/README.md 仍写「真实模型 provider 未接通、非 stub 不能启动」。源码已经不是这样。本轮没有改 README。",
+    "8085 上既有的 test-fixture 不是本轮启动的，也没有清理。",
+    "G3 与 P0 都不放行。"
+  ],
+  "ego": "未使用",
+  "dockerCleanup": "docker ps -a 为空。卷只剩 79e6b62585a476cb1d73128a4304fe0556d3526fda92d40302434fde82407472。镜像仍为 localqa-api/orchestrator/web/worker:latest、postgres:18-alpine、mcr.microsoft.com/playwright:v1.63.0-noble、node:24-bookworm-slim、hello-world:latest、nginx:1.27-alpine。没有 volume prune。"
+}

@@ -18,6 +18,8 @@ export const AppHeader: React.FC = () => {
   const navItems: { key: AppRoute; label: string }[] = [
     { key: 'home', label: '项目首页' },
     { key: 'workbench', label: '运行工作台' },
+    { key: 'saved-cases', label: '用例库' },
+    { key: 'modules', label: '模块库' },
     { key: 'environments', label: '环境/认证' },
     { key: 'knowledge', label: '项目知识' },
     { key: 'models', label: '模型管理' },

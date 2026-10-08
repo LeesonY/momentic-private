@@ -1,0 +1,113 @@
+{
+  "task": "T10-AUTH5-INPUT-ROOT",
+  "tag": "46f7bed1-b221-46a4-8d2e-191ea0c7eff0",
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth5-input-iemGJQ",
+  "tests": [
+    {
+      "name": "auth_profile: unsupported approve cannot resolve authentication",
+      "passed": true
+    },
+    {
+      "name": "auth_profile: provide cannot resolve through generic input path",
+      "passed": true
+    },
+    {
+      "name": "auth_profile: reject cannot smuggle ordinary text material",
+      "passed": true
+    },
+    {
+      "name": "auth_profile: clean reject is recorded without fake resume",
+      "passed": true
+    },
+    {
+      "name": "one_time_code: unsupported approve cannot resolve authentication",
+      "passed": true
+    },
+    {
+      "name": "one_time_code: provide cannot resolve through generic input path",
+      "passed": true
+    },
+    {
+      "name": "one_time_code: reject cannot smuggle ordinary text material",
+      "passed": true
+    },
+    {
+      "name": "one_time_code: clean reject is recorded without fake resume",
+      "passed": true
+    },
+    {
+      "name": "ordinary clarification approve retains existing response semantics",
+      "passed": true
+    },
+    {
+      "name": "auth_profile: clean reject cannot carry oneTimeCode",
+      "passed": true
+    },
+    {
+      "name": "auth_profile: clean reject cannot carry allowedOrigins",
+      "passed": true
+    },
+    {
+      "name": "one_time_code: clean reject cannot carry oneTimeCode",
+      "passed": true
+    },
+    {
+      "name": "one_time_code: clean reject cannot carry allowedOrigins",
+      "passed": true
+    },
+    {
+      "name": "ordinary clarification cannot carry oneTimeCode",
+      "passed": true
+    },
+    {
+      "name": "stale version still rejects before authentication response handling",
+      "passed": true
+    }
+  ],
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "7ef095bff0dde0db7f27e7bae5926f22da7a580be1fd7f572921957de013f851",
+    "volumes": [
+      "c3a3e4eb2879045ac6a5261cf89fe11a978b872a37d850aea02827c586a8b398"
+    ],
+    "pgPort": 33129,
+    "apiPort": 55900,
+    "apiPid": 10718,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "c3a3e4eb2879045ac6a5261cf89fe11a978b872a37d850aea02827c586a8b398",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Actual PG/API input boundary; no browser, Worker.once, worker-entry or real model",
+    "Independent counterexamples and isolated concurrency checks; conclusions only reflect assertions in this run",
+    "P0=false; FakeBrowser/real model acceptance remains unverified"
+  ],
+  "migrationScope": "Owned immutable copy of migrations001-010; AUTH5 in-flight migration excluded from this existing input boundary reproduction",
+  "sourceSha256": {
+    "apps/api/src/routes/runs.ts": "3f67c78fcb010ffe0aa9c182433bb0f8dfe9470b1406fed0c4b17f277d14f527",
+    "apps/api/dist/routes/runs.js": "b5ee32c6be820b8784e53b07d002cd135be4b04aeb89166ca4ef361b2bbe09ef"
+  },
+  "lastResponse": {
+    "kind": "clarification",
+    "decision": "approve",
+    "status": 422,
+    "resultCode": "VALIDATION_ERROR",
+    "storedStatus": "pending"
+  },
+  "summary": {
+    "passed": 15,
+    "failed": 0
+  }
+}

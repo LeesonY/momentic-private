@@ -71,6 +71,13 @@ declare global {
   }
 }
 
+// Eagerly initialize telemetry history on window to ensure it is defined as an array
+// even before the first message is fetched or rendered, preventing 'undefined' in test harnesses.
+if (typeof window !== 'undefined') {
+  window.__messageTelemetryHistory = window.__messageTelemetryHistory || [];
+  window.__renderedMessages = window.__renderedMessages || new Map();
+}
+
 /**
  * Record message presentation timestamp using the unified browser clock.
  */
@@ -127,6 +134,11 @@ export async function fetchRunMessages(
     });
 
     if (!res.ok) {
+      return [];
+    }
+
+    const contentType = res.headers?.get?.('content-type') || '';
+    if (contentType && !contentType.includes('application/json')) {
       return [];
     }
 

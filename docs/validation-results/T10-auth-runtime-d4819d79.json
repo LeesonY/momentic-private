@@ -1,0 +1,78 @@
+{
+  "tag": "d4819d79",
+  "execution": "Own PG/API/RuntimeClient, no browser or provider",
+  "tests": [
+    {
+      "name": "none is a frozen approved anonymous policy, not a request for manual credentials",
+      "passed": true,
+      "observedAnonymousPolicyAllowed": true
+    },
+    {
+      "name": "auth resolve must reject the caller stale context instead of rebuilding it from the database",
+      "passed": true,
+      "observedHttpStatus": 409,
+      "returnedOwnedSyntheticSecret": false
+    },
+    {
+      "name": "auth resolve must bind the caller worker identity to the lease",
+      "passed": true,
+      "observedHttpStatus": 409,
+      "returnedOwnedSyntheticSecret": false
+    },
+    {
+      "name": "frozen auth metadata survives a current-head metadata update",
+      "passed": true
+    },
+    {
+      "name": "revoked none cannot become an anonymous fallback",
+      "passed": true
+    },
+    {
+      "name": "frozen auth metadata rejects a wrong worker, fencing token and context",
+      "passed": true
+    },
+    {
+      "name": "unconnected storage-state execution still waits instead of running anonymously",
+      "passed": true
+    },
+    {
+      "name": "valid credential proof retains the exact bound profile and material",
+      "passed": true
+    },
+    {
+      "name": "missing and malformed credential proof headers return no material",
+      "passed": true
+    },
+    {
+      "name": "wrong fencing and cancellation deny credential material",
+      "passed": true
+    },
+    {
+      "name": "none policy never returns unused stored credential material",
+      "passed": true,
+      "returnedUnusedSyntheticSecret": false,
+      "vaultDecryptCalls": 0
+    }
+  ],
+  "ownership": {
+    "directory": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-runtime-I8qmmB",
+    "containerId": "acc82d003ced72946ba403336d0aafc2cbe386a4e834130249fbeedfb7495bbb",
+    "volumes": [
+      "fc20fe82fa7998b34fa8e3819b41da390c41f20bb398dd5a65213a9cf1436744"
+    ],
+    "apiOrigin": "http://127.0.0.1:49737",
+    "pgPort": 33122
+  },
+  "P0Passed": false,
+  "cleanup": {
+    "removeStatus": 0,
+    "containerAbsent": true,
+    "volumesAbsent": [
+      {
+        "id": "fc20fe82fa7998b34fa8e3819b41da390c41f20bb398dd5a65213a9cf1436744",
+        "absent": true
+      }
+    ],
+    "secretDirectoryRemoved": true
+  }
+}

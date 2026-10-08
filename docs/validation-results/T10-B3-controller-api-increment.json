@@ -1,0 +1,49 @@
+{
+  "task": "T10-B3-controller-api-increment",
+  "recordedAt": "2026-10-04T06:46:10.891587+00:00",
+  "redBeforeFix": {
+    "testsPassed": 7,
+    "testsFailed": 2,
+    "multiCaseHttp": 422,
+    "sameRequestRetryHttp": 409
+  },
+  "verifiedAfterFix": {
+    "t10ApiPassed": 9,
+    "t10ApiFailed": 0,
+    "durationMs": 3303.845708,
+    "boundaryAndSlotPassed": 4,
+    "builds": [
+      "storage",
+      "model-gateway",
+      "agents",
+      "orchestrator",
+      "api"
+    ],
+    "scopedLint": true,
+    "gitDiffCheck": true
+  },
+  "changes": [
+    "One common runId for all selected versions.",
+    "Selection ordering retained in case.created event sequence.",
+    "Idempotency binds ordered frozen definitions without transient case/run UUIDs.",
+    "New version SHA uses existing canonical hashPayload and matches JSONB-returned documents; no historical records rewritten.",
+    "Exact .gitignore exception makes the existing orchestrator core.ts visible for review and version control.",
+    "Removed unused imports and useless rethrow wrappers in owned API files."
+  ],
+  "unverified": [
+    "Actual approved DSL worker replay, new browser contexts and reports",
+    "Module registry and YAML import",
+    "Real UI and real supplier validation"
+  ],
+  "T10Passed": false,
+  "P0Passed": false,
+  "realSupplierCalls": 0,
+  "browserUsed": false,
+  "sourceHashes": {
+    ".gitignore": "84c5ae96b5d465a2ff6baf97127fd5a65bab622d64bf517ece29db66bb108021",
+    "packages/orchestrator/src/core.ts": "2a868075d284150ebaf7c9375a31d62dfac0957149767a7eda7d12fb772feffc",
+    "apps/api/src/routes/savedCases.ts": "b86fa100b3333132239caf450dc869b2adc5b4b39ae2a4325f9ab80ae2d253b8",
+    "apps/api/test/t10-saved-cases.test.mjs": "3af482eb23722335f81b933551d0796474ec91e3db13644d7c26a83c847badca",
+    "docs/06-web-regression-and-scheduling.md": "5a7ced9e7c9bf87693762d59abd35702b0ea8fb8c29bb2e9e26c235637b60356"
+  }
+}

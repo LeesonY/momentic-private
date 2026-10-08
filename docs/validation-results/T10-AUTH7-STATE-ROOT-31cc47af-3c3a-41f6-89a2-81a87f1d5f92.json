@@ -1,0 +1,193 @@
+{
+  "task": "T10-AUTH7-STATE-ROOT",
+  "tag": "31cc47af-3c3a-41f6-89a2-81a87f1d5f92",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-state-root-RJnbHE",
+  "tests": [
+    {
+      "name": "013 Migration RLS protection: non-admin roles and workers cannot query capture tables",
+      "passed": true
+    },
+    {
+      "name": "SecretVault keyedHmac domain separation and verification",
+      "passed": true
+    },
+    {
+      "name": "authMaterial: returns decrypted material in private memory; mode=none is rejected",
+      "passed": true
+    },
+    {
+      "name": "Full capture flow: recordAuthCriterion (gate) -> issueCaptureGrant -> beginAuthCapture CAS -> captureAuthState atomic commit",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "recordAuthCriterion rejects unpassed results and pending intents",
+      "passed": true
+    },
+    {
+      "name": "recordAuthCriterion rejects storage_state without frozen criterion and foreign snapshots",
+      "passed": true
+    },
+    {
+      "name": "captureAuthState rejects un-started grants and wrong tickets",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Session past expires_at fails captureAuthState with LEASE_EXPIRED",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Root material rejects importer purpose before decrypting",
+      "passed": true
+    },
+    {
+      "name": "Root material rejects scope context mismatch before decrypting",
+      "passed": true
+    },
+    {
+      "name": "Root begin rejects session fencing mismatch",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Root capture rejects session worker mismatch",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Root begin rejects a capture deadline expired while waiting on a profile lock",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Root capture rejects a capture deadline expired while waiting on a profile lock",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Root old success gate cannot authorize capture after another pending action",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Root capture refuses an action pending after capture begin",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Root another capture ticket cannot return a prior ticket state",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Root same-ticket replay refuses a revoked stored state",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Root same-ticket replay verifies stored historical binding",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Root same state is idempotent across a Vault key rotation with the historical key retained",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Root encryption failure rolls capture back without a granted scope",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Root failed PG state insertion rolls the whole capture transaction back",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Root exclusive capture cannot grant a state without a held profile lock",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Root generic finish cannot bypass the dedicated auth finish after capture",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Root completed actions after the success gate invalidate that gate",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Root a newer observation makes the older capture success snapshot stale",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Root concurrent capture begins execute the real CAS once",
+      "passed": false,
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR"
+    },
+    {
+      "name": "Root real RuntimeClient and auth-services reach encrypted PG capture through the actual flow; missing finish stays blocked",
+      "passed": true
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "1adf515e4bc8484faf9c668e7bfdb03d46cee20efba8cd4c1af0272f59ad19e9",
+    "volumes": [
+      "e85ca5ef8f3ba94f32d1c859301ad3d20c173a89a14fc046d5e26b96c49c155e"
+    ],
+    "pgPort": 33215,
+    "apiPort": 60716,
+    "apiPid": 27646,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "e85ca5ef8f3ba94f32d1c859301ad3d20c173a89a14fc046d5e26b96c49c155e",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 auth material, success gates, capture grants, canonical keyed HMAC and encrypted run auth state only",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 8,
+    "failed": 20
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "at": "2026-10-08T02:11:34.486415+00:00",
+  "rootIndependent": true,
+  "acceptedLocally": true,
+  "owner": "Root implemented the prepared9B module locally while both native agents remained idle and Herdr dispatch was denied",
+  "implementation": "Active-importer RuntimeClient facade → grant/prepare → full tuple/state/deadline validation → actual private port → begin CAS immediately before prepare_state → private receipt settlement; no ordinary fallback, no automatic replay",
+  "scope": "Actual worker importer and private port with explicitly Fake service and primitives, no PG/real browser/Worker.once/tick/activation allocation claim",
+  "newCases": {
+    "passed": 9,
+    "failed": 0,
+    "log": "T10-AUTH9B-controller-new-cases-final.log"
+  },
+  "affectedPureRegression": {
+    "passed": 46,
+    "failed": 0,
+    "log": "T10-AUTH9B-controller-pure-regression.log",
+    "note": "9 new importer cases +37 existing cases; overlapping checks are not coverage percentages"
+  },
+  "initialFailureEvidence": "T10-AUTH9B-controller-tests.log",
+  "fixesDuringVerification": [
+    "Validate prepared raw state before begin/effect",
+    "Map begin service denial to the limited private-port error vocabulary",
+    "Injection failures remain unknown rather than successful",
+    "Use the copied frozen proof/session when settling failure after caller mutation",
+    "Reject malformed capability/startedAt before injection"
+  ],
+  "checks": {
+    "build": "passed",
+    "typecheck": "passed",
+    "lint": "passed",
+    "log": "T10-AUTH9B-controller-lint-final.log"
+  },
+  "sourceSha256": {
+    "apps/worker/src/auth-import.ts": "8f883f6673a3a36db49b92b6f8344c95515b4b8150c7b35fb5c71f118d1b8b7c",
+    "apps/worker/test/auth-import.test.mjs": "95291872d75ed2b06310495aab074be0f3a78b994af50d716e95fb871993f23d"
+  },
+  "resources": "No persistent service/container/volume/browser/credential files created; source and Node logs retained",
+  "notVerified": [
+    "Current backend with real PG and worker import adapter",
+    "Task context allocation/activation plus Worker.once wiring",
+    "OTP/storage frozen success criterion/handoff/revoke admission",
+    "Real browser and supplier"
+  ],
+  "originalPgAcceptancePending": true,
+  "controlBlock": "Managed profile still denies Herdr and Docker; no denied operation delegated or rerouted",
+  "singleMonitorPid": 14113,
+  "secondMonitorStarted": false,
+  "browserPaused": true,
+  "P0Passed": false
+}

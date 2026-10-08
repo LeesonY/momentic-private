@@ -1,0 +1,49 @@
+{
+  "at": "2026-10-07T05:39:39.520038+00:00",
+  "rootIndependent": true,
+  "phase": "Lifecycle repair in progress",
+  "api": {
+    "originalPass": 4,
+    "originalFail": 1,
+    "originalFailureType": "PG jsonb fixture parsed twice; not product defect",
+    "latestCounterexamplePass": 7,
+    "latestCounterexampleFail": 3,
+    "evidence": "T10-LIFECYCLE-ROOT-135b0f0c-4473-44aa-8276-81fb971b7e34.json",
+    "confirmedDefects": [
+      "Recursive module divergence accepted",
+      "Same stored module SHA with divergent canonical document accepted",
+      "Visible viewer archive/restore returns404 instead of403"
+    ],
+    "trueConcurrency": "Two archive200/409 and admissionFORSHARE/blockedarchiveobserved inPG, frozenbinding preserved"
+  },
+  "ui": {
+    "originalOfflinePass": 17,
+    "rootCounterexamplesInitialFail": 10,
+    "midRepairRootPass": 10,
+    "evidence": "T10-lifecycle-controller-ui-midrepair.json",
+    "notAccepted": [
+      "Pagination/scoped delayed mutation behavior still being edited",
+      "Build/lint not yet repeated after full repair"
+    ]
+  },
+  "rootHelperFix": {
+    "moduleDepthStartingPoint": "default1 registration unchanged;0 only savedcase root",
+    "pureDepthTestsPassed": 3,
+    "priorStaticTestsPassed": 11,
+    "evidence": [
+      "T10-lifecycle-controller-depth-after.json",
+      "T10-lifecycle-controller-static-regression.json"
+    ]
+  },
+  "auth4A": {
+    "locallyAccepted": true,
+    "packageTests": 20,
+    "rootExportChecks": 5
+  },
+  "auth4B": "Read-only plan; four execution/tracing/OTP issues returned, not frozen",
+  "singleMonitorPid": 67723,
+  "secondMonitorStarted": false,
+  "browserPaused": true,
+  "P0Passed": false,
+  "overallComplete": false
+}

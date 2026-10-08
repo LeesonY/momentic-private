@@ -1,0 +1,50 @@
+{
+  "task": "T10-YAML-1",
+  "status": "completed_and_accepted",
+  "p0Accepted": false,
+  "completeAuthAccepted": false,
+  "completeT10Accepted": false,
+  "ownedCodeFiles": [
+    "apps/api/package.json",
+    "apps/api/src/yaml.ts",
+    "apps/api/src/routes/savedCases.ts",
+    "apps/api/test/t10-yaml.test.mjs"
+  ],
+  "verifiedCommands": [
+    {
+      "command": "npx --yes pnpm@10.34.0 exec prettier --check apps/api/src/yaml.ts apps/api/src/routes/savedCases.ts apps/api/test/t10-yaml.test.mjs",
+      "exitCode": 0
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 exec eslint apps/api/src/yaml.ts apps/api/src/routes/savedCases.ts apps/api/test/t10-yaml.test.mjs",
+      "exitCode": 0
+    },
+    {
+      "command": "node --check apps/api/test/t10-yaml.test.mjs",
+      "exitCode": 0
+    },
+    {
+      "command": "npx --yes pnpm@10.34.0 --filter @localqa/api typecheck",
+      "exitCode": 0
+    }
+  ],
+  "rootIndependentVerification": {
+    "testFile": "apps/api/test/t10-yaml.test.mjs",
+    "passedCount": 5,
+    "failedCount": 0,
+    "verifiedBehaviors": [
+      "Valid Chinese, variables, all 5 canonical locators (css, role, text, test_id, label), module refs roundtrip with byte-identical canonical JSON SHA",
+      "HTTP viewer authorization (403 on import, 200 on export) and cross-project 404 isolation",
+      "All parser negative cases (duplicate keys, multi-docs, dangerous keys, tags, depth, anchors, unknown fields, unknown steps, invalid version, invalid locators) cleanly mapped to 422 with zero database persistence",
+      "Quoted * and & in strings accepted without false rejection",
+      "Draft cannot be executed in regression (422) until human review approval, preserving immutable source SHA in bindings",
+      "JSON-saved document with deep semantic criterion (>32 levels) explicitly fails YAML export with 422 while retaining original stored document and SHA without truncation"
+    ]
+  },
+  "initialFailureEvidence": "docs/validation-results/T10-YAML-1-c54657b5-527f-45d2-bea0-1626d52b7ef5.json",
+  "rootPreFixEvidence": "docs/validation-results/T10-yaml-valid-source-roundtrip-pre-fix.json",
+  "limitations": [
+    "No real browser, worker-entry or external model executed",
+    "P0=false; FakeBrowser/real model acceptance remains unverified"
+  ]
+}

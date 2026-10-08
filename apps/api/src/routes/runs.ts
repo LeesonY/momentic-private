@@ -4,6 +4,7 @@ import type { Run, RunConfig, InputRequest } from '@localqa/contracts';
 import { StorageError, appendEvent, runDTO } from '@localqa/storage';
 import { DEFAULT_LIMITS, TERMINAL } from '@localqa/domain';
 import { sanitizeUserText } from '../redact.js';
+import { resolveRunAuth } from '../runAuth.js';
 import { ApiError } from '../errors.js';
 import { requireAuth } from '../auth.js';
 import { parsePagination, paginate, type Router } from '../router.js';
@@ -67,16 +68,17 @@ export function registerRunRoutes(router: Router): void {
 
     // Resolve auth profile if provided
     const authProfileId = input.authProfileId ?? defaultAuthProfileId;
-    let authProfileVersion: number | null = null;
-    if (authProfileId) {
-      const authProfile = await ctx.api.configRepo.get(
-        ctx.actor!,
-        'AuthProfile',
+    const authProfile = await ctx.api.db.actor(ctx.actor!, (client) =>
+      resolveRunAuth(
+        client,
         projectId,
         authProfileId,
-      );
-      authProfileVersion = authProfile.version;
-    }
+        input.environmentId,
+        allowedOrigins,
+        false,
+      ),
+    );
+    const authProfileVersion = authProfile?.version ?? null;
 
     // Resolve model profiles for all 5 roles
     const modelBindings = await ctx.api.db.actor(ctx.actor!, async (client) => {
@@ -163,7 +165,7 @@ export function registerRunRoutes(router: Router): void {
 
     const run = await ctx.api.coordinator.start(
       ctx.actor!,
-      input,
+      { ...input, ...(authProfile ? { authProfileId: authProfile.id } : {}) },
       runConfig,
       idempotencyKey,
     );
@@ -320,7 +322,6 @@ export function registerRunRoutes(router: Router): void {
     await requireAuth(ctx);
     const runId = ctx.params.runId!;
     const input = parseContract('MessageInput', ctx.body);
-    console.error('MSG_DEBUG in=', JSON.stringify(input));
 
     const updatedRun = await ctx.api.db.actor(ctx.actor!, async (client) => {
       const row = (
@@ -413,16 +414,27 @@ export function registerRunRoutes(router: Router): void {
             throw new StorageError('VERSION_CONFLICT');
           }
 
+          const authenticationInput =
+            currentInput.kind === 'auth_profile' ||
+            currentInput.kind === 'one_time_code';
+          if (
+            response.authProfileId !== undefined ||
+            response.oneTimeCode !== undefined ||
+            (authenticationInput &&
+              (response.decision !== 'reject' ||
+                response.text !== undefined ||
+                response.allowedOrigins !== undefined))
+          ) {
+            throw new StorageError('VALIDATION_ERROR');
+          }
+
           if (
             currentInput.kind === 'clarification' &&
             response.decision === 'provide'
           ) {
-            return ctx.api.coordinator.resolveClarification(
-              ctx.actor!,
-              projectId,
-              inputId!,
-              response.expectedVersion,
-            );
+            // The coordinator owns its transaction and rechecks the input.
+            // Do not hold this transaction's run/input locks while calling it.
+            return { clarificationProjectId: projectId };
           }
 
           const nextStatus =
@@ -449,8 +461,17 @@ export function registerRunRoutes(router: Router): void {
         },
       );
 
+      const result =
+        'clarificationProjectId' in updatedInput
+          ? await ctx.api.coordinator.resolveClarification(
+              ctx.actor!,
+              updatedInput.clarificationProjectId,
+              inputId!,
+              response.expectedVersion,
+            )
+          : updatedInput;
       ctx.res.statusCode = 200;
-      return parseContract('InputRequest', updatedInput);
+      return parseContract('InputRequest', result);
     },
   );
 }

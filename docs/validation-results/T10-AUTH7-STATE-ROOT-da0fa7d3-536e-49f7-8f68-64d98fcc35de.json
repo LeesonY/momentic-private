@@ -1,0 +1,47 @@
+{
+  "task": "T10-AUTH7-STATE-ROOT",
+  "tag": "da0fa7d3-536e-49f7-8f68-64d98fcc35de",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-state-root-4ywuQY",
+  "tests": [
+    {
+      "name": "Root production auth adapters register the actual fresh snapshot IDs and complete the real PG private flow",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Expected values to be strictly equal:\n\n0 !== 1\n"
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "a3fd2c2d1e0094750840f88af8578398889b858607a3182ea2ac29d25c1abdfd",
+    "volumes": [
+      "69eca132796d8ea0f0e3ab99d751d2c37f0d5ee269d7338ac97146b6c41e72aa"
+    ],
+    "pgPort": 33251,
+    "apiPort": 53656,
+    "apiPid": 32164,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "69eca132796d8ea0f0e3ab99d751d2c37f0d5ee269d7338ac97146b6c41e72aa",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 auth material, success gates, capture grants, canonical keyed HMAC and encrypted run auth state only",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 1
+  }
+}

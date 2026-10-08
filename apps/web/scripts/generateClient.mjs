@@ -52,8 +52,8 @@ for (const [path, methods] of Object.entries(openApi.paths)) {
   }
 }
 
-if (operations.length !== 53) {
-  throw new Error(`Expected 53 public operations, found ${operations.length}`);
+if (operations.length !== 80) {
+  throw new Error(`Expected 80 public operations, found ${operations.length}`);
 }
 
 const opNames = operations.map((op) => op.operationId);
@@ -118,9 +118,143 @@ import type {
   RunMessagePage,
   LoginInput,
   LoginResult,
+  SavedCaseYamlExport,
+  SavedCaseYamlImport,
+  SavedCaseArchiveInput,
+  SavedCaseRestoreInput,
+  SavedCaseDuplicateInput,
+  RegressionModuleCreate,
+  RegressionModuleRecord,
+  RegressionModuleRecordPage,
+  RegressionModuleReviewCommit,
+  RegressionModuleReviewPreview,
+  RegressionModuleReviewPreviewInput,
+  RegressionModuleVersion,
 } from '@localqa/contracts';
 
-export type { RunMessage, RunMessagePage };
+import type {
+  SavedCase,
+  SavedCaseCreate,
+  SavedCasePage,
+  SavedCaseVersion,
+  SavedCaseVersionCreate,
+  SavedCaseVersionPage,
+  ReviewPreview,
+  ReviewPreviewInput,
+  ReviewCommit,
+  RegressionRunCreate,
+  RegressionDocument,
+  Criterion,
+  ReplayStep,
+  Schedule,
+  ScheduleCreate,
+  SchedulePage,
+  SchedulePatch,
+  ApiKey,
+  ApiKeyCreate,
+  ApiKeyCreated,
+  ApiKeyPage,
+  CacheStats,
+  RepairProposal,
+  RepairProposalCreate,
+  RepairProposalPage,
+} from '../../../../packages/contracts/src/generated/types.ts';
+
+export type {
+  User,
+  UserCreate,
+  UserPatch,
+  UserPage,
+  Project,
+  ProjectCreate,
+  ProjectPatch,
+  ProjectPage,
+  MemberUpdate,
+  MemberPage,
+  Environment,
+  EnvironmentCreate,
+  EnvironmentPatch,
+  EnvironmentPage,
+  AuthProfile,
+  AuthProfileCreate,
+  AuthProfilePatch,
+  AuthProfilePage,
+  Knowledge,
+  KnowledgeCreate,
+  KnowledgePatch,
+  KnowledgePage,
+  ModelProfile,
+  ModelProfileCreate,
+  ModelProfilePatch,
+  ModelProfilePage,
+  ModelProbeResult,
+  Run,
+  RunCreate,
+  RunPage,
+  RunConfig,
+  BudgetOverrides,
+  MessageInput,
+  InputRequest,
+  InputResponse,
+  CaseRecord,
+  CaseRecordPage,
+  CaseAttemptPage,
+  TaskPage,
+  Step,
+  StepPage,
+  RunEventPage,
+  Finding,
+  FindingPage,
+  TriageInput,
+  TriagePreview,
+  TriageCommit,
+  Report,
+  Export,
+  ExportInput,
+  Artifact,
+  Health,
+  LoginInput,
+  LoginResult,
+  RunMessage,
+  RunMessagePage,
+  SavedCaseYamlExport,
+  SavedCaseYamlImport,
+  SavedCaseArchiveInput,
+  SavedCaseRestoreInput,
+  SavedCaseDuplicateInput,
+  RegressionModuleCreate,
+  RegressionModuleRecord,
+  RegressionModuleRecordPage,
+  RegressionModuleReviewCommit,
+  RegressionModuleReviewPreview,
+  RegressionModuleReviewPreviewInput,
+  RegressionModuleVersion,
+  SavedCase,
+  SavedCaseCreate,
+  SavedCasePage,
+  SavedCaseVersion,
+  SavedCaseVersionCreate,
+  SavedCaseVersionPage,
+  ReviewPreview,
+  ReviewPreviewInput,
+  ReviewCommit,
+  RegressionRunCreate,
+  RegressionDocument,
+  Criterion,
+  ReplayStep,
+  Schedule,
+  ScheduleCreate,
+  SchedulePage,
+  SchedulePatch,
+  ApiKey,
+  ApiKeyCreate,
+  ApiKeyCreated,
+  ApiKeyPage,
+  CacheStats,
+  RepairProposal,
+  RepairProposalCreate,
+  RepairProposalPage,
+};
 
 export type PublicOperationName =
 ${opNames.map((name) => `  | '${name}'`).join('\n')};
@@ -128,6 +262,10 @@ ${opNames.map((name) => `  | '${name}'`).join('\n')};
 export interface PaginationQuery {
   cursor?: string;
   limit?: number;
+}
+
+export interface SavedCaseListQuery extends PaginationQuery {
+  status?: 'active' | 'archived' | 'all';
 }
 
 export interface ListRunsQuery extends PaginationQuery {
@@ -253,6 +391,45 @@ export interface ApiClient {
   getArtifact(artifactId: string): Promise<Artifact>;
   healthLive(): Promise<Health>;
   healthReady(): Promise<Health>;
+
+  // Saved Cases (Case Library & Versioning)
+  listSavedCases(projectId: string, query?: SavedCaseListQuery): Promise<SavedCasePage>;
+  createSavedCase(projectId: string, input: SavedCaseCreate): Promise<SavedCase>;
+  listSavedCaseVersions(caseId: string, query?: PaginationQuery): Promise<SavedCaseVersionPage>;
+  createSavedCaseVersion(caseId: string, input: SavedCaseVersionCreate): Promise<SavedCaseVersion>;
+  previewSavedCaseReview(versionId: string, input: ReviewPreviewInput): Promise<ReviewPreview>;
+  commitSavedCaseReview(versionId: string, input: ReviewCommit): Promise<SavedCaseVersion>;
+  importSavedCaseYaml(projectId: string, input: SavedCaseYamlImport): Promise<SavedCase>;
+  exportSavedCaseYaml(versionId: string): Promise<SavedCaseYamlExport>;
+  archiveSavedCase(caseId: string, input: SavedCaseArchiveInput): Promise<SavedCase>;
+  restoreSavedCase(caseId: string, input: SavedCaseRestoreInput): Promise<SavedCase>;
+  duplicateSavedCase(caseId: string, input: SavedCaseDuplicateInput): Promise<SavedCase>;
+
+  // Regression Runs
+  createRegressionRun(input: RegressionRunCreate): Promise<Run>;
+
+  // Schedules
+  listSchedules(projectId: string, query?: PaginationQuery): Promise<SchedulePage>;
+  createSchedule(projectId: string, input: ScheduleCreate): Promise<Schedule>;
+  updateSchedule(scheduleId: string, input: SchedulePatch): Promise<Schedule>;
+  runScheduleNow(scheduleId: string): Promise<Run>;
+
+  // API Keys
+  listApiKeys(projectId: string, query?: PaginationQuery): Promise<ApiKeyPage>;
+  createApiKey(projectId: string, input: ApiKeyCreate): Promise<ApiKeyCreated>;
+  revokeApiKey(keyId: string): Promise<ApiKey>;
+
+  // Cache & Repair Proposals
+  getCacheStats(runId: string): Promise<CacheStats>;
+  listRepairProposals(caseId: string, query?: PaginationQuery): Promise<RepairProposalPage>;
+  createRepairProposal(caseId: string, input: RepairProposalCreate): Promise<RepairProposal>;
+
+  // Regression Modules (Module Management & Two-Stage Review)
+  createRegressionModule(projectId: string, input: RegressionModuleCreate): Promise<RegressionModuleRecord>;
+  listRegressionModules(projectId: string, query?: PaginationQuery): Promise<RegressionModuleRecordPage>;
+  listRegressionModuleVersions(projectId: string, moduleName: string, query?: PaginationQuery): Promise<RegressionModuleRecordPage>;
+  previewRegressionModuleReview(projectId: string, moduleName: string, version: number, input: RegressionModuleReviewPreviewInput): Promise<RegressionModuleReviewPreview>;
+  reviewRegressionModuleVersion(projectId: string, moduleName: string, version: number, input: RegressionModuleReviewCommit): Promise<RegressionModuleRecord>;
 }
 `;
 
@@ -321,6 +498,40 @@ import type {
   ListRunsQuery,
   ListEventHistoryQuery,
   CreateRunInput,
+  SavedCase,
+  SavedCaseCreate,
+  SavedCasePage,
+  SavedCaseVersion,
+  SavedCaseVersionCreate,
+  SavedCaseVersionPage,
+  ReviewPreview,
+  ReviewPreviewInput,
+  ReviewCommit,
+  SavedCaseYamlExport,
+  SavedCaseYamlImport,
+  SavedCaseArchiveInput,
+  SavedCaseRestoreInput,
+  SavedCaseDuplicateInput,
+  SavedCaseListQuery,
+  RegressionModuleCreate,
+  RegressionModuleRecord,
+  RegressionModuleRecordPage,
+  RegressionModuleReviewCommit,
+  RegressionModuleReviewPreview,
+  RegressionModuleReviewPreviewInput,
+  RegressionRunCreate,
+  Schedule,
+  ScheduleCreate,
+  SchedulePage,
+  SchedulePatch,
+  ApiKey,
+  ApiKeyCreate,
+  ApiKeyCreated,
+  ApiKeyPage,
+  CacheStats,
+  RepairProposal,
+  RepairProposalCreate,
+  RepairProposalPage,
 } from './types.ts';
 
 export class HttpApiClient implements ApiClient {
@@ -388,6 +599,18 @@ export class HttpApiClient implements ApiClient {
     }
     const qs = sp.toString();
     return qs ? \`?\${qs}\` : '';
+  }
+
+  private isSameIdentifier(a: string, b: string): boolean {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(a) && uuidRegex.test(b)) {
+      return a.toLowerCase() === b.toLowerCase();
+    }
+    const legacyA = a === 'legacy-project-mock-001' || (uuidRegex.test(a) && a.toLowerCase() === '00000000-0000-4000-8000-000000000001');
+    const legacyB = b === 'legacy-project-mock-001' || (uuidRegex.test(b) && b.toLowerCase() === '00000000-0000-4000-8000-000000000001');
+    return legacyA && legacyB;
   }
 
   // 1. login
@@ -999,6 +1222,443 @@ export class HttpApiClient implements ApiClient {
   public async healthReady(): Promise<Health> {
     return this.request<Health>('/health/ready', { method: 'GET' }, 'Health');
   }
+
+  // 53. listSavedCases
+  public async listSavedCases(projectId: string, query?: SavedCaseListQuery): Promise<SavedCasePage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    const res = await this.request<SavedCasePage>(
+      \`/projects/\${encodeURIComponent(projectId)}/saved-cases\${qs}\`,
+      { method: 'GET' },
+      'SavedCasePage',
+    );
+    for (const item of res.items) {
+      if (!this.isSameIdentifier(item.projectId, projectId)) {
+        throw new Error(\`Item project mismatch: expected \${projectId}, got \${item.projectId}\`);
+      }
+      if (query?.status && query.status !== 'all' && item.status !== query.status) {
+        throw new Error(\`Item status mismatch: expected \${query.status}, got \${item.status}\`);
+      }
+    }
+    return res;
+  }
+
+  // 54. createSavedCase
+  public async createSavedCase(projectId: string, input: SavedCaseCreate): Promise<SavedCase> {
+    return this.request<SavedCase>(
+      \`/projects/\${encodeURIComponent(projectId)}/saved-cases\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'SavedCase',
+    );
+  }
+
+  // 55. listSavedCaseVersions
+  public async listSavedCaseVersions(caseId: string, query?: PaginationQuery): Promise<SavedCaseVersionPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<SavedCaseVersionPage>(
+      \`/saved-cases/\${encodeURIComponent(caseId)}/versions\${qs}\`,
+      { method: 'GET' },
+      'SavedCaseVersionPage',
+    );
+  }
+
+  // 56. createSavedCaseVersion
+  public async createSavedCaseVersion(caseId: string, input: SavedCaseVersionCreate): Promise<SavedCaseVersion> {
+    return this.request<SavedCaseVersion>(
+      \`/saved-cases/\${encodeURIComponent(caseId)}/versions\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'SavedCaseVersion',
+    );
+  }
+
+  // 57. previewSavedCaseReview
+  public async previewSavedCaseReview(versionId: string, input: ReviewPreviewInput): Promise<ReviewPreview> {
+    return this.request<ReviewPreview>(
+      \`/saved-case-versions/\${encodeURIComponent(versionId)}/review-preview\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'ReviewPreview',
+    );
+  }
+
+  // 58. commitSavedCaseReview
+  public async commitSavedCaseReview(versionId: string, input: ReviewCommit): Promise<SavedCaseVersion> {
+    return this.request<SavedCaseVersion>(
+      \`/saved-case-versions/\${encodeURIComponent(versionId)}/review\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'SavedCaseVersion',
+    );
+  }
+
+  // 58b. importSavedCaseYaml
+  public async importSavedCaseYaml(projectId: string, input: SavedCaseYamlImport): Promise<SavedCase> {
+    return this.request<SavedCase>(
+      \`/projects/\${encodeURIComponent(projectId)}/saved-cases/import\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'SavedCase',
+    );
+  }
+
+  // 58c. exportSavedCaseYaml
+  public async exportSavedCaseYaml(versionId: string): Promise<SavedCaseYamlExport> {
+    const res = await this.request<SavedCaseYamlExport>(
+      \`/saved-case-versions/\${encodeURIComponent(versionId)}/yaml\`,
+      { method: 'GET' },
+      'SavedCaseYamlExport',
+    );
+    if (!this.isSameIdentifier(res.versionId, versionId)) {
+      throw new Error(
+        \`Exported version mismatch: expected \${versionId}, got \${res.versionId}\`,
+      );
+    }
+    return res;
+  }
+
+  // archiveSavedCase
+  public async archiveSavedCase(caseId: string, input: SavedCaseArchiveInput): Promise<SavedCase> {
+    if (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 1 || input.expectedVersion > 2147483647) {
+      throw new Error(\`expectedVersion must be an integer between 1 and 2147483647, got \${input.expectedVersion}\`);
+    }
+    const res = await this.request<SavedCase>(
+      \`/saved-cases/\${encodeURIComponent(caseId)}/archive\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'SavedCase',
+    );
+    if (!this.isSameIdentifier(res.id, caseId)) {
+      throw new Error(\`Archived case ID mismatch: expected \${caseId}, got \${res.id}\`);
+    }
+    if (res.status !== 'archived') {
+      throw new Error(\`Archived case status mismatch: expected archived, got \${res.status}\`);
+    }
+    if (res.version !== input.expectedVersion + 1) {
+      throw new Error(\`Archived case version must be exactly expectedVersion + 1, got \${res.version} (expected \${input.expectedVersion + 1})\`);
+    }
+    return res;
+  }
+
+  // restoreSavedCase
+  public async restoreSavedCase(caseId: string, input: SavedCaseRestoreInput): Promise<SavedCase> {
+    if (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 1 || input.expectedVersion > 2147483647) {
+      throw new Error(\`expectedVersion must be an integer between 1 and 2147483647, got \${input.expectedVersion}\`);
+    }
+    const res = await this.request<SavedCase>(
+      \`/saved-cases/\${encodeURIComponent(caseId)}/restore\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'SavedCase',
+    );
+    if (!this.isSameIdentifier(res.id, caseId)) {
+      throw new Error(\`Restored case ID mismatch: expected \${caseId}, got \${res.id}\`);
+    }
+    if (res.status !== 'active') {
+      throw new Error(\`Restored case status mismatch: expected active, got \${res.status}\`);
+    }
+    if (res.version !== input.expectedVersion + 1) {
+      throw new Error(\`Restored case version must be exactly expectedVersion + 1, got \${res.version} (expected \${input.expectedVersion + 1})\`);
+    }
+    return res;
+  }
+
+  // duplicateSavedCase
+  public async duplicateSavedCase(caseId: string, input: SavedCaseDuplicateInput): Promise<SavedCase> {
+    if (!input.newSlug || !/^[a-zA-Z0-9_.-]+$/.test(input.newSlug)) {
+      throw new Error(\`newSlug must match pattern ^[a-zA-Z0-9_.-]+$, got \${input.newSlug}\`);
+    }
+    if (!input.newName || input.newName.trim().length === 0) {
+      throw new Error('newName must not be empty');
+    }
+    if (!input.sourceVersionId) {
+      throw new Error('sourceVersionId is required');
+    }
+    const res = await this.request<SavedCase>(
+      \`/saved-cases/\${encodeURIComponent(caseId)}/duplicate\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'SavedCase',
+    );
+    if (this.isSameIdentifier(res.id, caseId)) {
+      throw new Error(\`Duplicated case ID must be distinct from source case ID \${caseId}\`);
+    }
+    if (input.targetProjectId && !this.isSameIdentifier(res.projectId, input.targetProjectId)) {
+      throw new Error(\`Duplicated case project ID mismatch: expected \${input.targetProjectId}, got \${res.projectId}\`);
+    }
+    if (res.slug !== input.newSlug) {
+      throw new Error(\`Duplicated case slug mismatch: expected \${input.newSlug}, got \${res.slug}\`);
+    }
+    if (res.name !== input.newName) {
+      throw new Error(\`Duplicated case name mismatch: expected \${input.newName}, got \${res.name}\`);
+    }
+    if (res.status !== 'active') {
+      throw new Error(\`Duplicated case initial status must be active, got \${res.status}\`);
+    }
+    if (res.version !== 1) {
+      throw new Error(\`Duplicated case initial version must be 1, got \${res.version}\`);
+    }
+    if (res.currentApprovedVersionId !== null) {
+      throw new Error('Duplicated case must start in draft status without approved version');
+    }
+    return res;
+  }
+
+  // 59. createRegressionRun
+  public async createRegressionRun(input: RegressionRunCreate): Promise<Run> {
+    const idempotencyKey =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : \`idemp_\${Date.now()}_\${Math.random().toString(36).slice(2)}\`;
+
+    return this.request<Run>(
+      '/regression-runs',
+      {
+        method: 'POST',
+        headers: {
+          'Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify(input),
+      },
+      'Run',
+    );
+  }
+
+  // 60. listSchedules
+  public async listSchedules(projectId: string, query?: PaginationQuery): Promise<SchedulePage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<SchedulePage>(
+      \`/projects/\${encodeURIComponent(projectId)}/schedules\${qs}\`,
+      { method: 'GET' },
+      'SchedulePage',
+    );
+  }
+
+  // 61. createSchedule
+  public async createSchedule(projectId: string, input: ScheduleCreate): Promise<Schedule> {
+    return this.request<Schedule>(
+      \`/projects/\${encodeURIComponent(projectId)}/schedules\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'Schedule',
+    );
+  }
+
+  // 62. updateSchedule
+  public async updateSchedule(scheduleId: string, input: SchedulePatch): Promise<Schedule> {
+    return this.request<Schedule>(
+      \`/schedules/\${encodeURIComponent(scheduleId)}\`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+      'Schedule',
+    );
+  }
+
+  // 63. runScheduleNow
+  public async runScheduleNow(scheduleId: string): Promise<Run> {
+    return this.request<Run>(
+      \`/schedules/\${encodeURIComponent(scheduleId)}/run-now\`,
+      { method: 'POST' },
+      'Run',
+    );
+  }
+
+  // 64. listApiKeys
+  public async listApiKeys(projectId: string, query?: PaginationQuery): Promise<ApiKeyPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<ApiKeyPage>(
+      \`/projects/\${encodeURIComponent(projectId)}/api-keys\${qs}\`,
+      { method: 'GET' },
+      'ApiKeyPage',
+    );
+  }
+
+  // 65. createApiKey
+  public async createApiKey(projectId: string, input: ApiKeyCreate): Promise<ApiKeyCreated> {
+    return this.request<ApiKeyCreated>(
+      \`/projects/\${encodeURIComponent(projectId)}/api-keys\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'ApiKeyCreated',
+    );
+  }
+
+  // 66. revokeApiKey
+  public async revokeApiKey(keyId: string): Promise<ApiKey> {
+    return this.request<ApiKey>(
+      \`/api-keys/\${encodeURIComponent(keyId)}/revoke\`,
+      { method: 'POST' },
+      'ApiKey',
+    );
+  }
+
+  // 67. getCacheStats
+  public async getCacheStats(runId: string): Promise<CacheStats> {
+    return this.request<CacheStats>(
+      \`/runs/\${encodeURIComponent(runId)}/cache-stats\`,
+      { method: 'GET' },
+      'CacheStats',
+    );
+  }
+
+  // 68. listRepairProposals
+  public async listRepairProposals(caseId: string, query?: PaginationQuery): Promise<RepairProposalPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<RepairProposalPage>(
+      \`/saved-cases/\${encodeURIComponent(caseId)}/repair-proposals\${qs}\`,
+      { method: 'GET' },
+      'RepairProposalPage',
+    );
+  }
+
+  // 69. createRepairProposal
+  public async createRepairProposal(caseId: string, input: RepairProposalCreate): Promise<RepairProposal> {
+    return this.request<RepairProposal>(
+      \`/saved-cases/\${encodeURIComponent(caseId)}/repair-proposals\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'RepairProposal',
+    );
+  }
+
+  // 70. createRegressionModule
+  public async createRegressionModule(
+    projectId: string,
+    input: RegressionModuleCreate,
+  ): Promise<RegressionModuleRecord> {
+    const res = await this.request<RegressionModuleRecord>(
+      \`/projects/\${encodeURIComponent(projectId)}/regression-modules\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'RegressionModuleRecord',
+    );
+    if (!this.isSameIdentifier(res.projectId, projectId) || res.name !== input.name) {
+      throw new Error(
+        \`Created module mismatch: expected \${projectId}/\${input.name}, got \${res.projectId}/\${res.name}\`,
+      );
+    }
+    return res;
+  }
+
+  // 71. listRegressionModules
+  public async listRegressionModules(
+    projectId: string,
+    query?: PaginationQuery,
+  ): Promise<RegressionModuleRecordPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<RegressionModuleRecordPage>(
+      \`/projects/\${encodeURIComponent(projectId)}/regression-modules\${qs}\`,
+      { method: 'GET' },
+      'RegressionModuleRecordPage',
+    );
+  }
+
+  // 72. listRegressionModuleVersions
+  public async listRegressionModuleVersions(
+    projectId: string,
+    moduleName: string,
+    query?: PaginationQuery,
+  ): Promise<RegressionModuleRecordPage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<RegressionModuleRecordPage>(
+      \`/projects/\${encodeURIComponent(projectId)}/regression-modules/\${encodeURIComponent(moduleName)}/versions\${qs}\`,
+      { method: 'GET' },
+      'RegressionModuleRecordPage',
+    );
+  }
+
+  // 73. previewRegressionModuleReview
+  public async previewRegressionModuleReview(
+    projectId: string,
+    moduleName: string,
+    version: number,
+    input: RegressionModuleReviewPreviewInput,
+  ): Promise<RegressionModuleReviewPreview> {
+    if (!Number.isInteger(version) || version < 1 || version > 2147483647) {
+      throw new Error(
+        \`Invalid module version: must be a positive integer between 1 and 2147483647, got \${version}\`,
+      );
+    }
+    const res = await this.request<RegressionModuleReviewPreview>(
+      \`/projects/\${encodeURIComponent(projectId)}/regression-modules/\${encodeURIComponent(moduleName)}/versions/\${encodeURIComponent(String(version))}/review-preview\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'RegressionModuleReviewPreview',
+    );
+    if (!this.isSameIdentifier(res.projectId, projectId) || res.moduleName !== moduleName || res.version !== version) {
+      throw new Error(
+        \`Preview response target mismatch: expected \${projectId}/\${moduleName}@v\${version}, got \${res.projectId}/\${res.moduleName}@v\${res.version}\`,
+      );
+    }
+    if (res.decision !== input.decision || res.reason !== input.reason) {
+      throw new Error(
+        \`Preview response review criteria mismatch: expected decision=\${input.decision}, reason=\${input.reason}, got decision=\${res.decision}, reason=\${res.reason}\`,
+      );
+    }
+    return res;
+  }
+
+  // 74. reviewRegressionModuleVersion
+  public async reviewRegressionModuleVersion(
+    projectId: string,
+    moduleName: string,
+    version: number,
+    input: RegressionModuleReviewCommit,
+  ): Promise<RegressionModuleRecord> {
+    if (!Number.isInteger(version) || version < 1 || version > 2147483647) {
+      throw new Error(
+        \`Invalid module version: must be a positive integer between 1 and 2147483647, got \${version}\`,
+      );
+    }
+    const res = await this.request<RegressionModuleRecord>(
+      \`/projects/\${encodeURIComponent(projectId)}/regression-modules/\${encodeURIComponent(moduleName)}/versions/\${encodeURIComponent(String(version))}/review\`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      'RegressionModuleRecord',
+    );
+    if (!this.isSameIdentifier(res.projectId, projectId) || res.name !== moduleName || res.version !== version) {
+      throw new Error(
+        \`Reviewed module mismatch: expected \${projectId}/\${moduleName}@v\${version}, got \${res.projectId}/\${res.name}@v\${res.version}\`,
+      );
+    }
+    const expectedStatus = input.decision === 'approve' ? 'approved' : 'rejected';
+    if (res.reviewStatus !== expectedStatus) {
+      throw new Error(
+        \`Reviewed module status mismatch: expected \${expectedStatus}, got \${res.reviewStatus}\`,
+      );
+    }
+    return res;
+  }
 }
 `;
 
@@ -1021,12 +1681,12 @@ if (checkMode) {
     );
   }
   console.log(
-    'Contract check passed: 53 public operations in sync with openapi.json',
+    'Contract check passed: 80 public operations in sync with openapi.json',
   );
 } else {
   await writeFile(targetTypes, typesContent, 'utf8');
   await writeFile(targetClient, clientContent, 'utf8');
   console.log(
-    'Successfully generated apps/web/src/api/types.ts and apps/web/src/api/client.ts (53 operations).',
+    'Successfully generated apps/web/src/api/types.ts and apps/web/src/api/client.ts (80 operations).',
   );
 }

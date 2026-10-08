@@ -1,11 +1,20 @@
 import React from 'react';
 
-interface PhaseProgressProps {
-  currentPhase: string;
-  status: string;
+export interface PhaseStepState {
+  key: string;
+  name: string;
+  stateClass: 'completed' | 'active' | 'failed' | 'cancelled' | 'skipped' | '';
+  isCompleted: boolean;
+  label: string;
 }
 
-const PHASES = [
+export interface PhaseProgressProps {
+  currentPhase: string;
+  status: string;
+  executionMode?: 'smoke' | 'regression';
+}
+
+export const PHASES = [
   { key: 'preflight', name: '1. 预检 (Preflight)' },
   { key: 'auth', name: '2. 认证 (Auth)' },
   { key: 'explore', name: '3. 探索 (Explore)' },
@@ -15,16 +24,103 @@ const PHASES = [
   { key: 'finalize', name: '7. 报告 (Finalize)' },
 ];
 
+/**
+ * Pure helper to compute phase states according to actual execution and termination.
+ * Guarantees:
+ * - When status is cancelled/failed, phases subsequent to the termination phase are NEVER marked completed.
+ * - In regression mode, explore and plan phases are skipped and NEVER claimed as completed.
+ * - When queued, zero phases are marked active or completed.
+ */
+export function computePhaseTimeline({
+  currentPhase = '',
+  status = '',
+  executionMode = 'smoke',
+}: {
+  currentPhase?: string;
+  status?: string;
+  executionMode?: 'smoke' | 'regression';
+}): PhaseStepState[] {
+  const normStatus = (status || '').toLowerCase();
+  const normPhase = (currentPhase || '').toLowerCase();
+  const isQueued = normStatus === 'queued';
+  const isFailed = normStatus === 'failed';
+  const isCancelled =
+    normStatus === 'cancelled' || normStatus === 'interrupted';
+  const isCompleted = normStatus === 'completed';
+  const isRegression = executionMode === 'regression';
+
+  const currentIndex = isQueued
+    ? -1
+    : PHASES.findIndex((p) => p.key === normPhase);
+
+  return PHASES.map((p, idx) => {
+    const isRegressionSkipped =
+      isRegression && (p.key === 'explore' || p.key === 'plan');
+
+    let stateClass:
+      'completed' | 'active' | 'failed' | 'cancelled' | 'skipped' | '';
+    let isPhaseCompleted: boolean;
+
+    if (isQueued) {
+      // Queued: no phases started
+      stateClass = '';
+      isPhaseCompleted = false;
+    } else if (isRegressionSkipped) {
+      // In regression mode, exploration and planning are skipped (approved cases used directly)
+      stateClass = 'skipped';
+      isPhaseCompleted = false;
+    } else if (isCompleted) {
+      // Completed run: all non-skipped phases are completed
+      stateClass = 'completed';
+      isPhaseCompleted = true;
+    } else if (currentIndex === -1) {
+      stateClass = '';
+      isPhaseCompleted = false;
+    } else if (idx < currentIndex) {
+      // Executed prior phases
+      stateClass = 'completed';
+      isPhaseCompleted = true;
+    } else if (idx === currentIndex) {
+      // Terminating or active phase
+      if (isFailed) {
+        stateClass = 'failed';
+        isPhaseCompleted = false;
+      } else if (isCancelled) {
+        stateClass = 'cancelled';
+        isPhaseCompleted = false;
+      } else {
+        stateClass = 'active';
+        isPhaseCompleted = false;
+      }
+    } else {
+      // Subsequent unreached phases: NEVER completed when cancelled, failed, or running
+      stateClass = '';
+      isPhaseCompleted = false;
+    }
+
+    const displayName = isRegressionSkipped ? `${p.name} [跳过]` : p.name;
+
+    return {
+      key: p.key,
+      name: displayName,
+      stateClass,
+      isCompleted: isPhaseCompleted,
+      label: p.name,
+    };
+  });
+}
+
 export const PhaseProgress: React.FC<PhaseProgressProps> = ({
   currentPhase,
   status,
+  executionMode = 'smoke',
 }) => {
-  const currentIndex = PHASES.findIndex(
-    (p) => p.key === currentPhase.toLowerCase(),
-  );
-  const isTerminated = ['completed', 'cancelled', 'failed'].includes(
-    status.toLowerCase(),
-  );
+  const isQueued = status.toLowerCase() === 'queued';
+  const timeline = computePhaseTimeline({
+    currentPhase,
+    status,
+    executionMode,
+  });
 
   return (
     <div
@@ -50,24 +146,24 @@ export const PhaseProgress: React.FC<PhaseProgressProps> = ({
           运行生命周期阶段推进 (Phase Timeline)
         </span>
         <span style={{ fontSize: '0.8rem', color: 'var(--color-text-subtle)' }}>
-          当前阶段: <strong>{currentPhase.toUpperCase()}</strong> ({status})
+          当前阶段:{' '}
+          <strong>
+            {isQueued ? 'QUEUED (排队等待Worker)' : currentPhase.toUpperCase()}
+          </strong>{' '}
+          ({status}
+          {executionMode === 'regression' ? ' · 回归模式' : ''})
         </span>
       </div>
 
       <div className="phase-bar">
-        {PHASES.map((p, idx) => {
-          let stateClass = '';
-          if (isTerminated || idx < currentIndex) {
-            stateClass = 'completed';
-          } else if (idx === currentIndex) {
-            stateClass = 'active';
-          }
-
+        {timeline.map((p) => {
           return (
             <div
               key={p.key}
-              className={`phase-item ${stateClass}`}
+              className={`phase-item ${p.stateClass}`.trim()}
               data-testid={`phase-step-${p.key}`}
+              data-phase-completed={p.isCompleted}
+              data-phase-state={p.stateClass || 'pending'}
             >
               <span>{p.name}</span>
             </div>

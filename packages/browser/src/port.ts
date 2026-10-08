@@ -1,5 +1,7 @@
 import type {
   ToolCall,
+  Locator,
+  NodeTarget,
   ToolResult,
   BrowserSnapshot,
   Artifact,
@@ -29,6 +31,10 @@ export interface BrowserSession {
    * Captures the current fresh BrowserSnapshot of the active page.
    */
   getSnapshot(options?: { forceFresh?: boolean }): Promise<BrowserSnapshot>;
+  resolveRegressionLocator?(
+    locator: Locator,
+    signal?: AbortSignal,
+  ): Promise<NodeTarget>;
 
   /**
    * Captures a screenshot artifact with sensitive data redacted.

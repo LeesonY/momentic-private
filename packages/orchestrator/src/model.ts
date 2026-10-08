@@ -12,7 +12,10 @@ import {
   renderPrompt,
   renderAssertionPrompt,
   DECISION_SCHEMA,
+  toolSchemasForRole,
+  type AgentRole,
 } from '@localqa/agents';
+import type { Criterion, ModelRequest, RoleModels } from '@localqa/contracts';
 import {
   StorageError,
   type WorkerScope,
@@ -26,11 +29,29 @@ export interface ModelOptions {
   allowTestStub?: boolean;
   profile: (id: string, version: number) => Promise<GatewayProfile>;
   decryptKey: (id: string, ciphertext: string) => string;
+  /**
+   * Reads one image whose row was already limited to this project, run, and task.
+   * Absent means an image cannot be approved.
+   */
+  readApprovedImage?: (input: {
+    projectId: string;
+    runId: string;
+    artifactId: string;
+    sha256: string;
+    byteLength: number;
+  }) => Promise<{ mediaType: 'image/png' | 'image/jpeg'; bytes: Uint8Array }>;
 }
 export type DecisionPayload = Pick<
   CallInput,
   'purpose' | 'messages' | 'outputSchema' | 'maxOutputTokens'
 >;
+export function roleToolSchemas(
+  role: AgentRoleName,
+): { name: string; parameters: Record<string, unknown> }[] {
+  if (role === 'assertion') return [];
+  return toolSchemasForRole(role as AgentRole);
+}
+
 const ALLOWED: Record<string, readonly AgentRoleName[]> = {
   coordinator: ['coordinator', 'planner'],
   explorer: ['explorer'],
@@ -38,41 +59,132 @@ const ALLOWED: Record<string, readonly AgentRoleName[]> = {
   reproducer: ['reproducer', 'assertion'],
   finalizer: ['finalizer'],
 };
+
+/** Lease job role plus purpose selects one frozen binding. Assertion is its own binding. */
+export function frozenModelSelection(
+  jobRole: string,
+  purpose: DecisionPayload['purpose'],
+): { role: AgentRoleName; binding: keyof RoleModels } {
+  if (purpose === 'assert') {
+    if (jobRole !== 'executor' && jobRole !== 'reproducer')
+      throw new StorageError('FORBIDDEN');
+    return { role: 'assertion', binding: 'assertion' };
+  }
+  if (purpose === 'plan') {
+    if (jobRole !== 'coordinator') throw new StorageError('FORBIDDEN');
+    return { role: 'planner', binding: 'coordinator' };
+  }
+  if (purpose === 'summarize') {
+    if (jobRole !== 'finalizer') throw new StorageError('FORBIDDEN');
+    return { role: 'finalizer', binding: 'coordinator' };
+  }
+  if (purpose !== 'decide') throw new StorageError('VALIDATION_ERROR');
+  if (jobRole === 'coordinator')
+    return { role: 'coordinator', binding: 'coordinator' };
+  if (jobRole === 'explorer') return { role: 'explorer', binding: 'explorer' };
+  if (jobRole === 'executor') return { role: 'executor', binding: 'executor' };
+  if (jobRole === 'reproducer')
+    return { role: 'reproducer', binding: 'reproducer' };
+  throw new StorageError('FORBIDDEN');
+}
+/** Stored fields only. Extra document keys are dropped; messages are not a source. */
+function canonicalCriterion(value: unknown): Criterion | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  const candidate: Record<string, unknown> = {
+    id: row['id'],
+    kind: row['kind'],
+    description: row['description'],
+    sourceKind: row['sourceKind'],
+    sourceRef: row['sourceRef'],
+  };
+  if (row['locator'] !== undefined) candidate['locator'] = row['locator'];
+  if (row['expectedValue'] !== undefined)
+    candidate['expectedValue'] = row['expectedValue'];
+  const checked = validateContract('Criterion', candidate);
+  return checked.success ? checked.data : null;
+}
+
+const IMAGE_BYTE_LIMIT = 25 * 1024 * 1024;
+
+interface ApprovedImageClaim {
+  id: string;
+  sha256: string;
+  byteLength: number;
+}
+
+interface FrozenCall {
+  profile: GatewayProfile;
+  evidence: string[];
+  criterion: Criterion | null;
+  role: AgentRoleName;
+  runId: string;
+  images: ApprovedImageClaim[];
+}
+
+function imageArtifactIds(
+  messages: readonly {
+    content: readonly { type: string; artifactId?: string }[];
+  }[],
+): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const message of messages) {
+    for (const part of message.content) {
+      if (part.type !== 'image' || typeof part.artifactId !== 'string')
+        continue;
+      if (seen.has(part.artifactId)) continue;
+      seen.add(part.artifactId);
+      ids.push(part.artifactId);
+    }
+  }
+  return ids;
+}
+
 export class BoundModel {
   constructor(
     private coordinator: Coordinator,
     private scope: WorkerScope,
     private options: ModelOptions,
   ) {}
-  async call(
+
+  /**
+   * Lease, grant, and model_requests wrapper shared by worker decisions and HTTP complete.
+   * criterionId is legal only for purpose assert. It must match a criterion on the current
+   * lease job's frozen RunCase in this project. Messages are not an id source.
+   */
+  private async loadFrozen(
     proof: LeaseProof,
-    role: AgentRoleName,
-    payload: DecisionPayload,
+    purpose: DecisionPayload['purpose'],
+    expectedRole?: AgentRoleName,
     criterionId?: string,
-    signal?: AbortSignal,
-  ): Promise<CallRecord> {
-    const allowed = new Set([
-      'purpose',
-      'messages',
-      'outputSchema',
-      'maxOutputTokens',
-    ]);
-    if (Object.keys(payload).some((key) => !allowed.has(key)))
-      throw new StorageError('VALIDATION_ERROR');
-    const bound = await this.coordinator.tx(async (client) => {
+    requestedProfileId?: string,
+    messages: readonly {
+      content: readonly { type: string; artifactId?: string }[];
+    }[] = [],
+  ): Promise<FrozenCall> {
+    return this.coordinator.tx(async (client) => {
       const { job, run } = await this.coordinator.validateLease(
         client,
         this.scope,
         proof,
       );
-      if (!ALLOWED[job.role]?.includes(role))
+      if (expectedRole && !ALLOWED[job.role]?.includes(expectedRole))
         throw new StorageError('FORBIDDEN');
-      const binding =
-        run.effectiveConfig.models[
-          role === 'planner' || role === 'finalizer'
-            ? 'coordinator'
-            : (role as keyof typeof run.effectiveConfig.models)
-        ];
+      const selected = frozenModelSelection(job.role, purpose);
+      if (expectedRole && selected.role !== expectedRole)
+        throw new StorageError('FORBIDDEN');
+      if (!expectedRole && !ALLOWED[job.role]?.includes(selected.role))
+        throw new StorageError('FORBIDDEN');
+      const binding = run.effectiveConfig.models[selected.binding];
+      if (requestedProfileId && requestedProfileId !== binding.profileId)
+        throw new StorageError('MODEL_NOT_CONFIGURED');
+      // A requested profile mismatch stays MODEL_NOT_CONFIGURED. After that,
+      // criterionId is rejected unless this call is an assert.
+      if (purpose !== 'assert' && criterionId !== undefined)
+        throw new StorageError('VALIDATION_ERROR');
+      if (purpose === 'assert' && !criterionId)
+        throw new StorageError('VALIDATION_ERROR');
       const profile = await this.options.profile(
         binding.profileId,
         binding.version,
@@ -89,55 +201,133 @@ export class BoundModel {
         )
       ).rows[0];
       if (!row) throw new StorageError('NOT_FOUND');
+      const frozenFormat = row.document.responseFormat ?? 'json_schema';
       if (
         profile.configuredModelId !== row.document.configuredModelId ||
         profile.endpoint !== row.document.endpoint ||
+        (profile.responseFormat ?? 'json_schema') !== frozenFormat ||
         (profile.kind === 'stub' && !this.options.allowTestStub) ||
         (profile.kind !== 'stub' &&
           !['ready', 'degraded'].includes(row.document.status))
       )
         throw new StorageError('MODEL_NOT_CONFIGURED');
-      const definition = job.case_id
-        ? (
-            await client.query(
-              'SELECT document FROM run_cases WHERE project_id=$1 AND id=$2',
-              [this.scope.projectId, job.case_id],
-            )
-          ).rows[0]?.document
-        : null;
-      const criterion = criterionId
-        ? definition?.criteria.find((c: { id: string }) => c.id === criterionId)
-        : null;
-      if (criterionId && !criterion) throw new StorageError('NOT_FOUND');
+      let found: Criterion | null = null;
+      if (purpose === 'assert') {
+        const definition = job.case_id
+          ? (
+              await client.query(
+                'SELECT document FROM run_cases WHERE project_id=$1 AND id=$2 AND frozen',
+                [this.scope.projectId, job.case_id],
+              )
+            ).rows[0]?.document
+          : null;
+        const criteria = Array.isArray(definition?.criteria)
+          ? definition.criteria
+          : [];
+        const match = criteria.find(
+          (item: { id?: string }) => item?.id === criterionId,
+        );
+        found = canonicalCriterion(match);
+        if (!found) throw new StorageError('NOT_FOUND');
+      }
       const evidence = (
         await client.query(
           'SELECT id FROM artifacts WHERE project_id=$1 AND task_id=$2',
           [this.scope.projectId, job.id],
         )
-      ).rows.map((row) => row.id as string);
-      return { profile, evidence, criterion };
+      ).rows.map((item: { id: string }) => item.id);
+      const imageIds = imageArtifactIds(messages);
+      const images: ApprovedImageClaim[] = [];
+      if (imageIds.length > 0) {
+        if (profile.capabilities.imageInput !== true)
+          throw new StorageError('MODEL_CAPABILITY_MISSING');
+        if (!this.options.readApprovedImage)
+          throw new StorageError('MODEL_NOT_CONFIGURED');
+        for (const artifactId of imageIds) {
+          const document = (
+            await client.query(
+              'SELECT document FROM artifacts WHERE project_id=$1 AND run_id=$2 AND task_id=$3 AND id=$4',
+              [this.scope.projectId, job.run_id, job.id, artifactId],
+            )
+          ).rows[0]?.document as Record<string, unknown> | undefined;
+          if (!document || document['status'] !== 'available')
+            throw new StorageError('NOT_FOUND');
+          // The row columns already select this project, run, and task. The
+          // stored metadata must name that same scope before hash or disk.
+          if (
+            document['id'] !== artifactId ||
+            document['projectId'] !== this.scope.projectId ||
+            document['runId'] !== job.run_id ||
+            document['taskId'] !== job.id
+          )
+            throw new StorageError('NOT_FOUND');
+          const redaction = document['redaction'];
+          if (redaction !== 'applied' && redaction !== 'not_needed')
+            throw new StorageError('VALIDATION_ERROR');
+          const byteLength = document['bytes'];
+          const sha256 = document['sha256'];
+          if (
+            typeof byteLength !== 'number' ||
+            !Number.isInteger(byteLength) ||
+            byteLength < 1 ||
+            typeof sha256 !== 'string' ||
+            !/^[a-f0-9]{64}$/i.test(sha256)
+          )
+            throw new StorageError('VALIDATION_ERROR');
+          if (byteLength > IMAGE_BYTE_LIMIT)
+            throw new StorageError('ARTIFACT_TOO_LARGE');
+          images.push({
+            id: artifactId,
+            sha256: sha256.toLowerCase(),
+            byteLength,
+          });
+        }
+      }
+      return {
+        profile,
+        evidence,
+        criterion: found,
+        role: selected.role,
+        runId: job.run_id,
+        images,
+      };
     });
-    let budgetDenied = false;
-    if (
-      !validateContract('ModelRequest', {
-        ...payload,
-        taskId: proof.taskId,
-        profileId: bound.profile.id,
-        contextVersion: proof.contextVersion,
-      }).success
-    )
-      throw new StorageError('VALIDATION_ERROR');
-    if (
-      payload.purpose !==
-      (role === 'assertion'
-        ? 'assert'
-        : role === 'planner'
-          ? 'plan'
-          : role === 'finalizer'
-            ? 'summarize'
-            : 'decide')
-    )
-      throw new StorageError('VALIDATION_ERROR');
+  }
+
+  private async materializeImages(
+    bound: FrozenCall,
+  ): Promise<
+    Map<string, { mediaType: 'image/png' | 'image/jpeg'; bytes: Uint8Array }>
+  > {
+    const ready = new Map<
+      string,
+      { mediaType: 'image/png' | 'image/jpeg'; bytes: Uint8Array }
+    >();
+    if (bound.images.length === 0) return ready;
+    const reader = this.options.readApprovedImage;
+    if (!reader) throw new StorageError('MODEL_NOT_CONFIGURED');
+    for (const image of bound.images) {
+      ready.set(
+        image.id,
+        await reader({
+          projectId: this.scope.projectId,
+          runId: bound.runId,
+          artifactId: image.id,
+          sha256: image.sha256,
+          byteLength: image.byteLength,
+        }),
+      );
+    }
+    return ready;
+  }
+
+  private budgetAdapter(
+    proof: LeaseProof,
+    role: AgentRoleName,
+    profile: GatewayProfile,
+    budgetDenied: { current: boolean },
+    signal?: AbortSignal,
+  ): ProviderAdapter {
     const metadata = new WeakMap<
       object,
       { inputTokens: number; maxOutputTokens: number }
@@ -145,7 +335,7 @@ export class BoundModel {
     const delegate = this.options.adapter;
     const coordinator = this.coordinator;
     const scope = this.scope;
-    const budgeted: ProviderAdapter = {
+    return {
       kind: delegate.kind,
       version: delegate.version,
       build(input) {
@@ -190,8 +380,8 @@ export class BoundModel {
                 r.id,
                 {
                   role,
-                  profileId: bound.profile.id,
-                  profileVersion: bound.profile.version,
+                  profileId: profile.id,
+                  profileVersion: profile.version,
                   usageSource: 'unknown',
                 },
               ],
@@ -203,7 +393,7 @@ export class BoundModel {
               error instanceof StorageError &&
               error.code === 'BUDGET_EXCEEDED'
             )
-              budgetDenied = true;
+              budgetDenied.current = true;
             throw error;
           });
         try {
@@ -271,10 +461,77 @@ export class BoundModel {
         }
       },
     };
+  }
+
+  private async finish(
+    proof: LeaseProof,
+    budgetDenied: { current: boolean },
+    record: CallRecord,
+  ): Promise<CallRecord> {
+    if (budgetDenied.current) throw new StorageError('BUDGET_EXCEEDED');
+    // Model output cannot dispatch itself; authority is rechecked after the awaited provider.
+    await this.coordinator.tx((client) =>
+      this.coordinator.validateLease(client, this.scope, proof),
+    );
+    return record;
+  }
+
+  async call(
+    proof: LeaseProof,
+    role: AgentRoleName,
+    payload: DecisionPayload,
+    criterionId?: string,
+    signal?: AbortSignal,
+  ): Promise<CallRecord> {
+    const allowed = new Set([
+      'purpose',
+      'messages',
+      'outputSchema',
+      'maxOutputTokens',
+    ]);
+    if (Object.keys(payload).some((key) => !allowed.has(key)))
+      throw new StorageError('VALIDATION_ERROR');
+    const bound = await this.loadFrozen(
+      proof,
+      payload.purpose,
+      role,
+      criterionId,
+      undefined,
+      payload.messages,
+    );
+    if (
+      !validateContract('ModelRequest', {
+        ...payload,
+        taskId: proof.taskId,
+        profileId: bound.profile.id,
+        contextVersion: proof.contextVersion,
+      }).success
+    )
+      throw new StorageError('VALIDATION_ERROR');
+    if (
+      payload.purpose !==
+      (role === 'assertion'
+        ? 'assert'
+        : role === 'planner'
+          ? 'plan'
+          : role === 'finalizer'
+            ? 'summarize'
+            : 'decide')
+    )
+      throw new StorageError('VALIDATION_ERROR');
+    const images = await this.materializeImages(bound);
+    const budgetDenied = { current: false };
     const gateway = createGateway({
       profiles: [bound.profile],
       decryptKey: this.options.decryptKey,
-      adapter: budgeted,
+      resolveArtifact: (artifactId) => images.get(artifactId) ?? null,
+      adapter: this.budgetAdapter(
+        proof,
+        role,
+        bound.profile,
+        budgetDenied,
+        signal,
+      ),
     });
     const prompt =
       role === 'assertion' ? renderAssertionPrompt() : renderPrompt(role);
@@ -285,31 +542,62 @@ export class BoundModel {
       contextVersion: proof.contextVersion,
       role,
       promptVersion: prompt.version,
-      approvedImageIds: [],
-      toolSchemas:
-        role === 'assertion'
-          ? []
-          : renderPrompt(role).allowedTools.map((name) => ({
-              name,
-              parameters: { type: 'object' },
-            })),
+      approvedImageIds: bound.images.map((image) => image.id),
+      toolSchemas: roleToolSchemas(role),
       timeoutMs: 1000,
       maxInputTokens: 4000,
       knownEvidenceIds: bound.evidence,
-      ...(bound.criterion
-        ? { criterion: { id: bound.criterion.id, kind: bound.criterion.kind } }
-        : {}),
+      ...(bound.criterion ? { criterion: bound.criterion } : {}),
     };
     const record =
       role === 'assertion'
         ? await gateway.evaluateCriterion(input)
         : await gateway.generateDecision(input);
-    if (budgetDenied) throw new StorageError('BUDGET_EXCEEDED');
-    // Model output cannot dispatch itself; authority is rechecked after the awaited provider.
-    await this.coordinator.tx((client) =>
-      this.coordinator.validateLease(client, this.scope, proof),
+    return this.finish(proof, budgetDenied, record);
+  }
+
+  async complete(
+    proof: LeaseProof,
+    request: ModelRequest,
+    signal?: AbortSignal,
+  ): Promise<CallRecord> {
+    if (
+      request.taskId !== proof.taskId ||
+      request.contextVersion !== proof.contextVersion
+    )
+      throw new StorageError('VALIDATION_ERROR');
+    const bound = await this.loadFrozen(
+      proof,
+      request.purpose,
+      undefined,
+      request.criterionId,
+      request.profileId,
+      request.messages,
     );
-    return record;
+    const images = await this.materializeImages(bound);
+    const budgetDenied = { current: false };
+    const gateway = createGateway({
+      profiles: [bound.profile],
+      decryptKey: this.options.decryptKey,
+      resolveArtifact: (artifactId) => images.get(artifactId) ?? null,
+      adapter: this.budgetAdapter(
+        proof,
+        bound.role,
+        bound.profile,
+        budgetDenied,
+        signal,
+      ),
+    });
+    const record = await gateway.complete(request, {
+      role: bound.role,
+      promptVersion: '1.0',
+      approvedImageIds: bound.images.map((image) => image.id),
+      toolSchemas: roleToolSchemas(bound.role),
+      timeoutMs: 30000,
+      knownEvidenceIds: bound.evidence,
+      ...(bound.criterion ? { criterion: bound.criterion } : {}),
+    });
+    return this.finish(proof, budgetDenied, record);
   }
 }
 export { DECISION_SCHEMA };

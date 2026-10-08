@@ -1,0 +1,56 @@
+// Root actual HTTP action-result boundary checks, no browser/provider execution.
+async function ownPendingAction() {
+  const run = await request('/runs', { projectId: project.id, targetUrl: 'http://localhost:8080/' });
+  assert.equal(run.status, 202, JSON.stringify(run.body));
+  const scope = { projectId: project.id, workerId: `root-action-http-${randomUUID()}` };
+  const lease = await context.coordinator.claim(scope);
+  assert.ok(lease);
+  // Owned fixture changes role only so navigate is permitted without a browser.
+  await superuserQuery("UPDATE jobs SET role='explorer' WHERE id=$1", [lease.task.id]);
+  const proof = { taskId: lease.task.id, leaseToken: lease.leaseToken, fencingToken: lease.fencingToken, contextVersion: lease.contextVersion };
+  const grant = await context.coordinator.grantAction(scope, proof, { name: 'navigate', args: { url: 'http://localhost:8080/' } });
+  return { scope, proof, grant };
+}
+async function actionState(item) {
+  return (await superuserQuery(`SELECT i.outcome,i.result_hash,r.status AS reservation_status,r.charged,s.document->>'status' AS step_status,s.document->>'summary' AS step_summary
+    FROM action_intents i JOIN budget_reservations r ON r.id=i.reservation_id JOIN steps s ON s.action_id=i.id WHERE i.id=$1`, [item.grant.id])).rows[0];
+}
+async function resultHttp(item, overrides = {}, outcome = 'succeeded', summary = 'Owned synthetic result') {
+  const response = await fetch(`${url}/internal/v1/actions/${item.grant.id}/result`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Lease-Token': item.proof.leaseToken, 'X-Worker-Id': item.scope.workerId, 'X-Fencing-Token': String(item.proof.fencingToken), 'X-Context-Version': String(item.proof.contextVersion), ...overrides },
+    body: JSON.stringify({ outcome, summary, evidenceRefs: [], resultHash: hashPayload({ outcome, summary, evidenceRefs: [] }) }),
+  });
+  return { status: response.status, body: await response.json() };
+}
+test('Root: invalid caller token and worker cannot write an action result', async () => {
+  const item = await ownPendingAction();
+  const before = await actionState(item);
+  const response = await resultHttp(item, { 'X-Lease-Token': randomUUID(), 'X-Worker-Id': 'wrong-worker', 'X-Fencing-Token': String(item.proof.fencingToken + 1), 'X-Context-Version': String(item.proof.contextVersion + 1) });
+  const after = await actionState(item);
+  facts.invalidProof = { status: response.status, before, after };
+  assert.notEqual(response.status, 200, 'A nonempty token is not a validated current lease');
+  assert.deepEqual(after, before);
+});
+test('Root: a legitimate HTTP action result settles its reservation and records a hash', async () => {
+  const item = await ownPendingAction();
+  const response = await resultHttp(item);
+  const after = await actionState(item);
+  facts.validResult = { status: response.status, after };
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+  assert.equal(after.outcome, 'succeeded');
+  assert.equal(after.reservation_status, 'settled');
+  assert.equal(after.charged.actions, 1);
+  assert.match(after.result_hash, /^[a-f0-9]{64}$/);
+});
+test('Root: released proof and conflicting repeated result cannot overwrite a completed outcome', async () => {
+  const item = await ownPendingAction();
+  const first = await resultHttp(item);
+  assert.equal(first.status, 200);
+  const before = await actionState(item);
+  await superuserQuery('UPDATE task_leases SET released_at=clock_timestamp() WHERE task_id=$1', [item.proof.taskId]);
+  const changed = await resultHttp(item, {}, 'failed', 'Conflicting owned synthetic result');
+  const after = await actionState(item);
+  facts.releasedConflict = { status: changed.status, before, after };
+  assert.notEqual(changed.status, 200);
+  assert.deepEqual(after, before);
+});

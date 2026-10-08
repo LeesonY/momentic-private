@@ -55,6 +55,8 @@ D["KnowledgePatch"] = obj({"expectedVersion": VER, "title": text(200), "text": t
 D["ModelCapabilities"] = obj({"structuredOutput": BOOL, "nativeTools": BOOL, "imageInput": BOOL})
 D["ModelProfile"] = obj({"id": UUID, "name": text(120), "endpoint": URI, "configuredModelId": text(200, minLength=1), "adapter": enum("openai_compatible"), "dataBoundary": enum("internal", "external"), "capabilities": ref("ModelCapabilities"), "status": enum("untested", "ready", "degraded", "disabled"), "version": VER})
 D["ModelProfileCreate"] = obj({"name": text(120, minLength=1), "endpoint": URI, "configuredModelId": text(200, minLength=1), "adapter": enum("openai_compatible"), "dataBoundary": enum("internal", "external"), "apiKey": text(1000, writeOnly=True)}, ["name", "endpoint", "configuredModelId", "adapter", "dataBoundary"])
+for model_schema in ["ModelProfile", "ModelProfileCreate"]:
+    D[model_schema]["properties"]["responseFormat"] = enum("json_schema", "json_object", "native_tools")
 D["ModelProbeResult"] = obj({"profileId": UUID, "capabilities": ref("ModelCapabilities"), "status": enum("ready", "degraded", "disabled"), "notes": arr(text(1000), 20)})
 D["RunCreate"] = obj({"projectId": UUID, "targetUrl": URI, "brief": text(4000), "environmentId": UUID, "authProfileId": UUID, "mode": enum("smoke"), "budget": ref("BudgetOverrides")}, ["projectId", "targetUrl"])
 D["RunConfig"] = obj({"allowedOrigins": arr(URI, 30, 1), "actionPolicy": enum("non_submitting", "approved_workflows"), "budget": ref("BudgetLimits"), "environmentVersion": nullable(VER), "authProfileVersion": nullable(VER), "modelProfileIds": arr(UUID, 10, 1), "knowledgeVersionIds": arr(UUID, 100)})
@@ -96,6 +98,7 @@ D["ActionResult"] = obj({"outcome": enum("succeeded", "failed", "unknown", "canc
 D["ModelPart"] = {"oneOf": [obj({"type": {"const": "text"}, "text": text(60000)}), obj({"type": {"const": "image"}, "artifactId": UUID})]}
 D["ModelMessage"] = obj({"role": enum("system", "user", "assistant", "tool"), "content": arr(ref("ModelPart"), 20, 1)})
 D["ModelRequest"] = obj({"taskId": UUID, "profileId": UUID, "contextVersion": VER, "purpose": enum("plan", "decide", "assert", "summarize"), "messages": arr(ref("ModelMessage"), 100, 1), "maxOutputTokens": integer(1, 2000), "outputSchema": {"type": "object"}})
+D["ModelRequest"]["properties"]["criterionId"] = copy.deepcopy(D["Criterion"]["properties"]["id"])
 D["ModelResult"] = obj({"data": ref("JsonValue"), "configuredModelId": text(200), "reportedModelId": nullable(text(200)), "usage": ref("ModelUsage")})
 D["AuthResolve"] = obj({"taskId": UUID, "authProfileId": UUID, "authProfileVersion": VER})
 D["CredentialMaterial"] = obj({"mode": enum("none", "form", "storage_state"), "material": {"type": "object", "additionalProperties": ref("JsonValue"), "x-sensitive": True}, "expiresAt": DATE})
@@ -108,6 +111,7 @@ D["Project"]["properties"]["defaultModelProfileId"] = nullable(UUID)
 D["Project"]["required"].append("defaultModelProfileId")
 D["ProjectPatch"] = obj({"expectedVersion": VER, "name": text(120), "status": enum("active", "archived"), "defaultModelProfileId": nullable(UUID)}, ["expectedVersion"])
 D["ModelProfilePatch"] = obj({"expectedVersion": VER, "name": text(120), "endpoint": URI, "configuredModelId": text(200), "apiKey": text(1000, writeOnly=True), "status": enum("disabled", "untested")}, ["expectedVersion"])
+D["ModelProfilePatch"]["properties"]["responseFormat"] = enum("json_schema", "json_object", "native_tools")
 D["ModelBinding"] = obj({"profileId": UUID, "version": VER})
 D["RoleModels"] = obj({role: ref("ModelBinding") for role in ["coordinator", "explorer", "executor", "assertion", "reproducer"]})
 D["RunConfig"]["properties"].pop("modelProfileIds")
@@ -171,18 +175,42 @@ tool_results = {**{n: "BrowserSnapshot" for n in ["observe", "navigate", "click"
 for name, result in tool_results.items(): tools[name]["x-result-schema"] = ref(result)
 D["ToolCall"] = {"oneOf": list(tools.values())}
 D["ActionReservation"]["properties"]["toolCall"] = ref("ToolCall")
-replay_steps = [obj({"kind": {"const": "navigate"}, "url": text(8192, minLength=1)}), obj({"kind": {"const": "click"}, "locator": ref("Locator")}), obj({"kind": {"const": "type_text"}, "locator": ref("Locator"), "text": text(2000)}), obj({"kind": {"const": "assert"}, "criterionId": text(64)}), obj({"kind": {"const": "ai_action"}, "goal": text(2000), "criteriaIds": arr(text(64), 20, 1)}), obj({"kind": {"const": "module"}, "ref": text(120, pattern="^[a-zA-Z0-9_./-]+@[1-9][0-9]*$"), "arguments": {"type": "object", "additionalProperties": ref("JsonValue")}}, ["kind", "ref"])]
+replay_steps = [obj({"kind": {"const": "navigate"}, "url": text(8192, minLength=1)}), obj({"kind": {"const": "click"}, "locator": ref("Locator")}), obj({"kind": {"const": "type_text"}, "locator": ref("Locator"), "text": text(2000)}), obj({"kind": {"const": "assert"}, "criterionId": text(64)}), obj({"kind": {"const": "ai_action"}, "goal": text(2000), "criteriaIds": arr(text(64), 20, 1)}), obj({"kind": {"const": "module"}, "ref": text(131, pattern="^[a-zA-Z0-9_./-]+@[1-9][0-9]*$"), "arguments": {"type": "object", "additionalProperties": ref("JsonValue")}}, ["kind", "ref"])]
 D["ReplayStep"] = {"oneOf": replay_steps}
 D["RegressionDocument"] = obj({"schemaVersion": {"const": 1}, "kind": {"const": "localqa/test"}, "id": text(120, pattern="^[a-zA-Z0-9_.-]+$"), "name": text(200, minLength=1), "variables": {"type": "object", "additionalProperties": {"type": ["string", "number", "boolean"]}}, "criteria": arr(ref("Criterion"), 20, 1), "steps": arr(ref("ReplayStep"), 100, 1), "fixtureRefs": arr(obj({"id": UUID, "version": VER}), 10)}, ["schemaVersion", "kind", "id", "name", "criteria", "steps"])
+D["RegressionModuleVersion"] = obj({"projectId": UUID, "name": text(120, pattern="^[a-zA-Z0-9_./-]+$"), "version": VER, "sha256": text(64, pattern="^[0-9a-f]{64}$"), "document": ref("RegressionDocument"), "reviewStatus": enum("draft", "approved", "rejected")})
+MODULE_NAME = text(120, minLength=1, pattern="^(?!\\.{1,2}(?:/|$))(?!.*?/\\.{1,2}(?:/|$))[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*$")
+MODULE_VERSION = integer(1, 2147483647)
+# Management metadata is separate from the historical six-field run snapshot DTO.
+D["RegressionModuleCreate"] = obj({"name": MODULE_NAME, "document": ref("RegressionDocument"), "expectedVersion": integer(0, 2147483647)}, ["name", "document"])
+D["RegressionModuleRecord"] = obj({**copy.deepcopy(D["RegressionModuleVersion"]["properties"]), "createdBy": nullable(UUID), "createdAt": nullable(DATE), "reviewedBy": nullable(UUID), "reviewedAt": nullable(DATE)})
+D["RegressionModuleRecord"]["properties"]["version"] = MODULE_VERSION
+D["RegressionModuleRecordPage"] = obj({"items": arr(ref("RegressionModuleRecord"), 100), "nextCursor": nullable(text(2000))})
+D["RegressionModuleReviewPreviewInput"] = obj({"expectedVersion": MODULE_VERSION, "decision": enum("approve", "reject"), "reason": text(2000, minLength=1)})
+D["RegressionModuleReviewPreview"] = obj({"projectId": UUID, "moduleName": MODULE_NAME, "version": MODULE_VERSION, "documentSha256": text(64, pattern="^[0-9a-f]{64}$"), **copy.deepcopy(D["RegressionModuleReviewPreviewInput"]["properties"]), "diff": text(20000), "risks": arr(text(1000), 20), "confirmationToken": text(1000, minLength=1), "expiresAt": DATE})
+D["RegressionModuleReviewCommit"] = obj({**copy.deepcopy(D["RegressionModuleReviewPreviewInput"]["properties"]), "confirmationToken": text(1000, minLength=1)})
+D["RegressionBinding"] = obj({"sourceVersionId": UUID, "sourceDocumentSha256": text(64, pattern="^[0-9a-f]{64}$"), "document": ref("RegressionDocument"), "moduleSnapshots": arr(ref("RegressionModuleVersion"), 100)})
+D["RegressionBinding"]["properties"]["snapshotDocumentSha256"] = text(64, pattern="^[0-9a-f]{64}$")
+D["RegressionStepSource"] = obj({"documentId": copy.deepcopy(D["RegressionDocument"]["properties"]["id"]), "stepIndex": integer(0, 99), "modulePath": arr(obj({"ref": text(131, pattern="^[a-zA-Z0-9_./-]+@[1-9][0-9]*$"), "sha256": text(64, pattern="^[0-9a-f]{64}$"), "invocationStepIndex": integer(0, 99)}), 8)})
+D["CaseDefinition"]["properties"]["regression"] = ref("RegressionBinding")
+D["Run"]["properties"]["executionMode"] = enum("smoke", "regression")
+D["Step"]["properties"]["regressionSource"] = ref("RegressionStepSource")
+D["ActionReservation"]["properties"]["regressionSource"] = ref("RegressionStepSource")
 
 # P1: saved cases, versions, schedules, api-keys, cache stats, repair proposals.
 # Source: docs/06-web-regression-and-scheduling.md §3.
 D["SavedCase"] = obj({"id": UUID, "projectId": UUID, "slug": text(120, pattern="^[a-zA-Z0-9_.-]+$"), "name": text(200, minLength=1), "status": enum("active", "archived"), "currentApprovedVersionId": nullable(UUID), "version": VER, "createdAt": DATE})
 D["SavedCaseCreate"] = obj({"slug": text(120, pattern="^[a-zA-Z0-9_.-]+$"), "name": text(200, minLength=1), "document": ref("RegressionDocument"), "sourceRunCaseId": UUID}, ["slug", "name"])
+D["SavedCaseArchiveInput"] = obj({"expectedVersion": integer(1, 2147483647)})
+D["SavedCaseRestoreInput"] = obj({"expectedVersion": integer(1, 2147483647)})
+D["SavedCaseDuplicateInput"] = obj({"targetProjectId": UUID, "newSlug": copy.deepcopy(D["SavedCaseCreate"]["properties"]["slug"]), "newName": text(200, minLength=1), "sourceVersionId": UUID}, ["newSlug", "newName", "sourceVersionId"])
+D["SavedCaseYamlImport"] = obj({"slug": copy.deepcopy(D["SavedCaseCreate"]["properties"]["slug"]), "name": text(200, minLength=1), "yaml": text(262144, minLength=1)})
+D["SavedCaseYamlExport"] = obj({"versionId": UUID, "sourceDocumentSha256": text(64, pattern="^[0-9a-f]{64}$"), "yaml": text(262144, minLength=1)})
 D["SavedCaseVersion"] = obj({"id": UUID, "caseId": UUID, "version": VER, "document": ref("RegressionDocument"), "sha256": text(64, pattern="^[0-9a-f]{64}$"), "reviewStatus": enum("draft", "approved", "rejected"), "createdBy": UUID, "createdAt": DATE, "reviewedBy": nullable(UUID), "reviewedAt": nullable(DATE)})
 D["SavedCaseVersionCreate"] = obj({"expectedVersion": VER, "document": ref("RegressionDocument")})
-D["ReviewPreview"] = obj({"versionId": UUID, "diff": text(20000), "risks": arr(text(1000), 20), "confirmationToken": text(1000), "expiresAt": DATE})
-D["ReviewCommit"] = obj({"expectedVersion": VER, "decision": enum("approve", "reject"), "reason": text(2000), "confirmationToken": text(1000, minLength=1)})
+D["ReviewPreviewInput"] = obj({"expectedVersion": VER, "decision": enum("approve", "reject"), "reason": text(2000, minLength=1)})
+D["ReviewPreview"] = obj({"versionId": UUID, **copy.deepcopy(D["ReviewPreviewInput"]["properties"]), "diff": text(20000), "risks": arr(text(1000), 20), "confirmationToken": text(1000), "expiresAt": DATE})
+D["ReviewCommit"] = obj({**copy.deepcopy(D["ReviewPreviewInput"]["properties"]), "confirmationToken": text(1000, minLength=1)})
 D["Schedule"] = obj({"id": UUID, "projectId": UUID, "name": text(120, minLength=1), "cron": text(120), "timezone": text(80), "templateKind": enum("smoke", "regression"), "runTemplate": ref("RunCreate"), "overlapPolicy": enum("skip", "queue"), "missedPolicy": enum("skip", "catchup_one"), "enabled": BOOL, "version": VER, "createdAt": DATE})
 D["ScheduleCreate"] = obj({"name": text(120, minLength=1), "cron": text(120, minLength=1), "timezone": text(80), "templateKind": enum("smoke", "regression"), "runTemplate": ref("RunCreate"), "overlapPolicy": {**enum("skip", "queue"), "default": "skip"}, "missedPolicy": {**enum("skip", "catchup_one"), "default": "skip"}, "enabled": {**BOOL, "default": True}}, ["name", "cron", "templateKind", "runTemplate"])
 D["SchedulePatch"] = obj({"expectedVersion": VER, **copy.deepcopy(D["ScheduleCreate"]["properties"])}, ["expectedVersion"])
@@ -202,8 +230,8 @@ def convert_refs(value):
     return value
 
 paths = {}
-def operation(path, method, label, result=None, body=None, status=200, public=False, internal=False, queries=(), idem=False, media="application/json"):
-    parameters = [{"name": token[1:-1], "in": "path", "required": True, "schema": UUID} for token in path.split("/") if token.startswith("{")]
+def operation(path, method, label, result=None, body=None, status=200, public=False, internal=False, queries=(), idem=False, media="application/json", path_schemas=None):
+    parameters = [{"name": token[1:-1], "in": "path", "required": True, "schema": (path_schemas or {}).get(token[1:-1], UUID)} for token in path.split("/") if token.startswith("{")]
     for name, required, schema in queries: parameters.append({"name": name, "in": "query", "required": required, "schema": schema})
     if idem: parameters.append({"name": "Idempotency-Key", "in": "header", "required": True, "schema": text(128, minLength=1)})
     if internal and not path.endswith("/leases/claim"): parameters.append({"name": "X-Lease-Token", "in": "header", "required": True, "schema": text(2000, minLength=1)})
@@ -265,11 +293,24 @@ operation(P+"/artifacts/{artifactId}/content", "get", "downloadArtifact", "Binar
 operation(P+"/artifacts/{artifactId}", "get", "getArtifact", "Artifact")
 # P1 increment (docs/06 §3). Not part of the P0 HTTP contract; added here so
 # T10/T11/T12 owners implement against one authoritative schema.
-operation(P+"/projects/{projectId}/saved-cases", "get", "listSavedCases", "SavedCasePage")
+operation(P+"/projects/{projectId}/saved-cases", "get", "listSavedCases", "SavedCasePage", queries=[("cursor", False, text(2000)), ("limit", False, integer(1, 100)), ("status", False, enum("active", "archived", "all"))])
 operation(P+"/projects/{projectId}/saved-cases", "post", "createSavedCase", "SavedCase", "SavedCaseCreate", 201)
+operation(P+"/saved-cases/{caseId}/archive", "post", "archiveSavedCase", "SavedCase", "SavedCaseArchiveInput")
+operation(P+"/saved-cases/{caseId}/restore", "post", "restoreSavedCase", "SavedCase", "SavedCaseRestoreInput")
+operation(P+"/saved-cases/{caseId}/duplicate", "post", "duplicateSavedCase", "SavedCase", "SavedCaseDuplicateInput", 201)
+operation(P+"/projects/{projectId}/saved-cases/import", "post", "importSavedCaseYaml", "SavedCase", "SavedCaseYamlImport", 201)
+operation(P+"/saved-case-versions/{versionId}/yaml", "get", "exportSavedCaseYaml", "SavedCaseYamlExport")
+module_root = P+"/projects/{projectId}/regression-modules"
+module_path_schemas = {"moduleName": MODULE_NAME, "version": MODULE_VERSION}
+module_pagination = [("cursor", False, text(2000)), ("limit", False, integer(1, 100))]
+operation(module_root, "post", "createRegressionModule", "RegressionModuleRecord", "RegressionModuleCreate", 201)
+operation(module_root, "get", "listRegressionModules", "RegressionModuleRecordPage", queries=module_pagination)
+operation(module_root+"/{moduleName}/versions", "get", "listRegressionModuleVersions", "RegressionModuleRecordPage", queries=module_pagination, path_schemas=module_path_schemas)
+operation(module_root+"/{moduleName}/versions/{version}/review-preview", "post", "previewRegressionModuleReview", "RegressionModuleReviewPreview", "RegressionModuleReviewPreviewInput", path_schemas=module_path_schemas)
+operation(module_root+"/{moduleName}/versions/{version}/review", "post", "reviewRegressionModuleVersion", "RegressionModuleRecord", "RegressionModuleReviewCommit", path_schemas=module_path_schemas)
 operation(P+"/saved-cases/{caseId}/versions", "get", "listSavedCaseVersions", "SavedCaseVersionPage")
 operation(P+"/saved-cases/{caseId}/versions", "post", "createSavedCaseVersion", "SavedCaseVersion", "SavedCaseVersionCreate", 201)
-operation(P+"/saved-case-versions/{versionId}/review-preview", "post", "previewSavedCaseReview", "ReviewPreview")
+operation(P+"/saved-case-versions/{versionId}/review-preview", "post", "previewSavedCaseReview", "ReviewPreview", "ReviewPreviewInput")
 operation(P+"/saved-case-versions/{versionId}/review", "post", "commitSavedCaseReview", "SavedCaseVersion", "ReviewCommit")
 operation(P+"/regression-runs", "post", "createRegressionRun", "Run", "RegressionRunCreate", 202)
 operation(P+"/projects/{projectId}/schedules", "get", "listSchedules", "SchedulePage")
@@ -294,6 +335,11 @@ for path, label, result, body in [
     ("/model/complete", "completeModelRequest", "ModelResult", "ModelRequest"),
     ("/auth/resolve", "resolveCredential", "CredentialMaterial", "AuthResolve"),
 ]: operation(I+path, "post", label, result, body, internal=True)
+paths[I+"/auth/resolve"]["post"]["parameters"].extend([
+    {"name": "X-Worker-Id", "in": "header", "required": True, "schema": text(200, minLength=1)},
+    {"name": "X-Fencing-Token", "in": "header", "required": True, "schema": {"type": "string", "pattern": "^[1-9][0-9]*$"}},
+    {"name": "X-Context-Version", "in": "header", "required": True, "schema": {"type": "string", "pattern": "^[1-9][0-9]*$"}},
+])
 paths[I+"/leases/claim"]["post"]["responses"]["204"] = {"description": "No eligible task; retry with bounded polling."}
 operation(I+"/artifacts", "post", "uploadArtifact", "Artifact", status=201, internal=True)
 paths[I+"/artifacts"]["post"]["requestBody"] = {"required": True, "content": {"multipart/form-data": {"schema": {"type": "object", "required": ["taskId", "kind", "redaction", "file"], "properties": {"taskId": UUID, "kind": D["Artifact"]["properties"]["kind"], "redaction": D["Artifact"]["properties"]["redaction"], "file": {"type": "string", "format": "binary"}}}}}}

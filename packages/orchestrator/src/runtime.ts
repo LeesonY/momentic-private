@@ -6,6 +6,8 @@ import type {
   Lease,
   ToolCall,
   BrowserSnapshot,
+  AuthProfile,
+  CredentialMaterial,
 } from '@localqa/contracts';
 import {
   StorageError,
@@ -40,7 +42,10 @@ export class RuntimeClient {
     this.#coordinator = coordinator;
     this.#scope = Object.freeze({ ...scope });
     this.#artifacts = artifacts;
-    this.#model = new BoundModel(coordinator, this.#scope, options);
+    this.#model = new BoundModel(coordinator, this.#scope, {
+      ...options,
+      readApprovedImage: (input) => this.#artifacts.readApprovedImage(input),
+    });
   }
   claim(seconds = 45): Promise<Lease | null> {
     return this.#coordinator.claim(this.#scope, seconds);
@@ -72,16 +77,12 @@ export class RuntimeClient {
       };
     });
   }
+  authProfile(proof: LeaseProof): Promise<AuthProfile | null> {
+    return this.#coordinator.authProfile(this.#scope, proof);
+  }
   async requireAnonymousOrInput(proof: LeaseProof): Promise<boolean> {
-    const configured = await this.#coordinator.tx(async (client) => {
-      const { run } = await this.#coordinator.validateLease(
-        client,
-        this.#scope,
-        proof,
-      );
-      return run.effectiveConfig.authProfileVersion !== null;
-    });
-    if (configured) {
+    const profile = await this.authProfile(proof);
+    if (profile && profile.mode !== 'none') {
       await this.#coordinator.waitForInput(
         this.#scope,
         proof,
@@ -101,13 +102,17 @@ export class RuntimeClient {
   ): Promise<CallRecord> {
     return this.#model.call(proof, role, payload, criterionId, signal);
   }
-  grant(proof: LeaseProof, call: ToolCall): Promise<ActionGrant> {
-    return this.#coordinator.grantAction(this.#scope, proof, call);
+  grant(
+    proof: LeaseProof,
+    call: ToolCall,
+    source?: import('@localqa/contracts').RegressionStepSource,
+  ): Promise<ActionGrant> {
+    return this.#coordinator.grantAction(this.#scope, proof, call, source);
   }
   record(
     proof: LeaseProof,
     grant: ActionGrant,
-    status: 'succeeded' | 'failed' | 'cancelled',
+    status: 'succeeded' | 'failed' | 'cancelled' | 'unknown',
     snapshot: BrowserSnapshot | null,
     evidence: string[] = [],
   ): Promise<void> {
@@ -170,5 +175,215 @@ export class RuntimeClient {
   }
   poll(): Promise<void> {
     return this.#coordinator.tick(this.#scope.projectId);
+  }
+  allocateAuthSession(
+    proof: LeaseProof,
+  ): Promise<import('./auth-execution.js').AuthSessionBinding> {
+    return this.#coordinator.allocateAuthSession(this.#scope, proof);
+  }
+  allocateAuthImporterSession(proof: LeaseProof, authStateId: string) {
+    return this.#coordinator.allocateAuthImporterSession(
+      this.#scope,
+      proof,
+      authStateId,
+    );
+  }
+  grantAuthImport(proof: LeaseProof, sessionId: string) {
+    return this.#coordinator.grantAuthImport(this.#scope, proof, sessionId);
+  }
+  prepareAuthImport(proof: LeaseProof, sessionId: string, grantId: string) {
+    return this.#coordinator.prepareAuthImport(
+      this.#scope,
+      proof,
+      sessionId,
+      grantId,
+    );
+  }
+  beginAuthImport(proof: LeaseProof, sessionId: string, grantId: string) {
+    return this.#coordinator.beginAuthImport(
+      this.#scope,
+      proof,
+      sessionId,
+      grantId,
+    );
+  }
+  recordAuthImport(
+    proof: LeaseProof,
+    sessionId: string,
+    grantId: string,
+    receipt: import('./auth-import-service.js').AuthImportReceipt,
+    outcome: import('./auth-import-service.js').AuthImportOutcome,
+  ) {
+    return this.#coordinator.recordAuthImport(
+      this.#scope,
+      proof,
+      sessionId,
+      grantId,
+      receipt,
+      outcome,
+    );
+  }
+  issueAuthActivationTicket(
+    proof: LeaseProof,
+    sessionId: string,
+  ): Promise<{ activationTicket: string }> {
+    return this.#coordinator.issueAuthActivationTicket(
+      this.#scope,
+      proof,
+      sessionId,
+    );
+  }
+  activateAuthSession(
+    proof: LeaseProof,
+    sessionId: string,
+    ticket: string,
+  ): Promise<import('./auth-execution.js').AuthSessionBinding> {
+    return this.#coordinator.activateAuthSession(
+      this.#scope,
+      proof,
+      sessionId,
+      ticket,
+    );
+  }
+  authSession(
+    proof: LeaseProof,
+    sessionId: string,
+  ): Promise<import('./auth-execution.js').AuthSessionBinding> {
+    return this.#coordinator.authSession(this.#scope, proof, sessionId);
+  }
+  endAuthSession(
+    proof: LeaseProof,
+    sessionId: string,
+    reason?: string,
+  ): Promise<import('./auth-execution.js').AuthSessionBinding> {
+    return this.#coordinator.endAuthSession(
+      this.#scope,
+      proof,
+      sessionId,
+      reason,
+    );
+  }
+  recordAuthObservation(
+    proof: LeaseProof,
+    sessionId: string,
+    snapshot: BrowserSnapshot,
+  ): Promise<BrowserSnapshot> {
+    return this.#coordinator.recordAuthObservation(
+      this.#scope,
+      proof,
+      sessionId,
+      snapshot,
+    );
+  }
+  grantAuth(
+    proof: LeaseProof,
+    request: import('./auth-actions.js').AuthActionRequest,
+  ): Promise<import('./auth-actions.js').AuthPermit> {
+    return this.#coordinator.grantAuth(this.#scope, proof, request);
+  }
+  beginAuthExecution(
+    proof: LeaseProof,
+    sessionId: string,
+    grantId: string,
+  ): Promise<import('./auth-actions.js').AuthExecutionReceipt> {
+    return this.#coordinator.beginAuthExecution(
+      this.#scope,
+      proof,
+      sessionId,
+      grantId,
+    );
+  }
+  recordAuth(
+    proof: LeaseProof,
+    sessionId: string,
+    grantId: string,
+    receipt: import('./auth-actions.js').AuthExecutionReceipt,
+    outcome: import('./auth-actions.js').AuthActionOutcome,
+  ): Promise<void> {
+    return this.#coordinator.recordAuth(
+      this.#scope,
+      proof,
+      sessionId,
+      grantId,
+      receipt,
+      outcome,
+    );
+  }
+  finishAuth(
+    proof: LeaseProof,
+    sessionId: string,
+    authStateId: string,
+  ): Promise<void> {
+    return this.#coordinator.finishAuth(
+      this.#scope,
+      proof,
+      sessionId,
+      authStateId,
+    );
+  }
+  authMaterial(
+    proof: LeaseProof,
+    sessionId: string,
+  ): Promise<CredentialMaterial> {
+    return this.#coordinator.authMaterial(this.#scope, proof, sessionId);
+  }
+  recordAuthCriterion(
+    proof: LeaseProof,
+    sessionId: string,
+    criterionResult: CriterionResult,
+    snapshotId: string,
+  ): Promise<{ gateId: string }> {
+    return this.#coordinator.recordAuthCriterion(
+      this.#scope,
+      proof,
+      sessionId,
+      criterionResult,
+      snapshotId,
+    );
+  }
+  issueCaptureGrant(
+    proof: LeaseProof,
+    sessionId: string,
+    gateId: string,
+  ): Promise<{
+    grant: import('@localqa/browser').AuthExportGrant;
+    captureTicket: string;
+  }> {
+    return this.#coordinator.issueCaptureGrant(
+      this.#scope,
+      proof,
+      sessionId,
+      gateId,
+    );
+  }
+  beginAuthCapture(
+    proof: LeaseProof,
+    sessionId: string,
+    grantId: string,
+    ticket: string,
+  ): Promise<void> {
+    return this.#coordinator.beginAuthCapture(
+      this.#scope,
+      proof,
+      sessionId,
+      grantId,
+      ticket,
+    );
+  }
+  captureAuthState(
+    proof: LeaseProof,
+    sessionId: string,
+    grantId: string,
+    ticket: string,
+    state: import('@localqa/browser').ApprovedAuthState,
+  ): Promise<import('./auth-state-service.js').AuthStateRef> {
+    return this.#coordinator.captureAuthState(
+      this.#scope,
+      proof,
+      sessionId,
+      grantId,
+      ticket,
+      state,
+    );
   }
 }

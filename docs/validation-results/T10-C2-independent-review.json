@@ -1,0 +1,118 @@
+{
+  "at": "2026-10-05T07:16:55.918Z",
+  "workspace": "wF",
+  "trigger": "agy idle 1647",
+  "pane": "wF:p3",
+  "checks": {
+    "verificationHelpers": {
+      "passed": 45,
+      "exitCode": 0
+    },
+    "fixtureLifecycle": {
+      "passed": 32,
+      "exitCode": 0,
+      "scope": "Isolated actual PG/API preparation, review and queued regression creation; no Worker/browser replay"
+    },
+    "httpProxy": {
+      "passed": 8,
+      "exitCode": 0
+    },
+    "typecheck": 0,
+    "lint": 0,
+    "productionBuild": 0,
+    "clientGenerationCheck": "70 public operations aligned"
+  },
+  "independentCounterexamples": {
+    "command": "node docs/validation-results/T10-C2-independent-review.mjs",
+    "exitCode": 1,
+    "sourceHashes": {
+      "phase": "c949e33f0c61680313837fa6cb079c2b65bc8ea70697e1c284867c5d071ee0a5",
+      "helper": "bdd5ba9fb05b3e7a7bf25b1532a7967d493086d16a5494806dd66e401c83f776"
+    },
+    "results": [
+      {
+        "case": "Complete binding and source",
+        "valid": true,
+        "expectedValid": true,
+        "passed": true
+      },
+      {
+        "case": "16 non-hex SHA characters",
+        "valid": true,
+        "expectedValid": false,
+        "passed": false
+      },
+      {
+        "case": "Missing frozen document",
+        "valid": true,
+        "expectedValid": false,
+        "passed": false
+      },
+      {
+        "case": "Invalid supplied snapshot SHA",
+        "valid": true,
+        "expectedValid": false,
+        "passed": false
+      },
+      {
+        "case": "Invalid module version record",
+        "valid": true,
+        "expectedValid": false,
+        "passed": false
+      },
+      {
+        "case": "Missing step modulePath",
+        "valid": true,
+        "expectedValid": false,
+        "passed": false
+      },
+      {
+        "case": "Step index exceeds canonical maximum",
+        "valid": true,
+        "expectedValid": false,
+        "passed": false
+      },
+      {
+        "case": "Missing verdict cannot claim completed/pass",
+        "error": "TypeError",
+        "passed": false
+      },
+      {
+        "case": "Actual PhaseProgress SSR: queued at execute",
+        "completed": 0,
+        "active": 0,
+        "passed": true
+      },
+      {
+        "case": "Actual PhaseProgress SSR: cancelled at execute",
+        "completed": 7,
+        "active": 0,
+        "passed": false
+      },
+      {
+        "case": "Actual PhaseProgress SSR: failed at execute",
+        "completed": 7,
+        "active": 0,
+        "passed": false
+      }
+    ],
+    "passed": 2,
+    "failed": 9,
+    "scope": "Focused guards and actual PhaseProgress SSR; browser UI and real Worker replay remain unverified"
+  },
+  "staticUiFindings": [
+    "Source verified badges/report counts depend only on two truthy fields; incomplete documents/modules may be labelled complete.",
+    "Regression banner says executing even while Run is queued and exposes canonical field names to end users."
+  ],
+  "decision": "C2 not accepted. C2-R dispatched to agy; working state 1652 observed.",
+  "action": "Canonical provenance validation, missing-verdict fail-closed handling, accurate terminal phase state and consistent provenance/status display; web single writer retained.",
+  "cleanup": "Fixture tests independently confirmed exact owned container removal, temporary directory removal and both server ports closed. Root temporary SSR module removed.",
+  "unverified": [
+    "Actual browser UI",
+    "Actual Worker regression replay",
+    "Real model supplier"
+  ],
+  "browserPaused": true,
+  "P0Passed": false,
+  "singleMonitorPid": 95898
+}

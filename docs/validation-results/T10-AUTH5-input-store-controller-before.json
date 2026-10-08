@@ -1,0 +1,36 @@
+{
+  "scope": "Extracted actual RunStore callback; synthetic transport and render refs only",
+  "sourceSha256": "9c911d130727b10626ef59739b5a5c0678ca5f5289c39889273144bdb43ab55d",
+  "checks": [
+    {
+      "name": "Incorrect response version cannot clear the active request",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'owned-a'\n"
+    },
+    {
+      "name": "New run can submit its own request while an old run response remains pending",
+      "passed": false,
+      "code": "ERR_ASSERTION",
+      "message": "Expected values to be strictly equal:\n\n1 !== 2\n"
+    },
+    {
+      "name": "Same-request same-tick submissions remain single flight",
+      "passed": true
+    },
+    {
+      "name": "Late old response does not clear the new run request",
+      "passed": true
+    },
+    {
+      "name": "Reject payload omits ordinary text",
+      "passed": true
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2
+  },
+  "browserPaused": true,
+  "P0Passed": false
+}

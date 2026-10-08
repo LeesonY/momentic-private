@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-07T06:26:10.467987+00:00",
+  "rootIndependent": true,
+  "workspace": "wF",
+  "event": "idle2341_and2363_2365",
+  "actualOutputReviewed": true,
+  "sourceChangesAfterAcceptance": false,
+  "acceptanceReferences": [
+    "T10-lifecycle-controller-ui-acceptance.json",
+    "T10-lifecycle-controller-helpers-acceptance.json",
+    "T10-lifecycle-controller-api-acceptance.json"
+  ],
+  "decision": "Keep local acceptance; agy/grok standby, pi readonly AUTH-4C plan active; no new product tasks or tests for unchanged code",
+  "browserPaused": true,
+  "P0Passed": false,
+  "singleMonitorPid": 67723,
+  "secondMonitorStarted": false
+}

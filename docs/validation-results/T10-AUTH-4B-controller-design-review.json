@@ -1,0 +1,29 @@
+{
+  "at": "2026-10-07T05:41:03.823664+00:00",
+  "rootIndependent": true,
+  "reviewedDelivery": "AUTH-4B revision2",
+  "document": "docs/validation-results/T10-AUTH-4B-private-execution-plan.md",
+  "sha256": "2981f3512006230aaa0cec8e161996aaebf1842332c93475189fb694ac125dd4",
+  "readOnlyDeliveryReviewed": true,
+  "productImplementationAuthorized": false,
+  "fullDesignFrozen": false,
+  "resolvedInProposal": [
+    "Four private actions use executeAuth; no auth names or secret in ToolCall",
+    "Session/proof/deadline binding and in-process grant deduplication; crash outcome unknown",
+    "Auth/import trace and credential evidence redaction lifecycle explicitly described",
+    "Single bounded OTP ticket per authentication attempt; failure ends attempt"
+  ],
+  "stillRequiredBeforeImplementation": [
+    "Finalize authoritative permit/session registration and private port types against actual runtime/API schemas",
+    "Define state import navigation redirect/origin enforcement and capture persistence failure behavior",
+    "Root review of a concrete executable stage boundary and independent PG/FakeBrowser evidence"
+  ],
+  "notVerified": [
+    "Private browser execution",
+    "Secret/OTP/state persistence bridge",
+    "Real browser",
+    "Supplier model release validation"
+  ],
+  "browserPaused": true,
+  "P0Passed": false
+}

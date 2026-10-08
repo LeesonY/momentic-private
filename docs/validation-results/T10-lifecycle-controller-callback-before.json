@@ -1,0 +1,22 @@
+{
+  "at": "2026-10-07T05:42:46.346Z",
+  "rootIndependent": true,
+  "cases": [
+    {
+      "name": "actual archive callback clears busy after its successful same-scope refresh",
+      "passed": false,
+      "message": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ {\n+   'b1111111-b111-4111-8111-b11111111111': 'archiving'\n+ }\n- {}\n"
+    },
+    {
+      "name": "actual create callback still navigates and clears busy after successful refresh",
+      "passed": false,
+      "message": "Expected values to be strictly equal:\n\ntrue !== false\n"
+    },
+    {
+      "name": "actual delayed archive never refreshes the old project after a scope switch",
+      "passed": true
+    }
+  ],
+  "scope": "Actual SavedCasesPage callbacks transpiled with injected closure state and real LifecycleScopeGuard; no browser, DOM/hydration or provider",
+  "P0Passed": false
+}

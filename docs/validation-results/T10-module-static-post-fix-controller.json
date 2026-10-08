@@ -1,0 +1,47 @@
+{
+  "rootIndependent": true,
+  "cases": [
+    {
+      "name": "unclosed expression rejected",
+      "passed": true
+    },
+    {
+      "name": "unmatched closing expression rejected",
+      "passed": true
+    },
+    {
+      "name": "illegal expression nested inside expectedValue rejected",
+      "passed": true
+    },
+    {
+      "name": "approved legacy child with invalid criterion rejected",
+      "passed": true
+    },
+    {
+      "name": "valid unbound vars/env admitted statically",
+      "passed": true
+    },
+    {
+      "name": "unbound vars remain rejected by execution compilation",
+      "passed": true
+    },
+    {
+      "name": "eight total module layers admitted statically and by actual compiler",
+      "passed": true
+    },
+    {
+      "name": "ninth total module layer rejected statically and by actual compiler",
+      "passed": true
+    },
+    {
+      "name": "same sibling module may repeat within global step bound",
+      "passed": true
+    },
+    {
+      "name": "static global bound rejects 102 steps expanded from repeated child",
+      "passed": true
+    }
+  ],
+  "scope": "Actual moduleTemplate.ts and compiler, no PG/browser/network",
+  "P0Passed": false
+}

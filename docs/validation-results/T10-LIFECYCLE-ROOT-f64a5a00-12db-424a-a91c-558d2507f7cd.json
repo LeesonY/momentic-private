@@ -1,0 +1,45 @@
+{
+  "task": "T10-LIFECYCLE-ROOT",
+  "tag": "f64a5a00-12db-424a-a91c-558d2507f7cd",
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-t10-life-xhnuW2",
+  "tests": [
+    {
+      "name": "Root: source viewer can duplicate into a project where the same user is operator",
+      "passed": true
+    }
+  ],
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "fff0f1fe5a1dd335efd65ceaad9eedd0f4f6f6d949d3b4332498b50157921a5e",
+    "volumes": [
+      "480f849d2f417fc82a844d7fcebecb027dce7aa1c4be1a5285d4891a1ab4c782"
+    ],
+    "pgPort": 33115,
+    "apiPort": 58326,
+    "apiPid": 1589,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "480f849d2f417fc82a844d7fcebecb027dce7aa1c4be1a5285d4891a1ab4c782",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "PG/API admission only; no browser, Worker.once, worker-entry or real model",
+    "Independent counterexamples and isolated concurrency checks; conclusions only reflect assertions in this run",
+    "P0=false; FakeBrowser/real model acceptance remains unverified"
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 0
+  }
+}

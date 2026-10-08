@@ -1,0 +1,45 @@
+{
+  "task": "T10-AUTH7-STATE-ROOT",
+  "tag": "b172c5a9-61b0-45af-9bd1-57c2012cc802",
+  "evidenceDir": "/var/folders/x5/jk094zwx1v571kx3k8vn3xw40000gn/T/localqa-auth-state-root-bkJFZw",
+  "tests": [
+    {
+      "name": "Root real RuntimeClient and auth-services complete the actual private flow, PG capture and dedicated finish",
+      "passed": true
+    }
+  ],
+  "postgres": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "modelTransportCalls": 0,
+  "ownership": {
+    "containerId": "88749967ad661e37ed59d371724ef9f39c32c24871db797fa420389ba39e63ab",
+    "volumes": [
+      "d396da558b6c5b4734b88ccb203f4500604506503549e041f1b01a1c2ecb68f7"
+    ],
+    "pgPort": 33250,
+    "apiPort": 52631,
+    "apiPid": 31690,
+    "cleanup": {
+      "apiClosed": true,
+      "removeStatus": 0,
+      "containerAbsent": true,
+      "volumes": [
+        {
+          "id": "d396da558b6c5b4734b88ccb203f4500604506503549e041f1b01a1c2ecb68f7",
+          "absent": true
+        }
+      ],
+      "credentialsAbsent": true,
+      "pgPortClosed": true,
+      "apiPortClosed": true
+    }
+  },
+  "limitations": [
+    "Real PG18 auth material, success gates, capture grants, canonical keyed HMAC and encrypted run auth state only",
+    "No browser, Worker.once, worker-entry or paid model",
+    "P0=false; AUTH flow not fully unfrozen"
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 0
+  }
+}

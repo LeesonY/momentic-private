@@ -201,6 +201,13 @@
         "version": {
           "type": "integer",
           "minimum": 1
+        },
+        "executionMode": {
+          "type": "string",
+          "enum": [
+            "smoke",
+            "regression"
+          ]
         }
       },
       "required": [
@@ -609,6 +616,9 @@
           },
           "maxItems": 20,
           "minItems": 1
+        },
+        "regression": {
+          "$ref": "#/$defs/RegressionBinding"
         }
       },
       "required": [
@@ -778,6 +788,292 @@
           }
         }
       ]
+    },
+    "RegressionBinding": {
+      "type": "object",
+      "properties": {
+        "sourceVersionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sourceDocumentSha256": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "document": {
+          "$ref": "#/$defs/RegressionDocument"
+        },
+        "moduleSnapshots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RegressionModuleVersion"
+          },
+          "maxItems": 100,
+          "minItems": 0
+        },
+        "snapshotDocumentSha256": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "sourceVersionId",
+        "sourceDocumentSha256",
+        "document",
+        "moduleSnapshots"
+      ],
+      "additionalProperties": false
+    },
+    "RegressionDocument": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "kind": {
+          "const": "localqa/test"
+        },
+        "id": {
+          "type": "string",
+          "maxLength": 120,
+          "pattern": "^[a-zA-Z0-9_.-]+$"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 1
+        },
+        "variables": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Criterion"
+          },
+          "maxItems": 20,
+          "minItems": 1
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReplayStep"
+          },
+          "maxItems": 100,
+          "minItems": 1
+        },
+        "fixtureRefs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "id",
+              "version"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 10,
+          "minItems": 0
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "kind",
+        "id",
+        "name",
+        "criteria",
+        "steps"
+      ],
+      "additionalProperties": false
+    },
+    "ReplayStep": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "navigate"
+            },
+            "url": {
+              "type": "string",
+              "maxLength": 8192,
+              "minLength": 1
+            }
+          },
+          "required": [
+            "kind",
+            "url"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "click"
+            },
+            "locator": {
+              "$ref": "#/$defs/Locator"
+            }
+          },
+          "required": [
+            "kind",
+            "locator"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "type_text"
+            },
+            "locator": {
+              "$ref": "#/$defs/Locator"
+            },
+            "text": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "kind",
+            "locator",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "assert"
+            },
+            "criterionId": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          "required": [
+            "kind",
+            "criterionId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "ai_action"
+            },
+            "goal": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "criteriaIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "maxItems": 20,
+              "minItems": 1
+            }
+          },
+          "required": [
+            "kind",
+            "goal",
+            "criteriaIds"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "module"
+            },
+            "ref": {
+              "type": "string",
+              "maxLength": 131,
+              "pattern": "^[a-zA-Z0-9_./-]+@[1-9][0-9]*$"
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "ref"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "RegressionModuleVersion": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 120,
+          "pattern": "^[a-zA-Z0-9_./-]+$"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "document": {
+          "$ref": "#/$defs/RegressionDocument"
+        },
+        "reviewStatus": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "approved",
+            "rejected"
+          ]
+        }
+      },
+      "required": [
+        "projectId",
+        "name",
+        "version",
+        "sha256",
+        "document",
+        "reviewStatus"
+      ],
+      "additionalProperties": false
     },
     "Verdict": {
       "type": "object",
