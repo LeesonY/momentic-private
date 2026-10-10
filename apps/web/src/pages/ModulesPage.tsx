@@ -4,6 +4,10 @@ import { useApp } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
 import { Page } from '../components/layout/Page.tsx';
 import { StatusBadge } from '../components/ui/Badge.tsx';
+import { Section } from '../components/ui/Section.tsx';
+import { Alert } from '../components/ui/Alert.tsx';
+import { EmptyState } from '../components/ui/EmptyState.tsx';
+import { AppIcon } from '../components/ui/AppIcon.tsx';
 import { ModuleRegisterModal } from '../components/modules/ModuleRegisterModal.tsx';
 import { ModuleReviewModal } from '../components/modules/ModuleReviewModal.tsx';
 import { getModuleRolePermissions } from '../utils/moduleRoles.ts';
@@ -252,139 +256,77 @@ export const ModulesPage: React.FC = () => {
   };
 
   return (
-    <Page testId="modules-page">
-      {/* Top Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: '20px',
-        }}
-      >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
-              受控回归模块库 (Regression Modules)
-            </h1>
-            <span className="badge badge-primary">{permissions.roleLabel}</span>
-          </div>
-          <p
-            style={{
-              fontSize: '0.875rem',
-              color: 'var(--color-text-muted)',
-              marginTop: '4px',
-            }}
-          >
-            管理跨用例复用的受控步骤模块，支持版本递增注册、真实 Canonical JSON
-            指纹与 Owner 两阶段人工审批基线。
-          </p>
-        </div>
-
-        <div>
-          <button
-            className="btn btn-primary"
-            onClick={handleOpenRegisterNew}
-            disabled={!permissions.canRegister}
-            title={
-              !permissions.canRegister
-                ? '仅 Owner 和 Operator 具备模块注册权限'
-                : undefined
-            }
-            data-testid="btn-register-module"
-          >
-            + 注册受控模块
-          </button>
-        </div>
-      </div>
-
-      {/* Role permission info banner */}
+    <Page
+      testId="modules-page"
+      width="wide"
+      title={
+        <>
+          模块库
+          <span className="badge badge-primary">{permissions.roleLabel}</span>
+        </>
+      }
+      description="管理可被多个用例复用的受控步骤模块：按版本递增注册，以 Canonical JSON 指纹标识内容，并经负责人两阶段人工审批后才能用于回归。"
+      actions={
+        <button
+          className="btn btn-primary"
+          onClick={handleOpenRegisterNew}
+          disabled={!permissions.canRegister}
+          title={
+            !permissions.canRegister
+              ? '仅负责人和操作员可以注册模块'
+              : undefined
+          }
+          data-testid="btn-register-module"
+        >
+          <AppIcon name="plus" size={15} />
+          注册模块
+        </button>
+      }
+    >
       {permissions.isReadOnly && (
-        <div
-          className="card"
-          style={{
-            padding: '8px 12px',
-            backgroundColor: 'var(--color-info-bg)',
-            borderColor: 'var(--color-info-border)',
-            color: 'var(--color-info-text)',
-            fontSize: '0.8rem',
-            marginBottom: '16px',
-          }}
-        >
-          🔒
-          当前账号为查看者（Viewer）角色，拥有只读查看模块与历史指纹权限，无法提交注册或执行审批。
-        </div>
+        <Alert tone="info">
+          当前账号为只读成员，可以查看模块与历史指纹，但不能注册或审批。
+        </Alert>
       )}
 
-      {error && (
-        <div
-          className="card"
-          style={{
-            padding: '12px 16px',
-            backgroundColor: 'var(--color-danger-bg)',
-            borderColor: 'var(--color-danger-border)',
-            color: 'var(--color-danger-text)',
-            marginBottom: '16px',
-          }}
-        >
-          {error}
-        </div>
-      )}
+      {error && <Alert tone="danger">{error}</Alert>}
 
-      {/* Modules Table */}
-      <div className="card" style={{ marginBottom: '24px' }}>
-        <div
-          className="card-header"
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <h2 className="card-title">
-            项目模块列表 ({modules.length} 个受控模块)
-          </h2>
+      <Section
+        icon="boxes"
+        title="项目模块"
+        description={`共 ${modules.length} 个受控模块`}
+        actions={
           <button
-            className="btn btn-secondary btn-sm"
+            className="btn btn-ghost btn-sm"
             onClick={() => loadModules()}
             disabled={loading}
           >
+            <AppIcon name="refresh" size={13} />
             刷新
           </button>
-        </div>
-
+        }
+      >
         {loading ? (
-          <div
-            style={{
-              padding: '32px',
-              textAlign: 'center',
-              color: 'var(--color-text-muted)',
-            }}
-          >
-            加载模块数据中...
-          </div>
+          <p className="muted text-sm">加载模块数据中...</p>
         ) : modules.length === 0 ? (
-          <div
-            style={{
-              padding: '32px',
-              textAlign: 'center',
-              color: 'var(--color-text-muted)',
-            }}
-          >
-            当前项目暂无受控回归模块。点击右上角“+ 注册受控模块”开始创建。
-          </div>
+          <EmptyState
+            compact
+            icon="boxes"
+            title="暂无受控模块"
+            description="点击右上角「注册模块」，把可复用的步骤沉淀为模块。"
+          />
         ) : (
-          <div className="table-responsive">
-            <table className="table" data-testid="modules-table">
+          <div className="table-container">
+            <table className="data-table" data-testid="modules-table">
               <thead>
                 <tr>
-                  <th>模块标识 (Name)</th>
-                  <th>当前最新版本</th>
+                  <th>模块</th>
+                  <th>最新版本</th>
                   <th>审查状态</th>
-                  <th>文档指纹 (SHA-256)</th>
-                  <th>创建者 / 时间</th>
-                  <th>审批者 / 时间</th>
-                  <th style={{ textAlign: 'right' }}>操作</th>
+                  <th>文档指纹</th>
+                  <th>创建</th>
+                  <th>审批</th>
+                  <th className="cell-actions">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -397,23 +339,12 @@ export const ModulesPage: React.FC = () => {
                   return (
                     <tr
                       key={`${mod.name}-v${mod.version}`}
-                      style={{
-                        backgroundColor: isSelected
-                          ? 'var(--color-primary-subtle)'
-                          : undefined,
-                      }}
+                      className={isSelected ? 'is-selected' : ''}
                       data-testid={`module-row-${mod.name}`}
                     >
                       <td>
-                        <strong>{mod.name}</strong>
-                        <div
-                          style={{
-                            fontSize: '0.75rem',
-                            color: 'var(--color-text-muted)',
-                          }}
-                        >
-                          {mod.document.name}
-                        </div>
+                        <div className="cell-title mono">{mod.name}</div>
+                        <div className="cell-sub">{mod.document.name}</div>
                       </td>
                       <td>
                         <span className="badge badge-neutral">
@@ -422,83 +353,59 @@ export const ModulesPage: React.FC = () => {
                       </td>
                       <td>
                         <StatusBadge status={mod.reviewStatus} size="sm" />
-                        {isDraft && (
-                          <span
-                            style={{
-                              marginLeft: '6px',
-                              fontSize: '0.7rem',
-                              color: 'var(--color-warning-text)',
-                            }}
-                          >
-                            (待审批)
-                          </span>
-                        )}
                       </td>
                       <td>
-                        <code
-                          style={{ fontSize: '0.75rem' }}
-                          title={mod.sha256}
-                        >
-                          {mod.sha256.slice(0, 16)}...
+                        <code className="text-xs" title={mod.sha256}>
+                          {mod.sha256.slice(0, 16)}…
                         </code>
                       </td>
-                      <td style={{ fontSize: '0.8rem' }}>
-                        <div>
-                          {mod.createdBy
-                            ? `用户 ${mod.createdBy.slice(0, 8)}`
-                            : '系统'}
-                        </div>
-                        <div style={{ color: 'var(--color-text-muted)' }}>
+                      <td className="text-sm">
+                        {mod.createdBy
+                          ? `用户 ${mod.createdBy.slice(0, 8)}`
+                          : '系统'}
+                        <div className="cell-sub">
                           {mod.createdAt
                             ? new Date(mod.createdAt).toLocaleDateString()
                             : '历史基线'}
                         </div>
                       </td>
-                      <td style={{ fontSize: '0.8rem' }}>
-                        <div>
-                          {mod.reviewedBy
-                            ? `审批者 ${mod.reviewedBy.slice(0, 8)}`
-                            : '-'}
-                        </div>
-                        <div style={{ color: 'var(--color-text-muted)' }}>
+                      <td className="text-sm">
+                        {mod.reviewedBy ? (
+                          `审批者 ${mod.reviewedBy.slice(0, 8)}`
+                        ) : (
+                          <span className="subtle">—</span>
+                        )}
+                        <div className="cell-sub">
                           {mod.reviewedAt
                             ? new Date(mod.reviewedAt).toLocaleDateString()
-                            : '-'}
+                            : ''}
                         </div>
                       </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'flex-end',
-                            gap: '6px',
-                          }}
+                      <td className="cell-actions">
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => handleSelectModule(mod)}
+                          data-testid={`btn-view-history-${mod.name}`}
                         >
+                          历史版本
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => handleOpenNewVersion(mod)}
+                          disabled={!permissions.canRegister}
+                          data-testid={`btn-new-version-${mod.name}`}
+                        >
+                          发布新版
+                        </button>
+                        {isDraft && permissions.canReview && (
                           <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => handleSelectModule(mod)}
-                            data-testid={`btn-view-history-${mod.name}`}
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleOpenReview(mod)}
+                            data-testid={`btn-review-${mod.name}`}
                           >
-                            历史版本
+                            审批
                           </button>
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => handleOpenNewVersion(mod)}
-                            disabled={!permissions.canRegister}
-                            data-testid={`btn-new-version-${mod.name}`}
-                          >
-                            发布新版
-                          </button>
-                          {isDraft && permissions.canReview && (
-                            <button
-                              className="btn btn-primary btn-sm"
-                              onClick={() => handleOpenReview(mod)}
-                              data-testid={`btn-review-${mod.name}`}
-                            >
-                              审批
-                            </button>
-                          )}
-                        </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -509,84 +416,53 @@ export const ModulesPage: React.FC = () => {
         )}
 
         {modulesCursor && (
-          <div
-            style={{
-              padding: '12px 16px',
-              textAlign: 'center',
-              borderTop: '1px solid var(--color-border)',
-            }}
-          >
+          <div className="lqa-load-more">
             <button
               className="btn btn-secondary btn-sm"
               onClick={handleLoadMoreModules}
               disabled={loadingMoreModules}
               data-testid="btn-load-more-modules"
             >
-              {loadingMoreModules
-                ? '加载更多模块中...'
-                : '加载更多模块 (下一页)'}
+              {loadingMoreModules ? '加载更多模块中...' : '加载更多模块'}
             </button>
           </div>
         )}
-      </div>
+      </Section>
 
-      {/* Version History Drawer / Card */}
       {selectedModule && (
-        <div
-          className="card"
-          style={{
-            borderLeft: '4px solid var(--color-primary)',
-            marginBottom: '24px',
-          }}
-          data-testid="module-history-card"
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '16px',
-            }}
-          >
-            <div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>
-                模块版本历史: <code>{selectedModule.name}</code>
-              </h3>
-              <span
-                style={{
-                  fontSize: '0.8rem',
-                  color: 'var(--color-text-muted)',
-                }}
-              >
-                展示该模块全量历史版本快照，只有 approved
-                状态版本可供受控用例执行
-              </span>
-            </div>
+        <Section
+          icon="history"
+          title={
+            <>
+              版本历史 · <code>{selectedModule.name}</code>
+            </>
+          }
+          description="列出该模块的全部历史版本，只有已批准的版本可供受控用例执行。"
+          testId="module-history-card"
+          actions={
             <button
-              className="btn btn-secondary btn-sm"
+              className="btn btn-ghost btn-sm"
               onClick={handleCloseHistory}
             >
               收起
             </button>
-          </div>
-
+          }
+        >
           {loadingHistory ? (
-            <div style={{ padding: '16px', textAlign: 'center' }}>
-              加载版本历史...
-            </div>
+            <p className="muted text-sm">加载版本历史...</p>
           ) : (
-            <div className="table-responsive">
-              <table className="table">
+            <div className="table-container">
+              <table className="data-table">
                 <thead>
                   <tr>
                     <th>版本</th>
                     <th>状态</th>
-                    <th>文档完整 SHA-256</th>
-                    <th>准则数</th>
-                    <th>步骤数</th>
-                    <th>创建信息</th>
-                    <th>审查审批信息</th>
-                    <th>操作</th>
+                    <th>文档 SHA-256</th>
+                    <th>准则</th>
+                    <th>步骤</th>
+                    <th>创建</th>
+                    <th>审批</th>
+                    <th className="cell-actions">操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -597,70 +473,62 @@ export const ModulesPage: React.FC = () => {
                         key={ver.version}
                         data-testid={`version-row-${ver.version}`}
                       >
-                        <td>
-                          <strong>v{ver.version}</strong>
-                        </td>
+                        <td className="strong">v{ver.version}</td>
                         <td>
                           <StatusBadge status={ver.reviewStatus} size="sm" />
                           {isDraft && (
-                            <div
-                              style={{
-                                fontSize: '0.7rem',
-                                color: 'var(--color-warning-text)',
-                                marginTop: '2px',
-                              }}
-                            >
-                              草稿待审 (未批准，不可用于回归执行)
+                            <div className="cell-sub text-warning">
+                              未批准，不可用于回归
                             </div>
                           )}
                         </td>
                         <td>
-                          <code style={{ fontSize: '0.75rem' }}>
+                          <code className="text-xs break-all">
                             {ver.sha256}
                           </code>
                         </td>
-                        <td>{ver.document.criteria.length} 项</td>
-                        <td>{ver.document.steps.length} 步</td>
-                        <td style={{ fontSize: '0.8rem' }}>
-                          <div>{ver.createdBy || '系统导入'}</div>
-                          <div style={{ color: 'var(--color-text-muted)' }}>
+                        <td className="nowrap">
+                          {ver.document.criteria.length} 项
+                        </td>
+                        <td className="nowrap">
+                          {ver.document.steps.length} 步
+                        </td>
+                        <td className="text-sm">
+                          {ver.createdBy || '系统导入'}
+                          <div className="cell-sub">
                             {ver.createdAt
                               ? new Date(ver.createdAt).toLocaleString()
                               : '历史数据'}
                           </div>
                         </td>
-                        <td style={{ fontSize: '0.8rem' }}>
-                          <div>
-                            {ver.reviewedBy
-                              ? `审批者: ${ver.reviewedBy}`
-                              : '待审批'}
-                          </div>
-                          <div style={{ color: 'var(--color-text-muted)' }}>
+                        <td className="text-sm">
+                          {ver.reviewedBy
+                            ? `审批者 ${ver.reviewedBy}`
+                            : '待审批'}
+                          <div className="cell-sub">
                             {ver.reviewedAt
                               ? new Date(ver.reviewedAt).toLocaleString()
-                              : '-'}
+                              : ''}
                           </div>
                         </td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '6px' }}>
+                        <td className="cell-actions">
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => handleOpenNewVersion(ver)}
+                            disabled={!permissions.canRegister}
+                            data-testid={`btn-new-version-from-history-${ver.version}`}
+                          >
+                            发布新版
+                          </button>
+                          {isDraft && permissions.canReview && (
                             <button
-                              className="btn btn-secondary btn-sm"
-                              onClick={() => handleOpenNewVersion(ver)}
-                              disabled={!permissions.canRegister}
-                              data-testid={`btn-new-version-from-history-${ver.version}`}
+                              className="btn btn-primary btn-sm"
+                              onClick={() => handleOpenReview(ver)}
+                              data-testid={`btn-review-version-${ver.version}`}
                             >
-                              发布新版
+                              审查审批
                             </button>
-                            {isDraft && permissions.canReview && (
-                              <button
-                                className="btn btn-primary btn-sm"
-                                onClick={() => handleOpenReview(ver)}
-                                data-testid={`btn-review-version-${ver.version}`}
-                              >
-                                审查审批
-                              </button>
-                            )}
-                          </div>
+                          )}
                         </td>
                       </tr>
                     );
@@ -671,29 +539,20 @@ export const ModulesPage: React.FC = () => {
           )}
 
           {historyCursor && (
-            <div
-              style={{
-                padding: '12px 16px',
-                textAlign: 'center',
-                borderTop: '1px solid var(--color-border)',
-              }}
-            >
+            <div className="lqa-load-more">
               <button
                 className="btn btn-secondary btn-sm"
                 onClick={handleLoadMoreHistory}
                 disabled={loadingMoreHistory}
                 data-testid="btn-load-more-history"
               >
-                {loadingMoreHistory
-                  ? '加载更多版本历史中...'
-                  : '加载更多版本历史 (下一页)'}
+                {loadingMoreHistory ? '加载更多版本历史中...' : '加载更多版本'}
               </button>
             </div>
           )}
-        </div>
+        </Section>
       )}
 
-      {/* Registration Modal */}
       {registerModalOpen && currentProject && (
         <ModuleRegisterModal
           projectId={currentProject.id}
@@ -709,7 +568,6 @@ export const ModulesPage: React.FC = () => {
         />
       )}
 
-      {/* Two-Stage Review Modal */}
       {reviewTargetModule && currentProject && (
         <ModuleReviewModal
           projectId={currentProject.id}

@@ -471,3 +471,27 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.lqa-knowledge-text {
+  min-width: 240px;
+  line-height: 1.6;
+}
+
+/* ---- Schedules ------------------------------------------------------------------ */
+.lqa-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+}
+
+.data-table tbody tr.lqa-history-row td,
+.data-table tbody tr.lqa-history-row:hover td {
+  padding: 0 var(--space-4) var(--space-4);
+  background: transparent;
+}

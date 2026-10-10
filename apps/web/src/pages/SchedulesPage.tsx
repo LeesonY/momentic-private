@@ -15,6 +15,11 @@ import type {
 import { useApp } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
 import { Page } from '../components/layout/Page.tsx';
+import { Section } from '../components/ui/Section.tsx';
+import { Field } from '../components/ui/Field.tsx';
+import { Alert } from '../components/ui/Alert.tsx';
+import { EmptyState } from '../components/ui/EmptyState.tsx';
+import { AppIcon } from '../components/ui/AppIcon.tsx';
 
 type Kind = 'smoke' | 'regression';
 type Draft = {
@@ -310,543 +315,492 @@ export const SchedulesPage: React.FC = () => {
     }
   }
 
+  const loadMoreSchedules = () => {
+    if (!projectId || !nextCursor) return;
+    void defaultApiClient
+      .listSchedules(projectId, { limit: 30, cursor: nextCursor })
+      .then((page) => {
+        setSchedules((old) => [...old, ...page.items]);
+        setNextCursor(page.nextCursor);
+      })
+      .catch((e) => setError(errorText(e)));
+  };
+
   return (
-    <Page testId="schedules-page">
-      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            gap: 14,
-            alignItems: 'center',
-            marginBottom: 18,
-          }}
+    <Page
+      testId="schedules-page"
+      width="wide"
+      title="定时回归"
+      description={`${currentProject?.name ?? '请选择项目'} · 按 5 段 Cron 与 IANA 时区自动发起冒烟或已批准用例的回归运行。`}
+      actions={
+        <button
+          className="btn btn-primary"
+          type="button"
+          disabled={!projectId || !canManage || busy || isMock}
+          onClick={beginCreate}
+          data-testid="btn-new-schedule"
         >
-          <div>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
-              定时测试 / Scheduled Runs
-            </h1>
-            <p
-              style={{
-                color: 'var(--color-text-muted)',
-                fontSize: '0.875rem',
-              }}
-            >
-              {currentProject?.name ?? '请选择项目'} · 五段 Cron / IANA 时区 ·
-              已批准用例版本
-            </p>
-          </div>
-          <button
-            className="btn btn-primary"
-            type="button"
-            disabled={!projectId || !canManage || busy || isMock}
-            onClick={beginCreate}
-            data-testid="btn-new-schedule"
-          >
-            新建计划
-          </button>
-        </div>
-        {isMock && (
-          <p role="note">
-            演示模式不执行实际计划。请切换真实 API 以使用定时调度。
-          </p>
-        )}
-        {error && (
-          <div
-            role="alert"
-            className="card"
-            style={{
-              padding: 14,
-              color: 'var(--color-danger-text)',
-              marginBottom: 12,
-            }}
-          >
-            {error}
-          </div>
-        )}
-        {notice && (
-          <div
-            role="status"
-            className="card"
-            style={{ padding: 14, marginBottom: 12 }}
-          >
-            {notice}
-          </div>
-        )}
-        {loading ? (
-          <p>正在加载定时计划…</p>
-        ) : (
-          <div className="card" style={{ padding: 20, marginBottom: 20 }}>
-            {!schedules.length ? (
-              <p style={{ color: 'var(--color-text-muted)' }}>
-                尚无定时计划。创建计划后，后台将按设定时区自动发起运行。
-              </p>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table
-                  style={{
-                    width: '100%',
-                    borderCollapse: 'collapse',
-                    textAlign: 'left',
-                  }}
+          <AppIcon name="plus" size={15} />
+          新建计划
+        </button>
+      }
+    >
+      {isMock && (
+        <Alert tone="warning">
+          演示模式不会执行实际计划，切换到真实 API 后才能使用定时调度。
+        </Alert>
+      )}
+      {error && (
+        <Alert tone="danger" role="alert">
+          {error}
+        </Alert>
+      )}
+      {notice && (
+        <Alert tone="success" role="status">
+          {notice}
+        </Alert>
+      )}
+
+      {editor && (
+        <Section
+          icon={editing ? 'edit' : 'plus'}
+          title={editing ? '编辑定时计划' : '新建定时计划'}
+          testId="schedule-editor"
+        >
+          <form onSubmit={(e) => void save(e)}>
+            <div className="grid-2">
+              <Field label="名称" required htmlFor="schedule-name">
+                <input
+                  id="schedule-name"
+                  className="form-input"
+                  required
+                  maxLength={120}
+                  value={draft.name}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, name: e.target.value }))
+                  }
+                />
+              </Field>
+              <Field label="执行类型" required htmlFor="schedule-kind">
+                <select
+                  id="schedule-kind"
+                  className="form-select"
+                  value={draft.kind}
+                  onChange={(e) =>
+                    setDraft((d) => ({
+                      ...d,
+                      kind: e.target.value as Kind,
+                    }))
+                  }
                 >
-                  <thead>
-                    <tr>
-                      <th>名称</th>
-                      <th>Cron / 时区</th>
-                      <th>类型</th>
-                      <th>策略</th>
-                      <th>状态</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {schedules.map((schedule) => (
-                      <React.Fragment key={schedule.id}>
-                        <tr
-                          style={{
-                            borderTop: '1px solid var(--color-border-subtle)',
-                          }}
-                        >
-                          <td>
-                            <strong>{schedule.name}</strong>
-                            <div style={{ fontSize: '0.75rem' }}>
-                              v{schedule.version}
-                            </div>
-                          </td>
-                          <td>
-                            <code>{schedule.cron}</code>
-                            <div style={{ fontSize: '0.8rem' }}>
-                              {schedule.timezone}
-                            </div>
-                          </td>
-                          <td>
+                  <option value="smoke">冒烟测试</option>
+                  <option value="regression">已批准用例回归</option>
+                </select>
+              </Field>
+              <Field
+                label="Cron（5 段）"
+                required
+                hint="例如 0 9 * * 1-5：工作日每天 9:00"
+                htmlFor="schedule-cron"
+              >
+                <input
+                  id="schedule-cron"
+                  className="form-input is-mono"
+                  required
+                  value={draft.cron}
+                  placeholder="0 9 * * 1-5"
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, cron: e.target.value }))
+                  }
+                />
+              </Field>
+              <Field label="IANA 时区" required htmlFor="schedule-timezone">
+                <input
+                  id="schedule-timezone"
+                  className="form-input"
+                  required
+                  value={draft.timezone}
+                  placeholder="Asia/Shanghai"
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, timezone: e.target.value }))
+                  }
+                />
+              </Field>
+              {draft.kind === 'smoke' ? (
+                <Field
+                  label="目标 URL"
+                  required
+                  htmlFor="schedule-target-url"
+                  className="span-all"
+                >
+                  <input
+                    id="schedule-target-url"
+                    type="url"
+                    required
+                    className="form-input"
+                    value={draft.targetUrl}
+                    placeholder="https://test.example.com/"
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, targetUrl: e.target.value }))
+                    }
+                  />
+                </Field>
+              ) : (
+                <Field
+                  label="已批准用例版本"
+                  required
+                  className="span-all"
+                  hint={
+                    casesTruncated
+                      ? '用例超过 500 条，当前仅列出前 500 条。'
+                      : `已选 ${draft.caseVersionIds.length} 个`
+                  }
+                >
+                  <div className="lqa-check-list">
+                    {!approvedCases.length && (
+                      <p className="muted text-sm">
+                        本项目暂无已批准、可执行的用例。
+                      </p>
+                    )}
+                    {approvedCases.map((c) => (
+                      <label key={c.id} className="check">
+                        <input
+                          type="checkbox"
+                          checked={draft.caseVersionIds.includes(
+                            c.currentApprovedVersionId!,
+                          )}
+                          onChange={(e) =>
+                            setDraft((d) => ({
+                              ...d,
+                              caseVersionIds: e.target.checked
+                                ? [
+                                    ...d.caseVersionIds,
+                                    c.currentApprovedVersionId!,
+                                  ]
+                                : d.caseVersionIds.filter(
+                                    (id) => id !== c.currentApprovedVersionId,
+                                  ),
+                            }))
+                          }
+                        />
+                        <span>
+                          {c.name}{' '}
+                          <span className="subtle mono text-xs">{c.slug}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </Field>
+              )}
+              <Field label="执行环境" htmlFor="schedule-environment">
+                <select
+                  id="schedule-environment"
+                  className="form-select"
+                  value={draft.environmentId}
+                  onChange={(e) =>
+                    setDraft((d) => ({
+                      ...d,
+                      environmentId: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="">不指定</option>
+                  {environments.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="认证配置" htmlFor="schedule-auth">
+                <select
+                  id="schedule-auth"
+                  className="form-select"
+                  value={draft.authProfileId}
+                  onChange={(e) =>
+                    setDraft((d) => ({
+                      ...d,
+                      authProfileId: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="">使用环境默认配置或不认证</option>
+                  {authProfiles
+                    .filter((a) => a.status === 'active')
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                </select>
+              </Field>
+              <Field label="运行重叠时" htmlFor="schedule-overlap">
+                <select
+                  id="schedule-overlap"
+                  className="form-select"
+                  value={draft.overlapPolicy}
+                  onChange={(e) =>
+                    setDraft((d) => ({
+                      ...d,
+                      overlapPolicy: e.target.value as Draft['overlapPolicy'],
+                    }))
+                  }
+                >
+                  <option value="skip">跳过本次</option>
+                  <option value="queue">排队等待（最多一项）</option>
+                </select>
+              </Field>
+              <Field label="错过执行时" htmlFor="schedule-missed">
+                <select
+                  id="schedule-missed"
+                  className="form-select"
+                  value={draft.missedPolicy}
+                  onChange={(e) =>
+                    setDraft((d) => ({
+                      ...d,
+                      missedPolicy: e.target.value as Draft['missedPolicy'],
+                    }))
+                  }
+                >
+                  <option value="skip">跳过</option>
+                  <option value="catchup_one">最多补执行一次</option>
+                </select>
+              </Field>
+            </div>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={draft.enabled}
+                onChange={(e) =>
+                  setDraft((d) => ({ ...d, enabled: e.target.checked }))
+                }
+              />
+              保存后立即启用
+            </label>
+            <div className="form-actions">
+              <button
+                className="btn btn-ghost"
+                type="button"
+                disabled={busy}
+                onClick={() => setEditor(false)}
+              >
+                取消
+              </button>
+              <button className="btn btn-primary" type="submit" disabled={busy}>
+                {busy ? '保存中…' : '保存计划'}
+              </button>
+            </div>
+          </form>
+        </Section>
+      )}
+
+      {loading ? (
+        <div className="lqa-session-loading is-inline">正在加载定时计划…</div>
+      ) : !schedules.length ? (
+        <EmptyState
+          icon="calendar"
+          title="尚无定时计划"
+          description="创建计划后，后台会按设定的时区自动发起运行。"
+        />
+      ) : (
+        <div>
+          <div className="card card-flush">
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>计划</th>
+                    <th>触发时间</th>
+                    <th>类型</th>
+                    <th>策略</th>
+                    <th>状态</th>
+                    <th className="cell-actions">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {schedules.map((schedule) => (
+                    <React.Fragment key={schedule.id}>
+                      <tr>
+                        <td>
+                          <div className="cell-title">{schedule.name}</div>
+                          <div className="cell-sub">v{schedule.version}</div>
+                        </td>
+                        <td>
+                          <code>{schedule.cron}</code>
+                          <div className="cell-sub">{schedule.timezone}</div>
+                        </td>
+                        <td>
+                          <span
+                            className={`badge ${schedule.templateKind === 'smoke' ? 'badge-info' : 'badge-primary'}`}
+                          >
                             {schedule.templateKind === 'smoke'
                               ? '冒烟'
                               : '回归'}
-                          </td>
-                          <td>
-                            {schedule.overlapPolicy === 'queue'
-                              ? '重叠排队'
-                              : '重叠跳过'}{' '}
-                            /{' '}
-                            {schedule.missedPolicy === 'catchup_one'
-                              ? '补执行一次'
-                              : '错过跳过'}
-                          </td>
-                          <td>{schedule.enabled ? '已启用' : '已暂停'}</td>
-                          <td style={{ minWidth: 270 }}>
-                            <div
-                              style={{
-                                display: 'flex',
-                                gap: 6,
-                                flexWrap: 'wrap',
-                              }}
-                            >
+                          </span>
+                        </td>
+                        <td className="text-sm muted">
+                          {schedule.overlapPolicy === 'queue'
+                            ? '重叠时排队'
+                            : '重叠时跳过'}
+                          {' · '}
+                          {schedule.missedPolicy === 'catchup_one'
+                            ? '错过补执行一次'
+                            : '错过即跳过'}
+                        </td>
+                        <td>
+                          <span
+                            className={`badge badge-dot ${schedule.enabled ? 'badge-success' : 'badge-neutral'}`}
+                          >
+                            {schedule.enabled ? '已启用' : '已暂停'}
+                          </span>
+                        </td>
+                        <td className="cell-actions">
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            type="button"
+                            aria-expanded={historyId === schedule.id}
+                            onClick={() => void showHistory(schedule.id)}
+                          >
+                            <AppIcon name="history" size={13} />
+                            {historyId === schedule.id
+                              ? '收起历史'
+                              : '执行历史'}
+                          </button>
+                          {canManage && !isMock && (
+                            <>
+                              <button
+                                className="btn btn-ghost btn-sm"
+                                disabled={busy}
+                                type="button"
+                                onClick={() => beginEdit(schedule)}
+                              >
+                                编辑
+                              </button>
+                              <button
+                                className="btn btn-ghost btn-sm"
+                                disabled={busy}
+                                type="button"
+                                onClick={() => void toggleEnabled(schedule)}
+                              >
+                                {schedule.enabled ? '暂停' : '启用'}
+                              </button>
                               <button
                                 className="btn btn-secondary btn-sm"
+                                disabled={busy || !schedule.enabled}
                                 type="button"
-                                onClick={() => void showHistory(schedule.id)}
+                                onClick={() => void runNow(schedule)}
                               >
-                                {historyId === schedule.id
-                                  ? '收起历史'
-                                  : '执行历史'}
+                                <AppIcon name="play" size={12} />
+                                立即运行
                               </button>
-                              {canManage && !isMock && (
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                      {historyId === schedule.id && (
+                        <tr className="lqa-history-row">
+                          <td colSpan={6}>
+                            <div className="panel">
+                              <div className="section-label">最近执行记录</div>
+                              {historyLoading && !occurrences.length ? (
+                                <p className="muted text-sm">加载中…</p>
+                              ) : !occurrences.length ? (
+                                <p className="muted text-sm">暂无执行记录。</p>
+                              ) : (
                                 <>
-                                  <button
-                                    className="btn btn-secondary btn-sm"
-                                    disabled={busy}
-                                    type="button"
-                                    onClick={() => beginEdit(schedule)}
-                                  >
-                                    编辑
-                                  </button>
-                                  <button
-                                    className="btn btn-secondary btn-sm"
-                                    disabled={busy}
-                                    type="button"
-                                    onClick={() => void toggleEnabled(schedule)}
-                                  >
-                                    {schedule.enabled ? '暂停' : '启用'}
-                                  </button>
-                                  <button
-                                    className="btn btn-primary btn-sm"
-                                    disabled={busy || !schedule.enabled}
-                                    type="button"
-                                    onClick={() => void runNow(schedule)}
-                                  >
-                                    立即运行
-                                  </button>
+                                  <div className="table-container">
+                                    <table className="data-table">
+                                      <thead>
+                                        <tr>
+                                          <th>计划本地时间</th>
+                                          <th>计划 UTC</th>
+                                          <th>状态</th>
+                                          <th>版本</th>
+                                          <th className="cell-actions">运行</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {occurrences.map((o) => (
+                                          <tr key={o.id}>
+                                            <td>{o.scheduledLocal}</td>
+                                            <td className="mono text-xs">
+                                              {new Date(
+                                                o.scheduledAt,
+                                              ).toISOString()}
+                                            </td>
+                                            <td>
+                                              <span className="badge badge-neutral">
+                                                {o.status}
+                                              </span>
+                                            </td>
+                                            <td>v{o.scheduleVersion}</td>
+                                            <td className="cell-actions">
+                                              {o.runId ? (
+                                                <button
+                                                  className="btn btn-link text-sm"
+                                                  type="button"
+                                                  onClick={() =>
+                                                    setRoute('workbench', {
+                                                      runId: o.runId!,
+                                                    })
+                                                  }
+                                                >
+                                                  查看运行
+                                                </button>
+                                              ) : (
+                                                <span className="subtle">
+                                                  —
+                                                </span>
+                                              )}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                  {historyCursor && (
+                                    <div className="lqa-load-more">
+                                      <button
+                                        className="btn btn-secondary btn-sm"
+                                        type="button"
+                                        disabled={historyLoading}
+                                        onClick={() =>
+                                          void showHistory(
+                                            schedule.id,
+                                            historyCursor,
+                                          )
+                                        }
+                                      >
+                                        更多记录
+                                      </button>
+                                    </div>
+                                  )}
                                 </>
                               )}
                             </div>
                           </td>
                         </tr>
-                        {historyId === schedule.id && (
-                          <tr>
-                            <td
-                              colSpan={6}
-                              style={{
-                                padding: 14,
-                                background: 'var(--color-bg-surface)',
-                              }}
-                            >
-                              <h3
-                                style={{
-                                  fontSize: '0.9rem',
-                                  marginBottom: 8,
-                                }}
-                              >
-                                最近执行记录
-                              </h3>
-                              {historyLoading && !occurrences.length ? (
-                                '加载中…'
-                              ) : !occurrences.length ? (
-                                '暂无执行记录。'
-                              ) : (
-                                <div style={{ overflowX: 'auto' }}>
-                                  <table
-                                    style={{
-                                      width: '100%',
-                                      textAlign: 'left',
-                                    }}
-                                  >
-                                    <thead>
-                                      <tr>
-                                        <th>计划本地时间</th>
-                                        <th>计划 UTC</th>
-                                        <th>状态</th>
-                                        <th>版本</th>
-                                        <th>运行</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {occurrences.map((o) => (
-                                        <tr key={o.id}>
-                                          <td>{o.scheduledLocal}</td>
-                                          <td>
-                                            {new Date(
-                                              o.scheduledAt,
-                                            ).toISOString()}
-                                          </td>
-                                          <td>{o.status}</td>
-                                          <td>v{o.scheduleVersion}</td>
-                                          <td>
-                                            {o.runId ? (
-                                              <button
-                                                className="btn btn-secondary btn-sm"
-                                                type="button"
-                                                onClick={() =>
-                                                  setRoute('workbench', {
-                                                    runId: o.runId!,
-                                                  })
-                                                }
-                                              >
-                                                查看运行
-                                              </button>
-                                            ) : (
-                                              '—'
-                                            )}
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                  {historyCursor && (
-                                    <button
-                                      className="btn btn-secondary btn-sm"
-                                      type="button"
-                                      disabled={historyLoading}
-                                      onClick={() =>
-                                        void showHistory(
-                                          schedule.id,
-                                          historyCursor,
-                                        )
-                                      }
-                                    >
-                                      更多记录
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            {nextCursor && (
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {nextCursor && (
+            <div className="lqa-load-more">
               <button
-                className="btn btn-secondary btn-sm"
+                className="btn btn-secondary"
                 type="button"
                 disabled={busy}
-                style={{ marginTop: 12 }}
-                onClick={() => {
-                  if (!projectId) return;
-                  void defaultApiClient
-                    .listSchedules(projectId, {
-                      limit: 30,
-                      cursor: nextCursor,
-                    })
-                    .then((page) => {
-                      setSchedules((old) => [...old, ...page.items]);
-                      setNextCursor(page.nextCursor);
-                    })
-                    .catch((e) => setError(errorText(e)));
-                }}
+                onClick={loadMoreSchedules}
               >
                 加载更多计划
               </button>
-            )}
-          </div>
-        )}
-
-        {editor && (
-          <section
-            className="card"
-            style={{ padding: 22 }}
-            data-testid="schedule-editor"
-          >
-            <h2 style={{ fontSize: '1.2rem', marginBottom: 18 }}>
-              {editing ? '编辑定时计划' : '创建定时计划'}
-            </h2>
-            <form onSubmit={(e) => void save(e)}>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
-                  gap: 16,
-                }}
-              >
-                <div className="form-group">
-                  <label className="form-label">名称 *</label>
-                  <input
-                    className="form-input"
-                    required
-                    maxLength={120}
-                    value={draft.name}
-                    onChange={(e) =>
-                      setDraft((d) => ({ ...d, name: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">执行类型 *</label>
-                  <select
-                    className="form-select"
-                    value={draft.kind}
-                    onChange={(e) =>
-                      setDraft((d) => ({
-                        ...d,
-                        kind: e.target.value as Kind,
-                      }))
-                    }
-                  >
-                    <option value="smoke">冒烟测试</option>
-                    <option value="regression">已批准用例回归</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Cron（5 段）*</label>
-                  <input
-                    className="form-input"
-                    required
-                    value={draft.cron}
-                    placeholder="0 9 * * 1-5"
-                    onChange={(e) =>
-                      setDraft((d) => ({ ...d, cron: e.target.value }))
-                    }
-                  />
-                  <span className="form-help">
-                    例如 0 9 * * 1-5：工作日每天 9:00
-                  </span>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">IANA 时区 *</label>
-                  <input
-                    className="form-input"
-                    required
-                    value={draft.timezone}
-                    placeholder="Asia/Shanghai"
-                    onChange={(e) =>
-                      setDraft((d) => ({ ...d, timezone: e.target.value }))
-                    }
-                  />
-                </div>
-                {draft.kind === 'smoke' ? (
-                  <div className="form-group">
-                    <label className="form-label">目标 URL *</label>
-                    <input
-                      type="url"
-                      required
-                      className="form-input"
-                      value={draft.targetUrl}
-                      placeholder="https://test.example.com/"
-                      onChange={(e) =>
-                        setDraft((d) => ({ ...d, targetUrl: e.target.value }))
-                      }
-                    />
-                  </div>
-                ) : (
-                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                    <label className="form-label">已批准用例版本 *</label>
-                    <div
-                      style={{
-                        maxHeight: 210,
-                        overflowY: 'auto',
-                        padding: 12,
-                        border: '1px solid var(--color-border-subtle)',
-                        borderRadius: 6,
-                      }}
-                    >
-                      {!approvedCases.length && (
-                        <p>本项目暂无当前已批准的可执行用例。</p>
-                      )}
-                      {approvedCases.map((c) => (
-                        <label
-                          key={c.id}
-                          style={{ display: 'block', padding: '4px 0' }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={draft.caseVersionIds.includes(
-                              c.currentApprovedVersionId!,
-                            )}
-                            onChange={(e) =>
-                              setDraft((d) => ({
-                                ...d,
-                                caseVersionIds: e.target.checked
-                                  ? [
-                                      ...d.caseVersionIds,
-                                      c.currentApprovedVersionId!,
-                                    ]
-                                  : d.caseVersionIds.filter(
-                                      (id) => id !== c.currentApprovedVersionId,
-                                    ),
-                              }))
-                            }
-                          />{' '}
-                          {c.name} <small>({c.slug})</small>
-                        </label>
-                      ))}
-                      {casesTruncated && (
-                        <p className="form-help">
-                          用例超过 500 条，当前仅列出前 500 条。
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-                <div className="form-group">
-                  <label className="form-label">执行环境</label>
-                  <select
-                    className="form-select"
-                    value={draft.environmentId}
-                    onChange={(e) =>
-                      setDraft((d) => ({
-                        ...d,
-                        environmentId: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">不指定</option>
-                    {environments.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">认证配置</label>
-                  <select
-                    className="form-select"
-                    value={draft.authProfileId}
-                    onChange={(e) =>
-                      setDraft((d) => ({
-                        ...d,
-                        authProfileId: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">使用环境默认配置 / 无</option>
-                    {authProfiles
-                      .filter((a) => a.status === 'active')
-                      .map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">运行重叠策略</label>
-                  <select
-                    className="form-select"
-                    value={draft.overlapPolicy}
-                    onChange={(e) =>
-                      setDraft((d) => ({
-                        ...d,
-                        overlapPolicy: e.target.value as Draft['overlapPolicy'],
-                      }))
-                    }
-                  >
-                    <option value="skip">跳过重叠运行</option>
-                    <option value="queue">排队等待（最多一项）</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">错过执行策略</label>
-                  <select
-                    className="form-select"
-                    value={draft.missedPolicy}
-                    onChange={(e) =>
-                      setDraft((d) => ({
-                        ...d,
-                        missedPolicy: e.target.value as Draft['missedPolicy'],
-                      }))
-                    }
-                  >
-                    <option value="skip">跳过</option>
-                    <option value="catchup_one">最多补执行一次</option>
-                  </select>
-                </div>
-              </div>
-              <label style={{ display: 'block', margin: '16px 0' }}>
-                <input
-                  type="checkbox"
-                  checked={draft.enabled}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, enabled: e.target.checked }))
-                  }
-                />{' '}
-                启用计划
-              </label>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button
-                  className="btn btn-primary"
-                  type="submit"
-                  disabled={busy}
-                >
-                  {busy ? '保存中…' : '保存计划'}
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  type="button"
-                  disabled={busy}
-                  onClick={() => setEditor(false)}
-                >
-                  取消
-                </button>
-              </div>
-            </form>
-          </section>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
+      )}
     </Page>
   );
 };

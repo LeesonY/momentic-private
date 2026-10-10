@@ -3,6 +3,17 @@ import type { Knowledge } from '@localqa/contracts';
 import { useAppContext } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
 import { Page } from '../components/layout/Page.tsx';
+import { Section } from '../components/ui/Section.tsx';
+import { Field } from '../components/ui/Field.tsx';
+import { Alert } from '../components/ui/Alert.tsx';
+import { EmptyState } from '../components/ui/EmptyState.tsx';
+
+const kindMeta: Record<Knowledge['kind'], { label: string; badge: string }> = {
+  rule: { label: '业务规则', badge: 'badge-primary' },
+  restriction: { label: '禁止操作', badge: 'badge-danger' },
+  terminology: { label: '业务术语', badge: 'badge-info' },
+  flow: { label: '标准业务流', badge: 'badge-neutral' },
+};
 
 export const KnowledgePage: React.FC = () => {
   const { currentProject } = useAppContext();
@@ -13,6 +24,7 @@ export const KnowledgePage: React.FC = () => {
     'rule' | 'restriction' | 'terminology' | 'flow'
   >('rule');
   const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState('');
 
   useEffect(() => {
     if (!currentProject) return;
@@ -44,122 +56,91 @@ export const KnowledgePage: React.FC = () => {
       setKnowledgeList([...knowledgeList, created]);
       setTitle('');
       setText('');
-      alert('业务规则已记录为新版本');
+      setNotice(`已登记「${created.title}」（v${created.version}）`);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Page testId="knowledge-page">
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
-          项目知识与业务规则 (Project Knowledge)
-        </h1>
-        <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-          维护被测系统专属的业务预期、优惠扣减计算标准及禁止操作边界。
-        </p>
-      </div>
+    <Page
+      testId="knowledge-page"
+      width="wide"
+      title="项目知识"
+      description="维护被测系统专属的业务预期、计算标准、术语和禁止操作边界，供运行时判定参考。"
+    >
+      <Alert tone="info" title="知识快照不会追溯修改">
+        每次运行启动时会冻结当时的项目知识版本；之后新增或修改规则，不会改变历史运行的判定依据。
+      </Alert>
 
-      {/* Snapshot Notice Banner */}
-      <div
-        style={{
-          backgroundColor: 'var(--color-info-bg)',
-          border: '1px solid var(--color-info-border)',
-          borderRadius: 'var(--radius-md)',
-          padding: '12px 16px',
-          marginBottom: '20px',
-          fontSize: '0.85rem',
-          color: 'var(--color-info-text)',
-        }}
-      >
-        <strong>【快照不变性约定】</strong>
-        每次运行启动时将冻结当期项目知识版本快照，后续对规则的新增或修改不会暗中篡改历史运行与判定的依据。
-      </div>
+      <div className="lqa-split">
+        <Section icon="book" title="已登记的规则与约束">
+          {knowledgeList.length === 0 ? (
+            <EmptyState
+              compact
+              icon="book"
+              title="暂无项目知识"
+              description="在右侧登记第一条业务规则，运行时会作为判定依据的一部分。"
+            />
+          ) : (
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>规则</th>
+                    <th>类型</th>
+                    <th>内容与判定标准</th>
+                    <th>状态</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {knowledgeList.map((k) => (
+                    <tr key={k.id} data-testid={`knowledge-row-${k.id}`}>
+                      <td>
+                        <div className="cell-title">{k.title}</div>
+                        <div className="cell-sub mono">
+                          {k.id} · v{k.version}
+                        </div>
+                      </td>
+                      <td>
+                        <span
+                          className={`badge ${kindMeta[k.kind]?.badge ?? 'badge-neutral'}`}
+                        >
+                          {kindMeta[k.kind]?.label ?? k.kind}
+                        </span>
+                      </td>
+                      <td className="text-sm lqa-knowledge-text">{k.text}</td>
+                      <td>
+                        <span
+                          className={`badge ${k.approved ? 'badge-success' : 'badge-warning'}`}
+                        >
+                          {k.approved ? '已批准' : '待审批'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Section>
 
-      {/* Rules Table */}
-      <div className="card" style={{ marginBottom: '24px' }}>
-        <div className="card-header">
-          <h2 className="card-title">已生效业务规则与约束清单</h2>
-        </div>
-
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th style={{ width: '160px' }}>规则编号</th>
-                <th style={{ width: '140px' }}>类型</th>
-                <th style={{ width: '220px' }}>规则标题</th>
-                <th>详细正文与判定公式</th>
-                <th style={{ width: '100px' }}>版本</th>
-                <th style={{ width: '120px' }}>审批状态</th>
-              </tr>
-            </thead>
-            <tbody>
-              {knowledgeList.map((k) => (
-                <tr key={k.id} data-testid={`knowledge-row-${k.id}`}>
-                  <td>
-                    <code>{k.id}</code>
-                  </td>
-                  <td>
-                    <span
-                      className={`badge ${k.kind === 'rule' ? 'badge-primary' : 'badge-danger'}`}
-                    >
-                      {k.kind === 'rule'
-                        ? '业务判定规则'
-                        : k.kind === 'restriction'
-                          ? '禁止危险操作'
-                          : k.kind}
-                    </span>
-                  </td>
-                  <td>
-                    <strong>{k.title}</strong>
-                  </td>
-                  <td style={{ fontSize: '0.85rem', lineHeight: 1.5 }}>
-                    {k.text}
-                  </td>
-                  <td>v{k.version}</td>
-                  <td>
-                    <span className="badge badge-success">
-                      {k.approved ? '已批准' : '待审批'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Add Rule Form */}
-      <div className="card">
-        <div className="card-header">
-          <h2 className="card-title">登记新业务规则 (Add Rule)</h2>
-        </div>
-
-        <form onSubmit={handleCreate}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '2fr 1fr',
-              gap: '16px',
-            }}
-          >
-            <div className="form-group">
-              <label className="form-label">规则标题 (Title)</label>
+        <Section icon="plus" title="登记新规则">
+          <form onSubmit={handleCreate}>
+            <Field label="规则标题" required htmlFor="knowledge-title">
               <input
+                id="knowledge-title"
                 type="text"
                 className="form-input"
-                placeholder="例如: BR-102: 订单运费满 99 包邮规则"
+                placeholder="例如：BR-102 订单满 99 元包邮"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
               />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">规则类型</label>
+            </Field>
+            <Field label="类型" htmlFor="knowledge-kind">
               <select
+                id="knowledge-kind"
                 className="form-select"
                 value={kind}
                 onChange={(e) =>
@@ -169,42 +150,44 @@ export const KnowledgePage: React.FC = () => {
                   )
                 }
               >
-                <option value="rule">业务规则 (Rule)</option>
-                <option value="restriction">禁止操作 (Restriction)</option>
-                <option value="terminology">业务术语 (Terminology)</option>
-                <option value="flow">标准业务流 (Flow)</option>
+                <option value="rule">业务规则</option>
+                <option value="restriction">禁止操作</option>
+                <option value="terminology">业务术语</option>
+                <option value="flow">标准业务流</option>
               </select>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">详细规则逻辑与验收标准</label>
-            <textarea
-              className="form-textarea"
-              rows={4}
-              placeholder="详细说明输入条件、预期计算公式以及失败判定阈值..."
-              value={text}
-              onChange={(e) => setText(e.target.value)}
+            </Field>
+            <Field
+              label="规则内容与验收标准"
               required
-            />
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              marginTop: '14px',
-            }}
-          >
-            <button
-              type="submit"
-              className="btn btn-primary btn-sm"
-              disabled={loading}
+              hint="说明输入条件、预期计算方式和判定失败的阈值。"
+              htmlFor="knowledge-text"
             >
-              {loading ? '正在登记...' : '登记业务规则'}
-            </button>
-          </div>
-        </form>
+              <textarea
+                id="knowledge-text"
+                className="form-textarea"
+                rows={5}
+                placeholder="例如：订单商品金额满 99 元时运费为 0，否则按地区运费表计算…"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                required
+              />
+            </Field>
+            {notice && (
+              <Alert tone="success" role="status">
+                {notice}
+              </Alert>
+            )}
+            <div className="form-actions">
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={loading}
+              >
+                {loading ? '正在登记...' : '登记规则'}
+              </button>
+            </div>
+          </form>
+        </Section>
       </div>
     </Page>
   );
