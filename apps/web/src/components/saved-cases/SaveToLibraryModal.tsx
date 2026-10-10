@@ -8,6 +8,9 @@ import type {
   ReplayStep,
 } from '../../api/types.ts';
 import { defaultApiClient } from '../../api/index.ts';
+import { Modal } from '../ui/Modal.tsx';
+import { Field } from '../ui/Field.tsx';
+import { Alert } from '../ui/Alert.tsx';
 
 interface SaveToLibraryModalProps {
   sourceCase?: CaseRecord;
@@ -164,183 +167,86 @@ export const SaveToLibraryModal: React.FC<SaveToLibraryModalProps> = ({
   };
 
   return (
-    <div
-      className="dialog-overlay"
-      onClick={onClose}
-      data-testid="save-to-library-modal-overlay"
-    >
-      <div
-        className="dialog-content"
-        style={{ maxWidth: '580px', width: '100%' }}
-        onClick={(e) => e.stopPropagation()}
-        data-testid="save-to-library-modal-content"
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '16px',
-            borderBottom: '1px solid var(--color-border-subtle)',
-            paddingBottom: '12px',
-          }}
-        >
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 600, margin: 0 }}>
-            保存冒烟用例至项目用例库 (Save to Case Library)
-          </h3>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={onClose}
-            data-testid="btn-close-save-modal"
-          >
-            ✕
+    <Modal
+      title="保存到用例库"
+      description="把这次冒烟执行固化为可复用的测试用例，生成 v1 草稿。"
+      onClose={onClose}
+      overlayTestId="save-to-library-modal-overlay"
+      testId="save-to-library-modal-content"
+      closeTestId="btn-close-save-modal"
+      footer={
+        <>
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            取消
           </button>
+          <button
+            type="submit"
+            form="save-to-library-form"
+            className="btn btn-primary"
+            disabled={loading || !slug.trim() || !name.trim()}
+            data-testid="btn-confirm-save-to-library"
+          >
+            {loading ? '正在保存...' : '保存为草稿'}
+          </button>
+        </>
+      }
+    >
+      {error && (
+        <Alert
+          tone="danger"
+          testId="save-modal-error"
+          className="lqa-modal-alert"
+        >
+          {error}
+        </Alert>
+      )}
+
+      <form id="save-to-library-form" onSubmit={handleSubmit}>
+        <Field
+          label="用例标识（Slug）"
+          required
+          htmlFor="case-slug"
+          hint="唯一且创建后不可修改；只允许字母、数字、点、中划线和下划线，最多 120 个字符。"
+        >
+          <input
+            id="case-slug"
+            type="text"
+            className="input is-mono"
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            placeholder="例如 checkout-flow-smoke"
+            required
+            data-testid="input-case-slug"
+          />
+        </Field>
+
+        <Field label="用例名称" required htmlFor="case-name">
+          <input
+            id="case-name"
+            type="text"
+            className="input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="例如 购物车结算与优惠券抵扣验证"
+            required
+            data-testid="input-case-name"
+          />
+        </Field>
+
+        <div className="panel">
+          <div className="section-label">将要生成的内容</div>
+          <dl className="kv">
+            <dt>判定准则</dt>
+            <dd>{cRecord.definition?.criteria?.length || 1} 项断言</dd>
+            <dt>回放步骤</dt>
+            <dd>{rawSteps.length || 2} 个动作</dd>
+            <dt>初始状态</dt>
+            <dd>
+              v1 草稿（<code>draft</code>），经人工审查批准后才会成为回归基线。
+            </dd>
+          </dl>
         </div>
-
-        {error && (
-          <div
-            style={{
-              padding: '10px 14px',
-              backgroundColor: 'var(--color-danger-bg)',
-              border: '1px solid var(--color-danger-border)',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--color-danger-text)',
-              marginBottom: '16px',
-              fontSize: '0.85rem',
-            }}
-            data-testid="save-modal-error"
-          >
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '14px' }}>
-            <label
-              htmlFor="case-slug"
-              style={{
-                display: 'block',
-                fontWeight: 600,
-                fontSize: '0.9rem',
-                marginBottom: '4px',
-              }}
-            >
-              用例标识 Slug (唯一且不可变){' '}
-              <span style={{ color: 'var(--color-danger)' }}>*</span>
-            </label>
-            <input
-              id="case-slug"
-              type="text"
-              className="input"
-              style={{ width: '100%' }}
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              placeholder="e.g. checkout-flow-smoke"
-              required
-              data-testid="input-case-slug"
-            />
-            <p
-              style={{
-                fontSize: '0.75rem',
-                color: 'var(--color-text-muted)',
-                margin: '4px 0 0 0',
-              }}
-            >
-              格式限制: 仅允许字母、数字、点号、中划线与下划线 (最大 120 字符)
-            </p>
-          </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label
-              htmlFor="case-name"
-              style={{
-                display: 'block',
-                fontWeight: 600,
-                fontSize: '0.9rem',
-                marginBottom: '4px',
-              }}
-            >
-              用例显示名称 (Name){' '}
-              <span style={{ color: 'var(--color-danger)' }}>*</span>
-            </label>
-            <input
-              id="case-name"
-              type="text"
-              className="input"
-              style={{ width: '100%' }}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. 购物车核心流结算与优惠券抵扣验证"
-              required
-              data-testid="input-case-name"
-            />
-          </div>
-
-          {/* Extraction summary */}
-          <div
-            style={{
-              backgroundColor: 'var(--color-bg-base)',
-              border: '1px solid var(--color-border-subtle)',
-              borderRadius: 'var(--radius-md)',
-              padding: '12px 16px',
-              marginBottom: '20px',
-              fontSize: '0.85rem',
-            }}
-          >
-            <div style={{ fontWeight: 600, marginBottom: '6px' }}>
-              📦 本次将自动固化并生成的测试契约资产:
-            </div>
-            <ul
-              style={{
-                margin: 0,
-                paddingLeft: '20px',
-                color: 'var(--color-text-muted)',
-              }}
-            >
-              <li>
-                <strong>判定准则 (Criteria): </strong>
-                {cRecord.definition?.criteria?.length || 1} 项断言
-              </li>
-              <li>
-                <strong>执行步骤 (Replay Steps): </strong>
-                {rawSteps.length || 2} 项动作
-              </li>
-              <li>
-                <strong>初始审查状态: </strong>
-                生成版本 <code>v1</code> (草稿状态 <code>draft</code>
-                )，需人工审查批准后方可纳入回归基线。
-              </li>
-            </ul>
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '10px',
-              borderTop: '1px solid var(--color-border-subtle)',
-              paddingTop: '16px',
-            }}
-          >
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onClose}
-            >
-              取消
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={loading || !slug.trim() || !name.trim()}
-              data-testid="btn-confirm-save-to-library"
-            >
-              {loading ? '正在保存入库...' : '确认保存到用例库 (生成 Draft)'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 };

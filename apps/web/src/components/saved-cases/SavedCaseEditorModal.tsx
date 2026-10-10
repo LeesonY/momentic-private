@@ -7,6 +7,10 @@ import type {
   ReplayStep,
 } from '../../api/types.ts';
 import { defaultApiClient } from '../../api/index.ts';
+import { Modal } from '../ui/Modal.tsx';
+import { Field } from '../ui/Field.tsx';
+import { Alert } from '../ui/Alert.tsx';
+import { AppIcon } from '../ui/AppIcon.tsx';
 
 interface SavedCaseEditorModalProps {
   caseRecord: SavedCase;
@@ -176,311 +180,204 @@ export const SavedCaseEditorModal: React.FC<SavedCaseEditorModalProps> = ({
     }
   };
 
+  const updateStep = (idx: number, change: (step: ReplayStep) => ReplayStep) =>
+    setSteps((prev) => prev.map((s, i) => (i === idx ? change(s) : s)));
+
   return (
-    <div
-      className="dialog-overlay"
-      onClick={onClose}
-      data-testid="case-editor-modal-overlay"
-    >
-      <div
-        className="dialog-content"
-        style={{
-          maxWidth: '780px',
-          width: '100%',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-        }}
-        onClick={(e) => e.stopPropagation()}
-        data-testid="case-editor-modal-content"
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '16px',
-            borderBottom: '1px solid var(--color-border-subtle)',
-            paddingBottom: '12px',
-          }}
-        >
-          <div>
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 600, margin: 0 }}>
-              编辑用例并创建新草稿版本 (Create New Draft Version)
-            </h3>
-            <p
-              style={{
-                fontSize: '0.8rem',
-                color: 'var(--color-text-muted)',
-                margin: '4px 0 0 0',
-              }}
-            >
-              基于 v{baseVersion.version} 编辑 · 提交后将生成全新版本{' '}
-              <strong>v{caseRecord.version + 1} (Draft)</strong>
-              ，历史版本永久不变。
-            </p>
-          </div>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={onClose}
-            data-testid="btn-close-editor-modal"
-          >
-            ✕
+    <Modal
+      title="编辑用例，创建新草稿"
+      description={
+        <>
+          基于 v{baseVersion.version} 编辑；提交后生成新版本{' '}
+          <strong>v{caseRecord.version + 1}（草稿）</strong>，历史版本保持不变。
+        </>
+      }
+      onClose={onClose}
+      size="xl"
+      overlayTestId="case-editor-modal-overlay"
+      testId="case-editor-modal-content"
+      closeTestId="btn-close-editor-modal"
+      footer={
+        <>
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            取消
           </button>
+          <button
+            type="submit"
+            form="case-editor-form"
+            className="btn btn-primary"
+            disabled={loading}
+            data-testid="btn-confirm-create-draft"
+          >
+            {loading
+              ? '正在保存新草稿...'
+              : `保存为草稿 v${caseRecord.version + 1}`}
+          </button>
+        </>
+      }
+    >
+      {error && (
+        <Alert
+          tone="danger"
+          testId="editor-modal-error"
+          className="lqa-modal-alert"
+        >
+          {error}
+        </Alert>
+      )}
+
+      <form
+        id="case-editor-form"
+        onSubmit={handleSubmit}
+        className="stack stack-lg"
+      >
+        <Field label="用例名称" htmlFor="editor-case-name">
+          <input
+            id="editor-case-name"
+            type="text"
+            className="input"
+            value={docName}
+            onChange={(e) => setDocName(e.target.value)}
+            required
+            data-testid="input-editor-case-name"
+          />
+        </Field>
+
+        <div>
+          <div className="lqa-editor-head">
+            <span className="field-label">
+              判定准则
+              <span className="field-optional">{criteria.length} 项</span>
+            </span>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={handleAddCriterion}
+              data-testid="btn-add-criterion"
+            >
+              <AppIcon name="plus" size={13} />
+              添加准则
+            </button>
+          </div>
+          <div className="lqa-editor-list">
+            {criteria.map((c, idx) => (
+              <div
+                key={c.id || idx}
+                className="lqa-editor-row lqa-criterion-row"
+                data-testid={`criterion-item-${idx}`}
+              >
+                <select
+                  className="input"
+                  aria-label="准则类型"
+                  value={c.kind}
+                  onChange={(e) =>
+                    handleCriterionChange(idx, 'kind', e.target.value)
+                  }
+                >
+                  <option value="element_visible">元素可见</option>
+                  <option value="text_equals">文本匹配</option>
+                  <option value="url_matches">URL 匹配</option>
+                  <option value="http_status">HTTP 状态</option>
+                </select>
+                <input
+                  type="text"
+                  className="input"
+                  aria-label="准则描述"
+                  placeholder="准则的业务描述"
+                  value={c.description}
+                  onChange={(e) =>
+                    handleCriterionChange(idx, 'description', e.target.value)
+                  }
+                />
+                <select
+                  className="input"
+                  aria-label="定位方式"
+                  value={c.locator?.by || 'css'}
+                  onChange={(e) =>
+                    handleCriterionChange(idx, 'locatorBy', e.target.value)
+                  }
+                >
+                  <option value="css">CSS 选择器</option>
+                  <option value="test_id">Test ID</option>
+                  <option value="role">Role 语义</option>
+                  <option value="text">文本内容</option>
+                </select>
+                <input
+                  type="text"
+                  className="input is-mono"
+                  aria-label="定位值"
+                  placeholder="定位值"
+                  value={c.locator?.value || ''}
+                  onChange={(e) =>
+                    handleCriterionChange(idx, 'locatorValue', e.target.value)
+                  }
+                />
+                <button
+                  type="button"
+                  className="lqa-icon-button lqa-remove-button"
+                  onClick={() => handleRemoveCriterion(idx)}
+                  title="删除该准则"
+                  aria-label="删除该准则"
+                >
+                  <AppIcon name="trash" size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {error && (
-          <div
-            style={{
-              padding: '10px 14px',
-              backgroundColor: 'var(--color-danger-bg)',
-              border: '1px solid var(--color-danger-border)',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--color-danger-text)',
-              marginBottom: '16px',
-              fontSize: '0.85rem',
-            }}
-            data-testid="editor-modal-error"
-          >
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          {/* Case Name */}
-          <div style={{ marginBottom: '16px' }}>
-            <label
-              htmlFor="editor-case-name"
-              style={{
-                display: 'block',
-                fontWeight: 600,
-                fontSize: '0.9rem',
-                marginBottom: '4px',
-              }}
-            >
-              用例名称 (Name)
-            </label>
-            <input
-              id="editor-case-name"
-              type="text"
-              className="input"
-              style={{ width: '100%' }}
-              value={docName}
-              onChange={(e) => setDocName(e.target.value)}
-              required
-              data-testid="input-editor-case-name"
-            />
-          </div>
-
-          {/* Criteria Editor */}
-          <div style={{ marginBottom: '20px' }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '8px',
-              }}
-            >
-              <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-                判定准则列表 (Criteria - {criteria.length} 项)
-              </label>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={handleAddCriterion}
-                data-testid="btn-add-criterion"
-              >
-                + 添加准则
-              </button>
-            </div>
-            <div
-              style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
-            >
-              {criteria.map((c, idx) => (
-                <div
-                  key={c.id || idx}
-                  style={{
-                    backgroundColor: 'var(--color-bg-base)',
-                    border: '1px solid var(--color-border-subtle)',
-                    borderRadius: 'var(--radius-md)',
-                    padding: '10px',
-                    display: 'grid',
-                    gridTemplateColumns: '120px 1fr 140px 1fr 32px',
-                    gap: '8px',
-                    alignItems: 'center',
-                  }}
-                  data-testid={`criterion-item-${idx}`}
+        <div>
+          <div className="lqa-editor-head">
+            <span className="field-label">
+              回放步骤<span className="field-optional">{steps.length} 项</span>
+            </span>
+            <div className="btn-group">
+              {(
+                [
+                  ['navigate', '导航', 'btn-add-step-navigate'],
+                  ['click', '点击', 'btn-add-step-click'],
+                  ['type_text', '输入', 'btn-add-step-type'],
+                  ['assert', '断言', 'btn-add-step-assert'],
+                ] as const
+              ).map(([kind, label, testId]) => (
+                <button
+                  key={kind}
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => handleAddStep(kind)}
+                  data-testid={testId}
                 >
-                  <select
-                    className="input"
-                    value={c.kind}
-                    onChange={(e) =>
-                      handleCriterionChange(idx, 'kind', e.target.value)
-                    }
-                  >
-                    <option value="element_visible">元素可见</option>
-                    <option value="text_equals">文本匹配</option>
-                    <option value="url_matches">URL 匹配</option>
-                    <option value="http_status">HTTP 状态</option>
-                  </select>
-                  <input
-                    type="text"
-                    className="input"
-                    placeholder="准则业务描述"
-                    value={c.description}
-                    onChange={(e) =>
-                      handleCriterionChange(idx, 'description', e.target.value)
-                    }
-                  />
-                  <select
-                    className="input"
-                    value={c.locator?.by || 'css'}
-                    onChange={(e) =>
-                      handleCriterionChange(idx, 'locatorBy', e.target.value)
-                    }
-                  >
-                    <option value="css">CSS 选择器</option>
-                    <option value="test_id">Test ID</option>
-                    <option value="role">Role 语义</option>
-                    <option value="text">文本内容</option>
-                  </select>
-                  <input
-                    type="text"
-                    className="input"
-                    placeholder="定位值 (locator)"
-                    value={c.locator?.value || ''}
-                    onChange={(e) =>
-                      handleCriterionChange(idx, 'locatorValue', e.target.value)
-                    }
-                  />
-                  <button
-                    type="button"
-                    style={{
-                      border: 'none',
-                      background: 'none',
-                      color: 'var(--color-danger)',
-                      cursor: 'pointer',
-                      fontWeight: 'bold',
-                    }}
-                    onClick={() => handleRemoveCriterion(idx)}
-                    title="删除该准则"
-                  >
-                    ✕
-                  </button>
-                </div>
+                  <AppIcon name="plus" size={13} />
+                  {label}
+                </button>
               ))}
             </div>
           </div>
 
-          {/* Replay Steps Editor */}
-          <div style={{ marginBottom: '24px' }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '8px',
-              }}
-            >
-              <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-                回放执行步骤 (Replay Steps - {steps.length} 项)
-              </label>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => handleAddStep('navigate')}
-                  data-testid="btn-add-step-navigate"
-                >
-                  + 导航 (Navigate)
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => handleAddStep('click')}
-                  data-testid="btn-add-step-click"
-                >
-                  + 点击 (Click)
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => handleAddStep('type_text')}
-                  data-testid="btn-add-step-type"
-                >
-                  + 输入 (Type)
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => handleAddStep('assert')}
-                  data-testid="btn-add-step-assert"
-                >
-                  + 断言 (Assert)
-                </button>
-              </div>
-            </div>
+          <div className="lqa-editor-list">
+            {steps.map((st, idx) => (
+              <div
+                key={idx}
+                className="lqa-editor-row lqa-step-edit-row"
+                data-testid={`step-item-${idx}`}
+              >
+                <span className="lqa-step-seq">{idx + 1}</span>
+                <span className="lqa-timeline-role lqa-step-kind">
+                  {st.kind}
+                </span>
 
-            <div
-              style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
-            >
-              {steps.map((st, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    backgroundColor: 'var(--color-bg-base)',
-                    border: '1px solid var(--color-border-subtle)',
-                    borderRadius: 'var(--radius-md)',
-                    padding: '8px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                  }}
-                  data-testid={`step-item-${idx}`}
-                >
-                  <span
-                    style={{
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
-                      backgroundColor: 'var(--color-primary)',
-                      color: 'var(--color-primary-contrast)',
-                      width: '24px',
-                      height: '24px',
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    {idx + 1}
-                  </span>
-                  <span
-                    style={{
-                      fontWeight: 600,
-                      fontSize: '0.85rem',
-                      width: '80px',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    {st.kind}
-                  </span>
-
+                <div className="lqa-step-fields">
                   {st.kind === 'navigate' && (
                     <input
                       type="text"
                       className="input"
-                      style={{ flex: 1 }}
+                      aria-label="URL 地址"
                       placeholder="URL 地址"
                       value={st.url}
                       onChange={(e) => {
                         const val = e.target.value;
-                        setSteps((prev) =>
-                          prev.map((s, i) =>
-                            i === idx && s.kind === 'navigate'
-                              ? { ...s, url: val }
-                              : s,
-                          ),
+                        updateStep(idx, (s) =>
+                          s.kind === 'navigate' ? { ...s, url: val } : s,
                         );
                       }}
                     />
@@ -489,138 +386,89 @@ export const SavedCaseEditorModal: React.FC<SavedCaseEditorModalProps> = ({
                   {st.kind === 'click' && (
                     <input
                       type="text"
-                      className="input"
-                      style={{ flex: 1 }}
+                      className="input is-mono"
+                      aria-label="点击目标定位值"
                       placeholder="点击目标定位值"
                       value={st.locator.value}
                       onChange={(e) => {
                         const val = e.target.value;
-                        setSteps((prev) =>
-                          prev.map((s, i) =>
-                            i === idx && s.kind === 'click'
-                              ? { ...s, locator: { ...s.locator, value: val } }
-                              : s,
-                          ),
+                        updateStep(idx, (s) =>
+                          s.kind === 'click'
+                            ? { ...s, locator: { ...s.locator, value: val } }
+                            : s,
                         );
                       }}
                     />
                   )}
 
                   {st.kind === 'type_text' && (
-                    <div style={{ display: 'flex', flex: 1, gap: '8px' }}>
+                    <>
                       <input
                         type="text"
-                        className="input"
-                        style={{ flex: 1 }}
+                        className="input is-mono"
+                        aria-label="输入框定位值"
                         placeholder="输入框定位值"
                         value={st.locator.value}
                         onChange={(e) => {
                           const val = e.target.value;
-                          setSteps((prev) =>
-                            prev.map((s, i) =>
-                              i === idx && s.kind === 'type_text'
-                                ? {
-                                    ...s,
-                                    locator: { ...s.locator, value: val },
-                                  }
-                                : s,
-                            ),
+                          updateStep(idx, (s) =>
+                            s.kind === 'type_text'
+                              ? { ...s, locator: { ...s.locator, value: val } }
+                              : s,
                           );
                         }}
                       />
                       <input
                         type="text"
                         className="input"
-                        style={{ flex: 1 }}
+                        aria-label="填入文本"
                         placeholder="填入文本"
                         value={st.text}
                         onChange={(e) => {
                           const val = e.target.value;
-                          setSteps((prev) =>
-                            prev.map((s, i) =>
-                              i === idx && s.kind === 'type_text'
-                                ? { ...s, text: val }
-                                : s,
-                            ),
+                          updateStep(idx, (s) =>
+                            s.kind === 'type_text' ? { ...s, text: val } : s,
                           );
                         }}
                       />
-                    </div>
+                    </>
                   )}
 
                   {st.kind === 'assert' && (
                     <select
                       className="input"
-                      style={{ flex: 1 }}
+                      aria-label="断言准则"
                       value={st.criterionId}
                       onChange={(e) => {
                         const val = e.target.value;
-                        setSteps((prev) =>
-                          prev.map((s, i) =>
-                            i === idx && s.kind === 'assert'
-                              ? { ...s, criterionId: val }
-                              : s,
-                          ),
+                        updateStep(idx, (s) =>
+                          s.kind === 'assert' ? { ...s, criterionId: val } : s,
                         );
                       }}
                     >
                       {criteria.map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.id}: {c.description}
+                          {c.id}：{c.description}
                         </option>
                       ))}
                     </select>
                   )}
-
-                  <button
-                    type="button"
-                    style={{
-                      border: 'none',
-                      background: 'none',
-                      color: 'var(--color-danger)',
-                      cursor: 'pointer',
-                      fontWeight: 'bold',
-                    }}
-                    onClick={() => handleRemoveStep(idx)}
-                    title="删除该步骤"
-                  >
-                    ✕
-                  </button>
                 </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Footer */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '10px',
-              borderTop: '1px solid var(--color-border-subtle)',
-              paddingTop: '16px',
-            }}
-          >
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onClose}
-            >
-              取消
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={loading}
-              data-testid="btn-confirm-create-draft"
-            >
-              {loading
-                ? '正在保存新草稿...'
-                : '保存为新版本草稿 (v' + (caseRecord.version + 1) + ')'}
-            </button>
+                <button
+                  type="button"
+                  className="lqa-icon-button lqa-remove-button"
+                  onClick={() => handleRemoveStep(idx)}
+                  title="删除该步骤"
+                  aria-label="删除该步骤"
+                >
+                  <AppIcon name="trash" size={15} />
+                </button>
+              </div>
+            ))}
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+      </form>
+    </Modal>
   );
 };

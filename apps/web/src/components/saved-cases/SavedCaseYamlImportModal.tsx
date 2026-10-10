@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import type { SavedCase } from '../../api/types.ts';
 import { defaultApiClient } from '../../api/index.ts';
 import { ErrorCard } from '../ui/ErrorCard.tsx';
+import { Modal } from '../ui/Modal.tsx';
+import { Alert } from '../ui/Alert.tsx';
+import { AppIcon } from '../ui/AppIcon.tsx';
 import {
   validateYamlImportInput,
   getUtf8ByteLength,
@@ -109,325 +112,151 @@ export const SavedCaseYamlImportModal: React.FC<
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
-      data-testid="yaml-import-modal-overlay"
-    >
-      <div
-        className="card"
-        style={{
-          width: '90%',
-          maxWidth: '680px',
-          maxHeight: '90vh',
-          display: 'flex',
-          flexDirection: 'column',
-          backgroundColor: 'var(--color-bg-surface, #ffffff)',
-          borderRadius: 'var(--radius-lg, 8px)',
-          boxShadow: 'var(--shadow-xl)',
-          overflow: 'hidden',
-        }}
-        data-testid="yaml-import-modal"
-      >
-        {/* Header */}
-        <div
-          style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid var(--color-border-subtle, #e5e7eb)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <div>
-            <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 600 }}>
-              📥 导入 YAML 测试用例
-            </h2>
-            <p
-              style={{
-                margin: '2px 0 0 0',
-                fontSize: '0.8rem',
-                color: 'var(--color-text-muted, #6b7280)',
-              }}
-            >
-              输入或上传 YAML 测试规范文本，创建初始草稿。
-            </p>
-          </div>
+    <Modal
+      title="导入 YAML 用例"
+      description="粘贴或上传 YAML 测试规范，创建初始草稿。"
+      onClose={onClose}
+      size="lg"
+      closeOnOverlay={false}
+      overlayTestId="yaml-import-modal-overlay"
+      testId="yaml-import-modal"
+      closeTestId="btn-close-yaml-import"
+      footer={
+        <>
           <button
             type="button"
-            className="btn btn-secondary"
+            className="btn btn-ghost"
             onClick={onClose}
-            style={{ padding: '4px 8px', fontSize: '1rem', lineHeight: 1 }}
-            data-testid="btn-close-yaml-import"
+            disabled={loading}
+            data-testid="btn-cancel-yaml-import"
           >
-            ✕
+            取消
           </button>
-        </div>
-
-        {/* Body */}
-        <form
-          onSubmit={handleSubmit}
-          style={{
-            padding: '20px',
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-          }}
+          <button
+            type="submit"
+            form="yaml-import-form"
+            className="btn btn-primary"
+            disabled={loading || isOverLimit}
+            data-testid="btn-submit-yaml-import"
+          >
+            {loading ? '正在提交...' : '导入为草稿'}
+          </button>
+        </>
+      }
+    >
+      <form id="yaml-import-form" onSubmit={handleSubmit} className="stack">
+        <Alert
+          tone="warning"
+          title="导入后为草稿"
+          testId="yaml-import-safety-notice"
         >
-          {/* Draft Notice */}
-          <div
-            style={{
-              padding: '10px 14px',
-              backgroundColor: 'var(--color-warning-bg)',
-              border: '1px solid var(--color-warning-border)',
-              borderRadius: 'var(--radius-md, 6px)',
-              fontSize: '0.82rem',
-              color: 'var(--color-warning-text)',
-              lineHeight: 1.45,
-            }}
-            data-testid="yaml-import-safety-notice"
-          >
-            <strong>草稿说明：</strong>
-            导入将创建初始草稿 (Draft v1，状态为 <code>draft</code>
-            )。用例在通过审查前不会执行，亦不可用于回归测试。
-          </div>
+          将创建 v1 草稿（<code>draft</code>
+          ），通过审查之前不会执行，也不能用于回归测试。
+        </Alert>
 
-          {serverError && <ErrorCard message={serverError} />}
+        {serverError && <ErrorCard message={serverError} />}
 
-          {/* Slug & Name */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '12px',
-            }}
-          >
-            <div>
-              <label
-                htmlFor="input-yaml-slug"
-                style={{
-                  display: 'block',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  marginBottom: '4px',
-                }}
-              >
-                用例标识 (Slug){' '}
-                <span style={{ color: 'var(--color-danger-text)' }}>*</span>
-              </label>
-              <input
-                id="input-yaml-slug"
-                type="text"
-                className="input"
-                style={{ width: '100%' }}
-                placeholder="例如: checkout-payment-flow"
-                value={slug}
-                onChange={(e) => {
-                  setSlug(e.target.value);
-                  if (validationErrors.slug) {
-                    setValidationErrors((prev) => ({ ...prev, slug: '' }));
-                  }
-                }}
-                data-testid="input-yaml-slug"
-              />
-              {validationErrors.slug && (
-                <p
-                  style={{
-                    color: 'var(--color-danger-text)',
-                    fontSize: '0.75rem',
-                    margin: '4px 0 0 0',
-                  }}
-                >
-                  {validationErrors.slug}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label
-                htmlFor="input-yaml-name"
-                style={{
-                  display: 'block',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  marginBottom: '4px',
-                }}
-              >
-                用例名称 (Name){' '}
-                <span style={{ color: 'var(--color-danger-text)' }}>*</span>
-              </label>
-              <input
-                id="input-yaml-name"
-                type="text"
-                className="input"
-                style={{ width: '100%' }}
-                placeholder="例如: 购物车结算付款流程"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  if (validationErrors.name) {
-                    setValidationErrors((prev) => ({ ...prev, name: '' }));
-                  }
-                }}
-                data-testid="input-yaml-name"
-              />
-              {validationErrors.name && (
-                <p
-                  style={{
-                    color: 'var(--color-danger-text)',
-                    fontSize: '0.75rem',
-                    margin: '4px 0 0 0',
-                  }}
-                >
-                  {validationErrors.name}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* YAML Textarea with Character & Byte Counter & File Upload */}
-          <div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '4px',
-                flexWrap: 'wrap',
-                gap: '8px',
-              }}
-            >
-              <label
-                htmlFor="input-yaml-content"
-                style={{
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                }}
-              >
-                YAML 测试用例文本{' '}
-                <span style={{ color: 'var(--color-danger-text)' }}>*</span>
-              </label>
-              <div
-                style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-              >
-                <label
-                  className="btn btn-secondary"
-                  style={{
-                    padding: '2px 8px',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                  }}
-                  data-testid="btn-upload-yaml-file"
-                >
-                  📁 选择本地文件 (.yaml)
-                  <input
-                    type="file"
-                    accept=".yaml,.yml,text/yaml"
-                    onChange={handleFileUpload}
-                    style={{ display: 'none' }}
-                  />
-                </label>
-                <span
-                  style={{
-                    fontSize: '0.75rem',
-                    fontFamily: 'monospace',
-                    color: isOverLimit
-                      ? 'var(--color-danger-text)'
-                      : 'var(--color-text-muted, #6b7280)',
-                    fontWeight: isOverLimit ? 700 : 400,
-                  }}
-                  data-testid="yaml-char-counter"
-                >
-                  {byteCount.toLocaleString()} / 262,144 字节 (
-                  {charCount.toLocaleString()} 字符)
-                  {isOverLimit &&
-                    ` (超出 ${Math.max(byteCount - MAX_YAML_BYTES, charCount - MAX_YAML_CHARS).toLocaleString()})`}
-                </span>
-              </div>
-            </div>
-
-            <textarea
-              id="input-yaml-content"
-              className="input"
-              rows={14}
-              style={{
-                width: '100%',
-                fontFamily:
-                  'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace',
-                fontSize: '0.82rem',
-                lineHeight: 1.45,
-                tabSize: 2,
-                whiteSpace: 'pre',
-                borderColor: isOverLimit
-                  ? 'var(--color-danger-border)'
-                  : undefined,
-              }}
-              placeholder={`schemaVersion: 1\nkind: localqa/test\nid: sample-test\nname: 示例用例\nsteps:\n  - kind: navigate\n    url: https://example.com\n`}
-              value={yamlContent}
+        <div className="grid-2">
+          <div className="field">
+            <label className="field-label" htmlFor="input-yaml-slug">
+              用例标识（Slug）<span className="field-required">*</span>
+            </label>
+            <input
+              id="input-yaml-slug"
+              type="text"
+              className="input is-mono"
+              placeholder="例如 checkout-payment-flow"
+              value={slug}
+              aria-invalid={!!validationErrors.slug}
               onChange={(e) => {
-                setYamlContent(e.target.value);
-                if (validationErrors.yaml) {
-                  setValidationErrors((prev) => ({ ...prev, yaml: '' }));
+                setSlug(e.target.value);
+                if (validationErrors.slug) {
+                  setValidationErrors((prev) => ({ ...prev, slug: '' }));
                 }
               }}
-              data-testid="input-yaml-content"
+              data-testid="input-yaml-slug"
             />
-            {validationErrors.yaml && (
-              <p
-                style={{
-                  color: 'var(--color-danger-text)',
-                  fontSize: '0.75rem',
-                  margin: '4px 0 0 0',
-                }}
-              >
-                {validationErrors.yaml}
-              </p>
+            {validationErrors.slug && (
+              <p className="field-error">{validationErrors.slug}</p>
             )}
           </div>
 
-          {/* Footer Actions */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '10px',
-              borderTop: '1px solid var(--color-border-subtle, #e5e7eb)',
-              paddingTop: '16px',
-            }}
-          >
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onClose}
-              disabled={loading}
-              data-testid="btn-cancel-yaml-import"
-            >
-              取消
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={loading || isOverLimit}
-              data-testid="btn-submit-yaml-import"
-            >
-              {loading ? '正在提交...' : '确认导入 (创建草稿)'}
-            </button>
+          <div className="field">
+            <label className="field-label" htmlFor="input-yaml-name">
+              用例名称<span className="field-required">*</span>
+            </label>
+            <input
+              id="input-yaml-name"
+              type="text"
+              className="input"
+              placeholder="例如 购物车结算付款流程"
+              value={name}
+              aria-invalid={!!validationErrors.name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (validationErrors.name) {
+                  setValidationErrors((prev) => ({ ...prev, name: '' }));
+                }
+              }}
+              data-testid="input-yaml-name"
+            />
+            {validationErrors.name && (
+              <p className="field-error">{validationErrors.name}</p>
+            )}
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        <div className="field">
+          <div className="row row-wrap spread">
+            <label className="field-label" htmlFor="input-yaml-content">
+              YAML 内容<span className="field-required">*</span>
+            </label>
+            <div className="row">
+              <label
+                className="btn btn-ghost btn-sm"
+                data-testid="btn-upload-yaml-file"
+              >
+                <AppIcon name="upload" size={13} />
+                选择本地文件
+                <input
+                  type="file"
+                  accept=".yaml,.yml,text/yaml"
+                  onChange={handleFileUpload}
+                  className="sr-only"
+                />
+              </label>
+              <span
+                className={`text-xs mono ${isOverLimit ? 'text-danger strong' : 'subtle'}`}
+                data-testid="yaml-char-counter"
+              >
+                {byteCount.toLocaleString()} / 262,144 字节（
+                {charCount.toLocaleString()} 字符）
+                {isOverLimit &&
+                  `，超出 ${Math.max(byteCount - MAX_YAML_BYTES, charCount - MAX_YAML_CHARS).toLocaleString()}`}
+              </span>
+            </div>
+          </div>
+
+          <textarea
+            id="input-yaml-content"
+            className="input is-mono lqa-code-area"
+            rows={14}
+            aria-invalid={isOverLimit || !!validationErrors.yaml}
+            placeholder={`schemaVersion: 1\nkind: localqa/test\nid: sample-test\nname: 示例用例\nsteps:\n  - kind: navigate\n    url: https://example.com\n`}
+            value={yamlContent}
+            onChange={(e) => {
+              setYamlContent(e.target.value);
+              if (validationErrors.yaml) {
+                setValidationErrors((prev) => ({ ...prev, yaml: '' }));
+              }
+            }}
+            data-testid="input-yaml-content"
+          />
+          {validationErrors.yaml && (
+            <p className="field-error">{validationErrors.yaml}</p>
+          )}
+        </div>
+      </form>
+    </Modal>
   );
 };

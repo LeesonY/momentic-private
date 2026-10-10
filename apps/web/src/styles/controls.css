@@ -5,7 +5,6 @@
  */
 
 /* ---- Field layout -------------------------------------------------------- */
-.form-group,
 .field {
   display: flex;
   flex-direction: column;
@@ -34,7 +33,6 @@
   color: var(--color-danger);
 }
 
-.form-help,
 .field-hint {
   font-size: var(--text-xs);
   line-height: 1.6;
@@ -118,12 +116,14 @@ select.input {
 }
 
 .form-input[aria-invalid='true'],
-.form-textarea[aria-invalid='true'] {
+.form-textarea[aria-invalid='true'],
+:root .input[aria-invalid='true'] {
   border-color: var(--color-danger);
 }
 
 .form-input.is-mono,
-.form-textarea.is-mono {
+.form-textarea.is-mono,
+:root .input.is-mono {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
 }

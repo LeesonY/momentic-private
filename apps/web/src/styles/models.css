@@ -413,18 +413,6 @@
 }
 
 @media (max-width: 720px) {
-  .lqa-models-content {
-    padding-top: 22px;
-  }
-  .lqa-models-heading {
-    gap: 14px;
-  }
-  .lqa-models-heading-icon {
-    flex-basis: 48px;
-    width: 48px;
-    height: 48px;
-    border-radius: var(--radius-lg);
-  }
   .lqa-models-section {
     padding: 21px;
   }
@@ -459,12 +447,6 @@
 }
 
 @media (max-width: 460px) {
-  .lqa-models-heading h1 {
-    font-size: 23px;
-  }
-  .lqa-models-heading-icon {
-    display: none;
-  }
   .lqa-models-create-heading {
     flex-wrap: wrap;
   }

@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../state/AppContext.tsx';
 import { ThemeToggle } from '../components/ui/ThemeToggle.tsx';
+import { AppIcon } from '../components/ui/AppIcon.tsx';
+import { Field } from '../components/ui/Field.tsx';
+import { Alert } from '../components/ui/Alert.tsx';
 
 export const LoginPage: React.FC = () => {
   const { login, isMock } = useApp();
@@ -30,122 +33,85 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div
-      className="lqa-login-shell"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 'calc(100vh - 160px)',
-        padding: '24px',
-      }}
-      data-testid="login-page"
-    >
+    <div className="lqa-login-shell" data-testid="login-page">
       <div className="lqa-login-theme">
         <ThemeToggle />
       </div>
-      <div
-        className="card lqa-login-card"
-        style={{ maxWidth: '420px', width: '100%', padding: '36px' }}
-      >
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <div
-            style={{
-              width: '48px',
-              height: '48px',
-              backgroundColor: 'var(--color-primary)',
-              borderRadius: 'var(--radius-lg)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--color-primary-contrast)',
-              fontWeight: 'bold',
-              fontSize: '1.5rem',
-              marginBottom: '12px',
-            }}
-          >
-            L
+      <div className="card lqa-login-card">
+        <div className="lqa-login-brand">
+          <span className="lqa-brand-mark">
+            <AppIcon name="layers" size={22} />
+          </span>
+          <div>
+            <h1 className="lqa-login-title">登录 LocalQA</h1>
+            <p className="muted text-sm">内网多人协作的自动化网页质量平台</p>
           </div>
-          <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>
-            LocalQA 平台登录
-          </h2>
-          <p
-            style={{
-              fontSize: '0.85rem',
-              color: 'var(--color-text-muted)',
-              marginTop: '4px',
-            }}
-          >
-            内网多用户自动化网页质量中台
-          </p>
         </div>
 
         {error && (
-          <div
-            style={{
-              padding: '10px 14px',
-              backgroundColor: 'var(--color-danger-bg)',
-              color: 'var(--color-danger-text)',
-              border: '1px solid var(--color-danger-border)',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.85rem',
-              marginBottom: '16px',
-            }}
-            data-testid="login-error-message"
+          <Alert
+            tone="danger"
+            testId="login-error-message"
+            className="lqa-modal-alert"
           >
             {error}
-          </div>
+          </Alert>
         )}
 
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">账号 / 邮箱 (Username / Email)</label>
+          <Field label="账号或邮箱" htmlFor="login-username">
             <input
+              id="login-username"
               type="text"
               className="form-input"
+              autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="admin@localqa.fixture"
               data-testid="login-username-input"
             />
-          </div>
+          </Field>
 
-          <div className="form-group">
-            <label className="form-label">登录密码 (Password)</label>
+          <Field label="密码" htmlFor="login-password">
             <input
+              id="login-password"
               type="password"
               className="form-input"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••••••"
               data-testid="login-password-input"
             />
-          </div>
+          </Field>
 
           {isMock && (
-            <div
-              style={{
-                margin: '14px 0',
-                fontSize: '0.75rem',
-                color: 'var(--color-text-muted)',
-                lineHeight: 1.5,
-              }}
-            >
-              * 模拟演示账号：
-              <br />- 管理员: <code>admin@localqa.fixture</code>
-              <br />- 操作员: <code>operator@localqa.fixture</code>
-              <br />- 观察员: <code>viewer@localqa.fixture</code>
+            <div className="panel lqa-login-demo">
+              <div className="section-label">演示账号</div>
+              <dl className="kv">
+                <dt>管理员</dt>
+                <dd>
+                  <code>admin@localqa.fixture</code>
+                </dd>
+                <dt>操作员</dt>
+                <dd>
+                  <code>operator@localqa.fixture</code>
+                </dd>
+                <dt>只读成员</dt>
+                <dd>
+                  <code>viewer@localqa.fixture</code>
+                </dd>
+              </dl>
             </div>
           )}
 
           <button
             type="submit"
-            className="btn btn-primary"
-            style={{ width: '100%', marginTop: '8px' }}
+            className="btn btn-primary btn-lg btn-block"
             disabled={loading}
             data-testid="btn-login-submit"
           >
-            {loading ? '正在验证凭据...' : '登 录'}
+            {loading ? '正在验证凭据...' : '登录'}
           </button>
         </form>
       </div>

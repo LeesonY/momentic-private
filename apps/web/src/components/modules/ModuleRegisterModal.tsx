@@ -5,6 +5,9 @@ import type {
 } from '@localqa/contracts';
 import { validateContract } from '@localqa/contracts';
 import { defaultApiClient } from '../../api/index.ts';
+import { Modal } from '../ui/Modal.tsx';
+import { Field } from '../ui/Field.tsx';
+import { Alert } from '../ui/Alert.tsx';
 
 interface ModuleRegisterModalProps {
   projectId: string;
@@ -118,165 +121,87 @@ export const ModuleRegisterModal: React.FC<ModuleRegisterModalProps> = ({
     }
   };
 
+  const close = () => {
+    if (!loading) onClose();
+  };
+
   return (
-    <div
-      className="modal-backdrop"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
-      data-testid="module-register-modal"
-    >
-      <div
-        className="card"
-        style={{
-          width: '90%',
-          maxWidth: '680px',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          padding: '24px',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '16px',
-          }}
-        >
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-            {isNewVersion
-              ? `发布模块新版本: ${existingModule.name} (目标 v${existingModule.latestVersion + 1})`
-              : '注册受控回归模块 (Register Module)'}
-          </h2>
+    <Modal
+      title={
+        isNewVersion
+          ? `发布新版本：${existingModule.name}（v${existingModule.latestVersion + 1}）`
+          : '注册模块'
+      }
+      onClose={close}
+      size="lg"
+      closeOnOverlay={false}
+      overlayTestId="module-register-modal"
+      footer={
+        <>
           <button
             type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={onClose}
+            className="btn btn-ghost"
+            onClick={close}
+            disabled={loading}
           >
-            ✕
+            取消
           </button>
-        </div>
-
-        <div
-          style={{
-            padding: '8px 12px',
-            backgroundColor: 'var(--color-bg-subtle)',
-            borderRadius: 'var(--radius-sm)',
-            fontSize: '0.8rem',
-            color: 'var(--color-text-muted)',
-            marginBottom: '16px',
-          }}
-        >
-          ℹ️
-          模块创建后初始状态为草稿（Draft）。草稿必须由项目所有者（Owner）进行两阶段审查批准后，方可作为受控基线在回归执行中引用。
-        </div>
-
+          <button
+            type="submit"
+            form="module-register-form"
+            className="btn btn-primary"
+            disabled={loading}
+            data-testid="btn-submit-register-module"
+          >
+            {loading
+              ? '提交中...'
+              : isNewVersion
+                ? '提交新版本草稿'
+                : '提交注册草稿'}
+          </button>
+        </>
+      }
+    >
+      <div className="stack stack-sm lqa-modal-alert">
+        <Alert tone="info">
+          模块创建后是草稿状态，需要项目负责人两阶段审查批准后，才能作为受控基线在回归中引用。
+        </Alert>
         {error && (
-          <div
-            className="card"
-            style={{
-              padding: '8px 12px',
-              backgroundColor: 'var(--color-danger-bg)',
-              borderColor: 'var(--color-danger-border)',
-              color: 'var(--color-danger-text)',
-              marginBottom: '16px',
-              fontSize: '0.85rem',
-            }}
-            data-testid="module-register-error"
-          >
+          <Alert tone="danger" testId="module-register-error">
             {error}
-          </div>
+          </Alert>
         )}
-
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '16px' }}>
-            <label
-              style={{
-                display: 'block',
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                marginBottom: '6px',
-              }}
-            >
-              模块名称 (Module Name)
-            </label>
-            <input
-              type="text"
-              className="form-input"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={isNewVersion || loading}
-              placeholder="auth_helper 或 checkout/coupon"
-              style={{ width: '100%' }}
-              data-testid="module-name-input"
-            />
-          </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label
-              style={{
-                display: 'block',
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                marginBottom: '6px',
-              }}
-            >
-              用例文档内容 (RegressionDocument JSON)
-            </label>
-            <textarea
-              className="form-input"
-              rows={12}
-              value={documentJson}
-              onChange={(e) => setDocumentJson(e.target.value)}
-              disabled={loading}
-              style={{
-                width: '100%',
-                fontFamily: 'monospace',
-                fontSize: '0.8rem',
-                lineHeight: 1.4,
-              }}
-              data-testid="module-document-json-input"
-            />
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '10px',
-              marginTop: '20px',
-            }}
-          >
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onClose}
-              disabled={loading}
-            >
-              取消
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={loading}
-              data-testid="btn-submit-register-module"
-            >
-              {loading
-                ? '提交中...'
-                : isNewVersion
-                  ? '提交新版本草稿'
-                  : '提交注册草稿'}
-            </button>
-          </div>
-        </form>
       </div>
-    </div>
+
+      <form id="module-register-form" onSubmit={handleSubmit}>
+        <Field label="模块名称" htmlFor="module-name-input">
+          <input
+            id="module-name-input"
+            type="text"
+            className="form-input is-mono"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={isNewVersion || loading}
+            placeholder="auth_helper 或 checkout/coupon"
+            data-testid="module-name-input"
+          />
+        </Field>
+
+        <Field
+          label="模块文档（RegressionDocument JSON）"
+          htmlFor="module-document-json"
+        >
+          <textarea
+            id="module-document-json"
+            className="form-textarea is-mono lqa-code-area"
+            rows={14}
+            value={documentJson}
+            onChange={(e) => setDocumentJson(e.target.value)}
+            disabled={loading}
+            data-testid="module-document-json-input"
+          />
+        </Field>
+      </form>
+    </Modal>
   );
 };
