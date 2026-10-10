@@ -9,6 +9,7 @@ import type {
   Project,
   ProjectCreate,
   ProjectPatch,
+  ProjectDeleteConfirm,
   ProjectPage,
   MemberUpdate,
   MemberPage,
@@ -274,6 +275,17 @@ export class HttpApiClient implements ApiClient {
         body: JSON.stringify(input),
       },
       'Project',
+    );
+  }
+
+  // Platform admin only; the server deletes only an unmodified empty project.
+  public async deleteEmptyProject(projectId: string, input: ProjectDeleteConfirm): Promise<void> {
+    await this.request<void>(
+      `/projects/${encodeURIComponent(projectId)}`,
+      {
+        method: 'DELETE',
+        body: JSON.stringify(input),
+      },
     );
   }
 

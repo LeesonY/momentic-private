@@ -209,6 +209,23 @@ test('unknown input fields reject, defaults/coercion/stripping never mutate inpu
     false,
   );
 });
+test('ProjectDeleteConfirm mirrors the DELETE route: positive version and exact name only', () => {
+  assert(
+    validateContract('ProjectDeleteConfirm', {
+      expectedVersion: 1,
+      confirmName: 'P',
+    }).success,
+  );
+  for (const bad of [
+    { expectedVersion: 0, confirmName: 'P' },
+    { expectedVersion: 1.5, confirmName: 'P' },
+    { expectedVersion: 1, confirmName: '' },
+    { expectedVersion: 1, confirmName: 'x'.repeat(121) },
+    { expectedVersion: 1 },
+    { expectedVersion: 1, confirmName: 'P', force: true },
+  ])
+    assert.equal(validateContract('ProjectDeleteConfirm', bad).success, false);
+});
 test('all budget fields: minimum, maximum, fractional, outside bounds, all optional/default absence', () => {
   for (const [key, schema] of Object.entries(
     domain.$defs.BudgetOverrides.properties,
@@ -453,7 +470,7 @@ test('every OpenAPI request, response, media and parameter validator compiles; I
           count++;
         }
     }
-  assert.equal(publicOperationIds.length, 90);
+  assert.equal(publicOperationIds.length, 91);
   assert.equal(internalOperationIds.length, 8);
   for (const id of internalOperationIds)
     assert.throws(() =>

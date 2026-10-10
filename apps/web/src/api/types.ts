@@ -8,6 +8,7 @@ import type {
   Project,
   ProjectCreate,
   ProjectPatch,
+  ProjectDeleteConfirm,
   ProjectPage,
   MemberUpdate,
   MemberPage,
@@ -113,6 +114,7 @@ export type {
   Project,
   ProjectCreate,
   ProjectPatch,
+  ProjectDeleteConfirm,
   ProjectPage,
   MemberUpdate,
   MemberPage,
@@ -218,6 +220,7 @@ export type PublicOperationName =
   | 'createProject'
   | 'getProject'
   | 'updateProject'
+  | 'deleteEmptyProject'
   | 'listMembers'
   | 'replaceMembers'
   | 'listEnvironment'
@@ -349,6 +352,7 @@ export interface ApiClient {
   createProject(input: ProjectCreate): Promise<Project>;
   getProject(projectId: string): Promise<Project>;
   updateProject(projectId: string, input: ProjectPatch): Promise<Project>;
+  deleteEmptyProject(projectId: string, input: ProjectDeleteConfirm): Promise<void>;
   listMembers(projectId: string, query?: PaginationQuery): Promise<MemberPage>;
   replaceMembers(projectId: string, input: MemberUpdate): Promise<Project>;
 

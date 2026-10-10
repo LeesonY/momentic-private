@@ -76,6 +76,7 @@ export type Contract =
   | NodeTarget
   | Project
   | ProjectCreate
+  | ProjectDeleteConfirm
   | ProjectPage
   | ProjectPatch
   | RegressionBinding
@@ -1144,6 +1145,10 @@ export interface Project {
 export interface ProjectCreate {
   name: string;
 }
+export interface ProjectDeleteConfirm {
+  expectedVersion: number;
+  confirmName: string;
+}
 export interface ProjectPage {
   /**
    * @minItems 0
@@ -1796,6 +1801,7 @@ export interface ContractTypes {
   NodeTarget: NodeTarget;
   Project: Project;
   ProjectCreate: ProjectCreate;
+  ProjectDeleteConfirm: ProjectDeleteConfirm;
   ProjectPage: ProjectPage;
   ProjectPatch: ProjectPatch;
   RegressionBinding: RegressionBinding;

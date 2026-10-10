@@ -13,6 +13,7 @@ import type {
   Project,
   ProjectCreate,
   ProjectPatch,
+  ProjectDeleteConfirm,
   ProjectPage,
   Environment,
   EnvironmentCreate,
@@ -373,6 +374,21 @@ export class MockApiClient implements ApiClient {
     const updated = { ...project, ...patch, version: project.version + 1 };
     this.projects[index] = updated;
     return updated;
+  }
+
+  public async deleteEmptyProject(
+    projectId: string,
+    input: ProjectDeleteConfirm,
+  ): Promise<void> {
+    const index = this.projects.findIndex((p) =>
+      matchesProjectId(p.id, projectId),
+    );
+    if (index < 0) throw new Error('项目不存在');
+    const project = this.projects[index]!;
+    if (project.version !== input.expectedVersion)
+      throw new Error('VERSION_CONFLICT');
+    if (project.name !== input.confirmName) throw new Error('项目名称不匹配');
+    this.projects.splice(index, 1);
   }
 
   public async listMembers(

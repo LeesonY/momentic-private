@@ -52,8 +52,8 @@ for (const [path, methods] of Object.entries(openApi.paths)) {
   }
 }
 
-if (operations.length !== 90) {
-  throw new Error(`Expected 90 public operations, found ${operations.length}`);
+if (operations.length !== 91) {
+  throw new Error(`Expected 91 public operations, found ${operations.length}`);
 }
 
 const opNames = operations.map((op) => op.operationId);
@@ -69,6 +69,7 @@ import type {
   Project,
   ProjectCreate,
   ProjectPatch,
+  ProjectDeleteConfirm,
   ProjectPage,
   MemberUpdate,
   MemberPage,
@@ -174,6 +175,7 @@ export type {
   Project,
   ProjectCreate,
   ProjectPatch,
+  ProjectDeleteConfirm,
   ProjectPage,
   MemberUpdate,
   MemberPage,
@@ -321,6 +323,7 @@ export interface ApiClient {
   createProject(input: ProjectCreate): Promise<Project>;
   getProject(projectId: string): Promise<Project>;
   updateProject(projectId: string, input: ProjectPatch): Promise<Project>;
+  deleteEmptyProject(projectId: string, input: ProjectDeleteConfirm): Promise<void>;
   listMembers(projectId: string, query?: PaginationQuery): Promise<MemberPage>;
   replaceMembers(projectId: string, input: MemberUpdate): Promise<Project>;
 
@@ -466,6 +469,7 @@ import type {
   Project,
   ProjectCreate,
   ProjectPatch,
+  ProjectDeleteConfirm,
   ProjectPage,
   MemberUpdate,
   MemberPage,
@@ -731,6 +735,17 @@ export class HttpApiClient implements ApiClient {
         body: JSON.stringify(input),
       },
       'Project',
+    );
+  }
+
+  // Platform admin only; the server deletes only an unmodified empty project.
+  public async deleteEmptyProject(projectId: string, input: ProjectDeleteConfirm): Promise<void> {
+    await this.request<void>(
+      \`/projects/\${encodeURIComponent(projectId)}\`,
+      {
+        method: 'DELETE',
+        body: JSON.stringify(input),
+      },
     );
   }
 

@@ -442,6 +442,54 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "deleteEmptyProject",
+        "tags": [
+          "P0"
+        ],
+        "summary": "deleteEmptyProject",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "deleteEmptyProject"
+          },
+          "default": {
+            "description": "Stable, redacted error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectDeleteConfirm"
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/projects/{projectId}/members": {
@@ -9316,6 +9364,25 @@
         },
         "required": [
           "expectedVersion"
+        ],
+        "additionalProperties": false
+      },
+      "ProjectDeleteConfirm": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "confirmName": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "confirmName"
         ],
         "additionalProperties": false
       },

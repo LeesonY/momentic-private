@@ -106,6 +106,7 @@ UI 使用“通过”“已判定”“已尝试”三个不同名称。控件�
 | POST /auth/login；POST /auth/logout；GET /auth/me | 账号 session；登录限速，退出撤销 session |
 | GET/POST /users；PATCH /users/{userId} | admin 管理账号、禁用与密码重置；请求正文不写日志 |
 | GET/POST /projects；GET/PATCH /projects/{projectId} | 列表、创建、详情、归档与默认模型；创建由 admin，查询按成员资格 |
+| DELETE /projects/{projectId} | 永久删除空项目：仅平台 admin；请求体 `expectedVersion` + `confirmName`（须与当前名称完全一致）；存在任何运行、用例、环境、模型授权、定时、凭据或其他成员时拒绝且不做改动；成功 204 |
 | GET/PUT /projects/{projectId}/members | 成员和角色；owner/admin；至少保留一个 owner |
 | GET/POST /projects/{projectId}/environments | 环境元数据及创建；owner/admin；密钥不在该 DTO |
 | GET/PATCH /environments/{environmentId} | 环境详情与新版本；目标 origin/TLS/代理政策校验 |

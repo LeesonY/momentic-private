@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import type { Member, Health, User } from '@localqa/contracts';
 import { useAppContext } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
-import { deleteEmptyProject } from '../api/projectDeletion.ts';
 import { AppHeader } from '../components/layout/AppHeader.tsx';
 import { StatusBadge } from '../components/ui/Badge.tsx';
 
@@ -255,13 +254,20 @@ export const MembersOpsPage: React.FC = () => {
     setDeletingProject(true);
     setDeleteError('');
     try {
-      await deleteEmptyProject(currentProject.id, {
+      await defaultApiClient.deleteEmptyProject(currentProject.id, {
         expectedVersion: currentProject.version,
         confirmName: currentProject.name,
       });
       removeProject(currentProject.id);
     } catch (error) {
-      setDeleteError(error instanceof Error ? error.message : '删除项目失败');
+      const code = (error as { code?: string }).code;
+      setDeleteError(
+        error instanceof Error
+          ? code
+            ? `${error.message}（${code}）`
+            : error.message
+          : '删除项目失败',
+      );
     } finally {
       setDeletingProject(false);
     }
