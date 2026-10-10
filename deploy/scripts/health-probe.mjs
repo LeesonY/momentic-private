@@ -2,6 +2,8 @@
 import { existsSync, accessSync, constants } from 'node:fs';
 import pg from '../../packages/storage/node_modules/pg/lib/index.js';
 import { SecretVault } from '../../packages/storage/dist/index.js';
+import { loadDatabaseUrl } from '../images/database-url.mjs';
+import { hasAllMigrations } from '../images/migration-check.mjs';
 
 const mode = process.argv.includes('--live')
   ? 'live'
@@ -9,9 +11,9 @@ const mode = process.argv.includes('--live')
     ? 'ready'
     : 'ready';
 
-const connectionString =
-  process.env.DATABASE_URL ||
-  `postgresql://${process.env.POSTGRES_USER || 'localqa'}:${process.env.POSTGRES_PASSWORD || 'localqa'}@${process.env.PGHOST || '127.0.0.1'}:${process.env.PGPORT || '5432'}/${process.env.POSTGRES_DB || 'localqa'}`;
+// Liveness reports whether the process is responsive; only readiness depends
+// on the database secret and connectivity.
+const connectionString = mode === 'live' ? null : await loadDatabaseUrl();
 
 const kekFile = process.env.MASTER_KEY_FILE || '/run/secrets/kek.json';
 const dataDir = process.env.DATA_DIR || '/var/localqa/data';
@@ -39,12 +41,7 @@ async function probe() {
     checks.database = true;
 
     // 2. Check Migrations
-    const res = await client.query(
-      "SELECT count(*)::integer n FROM storage_migrations WHERE name IN ('001_core.sql','002_invariants.sql','003_access.sql','004_hardening.sql','005_project_default_model.sql','006_run_messages_redaction.sql','007_p1_saved_cases.sql','008_saved_case_review_previews.sql','009_regression_bindings.sql','010_regression_module_reviews.sql')",
-    );
-    if (res.rows[0]?.n === 10) {
-      checks.migrations = true;
-    }
+    checks.migrations = await hasAllMigrations(client);
   } catch (err) {
     console.error('[HealthProbe] Database check failed:', err.message);
   } finally {

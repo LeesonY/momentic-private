@@ -83,7 +83,18 @@ export function createPolicyDispatcher(
       // 重复动作限制由浏览器执行层负责（docs/02 §5.3：相同动作与页面指纹重复三次
       // 停止该用例，见 packages/browser/src/waiter.ts）。Dispatcher 不重复实现，
       // 否则两次参数相同的正常观察会被误判为越权。
-      const data = await execute(call);
+      let data: JsonValue;
+      try {
+        data = await execute(call);
+      } catch (error) {
+        const code = (error as { code?: unknown } | null)?.code;
+        // A model may ask for a role-permitted tool that the *current run's*
+        // stricter action policy forbids. Do not misclassify this safe denial
+        // as a Worker/setup outage or mark the action as executed.
+        if (code === 'POLICY_DENIED' || code === 'TARGET_NOT_ALLOWED')
+          return denied(code);
+        throw error;
+      }
       const resultValidator = getToolResultValidator(call.name);
       if (!resultValidator(data)) return denied('VALIDATION_ERROR');
       return parseContract('ToolResult', {

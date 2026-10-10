@@ -88,6 +88,7 @@ import type {
   ScheduleCreate,
   SchedulePage,
   SchedulePatch,
+  ScheduleOccurrencePage,
   ApiKey,
   ApiKeyCreate,
   ApiKeyCreated,
@@ -95,6 +96,11 @@ import type {
   CacheStats,
   RepairProposal,
   RepairProposalCreate,
+  RepairProposalReviewInput,
+  RepairCandidateVerification,
+  RepairCandidateVerificationPage,
+  RepairCandidateEvidence,
+  RepairCandidateEvidencePage,
   RepairProposalPage,
 } from './types.ts';
 
@@ -153,9 +159,7 @@ export class HttpApiClient implements ApiClient {
     return data as T;
   }
 
-  private buildQuery(
-    params?: Record<string, string | number | boolean | undefined | null>,
-  ): string {
+  private buildQuery(params?: Record<string, string | number | boolean | undefined | null>): string {
     if (!params) return '';
     const sp = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {
@@ -170,19 +174,12 @@ export class HttpApiClient implements ApiClient {
   private isSameIdentifier(a: string, b: string): boolean {
     if (a === b) return true;
     if (!a || !b) return false;
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (uuidRegex.test(a) && uuidRegex.test(b)) {
       return a.toLowerCase() === b.toLowerCase();
     }
-    const legacyA =
-      a === 'legacy-project-mock-001' ||
-      (uuidRegex.test(a) &&
-        a.toLowerCase() === '00000000-0000-4000-8000-000000000001');
-    const legacyB =
-      b === 'legacy-project-mock-001' ||
-      (uuidRegex.test(b) &&
-        b.toLowerCase() === '00000000-0000-4000-8000-000000000001');
+    const legacyA = a === 'legacy-project-mock-001' || (uuidRegex.test(a) && a.toLowerCase() === '00000000-0000-4000-8000-000000000001');
+    const legacyB = b === 'legacy-project-mock-001' || (uuidRegex.test(b) && b.toLowerCase() === '00000000-0000-4000-8000-000000000001');
     return legacyA && legacyB;
   }
 
@@ -270,10 +267,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 10. updateProject
-  public async updateProject(
-    projectId: string,
-    input: ProjectPatch,
-  ): Promise<Project> {
+  public async updateProject(projectId: string, input: ProjectPatch): Promise<Project> {
     return this.request<Project>(
       `/projects/${encodeURIComponent(projectId)}`,
       {
@@ -285,10 +279,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 11. listMembers
-  public async listMembers(
-    projectId: string,
-    query?: PaginationQuery,
-  ): Promise<MemberPage> {
+  public async listMembers(projectId: string, query?: PaginationQuery): Promise<MemberPage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
     return this.request<MemberPage>(
       `/projects/${encodeURIComponent(projectId)}/members${qs}`,
@@ -297,11 +288,25 @@ export class HttpApiClient implements ApiClient {
     );
   }
 
+  public async listProjectModels(projectId: string, query?: PaginationQuery): Promise<ModelProfilePage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<ModelProfilePage>(
+      '/projects/' + encodeURIComponent(projectId) + '/model-profiles' + qs,
+      { method: 'GET' },
+      'ModelProfilePage',
+    );
+  }
+
+  public async grantProjectModel(projectId: string, input: { modelProfileId: string }): Promise<ModelProfile> {
+    return this.request<ModelProfile>(
+      '/projects/' + encodeURIComponent(projectId) + '/model-profiles',
+      { method: 'POST', body: JSON.stringify(input) },
+      'ModelProfile',
+    );
+  }
+
   // 12. replaceMembers
-  public async replaceMembers(
-    projectId: string,
-    input: MemberUpdate,
-  ): Promise<Project> {
+  public async replaceMembers(projectId: string, input: MemberUpdate): Promise<Project> {
     return this.request<Project>(
       `/projects/${encodeURIComponent(projectId)}/members`,
       {
@@ -313,10 +318,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 13. listEnvironment
-  public async listEnvironment(
-    projectId: string,
-    query?: PaginationQuery,
-  ): Promise<EnvironmentPage> {
+  public async listEnvironment(projectId: string, query?: PaginationQuery): Promise<EnvironmentPage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
     return this.request<EnvironmentPage>(
       `/projects/${encodeURIComponent(projectId)}/environments${qs}`,
@@ -325,18 +327,12 @@ export class HttpApiClient implements ApiClient {
     );
   }
 
-  public async listEnvironments(
-    projectId: string,
-    query?: PaginationQuery,
-  ): Promise<EnvironmentPage> {
+  public async listEnvironments(projectId: string, query?: PaginationQuery): Promise<EnvironmentPage> {
     return this.listEnvironment(projectId, query);
   }
 
   // 14. createEnvironment
-  public async createEnvironment(
-    projectId: string,
-    input: EnvironmentCreate,
-  ): Promise<Environment> {
+  public async createEnvironment(projectId: string, input: EnvironmentCreate): Promise<Environment> {
     return this.request<Environment>(
       `/projects/${encodeURIComponent(projectId)}/environments`,
       {
@@ -357,10 +353,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 16. updateEnvironment
-  public async updateEnvironment(
-    environmentId: string,
-    input: EnvironmentPatch,
-  ): Promise<Environment> {
+  public async updateEnvironment(environmentId: string, input: EnvironmentPatch): Promise<Environment> {
     return this.request<Environment>(
       `/environments/${encodeURIComponent(environmentId)}`,
       {
@@ -372,10 +365,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 17. listAuthProfile
-  public async listAuthProfile(
-    projectId: string,
-    query?: PaginationQuery,
-  ): Promise<AuthProfilePage> {
+  public async listAuthProfile(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
     return this.request<AuthProfilePage>(
       `/projects/${encodeURIComponent(projectId)}/auth-profiles${qs}`,
@@ -384,18 +374,12 @@ export class HttpApiClient implements ApiClient {
     );
   }
 
-  public async listAuthProfiles(
-    projectId: string,
-    query?: PaginationQuery,
-  ): Promise<AuthProfilePage> {
+  public async listAuthProfiles(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage> {
     return this.listAuthProfile(projectId, query);
   }
 
   // 18. createAuthProfile
-  public async createAuthProfile(
-    projectId: string,
-    input: AuthProfileCreate,
-  ): Promise<AuthProfile> {
+  public async createAuthProfile(projectId: string, input: AuthProfileCreate): Promise<AuthProfile> {
     return this.request<AuthProfile>(
       `/projects/${encodeURIComponent(projectId)}/auth-profiles`,
       {
@@ -407,10 +391,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 19. updateAuthProfile
-  public async updateAuthProfile(
-    authProfileId: string,
-    input: AuthProfilePatch,
-  ): Promise<AuthProfile> {
+  public async updateAuthProfile(authProfileId: string, input: AuthProfilePatch): Promise<AuthProfile> {
     return this.request<AuthProfile>(
       `/auth-profiles/${encodeURIComponent(authProfileId)}`,
       {
@@ -422,10 +403,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 20. listKnowledge
-  public async listKnowledge(
-    projectId: string,
-    query?: PaginationQuery,
-  ): Promise<KnowledgePage> {
+  public async listKnowledge(projectId: string, query?: PaginationQuery): Promise<KnowledgePage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
     return this.request<KnowledgePage>(
       `/projects/${encodeURIComponent(projectId)}/knowledge${qs}`,
@@ -435,10 +413,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 21. createKnowledge
-  public async createKnowledge(
-    projectId: string,
-    input: KnowledgeCreate,
-  ): Promise<Knowledge> {
+  public async createKnowledge(projectId: string, input: KnowledgeCreate): Promise<Knowledge> {
     return this.request<Knowledge>(
       `/projects/${encodeURIComponent(projectId)}/knowledge`,
       {
@@ -450,10 +425,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 22. updateKnowledge
-  public async updateKnowledge(
-    knowledgeId: string,
-    input: KnowledgePatch,
-  ): Promise<Knowledge> {
+  public async updateKnowledge(knowledgeId: string, input: KnowledgePatch): Promise<Knowledge> {
     return this.request<Knowledge>(
       `/knowledge/${encodeURIComponent(knowledgeId)}`,
       {
@@ -496,10 +468,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 26. updateModel
-  public async updateModel(
-    modelProfileId: string,
-    input: ModelProfilePatch,
-  ): Promise<ModelProfile> {
+  public async updateModel(modelProfileId: string, input: ModelProfilePatch): Promise<ModelProfile> {
     return this.request<ModelProfile>(
       `/model-profiles/${encodeURIComponent(modelProfileId)}`,
       {
@@ -526,17 +495,14 @@ export class HttpApiClient implements ApiClient {
       targetUrl: input.targetUrl,
       mode: input.mode || 'smoke',
     };
-    const brief =
-      ('brief' in input ? input.brief : undefined) ??
-      ('description' in input ? input.description : undefined);
+    const brief = ('brief' in input ? input.brief : undefined) ?? ('description' in input ? input.description : undefined);
     if (brief && brief.trim()) {
       payload.brief = brief.trim();
     }
     if (input.environmentId) payload.environmentId = input.environmentId;
     if (input.authProfileId) payload.authProfileId = input.authProfileId;
-    const budget =
-      ('budget' in input ? input.budget : undefined) ??
-      ('budgetOverrides' in input ? input.budgetOverrides : undefined);
+    if (input.modelProfileId) payload.modelProfileId = input.modelProfileId;
+    const budget = ('budget' in input ? input.budget : undefined) ?? ('budgetOverrides' in input ? input.budgetOverrides : undefined);
     if (budget && Object.keys(budget).length > 0) {
       payload.budget = budget;
     }
@@ -560,26 +526,17 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 29. listRuns
-  public async listRuns(
-    projectIdOrQuery: string | ListRunsQuery,
-  ): Promise<RunPage> {
-    const query =
-      typeof projectIdOrQuery === 'string'
-        ? { projectId: projectIdOrQuery }
-        : projectIdOrQuery;
-    const qs = this.buildQuery(
-      query as unknown as Record<string, string | number>,
-    );
+  public async listRuns(projectIdOrQuery: string | ListRunsQuery): Promise<RunPage> {
+    const query = typeof projectIdOrQuery === 'string'
+      ? { projectId: projectIdOrQuery }
+      : projectIdOrQuery;
+    const qs = this.buildQuery(query as unknown as Record<string, string | number>);
     return this.request<RunPage>(`/runs${qs}`, { method: 'GET' }, 'RunPage');
   }
 
   // 30. getRun
   public async getRun(runId: string): Promise<Run> {
-    return this.request<Run>(
-      `/runs/${encodeURIComponent(runId)}`,
-      { method: 'GET' },
-      'Run',
-    );
+    return this.request<Run>(`/runs/${encodeURIComponent(runId)}`, { method: 'GET' }, 'Run');
   }
 
   // 31. cancelRun
@@ -597,10 +554,9 @@ export class HttpApiClient implements ApiClient {
     messageOrInput: string | MessageInput,
     expectedContextVersion = 1,
   ): Promise<Run> {
-    const payload: MessageInput =
-      typeof messageOrInput === 'string'
-        ? { text: messageOrInput, expectedContextVersion }
-        : messageOrInput;
+    const payload: MessageInput = typeof messageOrInput === 'string'
+      ? { text: messageOrInput, expectedContextVersion }
+      : messageOrInput;
 
     return this.request<Run>(
       `/runs/${encodeURIComponent(runId)}/messages`,
@@ -648,10 +604,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 35. listRunCases
-  public async listRunCases(
-    runId: string,
-    query?: PaginationQuery,
-  ): Promise<CaseRecordPage> {
+  public async listRunCases(runId: string, query?: PaginationQuery): Promise<CaseRecordPage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
     return this.request<CaseRecordPage>(
       `/runs/${encodeURIComponent(runId)}/cases${qs}`,
@@ -661,10 +614,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 36. listRunTasks
-  public async listRunTasks(
-    runId: string,
-    query?: PaginationQuery,
-  ): Promise<TaskPage> {
+  public async listRunTasks(runId: string, query?: PaginationQuery): Promise<TaskPage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
     return this.request<TaskPage>(
       `/runs/${encodeURIComponent(runId)}/tasks${qs}`,
@@ -674,10 +624,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 37. listRunFindings
-  public async listRunFindings(
-    runId: string,
-    query?: PaginationQuery,
-  ): Promise<FindingPage> {
+  public async listRunFindings(runId: string, query?: PaginationQuery): Promise<FindingPage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
     return this.request<FindingPage>(
       `/runs/${encodeURIComponent(runId)}/findings${qs}`,
@@ -696,10 +643,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 39. listCaseAttempts
-  public async listCaseAttempts(
-    caseId: string,
-    query?: PaginationQuery,
-  ): Promise<CaseAttemptPage> {
+  public async listCaseAttempts(caseId: string, query?: PaginationQuery): Promise<CaseAttemptPage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
     return this.request<CaseAttemptPage>(
       `/cases/${encodeURIComponent(caseId)}/attempts${qs}`,
@@ -709,10 +653,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 40. listTaskSteps
-  public async listTaskSteps(
-    taskId: string,
-    query?: PaginationQuery,
-  ): Promise<StepPage> {
+  public async listTaskSteps(taskId: string, query?: PaginationQuery): Promise<StepPage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
     return this.request<StepPage>(
       `/tasks/${encodeURIComponent(taskId)}/steps${qs}`,
@@ -731,10 +672,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 42. listEventHistory
-  public async listEventHistory(
-    runId: string,
-    query?: ListEventHistoryQuery,
-  ): Promise<RunEventPage> {
+  public async listEventHistory(runId: string, query?: ListEventHistoryQuery): Promise<RunEventPage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
     return this.request<RunEventPage>(
       `/runs/${encodeURIComponent(runId)}/event-history${qs}`,
@@ -765,14 +703,13 @@ export class HttpApiClient implements ApiClient {
     reason = '',
     expectedVersion = 1,
   ): Promise<TriagePreview> {
-    const payload: TriageInput =
-      typeof dispositionOrInput === 'object'
-        ? dispositionOrInput
-        : {
-            disposition: dispositionOrInput,
-            reason,
-            expectedVersion,
-          };
+    const payload: TriageInput = typeof dispositionOrInput === 'object'
+      ? dispositionOrInput
+      : {
+          disposition: dispositionOrInput,
+          reason,
+          expectedVersion,
+        };
 
     return this.request<TriagePreview>(
       `/findings/${encodeURIComponent(findingId)}/triage-preview`,
@@ -785,10 +722,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 45. commitTriage
-  public async commitTriage(
-    findingId: string,
-    input: TriageCommit,
-  ): Promise<Finding> {
+  public async commitTriage(findingId: string, input: TriageCommit): Promise<Finding> {
     return this.request<Finding>(
       `/findings/${encodeURIComponent(findingId)}/triage`,
       {
@@ -813,10 +747,9 @@ export class HttpApiClient implements ApiClient {
     runId: string,
     formatOrInput: 'json' | 'markdown' | 'zip' | ExportInput,
   ): Promise<Export> {
-    const payload: ExportInput =
-      typeof formatOrInput === 'string'
-        ? { format: formatOrInput }
-        : formatOrInput;
+    const payload: ExportInput = typeof formatOrInput === 'string'
+      ? { format: formatOrInput }
+      : formatOrInput;
 
     return this.request<Export>(
       `/runs/${encodeURIComponent(runId)}/exports`,
@@ -879,10 +812,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 53. listSavedCases
-  public async listSavedCases(
-    projectId: string,
-    query?: SavedCaseListQuery,
-  ): Promise<SavedCasePage> {
+  public async listSavedCases(projectId: string, query?: SavedCaseListQuery): Promise<SavedCasePage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
     const res = await this.request<SavedCasePage>(
       `/projects/${encodeURIComponent(projectId)}/saved-cases${qs}`,
@@ -891,28 +821,17 @@ export class HttpApiClient implements ApiClient {
     );
     for (const item of res.items) {
       if (!this.isSameIdentifier(item.projectId, projectId)) {
-        throw new Error(
-          `Item project mismatch: expected ${projectId}, got ${item.projectId}`,
-        );
+        throw new Error(`Item project mismatch: expected ${projectId}, got ${item.projectId}`);
       }
-      if (
-        query?.status &&
-        query.status !== 'all' &&
-        item.status !== query.status
-      ) {
-        throw new Error(
-          `Item status mismatch: expected ${query.status}, got ${item.status}`,
-        );
+      if (query?.status && query.status !== 'all' && item.status !== query.status) {
+        throw new Error(`Item status mismatch: expected ${query.status}, got ${item.status}`);
       }
     }
     return res;
   }
 
   // 54. createSavedCase
-  public async createSavedCase(
-    projectId: string,
-    input: SavedCaseCreate,
-  ): Promise<SavedCase> {
+  public async createSavedCase(projectId: string, input: SavedCaseCreate): Promise<SavedCase> {
     return this.request<SavedCase>(
       `/projects/${encodeURIComponent(projectId)}/saved-cases`,
       {
@@ -924,10 +843,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 55. listSavedCaseVersions
-  public async listSavedCaseVersions(
-    caseId: string,
-    query?: PaginationQuery,
-  ): Promise<SavedCaseVersionPage> {
+  public async listSavedCaseVersions(caseId: string, query?: PaginationQuery): Promise<SavedCaseVersionPage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
     return this.request<SavedCaseVersionPage>(
       `/saved-cases/${encodeURIComponent(caseId)}/versions${qs}`,
@@ -937,10 +853,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 56. createSavedCaseVersion
-  public async createSavedCaseVersion(
-    caseId: string,
-    input: SavedCaseVersionCreate,
-  ): Promise<SavedCaseVersion> {
+  public async createSavedCaseVersion(caseId: string, input: SavedCaseVersionCreate): Promise<SavedCaseVersion> {
     return this.request<SavedCaseVersion>(
       `/saved-cases/${encodeURIComponent(caseId)}/versions`,
       {
@@ -952,10 +865,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 57. previewSavedCaseReview
-  public async previewSavedCaseReview(
-    versionId: string,
-    input: ReviewPreviewInput,
-  ): Promise<ReviewPreview> {
+  public async previewSavedCaseReview(versionId: string, input: ReviewPreviewInput): Promise<ReviewPreview> {
     return this.request<ReviewPreview>(
       `/saved-case-versions/${encodeURIComponent(versionId)}/review-preview`,
       {
@@ -967,10 +877,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 58. commitSavedCaseReview
-  public async commitSavedCaseReview(
-    versionId: string,
-    input: ReviewCommit,
-  ): Promise<SavedCaseVersion> {
+  public async commitSavedCaseReview(versionId: string, input: ReviewCommit): Promise<SavedCaseVersion> {
     return this.request<SavedCaseVersion>(
       `/saved-case-versions/${encodeURIComponent(versionId)}/review`,
       {
@@ -982,10 +889,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 58b. importSavedCaseYaml
-  public async importSavedCaseYaml(
-    projectId: string,
-    input: SavedCaseYamlImport,
-  ): Promise<SavedCase> {
+  public async importSavedCaseYaml(projectId: string, input: SavedCaseYamlImport): Promise<SavedCase> {
     return this.request<SavedCase>(
       `/projects/${encodeURIComponent(projectId)}/saved-cases/import`,
       {
@@ -997,9 +901,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 58c. exportSavedCaseYaml
-  public async exportSavedCaseYaml(
-    versionId: string,
-  ): Promise<SavedCaseYamlExport> {
+  public async exportSavedCaseYaml(versionId: string): Promise<SavedCaseYamlExport> {
     const res = await this.request<SavedCaseYamlExport>(
       `/saved-case-versions/${encodeURIComponent(versionId)}/yaml`,
       { method: 'GET' },
@@ -1014,18 +916,9 @@ export class HttpApiClient implements ApiClient {
   }
 
   // archiveSavedCase
-  public async archiveSavedCase(
-    caseId: string,
-    input: SavedCaseArchiveInput,
-  ): Promise<SavedCase> {
-    if (
-      !Number.isInteger(input.expectedVersion) ||
-      input.expectedVersion < 1 ||
-      input.expectedVersion > 2147483647
-    ) {
-      throw new Error(
-        `expectedVersion must be an integer between 1 and 2147483647, got ${input.expectedVersion}`,
-      );
+  public async archiveSavedCase(caseId: string, input: SavedCaseArchiveInput): Promise<SavedCase> {
+    if (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 1 || input.expectedVersion > 2147483647) {
+      throw new Error(`expectedVersion must be an integer between 1 and 2147483647, got ${input.expectedVersion}`);
     }
     const res = await this.request<SavedCase>(
       `/saved-cases/${encodeURIComponent(caseId)}/archive`,
@@ -1036,36 +929,21 @@ export class HttpApiClient implements ApiClient {
       'SavedCase',
     );
     if (!this.isSameIdentifier(res.id, caseId)) {
-      throw new Error(
-        `Archived case ID mismatch: expected ${caseId}, got ${res.id}`,
-      );
+      throw new Error(`Archived case ID mismatch: expected ${caseId}, got ${res.id}`);
     }
     if (res.status !== 'archived') {
-      throw new Error(
-        `Archived case status mismatch: expected archived, got ${res.status}`,
-      );
+      throw new Error(`Archived case status mismatch: expected archived, got ${res.status}`);
     }
     if (res.version !== input.expectedVersion + 1) {
-      throw new Error(
-        `Archived case version must be exactly expectedVersion + 1, got ${res.version} (expected ${input.expectedVersion + 1})`,
-      );
+      throw new Error(`Archived case version must be exactly expectedVersion + 1, got ${res.version} (expected ${input.expectedVersion + 1})`);
     }
     return res;
   }
 
   // restoreSavedCase
-  public async restoreSavedCase(
-    caseId: string,
-    input: SavedCaseRestoreInput,
-  ): Promise<SavedCase> {
-    if (
-      !Number.isInteger(input.expectedVersion) ||
-      input.expectedVersion < 1 ||
-      input.expectedVersion > 2147483647
-    ) {
-      throw new Error(
-        `expectedVersion must be an integer between 1 and 2147483647, got ${input.expectedVersion}`,
-      );
+  public async restoreSavedCase(caseId: string, input: SavedCaseRestoreInput): Promise<SavedCase> {
+    if (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 1 || input.expectedVersion > 2147483647) {
+      throw new Error(`expectedVersion must be an integer between 1 and 2147483647, got ${input.expectedVersion}`);
     }
     const res = await this.request<SavedCase>(
       `/saved-cases/${encodeURIComponent(caseId)}/restore`,
@@ -1076,32 +954,21 @@ export class HttpApiClient implements ApiClient {
       'SavedCase',
     );
     if (!this.isSameIdentifier(res.id, caseId)) {
-      throw new Error(
-        `Restored case ID mismatch: expected ${caseId}, got ${res.id}`,
-      );
+      throw new Error(`Restored case ID mismatch: expected ${caseId}, got ${res.id}`);
     }
     if (res.status !== 'active') {
-      throw new Error(
-        `Restored case status mismatch: expected active, got ${res.status}`,
-      );
+      throw new Error(`Restored case status mismatch: expected active, got ${res.status}`);
     }
     if (res.version !== input.expectedVersion + 1) {
-      throw new Error(
-        `Restored case version must be exactly expectedVersion + 1, got ${res.version} (expected ${input.expectedVersion + 1})`,
-      );
+      throw new Error(`Restored case version must be exactly expectedVersion + 1, got ${res.version} (expected ${input.expectedVersion + 1})`);
     }
     return res;
   }
 
   // duplicateSavedCase
-  public async duplicateSavedCase(
-    caseId: string,
-    input: SavedCaseDuplicateInput,
-  ): Promise<SavedCase> {
+  public async duplicateSavedCase(caseId: string, input: SavedCaseDuplicateInput): Promise<SavedCase> {
     if (!input.newSlug || !/^[a-zA-Z0-9_.-]+$/.test(input.newSlug)) {
-      throw new Error(
-        `newSlug must match pattern ^[a-zA-Z0-9_.-]+$, got ${input.newSlug}`,
-      );
+      throw new Error(`newSlug must match pattern ^[a-zA-Z0-9_.-]+$, got ${input.newSlug}`);
     }
     if (!input.newName || input.newName.trim().length === 0) {
       throw new Error('newName must not be empty');
@@ -1118,42 +985,25 @@ export class HttpApiClient implements ApiClient {
       'SavedCase',
     );
     if (this.isSameIdentifier(res.id, caseId)) {
-      throw new Error(
-        `Duplicated case ID must be distinct from source case ID ${caseId}`,
-      );
+      throw new Error(`Duplicated case ID must be distinct from source case ID ${caseId}`);
     }
-    if (
-      input.targetProjectId &&
-      !this.isSameIdentifier(res.projectId, input.targetProjectId)
-    ) {
-      throw new Error(
-        `Duplicated case project ID mismatch: expected ${input.targetProjectId}, got ${res.projectId}`,
-      );
+    if (input.targetProjectId && !this.isSameIdentifier(res.projectId, input.targetProjectId)) {
+      throw new Error(`Duplicated case project ID mismatch: expected ${input.targetProjectId}, got ${res.projectId}`);
     }
     if (res.slug !== input.newSlug) {
-      throw new Error(
-        `Duplicated case slug mismatch: expected ${input.newSlug}, got ${res.slug}`,
-      );
+      throw new Error(`Duplicated case slug mismatch: expected ${input.newSlug}, got ${res.slug}`);
     }
     if (res.name !== input.newName) {
-      throw new Error(
-        `Duplicated case name mismatch: expected ${input.newName}, got ${res.name}`,
-      );
+      throw new Error(`Duplicated case name mismatch: expected ${input.newName}, got ${res.name}`);
     }
     if (res.status !== 'active') {
-      throw new Error(
-        `Duplicated case initial status must be active, got ${res.status}`,
-      );
+      throw new Error(`Duplicated case initial status must be active, got ${res.status}`);
     }
     if (res.version !== 1) {
-      throw new Error(
-        `Duplicated case initial version must be 1, got ${res.version}`,
-      );
+      throw new Error(`Duplicated case initial version must be 1, got ${res.version}`);
     }
     if (res.currentApprovedVersionId !== null) {
-      throw new Error(
-        'Duplicated case must start in draft status without approved version',
-      );
+      throw new Error('Duplicated case must start in draft status without approved version');
     }
     return res;
   }
@@ -1179,10 +1029,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 60. listSchedules
-  public async listSchedules(
-    projectId: string,
-    query?: PaginationQuery,
-  ): Promise<SchedulePage> {
+  public async listSchedules(projectId: string, query?: PaginationQuery): Promise<SchedulePage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
     return this.request<SchedulePage>(
       `/projects/${encodeURIComponent(projectId)}/schedules${qs}`,
@@ -1192,10 +1039,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 61. createSchedule
-  public async createSchedule(
-    projectId: string,
-    input: ScheduleCreate,
-  ): Promise<Schedule> {
+  public async createSchedule(projectId: string, input: ScheduleCreate): Promise<Schedule> {
     return this.request<Schedule>(
       `/projects/${encodeURIComponent(projectId)}/schedules`,
       {
@@ -1207,10 +1051,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 62. updateSchedule
-  public async updateSchedule(
-    scheduleId: string,
-    input: SchedulePatch,
-  ): Promise<Schedule> {
+  public async updateSchedule(scheduleId: string, input: SchedulePatch): Promise<Schedule> {
     return this.request<Schedule>(
       `/schedules/${encodeURIComponent(scheduleId)}`,
       {
@@ -1230,11 +1071,17 @@ export class HttpApiClient implements ApiClient {
     );
   }
 
+  public async listScheduleOccurrences(scheduleId: string, query?: PaginationQuery): Promise<ScheduleOccurrencePage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<ScheduleOccurrencePage>(
+      `/schedules/${encodeURIComponent(scheduleId)}/occurrences${qs}`,
+      { method: 'GET' },
+      'ScheduleOccurrencePage',
+    );
+  }
+
   // 64. listApiKeys
-  public async listApiKeys(
-    projectId: string,
-    query?: PaginationQuery,
-  ): Promise<ApiKeyPage> {
+  public async listApiKeys(projectId: string, query?: PaginationQuery): Promise<ApiKeyPage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
     return this.request<ApiKeyPage>(
       `/projects/${encodeURIComponent(projectId)}/api-keys${qs}`,
@@ -1244,10 +1091,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 65. createApiKey
-  public async createApiKey(
-    projectId: string,
-    input: ApiKeyCreate,
-  ): Promise<ApiKeyCreated> {
+  public async createApiKey(projectId: string, input: ApiKeyCreate): Promise<ApiKeyCreated> {
     return this.request<ApiKeyCreated>(
       `/projects/${encodeURIComponent(projectId)}/api-keys`,
       {
@@ -1277,10 +1121,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 68. listRepairProposals
-  public async listRepairProposals(
-    caseId: string,
-    query?: PaginationQuery,
-  ): Promise<RepairProposalPage> {
+  public async listRepairProposals(caseId: string, query?: PaginationQuery): Promise<RepairProposalPage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
     return this.request<RepairProposalPage>(
       `/saved-cases/${encodeURIComponent(caseId)}/repair-proposals${qs}`,
@@ -1290,10 +1131,7 @@ export class HttpApiClient implements ApiClient {
   }
 
   // 69. createRepairProposal
-  public async createRepairProposal(
-    caseId: string,
-    input: RepairProposalCreate,
-  ): Promise<RepairProposal> {
+  public async createRepairProposal(caseId: string, input: RepairProposalCreate): Promise<RepairProposal> {
     return this.request<RepairProposal>(
       `/saved-cases/${encodeURIComponent(caseId)}/repair-proposals`,
       {
@@ -1301,6 +1139,61 @@ export class HttpApiClient implements ApiClient {
         body: JSON.stringify(input),
       },
       'RepairProposal',
+    );
+  }
+
+  public async reviewRepairProposal(
+    caseId: string, proposalId: string, input: RepairProposalReviewInput,
+  ): Promise<RepairProposal> {
+    return this.request<RepairProposal>(
+      `/saved-cases/${encodeURIComponent(caseId)}/repair-proposals/${encodeURIComponent(proposalId)}/review`,
+      { method: 'POST', body: JSON.stringify(input) },
+      'RepairProposal',
+    );
+  }
+  public async createRepairCandidateDraft(
+    caseId: string, proposalId: string, input: SavedCaseVersionCreate,
+  ): Promise<SavedCaseVersion> {
+    return this.request<SavedCaseVersion>(
+      `/saved-cases/${encodeURIComponent(caseId)}/repair-proposals/${encodeURIComponent(proposalId)}/candidate-version`,
+      { method: 'POST', body: JSON.stringify(input) },
+      'SavedCaseVersion',
+    );
+  }
+  public async getRepairCandidateDraft(
+    caseId: string, proposalId: string,
+  ): Promise<SavedCaseVersion> {
+    return this.request<SavedCaseVersion>(
+      `/saved-cases/${encodeURIComponent(caseId)}/repair-proposals/${encodeURIComponent(proposalId)}/candidate-version`,
+      { method: 'GET' },
+      'SavedCaseVersion',
+    );
+  }
+
+  public async startRepairCandidateVerification(
+    caseId: string, proposalId: string,
+  ): Promise<RepairCandidateVerification> {
+    return this.request<RepairCandidateVerification>(
+      `/saved-cases/${encodeURIComponent(caseId)}/repair-proposals/${encodeURIComponent(proposalId)}/verifications`,
+      { method: 'POST' }, 'RepairCandidateVerification',
+    );
+  }
+  public async listRepairCandidateVerifications(
+    caseId: string, proposalId: string, query?: PaginationQuery,
+  ): Promise<RepairCandidateVerificationPage> {
+    const qs=this.buildQuery(query as Record<string, string | number>);
+    return this.request<RepairCandidateVerificationPage>(
+      `/saved-cases/${encodeURIComponent(caseId)}/repair-proposals/${encodeURIComponent(proposalId)}/verifications${qs}`,
+      { method: 'GET' }, 'RepairCandidateVerificationPage',
+    );
+  }
+
+  public async listRepairCandidateEvidence(
+    caseId: string, proposalId: string, verificationId: string,
+  ): Promise<RepairCandidateEvidencePage> {
+    return this.request<RepairCandidateEvidencePage>(
+      `/saved-cases/${encodeURIComponent(caseId)}/repair-proposals/${encodeURIComponent(proposalId)}/verifications/${encodeURIComponent(verificationId)}/evidence`,
+      { method: 'GET' }, 'RepairCandidateEvidencePage',
     );
   }
 
@@ -1317,10 +1210,7 @@ export class HttpApiClient implements ApiClient {
       },
       'RegressionModuleRecord',
     );
-    if (
-      !this.isSameIdentifier(res.projectId, projectId) ||
-      res.name !== input.name
-    ) {
+    if (!this.isSameIdentifier(res.projectId, projectId) || res.name !== input.name) {
       throw new Error(
         `Created module mismatch: expected ${projectId}/${input.name}, got ${res.projectId}/${res.name}`,
       );
@@ -1375,11 +1265,7 @@ export class HttpApiClient implements ApiClient {
       },
       'RegressionModuleReviewPreview',
     );
-    if (
-      !this.isSameIdentifier(res.projectId, projectId) ||
-      res.moduleName !== moduleName ||
-      res.version !== version
-    ) {
+    if (!this.isSameIdentifier(res.projectId, projectId) || res.moduleName !== moduleName || res.version !== version) {
       throw new Error(
         `Preview response target mismatch: expected ${projectId}/${moduleName}@v${version}, got ${res.projectId}/${res.moduleName}@v${res.version}`,
       );
@@ -1412,17 +1298,12 @@ export class HttpApiClient implements ApiClient {
       },
       'RegressionModuleRecord',
     );
-    if (
-      !this.isSameIdentifier(res.projectId, projectId) ||
-      res.name !== moduleName ||
-      res.version !== version
-    ) {
+    if (!this.isSameIdentifier(res.projectId, projectId) || res.name !== moduleName || res.version !== version) {
       throw new Error(
         `Reviewed module mismatch: expected ${projectId}/${moduleName}@v${version}, got ${res.projectId}/${res.name}@v${res.version}`,
       );
     }
-    const expectedStatus =
-      input.decision === 'approve' ? 'approved' : 'rejected';
+    const expectedStatus = input.decision === 'approve' ? 'approved' : 'rejected';
     if (res.reviewStatus !== expectedStatus) {
       throw new Error(
         `Reviewed module status mismatch: expected ${expectedStatus}, got ${res.reviewStatus}`,

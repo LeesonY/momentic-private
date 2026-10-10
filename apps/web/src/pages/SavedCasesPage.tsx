@@ -409,8 +409,8 @@ export const SavedCasesPage: React.FC = () => {
                 <span
                   style={{
                     fontSize: '0.75rem',
-                    backgroundColor: '#fef3c7',
-                    color: '#92400e',
+                    backgroundColor: 'var(--color-warning-bg)',
+                    color: 'var(--color-warning-text)',
                     padding: '2px 8px',
                     borderRadius: 'var(--radius-sm)',
                     fontWeight: 600,
@@ -469,9 +469,9 @@ export const SavedCasesPage: React.FC = () => {
             className="card"
             style={{
               padding: '8px 12px',
-              backgroundColor: '#eff6ff',
-              borderColor: '#bfdbfe',
-              color: '#1d4ed8',
+              backgroundColor: 'var(--color-info-bg)',
+              borderColor: 'var(--color-info-border)',
+              color: 'var(--color-info-text)',
               fontSize: '0.8rem',
               marginBottom: '16px',
             }}
@@ -791,8 +791,8 @@ export const SavedCasesPage: React.FC = () => {
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '4px',
-                              backgroundColor: '#ecfdf5',
-                              color: '#047857',
+                              backgroundColor: 'var(--color-success-bg)',
+                              color: 'var(--color-success-text)',
                               padding: '2px 8px',
                               borderRadius: 'var(--radius-sm)',
                               fontSize: '0.8rem',
@@ -807,8 +807,8 @@ export const SavedCasesPage: React.FC = () => {
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
-                              backgroundColor: '#fffbeb',
-                              color: '#b45309',
+                              backgroundColor: 'var(--color-warning-bg)',
+                              color: 'var(--color-warning-text)',
                               padding: '2px 8px',
                               borderRadius: 'var(--radius-sm)',
                               fontSize: '0.8rem',

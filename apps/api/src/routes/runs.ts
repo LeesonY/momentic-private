@@ -5,173 +5,144 @@ import { StorageError, appendEvent, runDTO } from '@localqa/storage';
 import { DEFAULT_LIMITS, TERMINAL } from '@localqa/domain';
 import { sanitizeUserText } from '../redact.js';
 import { resolveRunAuth } from '../runAuth.js';
+import { selectRunModelBinding } from '../runModelSelection.js';
 import { ApiError } from '../errors.js';
 import { requireAuth } from '../auth.js';
 import { parsePagination, paginate, type Router } from '../router.js';
 import type { RequestContext } from '../types.js';
 
-export function registerRunRoutes(router: Router): void {
-  // POST /api/v1/runs
-  router.post('/api/v1/runs', async (ctx: RequestContext) => {
-    await requireAuth(ctx);
-
-    const idempotencyKey = ctx.headers['idempotency-key'];
-    if (
-      !idempotencyKey ||
-      typeof idempotencyKey !== 'string' ||
-      idempotencyKey.length < 1 ||
-      idempotencyKey.length > 128
-    ) {
-      throw new ApiError(
-        'VALIDATION_ERROR',
-        'Idempotency-Key header is required (1-128 chars)',
-        422,
-      );
-    }
-
-    const input = parseContract('RunCreate', ctx.body);
-    const projectId = input.projectId;
-
-    // Reject viewer from starting runs and ensure project exists
-    await ctx.api.db.actor(ctx.actor!, async (client) => {
-      const exists = (
-        await client.query('SELECT 1 FROM projects WHERE id = $1', [projectId])
-      ).rowCount;
-      if (!exists) throw new StorageError('NOT_FOUND');
-      const roleRow = (
-        await client.query<{ role: string }>(
-          'SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2',
-          [projectId, ctx.actor!.userId],
-        )
-      ).rows[0];
-      if (roleRow?.role === 'viewer') {
-        throw new StorageError('FORBIDDEN');
-      }
-    });
-
-    // Resolve environment if provided
-    let allowedOrigins = [new URL(input.targetUrl).origin];
-    let environmentVersion: number | null = null;
-    let defaultAuthProfileId: string | null = null;
-
-    if (input.environmentId) {
-      const env = await ctx.api.configRepo.get(
-        ctx.actor!,
-        'Environment',
-        projectId,
-        input.environmentId,
-      );
-      allowedOrigins = env.allowedOrigins;
-      environmentVersion = env.version;
-      defaultAuthProfileId = env.defaultAuthProfileId ?? null;
-    }
-
-    // Resolve auth profile if provided
-    const authProfileId = input.authProfileId ?? defaultAuthProfileId;
-    const authProfile = await ctx.api.db.actor(ctx.actor!, (client) =>
-      resolveRunAuth(
-        client,
-        projectId,
-        authProfileId,
-        input.environmentId,
-        allowedOrigins,
-        false,
-      ),
+/** Trusted dispatch reuses exactly the ordinary API admission path. Caller must authenticate independently. */
+export async function startTrustedSmokeRun(
+  ctx: RequestContext,
+): Promise<unknown> {
+  const idempotencyKey = ctx.headers['idempotency-key'];
+  if (
+    !idempotencyKey ||
+    typeof idempotencyKey !== 'string' ||
+    idempotencyKey.length < 1 ||
+    idempotencyKey.length > 128
+  ) {
+    throw new ApiError(
+      'VALIDATION_ERROR',
+      'Idempotency-Key header is required (1-128 chars)',
+      422,
     );
-    const authProfileVersion = authProfile?.version ?? null;
+  }
 
-    // Resolve model profiles for all 5 roles
-    const modelBindings = await ctx.api.db.actor(ctx.actor!, async (client) => {
-      // Check project default model profile or grants
-      const projectRow = (
-        await client.query<{ default_model_profile_id: string | null }>(
-          'SELECT default_model_profile_id FROM projects WHERE id = $1',
-          [projectId],
-        )
-      ).rows[0];
+  const input = parseContract('RunCreate', ctx.body);
+  const projectId = input.projectId;
 
-      let profileId = projectRow?.default_model_profile_id;
-      if (!profileId) {
-        const grantRow = (
-          await client.query<{ profile_id: string }>(
-            'SELECT profile_id FROM model_profile_grants WHERE project_id = $1 LIMIT 1',
-            [projectId],
-          )
-        ).rows[0];
-        profileId = grantRow?.profile_id;
-      }
+  // Reject viewer from starting runs and ensure project exists
+  await ctx.api.db.actor(ctx.actor!, async (client) => {
+    const exists = (
+      await client.query('SELECT 1 FROM projects WHERE id = $1', [projectId])
+    ).rowCount;
+    if (!exists) throw new StorageError('NOT_FOUND');
+    const roleRow = (
+      await client.query<{ role: string }>(
+        'SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2',
+        [projectId, ctx.actor!.userId],
+      )
+    ).rows[0];
+    if (roleRow?.role === 'viewer') {
+      throw new StorageError('FORBIDDEN');
+    }
+  });
 
-      if (!profileId) {
-        throw new StorageError('MODEL_NOT_CONFIGURED');
-      }
+  // Resolve environment if provided
+  let allowedOrigins = [new URL(input.targetUrl).origin];
+  let environmentVersion: number | null = null;
+  let defaultAuthProfileId: string | null = null;
 
-      const versionRow = (
-        await client.query<{ version: number; status: string }>(
-          `SELECT p.version, v.document->>'status' AS status
-           FROM model_profiles p
-           JOIN model_profile_versions v ON v.profile_id=p.id AND v.version=p.version
-           WHERE p.id = $1`,
-          [profileId],
-        )
-      ).rows[0];
-
-      if (!versionRow) {
-        throw new StorageError('MODEL_NOT_CONFIGURED');
-      }
-      if (versionRow.status === 'disabled' || versionRow.status === 'revoked') {
-        throw new StorageError('MODEL_NOT_CONFIGURED');
-      }
-
-      const binding = { profileId, version: versionRow.version };
-      return {
-        coordinator: binding,
-        explorer: binding,
-        executor: binding,
-        assertion: binding,
-        reproducer: binding,
-      };
-    });
-
-    // Resolve knowledge version IDs
-    const knowledgeVersionIds = await ctx.api.db.actor(
+  if (input.environmentId) {
+    const env = await ctx.api.configRepo.get(
       ctx.actor!,
-      async (client) => {
-        const rows = await client.query<{ id: string }>(
-          `SELECT v.id
+      'Environment',
+      projectId,
+      input.environmentId,
+    );
+    allowedOrigins = env.allowedOrigins;
+    environmentVersion = env.version;
+    defaultAuthProfileId = env.defaultAuthProfileId ?? null;
+  }
+
+  // Resolve auth profile if provided
+  const authProfileId = input.authProfileId ?? defaultAuthProfileId;
+  const authProfile = await ctx.api.db.actor(ctx.actor!, (client) =>
+    resolveRunAuth(
+      client,
+      projectId,
+      authProfileId,
+      input.environmentId,
+      allowedOrigins,
+      false,
+    ),
+  );
+  const authProfileVersion = authProfile?.version ?? null;
+
+  // Resolve model profiles for all 5 roles
+  const modelBindings = await ctx.api.db.actor(ctx.actor!, async (client) => {
+    const binding = await selectRunModelBinding(
+      client,
+      projectId,
+      input.modelProfileId,
+    );
+    return {
+      coordinator: binding,
+      explorer: binding,
+      executor: binding,
+      assertion: binding,
+      reproducer: binding,
+    };
+  });
+
+  // Resolve knowledge version IDs
+  const knowledgeVersionIds = await ctx.api.db.actor(
+    ctx.actor!,
+    async (client) => {
+      const rows = await client.query<{ id: string }>(
+        `SELECT v.id
          FROM knowledge k
          JOIN knowledge_versions v
            ON v.project_id = k.project_id AND v.knowledge_id = k.id AND v.version = k.version
          WHERE k.project_id = $1 AND (v.document->>'approved')::boolean = true`,
-          [projectId],
-        );
-        return rows.rows.map((r) => r.id);
-      },
-    );
+        [projectId],
+      );
+      return rows.rows.map((r) => r.id);
+    },
+  );
 
-    const budget = {
-      ...DEFAULT_LIMITS,
-      ...(input.budget ?? {}),
-    };
+  const budget = {
+    ...DEFAULT_LIMITS,
+    ...(input.budget ?? {}),
+  };
 
-    const runConfig: RunConfig = parseContract('RunConfig', {
-      allowedOrigins,
-      actionPolicy: 'non_submitting',
-      environmentVersion,
-      authProfileVersion,
-      models: modelBindings,
-      knowledgeVersionIds,
-      budget,
-    });
+  const runConfig: RunConfig = parseContract('RunConfig', {
+    allowedOrigins,
+    actionPolicy: 'non_submitting',
+    environmentVersion,
+    authProfileVersion,
+    models: modelBindings,
+    knowledgeVersionIds,
+    budget,
+  });
 
-    const run = await ctx.api.coordinator.start(
-      ctx.actor!,
-      { ...input, ...(authProfile ? { authProfileId: authProfile.id } : {}) },
-      runConfig,
-      idempotencyKey,
-    );
+  const run = await ctx.api.coordinator.start(
+    ctx.actor!,
+    { ...input, ...(authProfile ? { authProfileId: authProfile.id } : {}) },
+    runConfig,
+    idempotencyKey,
+  );
 
-    ctx.res.statusCode = 202;
-    return parseContract('Run', run);
+  ctx.res.statusCode = 202;
+  return parseContract('Run', run);
+}
+
+export function registerRunRoutes(router: Router): void {
+  // POST /api/v1/runs
+  router.post('/api/v1/runs', async (ctx: RequestContext) => {
+    await requireAuth(ctx);
+    return startTrustedSmokeRun(ctx);
   });
 
   // GET /api/v1/runs
@@ -417,6 +388,29 @@ export function registerRunRoutes(router: Router): void {
           const authenticationInput =
             currentInput.kind === 'auth_profile' ||
             currentInput.kind === 'one_time_code';
+          if (currentInput.kind === 'one_time_code') {
+            if (
+              response.authProfileId !== undefined ||
+              response.text !== undefined ||
+              response.allowedOrigins !== undefined ||
+              (response.decision !== 'provide' &&
+                response.decision !== 'reject') ||
+              (response.decision === 'provide' &&
+                response.oneTimeCode === undefined) ||
+              (response.decision === 'reject' &&
+                response.oneTimeCode !== undefined)
+            )
+              throw new StorageError('VALIDATION_ERROR');
+            // Delegate to the private Coordinator transaction after releasing
+            // this route's run lock; ciphertext never enters InputRequest,
+            // events, logs, snapshots or ordinary input replies.
+            return {
+              otpProjectId: projectId,
+              otpRunId: runId!,
+              otpDecision: response.decision,
+              otpCode: response.oneTimeCode,
+            };
+          }
           if (
             response.authProfileId !== undefined ||
             response.oneTimeCode !== undefined ||
@@ -462,14 +456,24 @@ export function registerRunRoutes(router: Router): void {
       );
 
       const result =
-        'clarificationProjectId' in updatedInput
-          ? await ctx.api.coordinator.resolveClarification(
+        'otpProjectId' in updatedInput
+          ? await ctx.api.coordinator.authOtp.submit(
               ctx.actor!,
-              updatedInput.clarificationProjectId,
+              updatedInput.otpProjectId,
+              updatedInput.otpRunId!,
               inputId!,
               response.expectedVersion,
+              updatedInput.otpDecision as 'provide' | 'reject',
+              updatedInput.otpCode,
             )
-          : updatedInput;
+          : 'clarificationProjectId' in updatedInput
+            ? await ctx.api.coordinator.resolveClarification(
+                ctx.actor!,
+                updatedInput.clarificationProjectId,
+                inputId!,
+                response.expectedVersion,
+              )
+            : updatedInput;
       ctx.res.statusCode = 200;
       return parseContract('InputRequest', result);
     },

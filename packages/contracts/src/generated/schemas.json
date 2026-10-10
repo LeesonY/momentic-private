@@ -938,6 +938,9 @@
                 "type": "null"
               }
             ]
+          },
+          "storageCriterion": {
+            "$ref": "#/$defs/Criterion"
           }
         },
         "required": [
@@ -1045,6 +1048,9 @@
               "type": "string",
               "maxLength": 1000000
             }
+          },
+          "storageCriterion": {
+            "$ref": "#/$defs/Criterion"
           }
         },
         "required": [
@@ -1093,7 +1099,8 @@
             },
             "then": {
               "required": [
-                "secretInput"
+                "secretInput",
+                "storageCriterion"
               ],
               "properties": {
                 "secretInput": {
@@ -1137,6 +1144,9 @@
           },
           "revoke": {
             "type": "boolean"
+          },
+          "storageCriterion": {
+            "$ref": "#/$defs/Criterion"
           }
         },
         "required": [
@@ -1290,7 +1300,8 @@
           "adapter": {
             "type": "string",
             "enum": [
-              "openai_compatible"
+              "openai_compatible",
+              "anthropic_messages"
             ]
           },
           "dataBoundary": {
@@ -1360,7 +1371,8 @@
           "adapter": {
             "type": "string",
             "enum": [
-              "openai_compatible"
+              "openai_compatible",
+              "anthropic_messages"
             ]
           },
           "dataBoundary": {
@@ -1429,6 +1441,19 @@
         ],
         "additionalProperties": false
       },
+      "ModelGrantCreate": {
+        "type": "object",
+        "properties": {
+          "modelProfileId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "modelProfileId"
+        ],
+        "additionalProperties": false
+      },
       "RunCreate": {
         "type": "object",
         "properties": {
@@ -1451,6 +1476,10 @@
             "format": "uuid"
           },
           "authProfileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modelProfileId": {
             "type": "string",
             "format": "uuid"
           },
@@ -5727,12 +5756,39 @@
                 },
                 "maxItems": 20,
                 "minItems": 1
+              },
+              "maxToolCalls": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4
+              },
+              "minToolCalls": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4
+              },
+              "requiredToolSequence": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "click",
+                    "type_text",
+                    "select_option",
+                    "press",
+                    "scroll",
+                    "wait_for"
+                  ]
+                },
+                "maxItems": 4,
+                "minItems": 1
               }
             },
             "required": [
               "kind",
               "goal",
-              "criteriaIds"
+              "criteriaIds",
+              "maxToolCalls"
             ],
             "additionalProperties": false
           },
@@ -6695,7 +6751,7 @@
             ]
           },
           "runTemplate": {
-            "$ref": "#/$defs/RunCreate"
+            "$ref": "#/$defs/ScheduleRunTemplate"
           },
           "overlapPolicy": {
             "type": "string",
@@ -6764,7 +6820,7 @@
             ]
           },
           "runTemplate": {
-            "$ref": "#/$defs/RunCreate"
+            "$ref": "#/$defs/ScheduleRunTemplate"
           },
           "overlapPolicy": {
             "type": "string",
@@ -6824,7 +6880,7 @@
             ]
           },
           "runTemplate": {
-            "$ref": "#/$defs/RunCreate"
+            "$ref": "#/$defs/ScheduleRunTemplate"
           },
           "overlapPolicy": {
             "type": "string",
@@ -7067,6 +7123,39 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "reviewReason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewedBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -7077,7 +7166,10 @@
           "diff",
           "verificationRunId",
           "status",
-          "createdAt"
+          "createdAt",
+          "reviewReason",
+          "reviewedBy",
+          "reviewedAt"
         ],
         "additionalProperties": false
       },
@@ -7097,6 +7189,320 @@
         "required": [
           "findingId",
           "diff"
+        ],
+        "additionalProperties": false
+      },
+      "RepairProposalReviewInput": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 10
+          }
+        },
+        "required": [
+          "decision",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "RepairCandidateVerification": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "proposalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "caseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidateVersionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidateSha256": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 64
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed"
+            ]
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "passed",
+                  "failed",
+                  "inconclusive"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reasonCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "observedSteps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "verifiedCriteria": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "proposalId",
+          "caseId",
+          "candidateVersionId",
+          "candidateSha256",
+          "status",
+          "outcome",
+          "reasonCode",
+          "observedSteps",
+          "verifiedCriteria",
+          "createdAt",
+          "startedAt",
+          "finishedAt"
+        ],
+        "additionalProperties": false
+      },
+      "RepairCandidateVerificationPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/RepairCandidateVerification"
+            },
+            "maxItems": 100,
+            "minItems": 0
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "RepairCandidateEvidence": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "verificationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidateVersionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "stepIndex": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 30
+          },
+          "stepKind": {
+            "type": "string",
+            "enum": [
+              "navigate",
+              "click",
+              "type_text",
+              "assert"
+            ]
+          },
+          "criterionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "criterionPassed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "snapshotId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "snapshotSha256": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 64
+          },
+          "displayUrl": {
+            "type": "string",
+            "maxLength": 8192
+          },
+          "screenshotSha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "screenshotBytes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1048576
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "retention": {
+            "type": "string",
+            "enum": [
+              "available",
+              "purged"
+            ]
+          },
+          "purgedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "verificationId",
+          "candidateVersionId",
+          "stepIndex",
+          "stepKind",
+          "criterionId",
+          "criterionPassed",
+          "snapshotId",
+          "snapshotSha256",
+          "displayUrl",
+          "screenshotSha256",
+          "screenshotBytes",
+          "retention",
+          "purgedAt",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "RepairCandidateEvidencePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/RepairCandidateEvidence"
+            },
+            "maxItems": 30,
+            "minItems": 0
+          }
+        },
+        "required": [
+          "items"
         ],
         "additionalProperties": false
       },
@@ -7131,6 +7537,111 @@
         "required": [
           "projectId",
           "caseVersionIds"
+        ],
+        "additionalProperties": false
+      },
+      "ScheduleRunTemplate": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/RunCreate"
+          },
+          {
+            "$ref": "#/$defs/RegressionRunCreate"
+          }
+        ]
+      },
+      "ScheduleOccurrence": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scheduleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scheduleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "scheduledAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "scheduledLocal": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "dispatching",
+              "started",
+              "skipped",
+              "failed"
+            ]
+          },
+          "runId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "scheduleId",
+          "projectId",
+          "scheduleVersion",
+          "scheduledAt",
+          "scheduledLocal",
+          "status",
+          "runId",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "ScheduleOccurrencePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/ScheduleOccurrence"
+            },
+            "maxItems": 100,
+            "minItems": 0
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
         ],
         "additionalProperties": false
       }
@@ -8353,12 +8864,39 @@
                 },
                 "maxItems": 20,
                 "minItems": 1
+              },
+              "maxToolCalls": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4
+              },
+              "minToolCalls": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4
+              },
+              "requiredToolSequence": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "click",
+                    "type_text",
+                    "select_option",
+                    "press",
+                    "scroll",
+                    "wait_for"
+                  ]
+                },
+                "maxItems": 4,
+                "minItems": 1
               }
             },
             "required": [
               "kind",
               "goal",
-              "criteriaIds"
+              "criteriaIds",
+              "maxToolCalls"
             ],
             "additionalProperties": false
           },
@@ -10400,6 +10938,127 @@
                   "schema": {
                     "$ref": "#/components/schemas/Error"
                   }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/projects/{projectId}/model-profiles": {
+        "get": {
+          "operationId": "listProjectModels",
+          "tags": [
+            "P0"
+          ],
+          "summary": "listProjectModels",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "projectId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "cursor",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "maxLength": 2000
+              }
+            },
+            {
+              "name": "limit",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "listProjectModels",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ModelProfilePage"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "operationId": "grantProjectModel",
+          "tags": [
+            "P0"
+          ],
+          "summary": "grantProjectModel",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "projectId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "201": {
+              "description": "grantProjectModel",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ModelProfile"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelGrantCreate"
                 }
               }
             }
@@ -13023,6 +13682,72 @@
           }
         }
       },
+      "/api/v1/schedules/{scheduleId}/occurrences": {
+        "get": {
+          "operationId": "listScheduleOccurrences",
+          "tags": [
+            "P0"
+          ],
+          "summary": "listScheduleOccurrences",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "scheduleId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "cursor",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "maxLength": 2000
+              }
+            },
+            {
+              "name": "limit",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "listScheduleOccurrences",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ScheduleOccurrencePage"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "/api/v1/projects/{projectId}/api-keys": {
         "get": {
           "operationId": "listApiKeys",
@@ -13315,6 +14040,461 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RepairProposalCreate"
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/saved-cases/{caseId}/repair-proposals/{proposalId}/review": {
+        "post": {
+          "operationId": "reviewRepairProposal",
+          "tags": [
+            "P0"
+          ],
+          "summary": "reviewRepairProposal",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "caseId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "proposalId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "reviewRepairProposal",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/RepairProposal"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepairProposalReviewInput"
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/saved-cases/{caseId}/repair-proposals/{proposalId}/candidate-version": {
+        "post": {
+          "operationId": "createRepairCandidateDraft",
+          "tags": [
+            "P0"
+          ],
+          "summary": "createRepairCandidateDraft",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "caseId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "proposalId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "201": {
+              "description": "createRepairCandidateDraft",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SavedCaseVersion"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedCaseVersionCreate"
+                }
+              }
+            }
+          }
+        },
+        "get": {
+          "operationId": "getRepairCandidateDraft",
+          "tags": [
+            "P0"
+          ],
+          "summary": "getRepairCandidateDraft",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "caseId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "proposalId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "getRepairCandidateDraft",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SavedCaseVersion"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/saved-cases/{caseId}/repair-proposals/{proposalId}/verifications": {
+        "post": {
+          "operationId": "startRepairCandidateVerification",
+          "tags": [
+            "P0"
+          ],
+          "summary": "startRepairCandidateVerification",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "caseId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "proposalId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "202": {
+              "description": "startRepairCandidateVerification",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/RepairCandidateVerification"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "get": {
+          "operationId": "listRepairCandidateVerifications",
+          "tags": [
+            "P0"
+          ],
+          "summary": "listRepairCandidateVerifications",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "caseId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "proposalId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "cursor",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "maxLength": 2000
+              }
+            },
+            {
+              "name": "limit",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "listRepairCandidateVerifications",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/RepairCandidateVerificationPage"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/saved-cases/{caseId}/repair-proposals/{proposalId}/verifications/{verificationId}/evidence": {
+        "get": {
+          "operationId": "listRepairCandidateEvidence",
+          "tags": [
+            "P0"
+          ],
+          "summary": "listRepairCandidateEvidence",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "caseId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "proposalId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "verificationId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "listRepairCandidateEvidence",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/RepairCandidateEvidencePage"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/saved-cases/{caseId}/repair-proposals/{proposalId}/verifications/{verificationId}/evidence/{evidenceId}/screenshot": {
+        "get": {
+          "operationId": "getRepairCandidateScreenshot",
+          "tags": [
+            "P0"
+          ],
+          "summary": "getRepairCandidateScreenshot",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "caseId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "proposalId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "verificationId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "evidenceId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "getRepairCandidateScreenshot",
+              "content": {
+                "image/png": {
+                  "schema": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
                 }
               }
             }
@@ -14883,6 +16063,9 @@
                   "type": "null"
                 }
               ]
+            },
+            "storageCriterion": {
+              "$ref": "#/components/schemas/Criterion"
             }
           },
           "required": [
@@ -14990,6 +16173,9 @@
                 "type": "string",
                 "maxLength": 1000000
               }
+            },
+            "storageCriterion": {
+              "$ref": "#/components/schemas/Criterion"
             }
           },
           "required": [
@@ -15038,7 +16224,8 @@
               },
               "then": {
                 "required": [
-                  "secretInput"
+                  "secretInput",
+                  "storageCriterion"
                 ],
                 "properties": {
                   "secretInput": {
@@ -15082,6 +16269,9 @@
             },
             "revoke": {
               "type": "boolean"
+            },
+            "storageCriterion": {
+              "$ref": "#/components/schemas/Criterion"
             }
           },
           "required": [
@@ -15235,7 +16425,8 @@
             "adapter": {
               "type": "string",
               "enum": [
-                "openai_compatible"
+                "openai_compatible",
+                "anthropic_messages"
               ]
             },
             "dataBoundary": {
@@ -15305,7 +16496,8 @@
             "adapter": {
               "type": "string",
               "enum": [
-                "openai_compatible"
+                "openai_compatible",
+                "anthropic_messages"
               ]
             },
             "dataBoundary": {
@@ -15374,6 +16566,19 @@
           ],
           "additionalProperties": false
         },
+        "ModelGrantCreate": {
+          "type": "object",
+          "properties": {
+            "modelProfileId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "modelProfileId"
+          ],
+          "additionalProperties": false
+        },
         "RunCreate": {
           "type": "object",
           "properties": {
@@ -15396,6 +16601,10 @@
               "format": "uuid"
             },
             "authProfileId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "modelProfileId": {
               "type": "string",
               "format": "uuid"
             },
@@ -19672,12 +20881,39 @@
                   },
                   "maxItems": 20,
                   "minItems": 1
+                },
+                "maxToolCalls": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4
+                },
+                "minToolCalls": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4
+                },
+                "requiredToolSequence": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "click",
+                      "type_text",
+                      "select_option",
+                      "press",
+                      "scroll",
+                      "wait_for"
+                    ]
+                  },
+                  "maxItems": 4,
+                  "minItems": 1
                 }
               },
               "required": [
                 "kind",
                 "goal",
-                "criteriaIds"
+                "criteriaIds",
+                "maxToolCalls"
               ],
               "additionalProperties": false
             },
@@ -20640,7 +21876,7 @@
               ]
             },
             "runTemplate": {
-              "$ref": "#/components/schemas/RunCreate"
+              "$ref": "#/components/schemas/ScheduleRunTemplate"
             },
             "overlapPolicy": {
               "type": "string",
@@ -20709,7 +21945,7 @@
               ]
             },
             "runTemplate": {
-              "$ref": "#/components/schemas/RunCreate"
+              "$ref": "#/components/schemas/ScheduleRunTemplate"
             },
             "overlapPolicy": {
               "type": "string",
@@ -20769,7 +22005,7 @@
               ]
             },
             "runTemplate": {
-              "$ref": "#/components/schemas/RunCreate"
+              "$ref": "#/components/schemas/ScheduleRunTemplate"
             },
             "overlapPolicy": {
               "type": "string",
@@ -21012,6 +22248,39 @@
             "createdAt": {
               "type": "string",
               "format": "date-time"
+            },
+            "reviewReason": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "reviewedBy": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "reviewedAt": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -21022,7 +22291,10 @@
             "diff",
             "verificationRunId",
             "status",
-            "createdAt"
+            "createdAt",
+            "reviewReason",
+            "reviewedBy",
+            "reviewedAt"
           ],
           "additionalProperties": false
         },
@@ -21042,6 +22314,320 @@
           "required": [
             "findingId",
             "diff"
+          ],
+          "additionalProperties": false
+        },
+        "RepairProposalReviewInput": {
+          "type": "object",
+          "properties": {
+            "decision": {
+              "type": "string",
+              "enum": [
+                "approve",
+                "reject"
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "maxLength": 2000,
+              "minLength": 10
+            }
+          },
+          "required": [
+            "decision",
+            "reason"
+          ],
+          "additionalProperties": false
+        },
+        "RepairCandidateVerification": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "projectId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "proposalId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "caseId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "candidateVersionId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "candidateSha256": {
+              "type": "string",
+              "maxLength": 64,
+              "minLength": 64
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "queued",
+                "running",
+                "completed"
+              ]
+            },
+            "outcome": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "passed",
+                    "failed",
+                    "inconclusive"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "reasonCode": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "observedSteps": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "verifiedCriteria": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "startedAt": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "finishedAt": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "projectId",
+            "proposalId",
+            "caseId",
+            "candidateVersionId",
+            "candidateSha256",
+            "status",
+            "outcome",
+            "reasonCode",
+            "observedSteps",
+            "verifiedCriteria",
+            "createdAt",
+            "startedAt",
+            "finishedAt"
+          ],
+          "additionalProperties": false
+        },
+        "RepairCandidateVerificationPage": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/RepairCandidateVerification"
+              },
+              "maxItems": 100,
+              "minItems": 0
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
+          ],
+          "additionalProperties": false
+        },
+        "RepairCandidateEvidence": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "verificationId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "candidateVersionId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "stepIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 30
+            },
+            "stepKind": {
+              "type": "string",
+              "enum": [
+                "navigate",
+                "click",
+                "type_text",
+                "assert"
+              ]
+            },
+            "criterionId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "criterionPassed": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "snapshotId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "snapshotSha256": {
+              "type": "string",
+              "maxLength": 64,
+              "minLength": 64
+            },
+            "displayUrl": {
+              "type": "string",
+              "maxLength": 8192
+            },
+            "screenshotSha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64,
+                  "minLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "screenshotBytes": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1048576
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "retention": {
+              "type": "string",
+              "enum": [
+                "available",
+                "purged"
+              ]
+            },
+            "purgedAt": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "id",
+            "verificationId",
+            "candidateVersionId",
+            "stepIndex",
+            "stepKind",
+            "criterionId",
+            "criterionPassed",
+            "snapshotId",
+            "snapshotSha256",
+            "displayUrl",
+            "screenshotSha256",
+            "screenshotBytes",
+            "retention",
+            "purgedAt",
+            "createdAt"
+          ],
+          "additionalProperties": false
+        },
+        "RepairCandidateEvidencePage": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/RepairCandidateEvidence"
+              },
+              "maxItems": 30,
+              "minItems": 0
+            }
+          },
+          "required": [
+            "items"
           ],
           "additionalProperties": false
         },
@@ -21076,6 +22662,111 @@
           "required": [
             "projectId",
             "caseVersionIds"
+          ],
+          "additionalProperties": false
+        },
+        "ScheduleRunTemplate": {
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/RunCreate"
+            },
+            {
+              "$ref": "#/components/schemas/RegressionRunCreate"
+            }
+          ]
+        },
+        "ScheduleOccurrence": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "scheduleId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "projectId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "scheduleVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "scheduledAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "scheduledLocal": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "dispatching",
+                "started",
+                "skipped",
+                "failed"
+              ]
+            },
+            "runId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "id",
+            "scheduleId",
+            "projectId",
+            "scheduleVersion",
+            "scheduledAt",
+            "scheduledLocal",
+            "status",
+            "runId",
+            "createdAt"
+          ],
+          "additionalProperties": false
+        },
+        "ScheduleOccurrencePage": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/ScheduleOccurrence"
+              },
+              "maxItems": 100,
+              "minItems": 0
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "nextCursor"
           ],
           "additionalProperties": false
         }
@@ -21422,12 +23113,39 @@
                 },
                 "maxItems": 20,
                 "minItems": 1
+              },
+              "maxToolCalls": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4
+              },
+              "minToolCalls": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4
+              },
+              "requiredToolSequence": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "click",
+                    "type_text",
+                    "select_option",
+                    "press",
+                    "scroll",
+                    "wait_for"
+                  ]
+                },
+                "maxItems": 4,
+                "minItems": 1
               }
             },
             "required": [
               "kind",
               "goal",
-              "criteriaIds"
+              "criteriaIds",
+              "maxToolCalls"
             ],
             "additionalProperties": false
           },
@@ -22459,12 +24177,39 @@
                 },
                 "maxItems": 20,
                 "minItems": 1
+              },
+              "maxToolCalls": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4
+              },
+              "minToolCalls": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4
+              },
+              "requiredToolSequence": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "click",
+                    "type_text",
+                    "select_option",
+                    "press",
+                    "scroll",
+                    "wait_for"
+                  ]
+                },
+                "maxItems": 4,
+                "minItems": 1
               }
             },
             "required": [
               "kind",
               "goal",
-              "criteriaIds"
+              "criteriaIds",
+              "maxToolCalls"
             ],
             "additionalProperties": false
           },
@@ -24725,12 +26470,39 @@
                 },
                 "maxItems": 20,
                 "minItems": 1
+              },
+              "maxToolCalls": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4
+              },
+              "minToolCalls": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4
+              },
+              "requiredToolSequence": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "click",
+                    "type_text",
+                    "select_option",
+                    "press",
+                    "scroll",
+                    "wait_for"
+                  ]
+                },
+                "maxItems": 4,
+                "minItems": 1
               }
             },
             "required": [
               "kind",
               "goal",
-              "criteriaIds"
+              "criteriaIds",
+              "maxToolCalls"
             ],
             "additionalProperties": false
           },

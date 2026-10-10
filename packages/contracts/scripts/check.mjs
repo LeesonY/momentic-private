@@ -29,7 +29,14 @@ try {
     `${root}docs/build_contracts.py`,
     `${staging}/build_contracts.py`,
   );
-  const stdout = execFileSync('python3', [`${staging}/build_contracts.py`], {
+  // On Windows, python3 can resolve to an unusable Microsoft Store alias.
+  // Prefer the installed Python launcher; Linux CI continues to use python3.
+  const python = process.platform === 'win32' ? 'py' : 'python3';
+  const pythonArgs =
+    process.platform === 'win32'
+      ? ['-3', `${staging}/build_contracts.py`]
+      : [`${staging}/build_contracts.py`];
+  const stdout = execFileSync(python, pythonArgs, {
     cwd: root,
     env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' },
     encoding: 'utf8',

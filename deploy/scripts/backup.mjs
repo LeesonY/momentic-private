@@ -12,10 +12,9 @@ import { resolve, dirname, join } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import pg from '../../packages/storage/node_modules/pg/lib/index.js';
+import { loadDatabaseUrl } from '../images/database-url.mjs';
 
-const connectionString =
-  process.env.DATABASE_URL ||
-  `postgresql://${process.env.POSTGRES_USER || 'localqa'}:${process.env.POSTGRES_PASSWORD || 'localqa'}@${process.env.PGHOST || '127.0.0.1'}:${process.env.PGPORT || '5432'}/${process.env.POSTGRES_DB || 'localqa'}`;
+const connectionString = await loadDatabaseUrl();
 
 const dataDir = process.env.DATA_DIR || '/var/localqa/data';
 const kekFile = process.env.MASTER_KEY_FILE || '/run/secrets/kek.json';
@@ -40,7 +39,14 @@ const dbDumpFile = join(targetBackupDir, 'database.sql');
 let dbDumpSha256 = null;
 
 // Try pg_dump first, or logical SQL tables dump fallback
-const pgDumpCmd = spawnSync('pg_dump', [connectionString, '-f', dbDumpFile]);
+const dumpTarget = new URL(connectionString);
+const dbPassword = decodeURIComponent(dumpTarget.password);
+dumpTarget.password = '';
+// Never put a password-bearing DSN in pg_dump's observable command line.
+// The short-lived child gets the password in an environment variable instead.
+const pgDumpCmd = spawnSync('pg_dump', [dumpTarget.href, '-f', dbDumpFile], {
+  env: { ...process.env, PGPASSWORD: dbPassword },
+});
 if (pgDumpCmd.status === 0 && existsSync(dbDumpFile)) {
   console.log('[LocalQA Backup] Database dumped via pg_dump');
 } else {

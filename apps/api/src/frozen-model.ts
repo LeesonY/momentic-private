@@ -1,5 +1,6 @@
 import type { ModelProfile } from '@localqa/contracts';
 import {
+  createAnthropicAdapter,
   createGateway,
   createOpenAIAdapter,
   type Gateway,
@@ -21,7 +22,10 @@ export function createFrozenGateway(
 ): Gateway {
   const document = frozen.document;
   return createGateway({
-    adapter: createOpenAIAdapter(transport),
+    adapter:
+      document.adapter === 'anthropic_messages'
+        ? createAnthropicAdapter(transport)
+        : createOpenAIAdapter(transport),
     profiles: [
       {
         id: document.id,
@@ -29,7 +33,7 @@ export function createFrozenGateway(
         name: document.name,
         endpoint: document.endpoint,
         configuredModelId: document.configuredModelId,
-        kind: 'openai_compatible',
+        kind: document.adapter,
         dataBoundary: document.dataBoundary,
         capabilities: document.capabilities,
         responseFormat: document.responseFormat ?? 'json_schema',

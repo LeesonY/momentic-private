@@ -35,6 +35,13 @@ export interface BrowserSession {
     locator: Locator,
     signal?: AbortSignal,
   ): Promise<NodeTarget>;
+  /** Re-resolve a current-snapshot hint through Playwright DOM uniqueness,
+   * operability and element-identity checks; never blindly reuse cached IDs. */
+  resolveCachedRegressionLocator?(
+    locator: Locator,
+    candidate: NodeTarget,
+    signal?: AbortSignal,
+  ): Promise<NodeTarget | null>;
 
   /**
    * Captures a screenshot artifact with sensitive data redacted.

@@ -99,6 +99,7 @@ const WorkbenchContent: React.FC<{
     sendMessage,
     respondInput,
     retrySse,
+    reload,
   } = useRunStore();
 
   const [inputMsg, setInputMsg] = useState('');
@@ -139,13 +140,20 @@ const WorkbenchContent: React.FC<{
         activeInputRequest.kind === 'auth_profile' ||
         activeInputRequest.kind === 'one_time_code';
 
-      // Security invariant: auth kinds strictly only permit reject; never transmit plaintext credentials
-      if (isAuthKind) {
+      // A code may only be sent via the dedicated InputResponse.oneTimeCode.
+      if (isAuthKind && activeInputRequest.kind !== 'one_time_code') {
         if (decision !== 'reject') {
           throw new Error('认证服务当前尚未接线，仅允许拒绝操作');
         }
         text = undefined;
       }
+      if (
+        activeInputRequest.kind === 'one_time_code' &&
+        (decision === 'approve' ||
+          (decision === 'provide' &&
+            (typeof text !== 'string' || !/^[A-Za-z0-9]{4,32}$/.test(text))))
+      )
+        throw new Error('INVALID_OTP_INPUT');
       if (decision === 'reject') {
         text = undefined;
       }
@@ -637,6 +645,7 @@ const WorkbenchContent: React.FC<{
         report={report}
         runId={activeRunId}
         run={run}
+        onRefreshReport={() => void reload()}
       />
     </div>
   );

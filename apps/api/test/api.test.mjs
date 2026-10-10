@@ -256,7 +256,13 @@ before(async () => {
     );
 
     // 3. Load SecretVault
-    vault = await SecretVault.fromProtectedFile(kekFile);
+    // Windows cannot enforce POSIX owner-only bits on a temporary file.
+    // Only this isolated test fixture uses the same freshly generated KEK
+    // directly in memory; production SecretVault.fromProtectedFile is unchanged.
+    vault =
+      process.platform === 'win32'
+        ? new SecretVault(1, new Map([[1, Buffer.from(rawKekKey, 'base64')]]))
+        : await SecretVault.fromProtectedFile(kekFile);
     db = new Database(pgConnection);
 
     // Record Postgres version
@@ -601,7 +607,7 @@ test('T06-3: Model Profiles & Capability Probes', async () => {
   assert.equal(probeRes.json.capabilities.structuredOutput, true);
   assert.equal(probeRes.json.capabilities.nativeTools, false);
   assert.equal(probeRes.json.capabilities.imageInput, false);
-  assert.match(probeRes.json.notes.join(''), /未实测/);
+  assert.match(probeRes.json.notes.join(''), /探测未通过/);
   assert.equal(JSON.stringify(probeRes.json).includes(seedKey), false);
 
   recordTest('model_profiles_and_probe', true);
@@ -624,7 +630,8 @@ test('T06-4: Projects, Members, and Strict Cross-Project Isolation (Zero Existen
   assert.equal(betaRes.status, 201);
   projectBeta = parseContract('Project', betaRes.json);
 
-  // No separate grant API exists: owner PATCH must atomically bind the model.
+  // Owner PATCH atomically grants and binds a project default. T40 also
+  // covers the separate administrator-managed multi-model grant API.
   const deniedDefault = await apiRequest(
     'PATCH',
     `/api/v1/projects/${projectAlpha.id}`,
@@ -854,6 +861,40 @@ test('T06-5: Environment, AuthProfile, and Knowledge Configuration', async () =>
   assert.equal(envRes.status, 201);
   environmentAlpha = parseContract('Environment', envRes.json);
 
+  // An auth profile must not expand the network authorization of its
+  // chosen environment, even if the HTTP client bypasses the React UI.
+  const widenedAuth = await apiRequest(
+    'POST',
+    `/api/v1/projects/${projectAlpha.id}/auth-profiles`,
+    {
+      cookie: adminCookie,
+      body: {
+        name: 'Denied Out-of-Scope Profile',
+        mode: 'none',
+        environmentId: environmentAlpha.id,
+        allowedOrigins: ['https://outside.fixture.test'],
+      },
+    },
+  );
+  assert.equal(widenedAuth.status, 422);
+  assert.equal(widenedAuth.json.code, 'TARGET_NOT_ALLOWED');
+
+  // The same environment identifier may not be reused in another project.
+  const foreignEnvironment = await apiRequest(
+    'POST',
+    `/api/v1/projects/${projectBeta.id}/auth-profiles`,
+    {
+      cookie: adminCookie,
+      body: {
+        name: 'Denied Foreign Environment',
+        mode: 'none',
+        environmentId: environmentAlpha.id,
+        allowedOrigins: [fixtureOrigin],
+      },
+    },
+  );
+  assert.equal(foreignEnvironment.status, 404);
+
   // Admin creates AuthProfile
   const authRes = await apiRequest(
     'POST',
@@ -871,6 +912,82 @@ test('T06-5: Environment, AuthProfile, and Knowledge Configuration', async () =>
   assert.equal(authRes.status, 201);
   authProfileAlpha = parseContract('AuthProfile', authRes.json);
   assert.equal(authProfileAlpha.environmentId, environmentAlpha.id);
+
+  // T42: UI default auth selection must be backed by server authorization,
+  // same-environment ownership, version concurrency and Origin constraints.
+  const viewerDefaultAuth = await apiRequest(
+    'PATCH',
+    `/api/v1/environments/${environmentAlpha.id}`,
+    {
+      cookie: viewerCookie,
+      body: {
+        expectedVersion: environmentAlpha.version,
+        defaultAuthProfileId: authProfileAlpha.id,
+      },
+    },
+  );
+  assert.equal(viewerDefaultAuth.status, 403);
+  const invalidDefaultAuth = await apiRequest(
+    'PATCH',
+    `/api/v1/environments/${environmentAlpha.id}`,
+    {
+      cookie: adminCookie,
+      body: {
+        expectedVersion: environmentAlpha.version,
+        defaultAuthProfileId: randomUUID(),
+      },
+    },
+  );
+  assert.equal(invalidDefaultAuth.status, 422);
+  assert.equal(invalidDefaultAuth.json.code, 'TARGET_NOT_ALLOWED');
+  const secondEnv = await apiRequest(
+    'POST',
+    `/api/v1/projects/${projectAlpha.id}/environments`,
+    {
+      cookie: adminCookie,
+      body: {
+        name: 'Other Environment',
+        baseUrl: fixtureOrigin,
+        allowedOrigins: [fixtureOrigin],
+        tlsPolicy: 'strict',
+      },
+    },
+  );
+  assert.equal(secondEnv.status, 201);
+  const sameProjectWrongEnv = await apiRequest(
+    'PATCH',
+    `/api/v1/environments/${secondEnv.json.id}`,
+    {
+      cookie: adminCookie,
+      body: { expectedVersion: 1, defaultAuthProfileId: authProfileAlpha.id },
+    },
+  );
+  assert.equal(sameProjectWrongEnv.status, 422);
+  const validDefaultAuth = await apiRequest(
+    'PATCH',
+    `/api/v1/environments/${environmentAlpha.id}`,
+    {
+      cookie: adminCookie,
+      body: {
+        expectedVersion: environmentAlpha.version,
+        name: 'Alpha Test Fixture Updated',
+        defaultAuthProfileId: authProfileAlpha.id,
+      },
+    },
+  );
+  assert.equal(validDefaultAuth.status, 200);
+  environmentAlpha = parseContract('Environment', validDefaultAuth.json);
+  assert.equal(environmentAlpha.version, 2);
+  assert.equal(environmentAlpha.defaultAuthProfileId, authProfileAlpha.id);
+  const staleDefaultAuth = await apiRequest(
+    'PATCH',
+    `/api/v1/environments/${environmentAlpha.id}`,
+    {
+      cookie: adminCookie,
+      body: { expectedVersion: 1, defaultAuthProfileId: null },
+    },
+  );
+  assert.equal(staleDefaultAuth.status, 409);
 
   // Operator creates Knowledge
   const knowRes = await apiRequest(
@@ -916,6 +1033,255 @@ test('T06-5: Environment, AuthProfile, and Knowledge Configuration', async () =>
   recordTest('config_and_knowledge_lifecycle', true);
 });
 
+test('T40: project model grants, admin authorization and cross-project model visibility', async () => {
+  const alternate = await apiRequest('POST', '/api/v1/model-profiles', {
+    cookie: adminCookie,
+    body: {
+      name: 'Second Scoped Fixture Model',
+      endpoint: 'https://fixture.example.test/v1',
+      configuredModelId: 'fixture-secondary',
+      adapter: 'openai_compatible',
+      dataBoundary: 'internal',
+    },
+  });
+  assert.equal(alternate.status, 201);
+  const alternateId = alternate.json.id;
+  const alphaPath = `/api/v1/projects/${projectAlpha.id}/model-profiles`;
+  const betaPath = `/api/v1/projects/${projectBeta.id}/model-profiles`;
+  const before = await apiRequest('GET', alphaPath, { cookie: operatorCookie });
+  assert.equal(before.status, 200);
+  assert.ok(before.json.items.some((m) => m.id === testModelProfile.id));
+  assert.ok(!before.json.items.some((m) => m.id === alternateId));
+  const cross = await apiRequest('GET', betaPath, { cookie: operatorCookie });
+  assert.equal(cross.status, 404);
+  const deniedGrant = await apiRequest('POST', alphaPath, {
+    cookie: operatorCookie,
+    body: { modelProfileId: alternateId },
+  });
+  assert.equal(deniedGrant.status, 403);
+  const unknown = await apiRequest('POST', alphaPath, {
+    cookie: adminCookie,
+    body: { modelProfileId: randomUUID() },
+  });
+  assert.equal(unknown.status, 404);
+  const granted = await apiRequest('POST', alphaPath, {
+    cookie: adminCookie,
+    body: { modelProfileId: alternateId },
+  });
+  assert.equal(granted.status, 201);
+  assert.equal(granted.json.id, alternateId);
+  const after = await apiRequest('GET', alphaPath, { cookie: operatorCookie });
+  assert.equal(after.status, 200);
+  assert.ok(after.json.items.some((m) => m.id === alternateId));
+  const beta = await apiRequest('GET', betaPath, { cookie: adminCookie });
+  assert.equal(beta.status, 200);
+  assert.ok(!beta.json.items.some((m) => m.id === alternateId));
+  recordTest('project_model_grant_visibility', true);
+});
+
+test('T43: membership replacement, role guard and project archive', async () => {
+  const created = await apiRequest('POST', '/api/v1/projects', {
+    cookie: adminCookie,
+    body: { name: 'T43 Members Lifecycle' },
+  });
+  assert.equal(created.status, 201);
+  const id = created.json.id;
+  const path = `/api/v1/projects/${id}/members`;
+  const noOwner = await apiRequest('PUT', path, {
+    cookie: adminCookie,
+    body: {
+      expectedVersion: created.json.version,
+      members: [{ userId: operatorUser.id, role: 'operator' }],
+    },
+  });
+  assert.equal(noOwner.status, 422);
+  const duplicate = await apiRequest('PUT', path, {
+    cookie: adminCookie,
+    body: {
+      expectedVersion: created.json.version,
+      members: [
+        { userId: adminUser.id, role: 'owner' },
+        { userId: adminUser.id, role: 'viewer' },
+      ],
+    },
+  });
+  assert.equal(duplicate.status, 422);
+  const originalMembers = [
+    { userId: adminUser.id, role: 'owner' },
+    { userId: operatorUser.id, role: 'operator' },
+    { userId: viewerUser.id, role: 'viewer' },
+  ];
+  const saved = await apiRequest('PUT', path, {
+    cookie: adminCookie,
+    body: { expectedVersion: created.json.version, members: originalMembers },
+  });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.json.version, 2);
+  const denied = await apiRequest('PUT', path, {
+    cookie: viewerCookie,
+    body: { expectedVersion: saved.json.version, members: originalMembers },
+  });
+  assert.equal(denied.status, 404); // RLS hides the writable project row.
+  const stale = await apiRequest('PUT', path, {
+    cookie: adminCookie,
+    body: { expectedVersion: created.json.version, members: originalMembers },
+  });
+  assert.equal(stale.status, 409);
+  const roles = await apiRequest('GET', path, { cookie: operatorCookie });
+  assert.equal(roles.status, 200);
+  assert.equal(roles.json.items.length, 3);
+  const revised = await apiRequest('PUT', path, {
+    cookie: adminCookie,
+    body: {
+      expectedVersion: saved.json.version,
+      members: [
+        { userId: adminUser.id, role: 'owner' },
+        { userId: operatorUser.id, role: 'viewer' },
+      ],
+    },
+  });
+  assert.equal(revised.status, 200);
+  assert.equal(revised.json.version, 3);
+  const finalMembers = await apiRequest('GET', path, { cookie: adminCookie });
+  assert.equal(finalMembers.status, 200);
+  assert.equal(finalMembers.json.items.length, 2);
+  assert.ok(!finalMembers.json.items.some((m) => m.userId === viewerUser.id));
+  assert.equal(
+    finalMembers.json.items.find((m) => m.userId === operatorUser.id)?.role,
+    'viewer',
+  );
+  const configured = await apiRequest('PATCH', `/api/v1/projects/${id}`, {
+    cookie: adminCookie,
+    body: {
+      expectedVersion: revised.json.version,
+      defaultModelProfileId: testModelProfile.id,
+    },
+  });
+  assert.equal(configured.status, 200);
+  const deniedArchive = await apiRequest('PATCH', `/api/v1/projects/${id}`, {
+    cookie: operatorCookie,
+    body: { expectedVersion: configured.json.version, status: 'archived' },
+  });
+  assert.equal(deniedArchive.status, 404);
+  const archived = await apiRequest('PATCH', `/api/v1/projects/${id}`, {
+    cookie: adminCookie,
+    body: { expectedVersion: configured.json.version, status: 'archived' },
+  });
+  assert.equal(archived.status, 200);
+  assert.equal(archived.json.status, 'archived');
+  const archivedRun = await apiRequest('POST', '/api/v1/runs', {
+    cookie: adminCookie,
+    headers: { 'Idempotency-Key': randomUUID() },
+    body: { projectId: id, targetUrl: `${fixtureOrigin}/` },
+  });
+  assert.equal(archivedRun.status, 409);
+  assert.equal(archivedRun.json.code, 'PROJECT_ARCHIVED');
+  recordTest('T43_members_and_archive', true);
+});
+
+test('T45: empty project deletion checks authorization, exact confirmation, data and audit retention', async () => {
+  const created = await apiRequest('POST', '/api/v1/projects', {
+    cookie: adminCookie,
+    body: { name: 'T45 Disposable Empty Project' },
+  });
+  assert.equal(created.status, 201);
+  const project = created.json;
+  const url = `/api/v1/projects/${project.id}`;
+  const payload = {
+    expectedVersion: project.version,
+    confirmName: project.name,
+  };
+  const noAuth = await apiRequest('DELETE', url, { body: payload });
+  assert.equal(noAuth.status, 401);
+  const noAdmin = await apiRequest('DELETE', url, {
+    cookie: operatorCookie,
+    body: payload,
+  });
+  assert.equal(noAdmin.status, 403);
+  const wrongName = await apiRequest('DELETE', url, {
+    cookie: adminCookie,
+    body: { ...payload, confirmName: 'Wrong Project' },
+  });
+  assert.equal(wrongName.status, 422);
+  const wrongVersion = await apiRequest('DELETE', url, {
+    cookie: adminCookie,
+    body: { ...payload, expectedVersion: project.version + 1 },
+  });
+  assert.equal(wrongVersion.status, 409);
+  const existing = await apiRequest('GET', url, { cookie: adminCookie });
+  assert.equal(existing.status, 200);
+  const removed = await apiRequest('DELETE', url, {
+    cookie: adminCookie,
+    body: payload,
+  });
+  assert.equal(removed.status, 204);
+  const missing = await apiRequest('GET', url, { cookie: adminCookie });
+  assert.equal(missing.status, 404);
+  const audit = await apiContext.db.actor(
+    { userId: adminUser.id },
+    async (client) =>
+      (
+        await client.query(
+          `SELECT action,project_id,object_id
+         FROM audit_log WHERE object_id=$1 ORDER BY created_at`,
+          [project.id],
+        )
+      ).rows,
+  );
+  assert.ok(audit.some((row) => row.action === 'project.created'));
+  assert.ok(audit.some((row) => row.action === 'project.deleted'));
+  // The original audit UUID is still retained after its project is gone.
+  assert.ok(audit.some((row) => row.project_id === project.id));
+  assert.ok(
+    audit.some(
+      (row) => row.action === 'project.deleted' && row.project_id === null,
+    ),
+  );
+
+  const nonempty = await apiRequest('POST', '/api/v1/projects', {
+    cookie: adminCookie,
+    body: { name: 'T45 Nonempty Protected Project' },
+  });
+  assert.equal(nonempty.status, 201);
+  const member = await apiRequest(
+    'PUT',
+    `/api/v1/projects/${nonempty.json.id}/members`,
+    {
+      cookie: adminCookie,
+      body: {
+        expectedVersion: nonempty.json.version,
+        members: [
+          { userId: adminUser.id, role: 'owner' },
+          { userId: operatorUser.id, role: 'viewer' },
+        ],
+      },
+    },
+  );
+  assert.equal(member.status, 200);
+  const blocked = await apiRequest(
+    'DELETE',
+    `/api/v1/projects/${nonempty.json.id}`,
+    {
+      cookie: adminCookie,
+      body: {
+        expectedVersion: member.json.version,
+        confirmName: nonempty.json.name,
+      },
+    },
+  );
+  assert.equal(blocked.status, 422);
+  assert.equal(blocked.json.code, 'VALIDATION_ERROR');
+  assert.equal(
+    (
+      await apiRequest('GET', `/api/v1/projects/${nonempty.json.id}`, {
+        cookie: adminCookie,
+      })
+    ).status,
+    200,
+  );
+  recordTest('T45_safe_delete_empty_project', true);
+});
+
 test('T06-6: Run Creation, Idempotency-Key Deduplication & Conflict', async () => {
   // Viewer cannot create run
   const viewRun = await apiRequest('POST', '/api/v1/runs', {
@@ -939,11 +1305,26 @@ test('T06-6: Run Creation, Idempotency-Key Deduplication & Conflict', async () =
   assert.equal(noKey.status, 422);
   assert.equal(noKey.json.code, 'VALIDATION_ERROR');
 
+  // Explicit model selection must be scoped to a project grant.
+  // The frontend listing a global model never authorizes using it.
+  const ungranted = await apiRequest('POST', '/api/v1/runs', {
+    cookie: operatorCookie,
+    headers: { 'Idempotency-Key': `ungranted-${randomUUID()}` },
+    body: {
+      projectId: projectAlpha.id,
+      targetUrl: `${fixtureOrigin}/`,
+      modelProfileId: randomUUID(),
+    },
+  });
+  assert.equal(ungranted.status, 409);
+  assert.equal(ungranted.json.code, 'MODEL_NOT_CONFIGURED');
+
   const idempotencyKey = `idemp-${randomUUID()}`;
   const runPayload = {
     projectId: projectAlpha.id,
     targetUrl: `${fixtureOrigin}/`,
     environmentId: environmentAlpha.id,
+    modelProfileId: testModelProfile.id,
     brief: 'Smoke exploration of fixture home',
   };
 
@@ -957,6 +1338,10 @@ test('T06-6: Run Creation, Idempotency-Key Deduplication & Conflict', async () =
   testRun = parseContract('Run', create1.json);
   assert.equal(testRun.status, 'queued');
   assert.equal(testRun.contextVersion, 1);
+  assert.equal(
+    testRun.effectiveConfig.models.executor.profileId,
+    testModelProfile.id,
+  );
 
   // Saturated admission returns 429 + Retry-After without persisting a new run.
   await db.actor({ userId: adminUser.id }, async (client) => {
@@ -1591,6 +1976,29 @@ test('T06-12: Report, Export, and Artifact Lifecycle', async () => {
   assert.equal(jsonBytes.headers.get('content-type'), 'application/json');
   assert.equal((await jsonBytes.json()).run.id, testRun.id);
 
+  const markdown = await apiRequest(
+    'POST',
+    `/api/v1/runs/${testRun.id}/exports`,
+    {
+      cookie: operatorCookie,
+      body: { format: 'markdown' },
+    },
+  );
+  assert.equal(markdown.status, 202);
+  const mdRecord = parseContract('Export', markdown.json);
+  assert.equal(mdRecord.format, 'markdown');
+  assert.equal(mdRecord.status, 'ready');
+  assert.ok(mdRecord.artifactId);
+  const mdResponse = await fetch(
+    `${baseUrl}/api/v1/artifacts/${mdRecord.artifactId}/content`,
+    { headers: { Cookie: operatorCookie } },
+  );
+  assert.equal(mdResponse.status, 200);
+  assert.match(mdResponse.headers.get('content-type'), /^text\/markdown/);
+  const mdBytes = await mdResponse.text();
+  assert.ok(mdBytes.length > 0, 'Markdown download must contain real bytes');
+  assert.match(mdBytes, /#/);
+
   const zip = await apiRequest('POST', `/api/v1/runs/${testRun.id}/exports`, {
     cookie: operatorCookie,
     body: { format: 'zip' },
@@ -1608,16 +2016,47 @@ test('T06-12: Report, Export, and Artifact Lifecycle', async () => {
   const zipPath = `${testEvidenceDir}/export-${tag}.zip`;
   try {
     writeFileSync(zipPath, Buffer.from(await zipResponse.arrayBuffer()));
-    const testZip = spawnSync('unzip', ['-t', zipPath], { encoding: 'utf8' });
+    // Node's test runner is cross-platform; GNU unzip is not installed on
+    // Windows. Expand to an owned temp dir and verify the same bytes/hashes.
+    const windowsExtractDir = join(testEvidenceDir, 'zip-extracted');
+    if (process.platform === 'win32') {
+      mkdirSync(windowsExtractDir, { recursive: true });
+    }
+    const testZip =
+      process.platform === 'win32'
+        ? spawnSync(
+            'powershell',
+            [
+              '-NoProfile',
+              '-NonInteractive',
+              '-Command',
+              `Expand-Archive -LiteralPath '${zipPath.replace(/'/g, "''")}' -DestinationPath '${windowsExtractDir.replace(/'/g, "''")}' -Force`,
+            ],
+            { encoding: 'utf8' },
+          )
+        : spawnSync('unzip', ['-t', zipPath], { encoding: 'utf8' });
     assert.equal(testZip.status, 0, testZip.stderr);
     const manifest = JSON.parse(
-      spawnSync('unzip', ['-p', zipPath, 'manifest.json'], { encoding: 'utf8' })
-        .stdout,
+      process.platform === 'win32'
+        ? readFileSync(join(windowsExtractDir, 'manifest.json'), 'utf8')
+        : spawnSync('unzip', ['-p', zipPath, 'manifest.json'], {
+            encoding: 'utf8',
+          }).stdout,
     );
     assert.equal(manifest.runId, testRun.id);
     for (const entry of manifest.artifacts) {
       if (entry.status !== 'available') continue;
-      const file = spawnSync('unzip', ['-p', zipPath, entry.relativePath]);
+      assert.ok(
+        !entry.relativePath.includes('..') &&
+          !entry.relativePath.startsWith('/'),
+      );
+      const file =
+        process.platform === 'win32'
+          ? {
+              status: 0,
+              stdout: readFileSync(join(windowsExtractDir, entry.relativePath)),
+            }
+          : spawnSync('unzip', ['-p', zipPath, entry.relativePath]);
       assert.equal(file.status, 0);
       assert.equal(
         createHash('sha256').update(file.stdout).digest('hex'),
@@ -1625,10 +2064,11 @@ test('T06-12: Report, Export, and Artifact Lifecycle', async () => {
       );
     }
     for (const name of ['report.json', 'report.md', 'manifest.json']) {
-      assert.ok(
-        spawnSync('unzip', ['-p', zipPath, name]).stdout.length > 0,
-        name,
-      );
+      const bytes =
+        process.platform === 'win32'
+          ? readFileSync(join(windowsExtractDir, name))
+          : spawnSync('unzip', ['-p', zipPath, name]).stdout;
+      assert.ok(bytes.length > 0, name);
     }
   } finally {
     rmSync(zipPath, { force: true });

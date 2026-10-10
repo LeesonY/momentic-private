@@ -4,10 +4,11 @@ import { loadProtectedKek } from './kek.mjs';
 import { Coordinator } from '../../packages/orchestrator/dist/index.js';
 import { readiness } from './readiness.mjs';
 import { writeFile } from 'node:fs/promises';
+import { loadDatabaseUrl } from './database-url.mjs';
 
-if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL required');
+const connectionString = await loadDatabaseUrl();
 const vault = await loadProtectedKek();
-const db = new Database(process.env.DATABASE_URL);
+const db = new Database(connectionString);
 const adminId = await db.auth(
   async (client) =>
     (

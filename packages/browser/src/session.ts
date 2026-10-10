@@ -20,7 +20,10 @@ import { SessionRecorder, isValidUuid } from './recorder.js';
 import { WaitAndRecoveryManager } from './waiter.js';
 import { ToolExecutor } from './executor.js';
 import { captureBrowserSnapshot } from './snapshot.js';
-import { resolveRegressionLocator } from './regression-locator.js';
+import {
+  resolveRegressionLocator,
+  resolveCachedRegressionLocator,
+} from './regression-locator.js';
 
 export class BrowserSessionImpl implements BrowserSession {
   public readonly id: string;
@@ -37,6 +40,26 @@ export class BrowserSessionImpl implements BrowserSession {
   private currentSnapshot: BrowserSnapshot | null = null;
   private stateVersion = 1;
   private readonly abortController = new AbortController();
+  // Serialize all state-changing tool dispatch and snapshot refreshes in a
+  // browser session. Otherwise two concurrent uses of the *same* approved
+  // snapshot can both click even after the first action was consumed.
+  private operationTail: Promise<void> = Promise.resolve();
+
+  private async withSessionLock<T>(operation: () => Promise<T>): Promise<T> {
+    const preceding = this.operationTail;
+    let release!: () => void;
+    this.operationTail = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await preceding;
+    try {
+      if (this.isClosed)
+        throw new Error(`BrowserSession '${this.id}' is closed.`);
+      return await operation();
+    } finally {
+      release();
+    }
+  }
 
   private readonly pages = new Map<string, Page>();
   private readonly pageIds = new Map<Page, string>();
@@ -103,46 +126,68 @@ export class BrowserSessionImpl implements BrowserSession {
     toolCall: ToolCall,
     options?: { signal?: AbortSignal },
   ): Promise<ToolResult> {
-    if (this.isClosed) {
-      throw new Error(`BrowserSession '${this.id}' is closed.`);
-    }
-
-    // Combine session abort signal with caller signal
-    const combinedController = new AbortController();
-    if (this.abortController.signal.aborted) {
-      combinedController.abort(this.abortController.signal.reason);
-    } else {
-      this.abortController.signal.addEventListener('abort', () =>
-        combinedController.abort(this.abortController.signal.reason),
-      );
-    }
-
-    if (options?.signal) {
-      if (options.signal.aborted) {
-        combinedController.abort(options.signal.reason);
-      } else {
-        options.signal.addEventListener('abort', () =>
-          combinedController.abort(options.signal?.reason),
-        );
+    return this.withSessionLock(async () => {
+      // Write-ahead intent is fsynced before any potentially mutating
+      // browser command. The journal holds IDs and allowlisted tool names
+      // only, never URL, text input, locator, cookie or model content.
+      const mutatingToolNames = new Set([
+        'navigate',
+        'click',
+        'type_text',
+        'select_option',
+        'press',
+        'scroll',
+      ]);
+      const mutating = mutatingToolNames.has(toolCall.name);
+      const attemptId = randomUUID();
+      if (mutating)
+        this.recorder.recordActionAudit({
+          attemptId,
+          tool: toolCall.name,
+          phase: 'intent',
+        });
+      const combinedController = new AbortController();
+      const sessionSignal = this.abortController.signal;
+      const callerSignal = options?.signal;
+      const sessionAborted = () =>
+        combinedController.abort(sessionSignal.reason);
+      const callerAborted = () =>
+        combinedController.abort(callerSignal?.reason);
+      if (sessionSignal.aborted) sessionAborted();
+      else
+        sessionSignal.addEventListener('abort', sessionAborted, { once: true });
+      if (callerSignal?.aborted) callerAborted();
+      else
+        callerSignal?.addEventListener('abort', callerAborted, { once: true });
+      try {
+        const { result, snapshot } = await this.executor.execute(toolCall, {
+          page: this.page,
+          pageId: this.activePageId,
+          getPage: (id: string) => this.pages.get(id),
+          stateVersion: this.stateVersion,
+          currentSnapshot: this.currentSnapshot,
+          policy: this.policy,
+          recorder: this.recorder,
+          waiter: this.waiter,
+          signal: combinedController.signal,
+        });
+        this.currentSnapshot = snapshot;
+        this.stateVersion = snapshot.stateVersion;
+        if (mutating)
+          this.recorder.recordActionAudit({
+            attemptId,
+            tool: toolCall.name,
+            phase: 'settlement',
+            outcome: result.status,
+            reasonCode: result.reasonCode,
+            actionId: result.actionId,
+          });
+        return result;
+      } finally {
+        sessionSignal.removeEventListener('abort', sessionAborted);
+        callerSignal?.removeEventListener('abort', callerAborted);
       }
-    }
-
-    const { result, snapshot } = await this.executor.execute(toolCall, {
-      page: this.page,
-      pageId: this.activePageId,
-      getPage: (id: string) => this.pages.get(id),
-      stateVersion: this.stateVersion,
-      currentSnapshot: this.currentSnapshot,
-      policy: this.policy,
-      recorder: this.recorder,
-      waiter: this.waiter,
-      signal: combinedController.signal,
     });
-
-    this.currentSnapshot = snapshot;
-    this.stateVersion = snapshot.stateVersion;
-
-    return result;
   }
 
   public async resolveRegressionLocator(
@@ -154,20 +199,33 @@ export class BrowserSessionImpl implements BrowserSession {
     const snapshot = await this.getSnapshot();
     return resolveRegressionLocator(this.page, locator, snapshot, signal);
   }
+  public async resolveCachedRegressionLocator(
+    locator: Locator,
+    candidate: NodeTarget,
+    signal?: AbortSignal,
+  ): Promise<NodeTarget | null> {
+    const snapshot = await this.getSnapshot();
+    return resolveCachedRegressionLocator(
+      this.page,
+      locator,
+      candidate,
+      snapshot,
+      signal,
+    );
+  }
   public async getSnapshot(options?: {
     forceFresh?: boolean;
   }): Promise<BrowserSnapshot> {
-    if (this.isClosed) {
-      throw new Error(`BrowserSession '${this.id}' is closed.`);
-    }
-    if (!this.currentSnapshot || options?.forceFresh) {
-      this.currentSnapshot = await captureBrowserSnapshot(this.page, {
-        pageId: this.activePageId,
-        stateVersion: ++this.stateVersion,
-        recorder: this.recorder,
-      });
-    }
-    return this.currentSnapshot;
+    return this.withSessionLock(async () => {
+      if (!this.currentSnapshot || options?.forceFresh) {
+        this.currentSnapshot = await captureBrowserSnapshot(this.page, {
+          pageId: this.activePageId,
+          stateVersion: ++this.stateVersion,
+          recorder: this.recorder,
+        });
+      }
+      return this.currentSnapshot;
+    });
   }
 
   public async captureScreenshot(options?: {
@@ -254,6 +312,9 @@ export class BrowserManager implements BrowserPort {
       viewport: options.viewport || { width: 1280, height: 720 },
       locale: options.locale || 'zh-CN',
       timezoneId: options.timezoneId || 'Asia/Shanghai',
+      // Service workers can bypass Playwright's route interception. Blocking
+      // them is required for the trusted auth origin/redirect network gate.
+      serviceWorkers: 'block',
     };
     if (options.userAgent) {
       contextOptions.userAgent = options.userAgent;

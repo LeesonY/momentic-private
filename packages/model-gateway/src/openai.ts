@@ -5,6 +5,7 @@ import type {
   StructuredOutputMode,
 } from './adapter.js';
 import { hideSecret, redactText } from './redact.js';
+import { probeProviderCapability } from './capability-probe.js';
 
 export const OPENAI_ADAPTER_VERSION = 'openai-compatible.2';
 
@@ -215,6 +216,7 @@ function completionFields(text: string): {
 export function httpStatusError(status: number): ProviderResponse['errorCode'] {
   if (status >= 200 && status < 300) return null;
   if (status === 429) return 'RATE_LIMITED';
+  if (status === 402) return 'MODEL_BILLING_REQUIRED';
   if (status === 401 || status === 403) return 'MODEL_NOT_CONFIGURED';
   if (status >= 400 && status < 500) return 'VALIDATION_ERROR';
   return 'SERVICE_UNAVAILABLE';
@@ -224,6 +226,14 @@ export function createOpenAIAdapter(fetchImpl: typeof fetch): ProviderAdapter {
   return {
     kind: 'openai_compatible',
     version: OPENAI_ADAPTER_VERSION,
+    probeCapability(input, signal) {
+      return probeProviderCapability(
+        fetchImpl,
+        'openai_compatible',
+        input,
+        signal,
+      );
+    },
     build(input) {
       assertHttpsEndpoint(input.endpoint);
       const base = input.endpoint.replace(/\/$/, '');

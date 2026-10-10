@@ -1,21 +1,35 @@
 :root {
+  /* Native popups (select/date/time) follow the explicit app theme, not OS. */
+  color-scheme: light;
   /* Colors */
-  --color-bg-base: #f8fafc;
+  --color-bg-base: #f5f7fb;
   --color-bg-surface: #ffffff;
-  --color-bg-subtle: #f1f5f9;
-  --color-bg-muted: #e2e8f0;
-  --color-border: #cbd5e1;
-  --color-border-subtle: #e2e8f0;
+  --color-bg-subtle: #f2f5fb;
+  --color-bg-muted: #e7edf8;
+  --color-border: #d6dfed;
+  --color-border-subtle: #e6eaf2;
 
-  --color-text-main: #0f172a;
-  --color-text-muted: #64748b;
-  --color-text-subtle: #94a3b8;
+  --color-text-main: #14213a;
+  --color-text-muted: #63718b;
+  --color-text-subtle: #8994a8;
   --color-text-inverse: #ffffff;
 
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-primary-subtle: #eff6ff;
-  --color-primary-border: #bfdbfe;
+  --color-primary: #4f46e5;
+  --color-primary-hover: #4338ca;
+  --color-primary-subtle: #eef2ff;
+  --color-primary-border: #c7d2fe;
+  --color-primary-contrast: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-control-option-bg: #ffffff;
+  --color-control-option-fg: #14213a;
+  --color-control-option-selected-bg: #eef2ff;
+  --color-bg-gradient: linear-gradient(
+    120deg,
+    #eef2ff 0%,
+    #f9fbff 55%,
+    #eaf5ff 100%
+  );
+  --color-glow: rgba(79, 70, 229, 0.12);
 
   --color-success: #10b981;
   --color-success-bg: #ecfdf5;
@@ -29,6 +43,7 @@
 
   --color-danger: #ef4444;
   --color-danger-bg: #fef2f2;
+  --color-danger-subtle: #fef2f2;
   --color-danger-border: #fecaca;
   --color-danger-text: #991b1b;
 
@@ -39,23 +54,73 @@
 
   /* Typography */
   --font-sans:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
-    Arial, 'Noto Sans', sans-serif;
+    Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei UI',
+    'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', 'Helvetica Neue',
+    Arial, sans-serif;
   --font-mono:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
     monospace;
 
   /* Radii & Shadows */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
   --radius-full: 9999px;
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg:
-    0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-sm: 0 2px 6px 0 rgb(17 24 39 / 0.035);
+  --shadow-md: 0 8px 28px -8px rgb(24 36 65 / 0.13);
+  --shadow-lg: 0 18px 55px -12px rgb(24 36 65 / 0.18);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-bg-base: #0c1220;
+  --color-bg-surface: #151e2f;
+  --color-bg-subtle: #1b2940;
+  --color-bg-muted: #273750;
+  --color-border: #34425b;
+  --color-border-subtle: #28364b;
+  --color-text-main: #edf2ff;
+  --color-text-muted: #aab8cf;
+  --color-text-subtle: #899ab7;
+  --color-text-inverse: #ffffff;
+  --color-primary: #a5b4fc;
+  --color-primary-hover: #c7d2fe;
+  --color-primary-subtle: #252c53;
+  --color-primary-border: #434c8b;
+  --color-primary-contrast: #0d1430;
+  --color-bg-elevated: #1d2a40;
+  --color-control-option-bg: #1d2a40;
+  --color-control-option-fg: #edf2ff;
+  --color-control-option-selected-bg: #34416b;
+  --color-bg-gradient: linear-gradient(
+    120deg,
+    #1d2750 0%,
+    #172337 58%,
+    #15344a 100%
+  );
+  --color-glow: rgba(129, 140, 248, 0.18);
+  --color-success: #34d399;
+  --color-success-bg: #113b37;
+  --color-success-border: #286b5e;
+  --color-success-text: #9debd1;
+  --color-warning: #fbbf24;
+  --color-warning-bg: #3b301b;
+  --color-warning-border: #735722;
+  --color-warning-text: #ffe2a3;
+  --color-danger: #fb7185;
+  --color-danger-bg: #43212e;
+  --color-danger-subtle: #43212e;
+  --color-danger-border: #8b3a4c;
+  --color-danger-text: #ffc2cc;
+  --color-info: #7dd3fc;
+  --color-info-bg: #19384a;
+  --color-info-border: #335e73;
+  --color-info-text: #b0e5ff;
+  --shadow-sm: 0 2px 7px rgb(0 0 0 / 0.14);
+  --shadow-md: 0 10px 26px rgb(0 0 0 / 0.18);
+  --shadow-lg: 0 18px 48px rgb(0 0 0 / 0.3);
 }
 
 * {
@@ -70,6 +135,18 @@ body {
   color: var(--color-text-main);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+html {
+  min-width: 320px;
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: var(--color-primary-border);
 }
 
 button,

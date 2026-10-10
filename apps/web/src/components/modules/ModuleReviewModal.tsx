@@ -232,9 +232,9 @@ export const ModuleReviewModal: React.FC<ModuleReviewModalProps> = ({
             className="card"
             style={{
               padding: '8px 12px',
-              backgroundColor: '#fef2f2',
-              borderColor: '#fecaca',
-              color: '#dc2626',
+              backgroundColor: 'var(--color-danger-bg)',
+              borderColor: 'var(--color-danger-border)',
+              color: 'var(--color-danger-text)',
               marginBottom: '16px',
               fontSize: '0.85rem',
             }}
@@ -274,7 +274,12 @@ export const ModuleReviewModal: React.FC<ModuleReviewModalProps> = ({
                   onChange={() => handleDecisionChange('approve')}
                   disabled={loading}
                 />
-                <span style={{ fontWeight: 600, color: '#16a34a' }}>
+                <span
+                  style={{
+                    fontWeight: 600,
+                    color: 'var(--color-success-text)',
+                  }}
+                >
                   ✓ 批准 (Approve)
                 </span>
               </label>
@@ -294,7 +299,9 @@ export const ModuleReviewModal: React.FC<ModuleReviewModalProps> = ({
                   onChange={() => handleDecisionChange('reject')}
                   disabled={loading}
                 />
-                <span style={{ fontWeight: 600, color: '#dc2626' }}>
+                <span
+                  style={{ fontWeight: 600, color: 'var(--color-danger-text)' }}
+                >
                   ✗ 驳回 (Reject)
                 </span>
               </label>
@@ -357,8 +364,8 @@ export const ModuleReviewModal: React.FC<ModuleReviewModalProps> = ({
           <div
             className="card"
             style={{
-              backgroundColor: '#f8fafc',
-              border: '2px solid #3b82f6',
+              backgroundColor: 'var(--color-bg-subtle)',
+              border: '2px solid var(--color-primary-border)',
               padding: '16px',
               marginBottom: '20px',
             }}
@@ -368,7 +375,7 @@ export const ModuleReviewModal: React.FC<ModuleReviewModalProps> = ({
               style={{
                 fontWeight: 700,
                 fontSize: '0.9rem',
-                color: '#1d4ed8',
+                color: 'var(--color-primary)',
                 marginBottom: '8px',
               }}
             >
@@ -391,7 +398,7 @@ export const ModuleReviewModal: React.FC<ModuleReviewModalProps> = ({
               <strong style={{ fontSize: '0.8rem' }}>变更概要:</strong>
               <pre
                 style={{
-                  backgroundColor: '#ffffff',
+                  backgroundColor: 'var(--color-bg-surface)',
                   padding: '8px',
                   borderRadius: 'var(--radius-sm)',
                   fontSize: '0.75rem',
@@ -407,14 +414,19 @@ export const ModuleReviewModal: React.FC<ModuleReviewModalProps> = ({
 
             {preview.risks.length > 0 && (
               <div style={{ marginBottom: '12px' }}>
-                <strong style={{ fontSize: '0.8rem', color: '#b45309' }}>
+                <strong
+                  style={{
+                    fontSize: '0.8rem',
+                    color: 'var(--color-warning-text)',
+                  }}
+                >
                   风险提示:
                 </strong>
                 <ul
                   style={{
                     margin: '4px 0 0 16px',
                     fontSize: '0.75rem',
-                    color: '#92400e',
+                    color: 'var(--color-warning-text)',
                   }}
                 >
                   {preview.risks.map((risk, idx) => (

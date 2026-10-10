@@ -15,6 +15,7 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
 }) => {
   const isAuthKind =
     request.kind === 'auth_profile' || request.kind === 'one_time_code';
+  const isOtp = request.kind === 'one_time_code';
 
   const [decision, setDecision] = useState<'provide' | 'approve' | 'reject'>(
     isAuthKind ? 'reject' : 'approve',
@@ -66,7 +67,7 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
     };
   }, [request.id, request.runId, request.kind, request.version]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (override?: 'provide' | 'reject') => {
     // 1. Synchronous in-flight guard: blocks same-tick double submits
     if (inFlightRef.current) return;
     inFlightRef.current = true;
@@ -78,27 +79,36 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
     const isAuth =
       request.kind === 'auth_profile' || request.kind === 'one_time_code';
 
-    // Strict boundary: auth kinds can ONLY be rejected; credentials cannot be passed via plain text
+    // Only the dedicated OTP channel permits a sensitive value. It is never
+    // sent as an ordinary user message or clarification.
     const effectiveDecision: 'provide' | 'approve' | 'reject' = isAuth
-      ? 'reject'
+      ? isOtp
+        ? (override ?? decision)
+        : 'reject'
       : decision;
 
-    if (isAuth && effectiveDecision !== 'reject') {
+    if (
+      (isAuth && !isOtp && effectiveDecision !== 'reject') ||
+      (isOtp && effectiveDecision === 'approve')
+    ) {
       inFlightRef.current = false;
-      setError('认证服务当前尚未接线，仅允许拒绝操作');
+      setError('不允许此认证操作');
       return;
     }
 
     // For reject, never pass text key
     const effectiveText =
-      effectiveDecision === 'reject' || isAuth
+      effectiveDecision === 'reject' || (isAuth && !isOtp)
         ? undefined
-        : responseText.trim() || undefined;
+        : isOtp
+          ? responseText
+          : responseText.trim() || undefined;
 
     setSubmitting(true);
     setError(null);
     try {
       await onRespond(effectiveDecision, effectiveText);
+      if (isOtp) setResponseText('');
       // Late response guard using latest mutable ref:
       // If epoch changed, or current identity does not match captured dispatch, drop it completely!
       if (
@@ -117,7 +127,14 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
       ) {
         return;
       }
-      setError(err instanceof Error ? err.message : '提交答复失败');
+      setError(
+        isOtp
+          ? '验证码提交失败或已过期'
+          : err instanceof Error
+            ? err.message
+            : '提交答复失败',
+      );
+      if (isOtp) setResponseText('');
     } finally {
       // Only clear busy flag if the request has not been superseded
       if (
@@ -169,9 +186,11 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
               : 'var(--color-warning-text)',
           }}
         >
-          {isAuthKind
-            ? '认证受阻：认证执行尚未接入 (Authentication Blocked)'
-            : '运行暂停：等待人工补充输入 (Awaiting Input)'}
+          {isOtp
+            ? '认证验证：等待一次性验证码'
+            : isAuthKind
+              ? '认证受阻：认证执行尚未接入 (Authentication Blocked)'
+              : '运行暂停：等待人工补充输入 (Awaiting Input)'}
         </h4>
         <span
           className="badge"
@@ -186,7 +205,7 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
           data-testid="input-request-badge"
         >
           类型: {request.kind}
-          {isAuthKind ? ' (尚未接线)' : ''}
+          {isAuthKind && !isOtp ? ' (尚未接线)' : ''}
         </span>
       </div>
 
@@ -201,7 +220,7 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
       </p>
 
       {/* Blocked state explanation for auth kinds */}
-      {isAuthKind && (
+      {isAuthKind && !isOtp && (
         <div
           style={{
             padding: '10px 14px',
@@ -230,7 +249,39 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
           flexWrap: 'wrap',
         }}
       >
-        {isAuthKind ? (
+        {isOtp ? (
+          <>
+            <input
+              className="form-input"
+              type="password"
+              autoComplete="one-time-code"
+              inputMode="numeric"
+              maxLength={32}
+              style={{ width: 'auto', minWidth: '220px' }}
+              placeholder="输入一次性验证码"
+              value={responseText}
+              onChange={(e) => setResponseText(e.target.value)}
+              disabled={submitting}
+              data-testid="input-request-otp"
+            />
+            <button
+              className="btn btn-primary"
+              onClick={() => void handleSubmit('provide')}
+              disabled={submitting || !/^[A-Za-z0-9]{4,32}$/.test(responseText)}
+              data-testid="btn-submit-input-response"
+            >
+              {submitting ? '提交中...' : '验证'}
+            </button>
+            <button
+              className="btn btn-danger"
+              onClick={() => void handleSubmit('reject')}
+              disabled={submitting}
+              data-testid="btn-reject-otp"
+            >
+              拒绝
+            </button>
+          </>
+        ) : isAuthKind ? (
           <>
             <select
               className="form-select"
@@ -244,7 +295,7 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
 
             <button
               className="btn btn-danger"
-              onClick={handleSubmit}
+              onClick={() => void handleSubmit()}
               disabled={submitting}
               data-testid="btn-submit-input-response"
             >
@@ -280,7 +331,7 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
 
             <button
               className="btn btn-primary"
-              onClick={handleSubmit}
+              onClick={() => void handleSubmit()}
               disabled={submitting}
               data-testid="btn-submit-input-response"
             >
@@ -312,9 +363,11 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
           marginTop: '8px',
         }}
       >
-        {isAuthKind
-          ? '* 提示：在接入安全会话前，拒绝此请求可安全解锁流程或标记该任务失败，避免长时间超时挂起。'
-          : '* 提示：根据 SRS 约束，输入等待最长 300 秒，超时后系统将保留已有结果并自动退出，不会无限期挂起。'}
+        {isOtp
+          ? '* 验证码仅提交到私有认证通道，一次性使用；超时或会话中断后不可重试原验证码。'
+          : isAuthKind
+            ? '* 提示：在接入安全会话前，拒绝此请求可安全解锁流程或标记该任务失败，避免长时间超时挂起。'
+            : '* 提示：根据 SRS 约束，输入等待最长 300 秒，超时后系统将保留已有结果并自动退出，不会无限期挂起。'}
       </p>
     </div>
   );

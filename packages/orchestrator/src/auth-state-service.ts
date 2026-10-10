@@ -7,6 +7,7 @@ import type {
   CriterionResult,
   CredentialMaterial,
 } from '@localqa/contracts';
+import { evaluateTechnical } from '@localqa/domain';
 import {
   StorageError,
   hashPayload,
@@ -146,7 +147,10 @@ export class AuthStateService {
   ): Promise<Authority> {
     const leased = await this.coordinator.validateLease(client, scope, proof);
     const { job, run } = leased;
-    if (job.document.summary !== 'auth' || run.executionMode !== 'smoke')
+    if (
+      job.document.summary !== 'auth' ||
+      (run.executionMode !== 'smoke' && run.executionMode !== 'regression')
+    )
       throw new StorageError('POLICY_DENIED');
     const authScope = (
       await client.query<ScopeRow>(
@@ -325,7 +329,9 @@ export class AuthStateService {
     const criterion =
       auth.profile.mode === 'form'
         ? auth.profile.formConfig?.successCriterion
-        : null;
+        : auth.profile.mode === 'storage_state'
+          ? auth.profile.storageCriterion
+          : null;
     if (
       !criterion ||
       gate.auth_epoch !== auth.session.auth_epoch ||
@@ -579,7 +585,9 @@ export class AuthStateService {
     const criterion =
       auth.profile.mode === 'form'
         ? auth.profile.formConfig?.successCriterion
-        : null;
+        : auth.profile.mode === 'storage_state'
+          ? auth.profile.storageCriterion
+          : null;
     if (!criterion) throw new StorageError('POLICY_DENIED');
     let result: CriterionResult;
     try {
@@ -593,6 +601,22 @@ export class AuthStateService {
     const current = await this.current(client, auth);
     if (current.snapshot.snapshotId !== snapshotId)
       throw new StorageError('NOT_FOUND');
+    // An auth success gate must be derived from the actual server-owned
+    // observation, not from a worker's self-reported "passed" flag.
+    // Only fixed, locally evaluable criteria may authorize credential reuse;
+    // speculative semantic/visual assertions stay blocked.
+    const observed = evaluateTechnical(
+      { criteria: [criterion] },
+      current.snapshot,
+      null,
+      [snapshotId],
+    )[0];
+    if (
+      observed?.result !== 'passed' ||
+      result.evidenceRefs.length === 0 ||
+      !result.evidenceRefs.every((ref) => ref === snapshotId)
+    )
+      throw new StorageError('POLICY_DENIED');
     await this.live(client, proof, auth);
     const gateId = randomUUID();
     await client.query(

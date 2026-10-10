@@ -37,6 +37,9 @@ export interface ReplayPorts {
   ) => Promise<CriterionResult>;
   aiAction?: (input: {
     goal: string;
+    maxToolCalls?: number;
+    minToolCalls?: number;
+    requiredToolSequence?: readonly ToolCall['name'][];
     criteria: readonly Criterion[];
     source: Source;
     signal: AbortSignal;
@@ -231,6 +234,11 @@ export async function replayRegression(
           throw new Stop('unsupported', 'AI_ADAPTER_REQUIRED');
         await ports.aiAction({
           goal: step.goal,
+          ...(step.maxToolCalls ? { maxToolCalls: step.maxToolCalls } : {}),
+          ...(step.minToolCalls ? { minToolCalls: step.minToolCalls } : {}),
+          ...(step.requiredToolSequence
+            ? { requiredToolSequence: step.requiredToolSequence }
+            : {}),
           criteria: item.criteria,
           source: item.source,
           signal,

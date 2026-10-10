@@ -8,6 +8,7 @@ export type AppRoute =
   | 'case-detail'
   | 'finding-detail'
   | 'saved-cases'
+  | 'schedules'
   | 'saved-case-detail'
   | 'modules'
   | 'environments'
@@ -26,6 +27,9 @@ interface AppContextValue {
   sessionLoading: boolean;
   setRoute: (route: AppRoute, params?: Record<string, string>) => void;
   setCurrentProject: (project: Project) => void;
+  replaceProject: (project: Project) => void;
+  removeProject: (projectId: string) => void;
+  createProject: (name: string) => Promise<Project>;
   toggleMock: (enabled: boolean) => void;
   logout: () => Promise<void>;
   login: (username: string, password?: string) => Promise<void>;
@@ -87,6 +91,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     window.location.hash = hash;
   };
 
+  const createProject = async (name: string): Promise<Project> => {
+    if (!currentUser || currentUser.globalRole !== 'admin') {
+      throw new Error('仅平台管理员可以创建项目');
+    }
+    const trimmed = name.trim();
+    if (trimmed.length < 1 || trimmed.length > 120) {
+      throw new Error('项目名称长度必须为 1–120 个字符');
+    }
+    const created = await defaultApiClient.createProject({ name: trimmed });
+    setProjects((previous) => [
+      created,
+      ...previous.filter((p) => p.id !== created.id),
+    ]);
+    setCurrentProject(created);
+    setRoute('home');
+    return created;
+  };
+
+  const replaceProject = (project: Project) => {
+    setProjects((previous) =>
+      previous.map((p) => (p.id === project.id ? project : p)),
+    );
+    setCurrentProject((previous) =>
+      previous?.id === project.id ? project : previous,
+    );
+  };
+
+  /** Update the client selection only after a confirmed 204 deletion. */
+  const removeProject = (projectId: string) => {
+    const remaining = projects.filter((project) => project.id !== projectId);
+    setProjects(remaining);
+    setCurrentProject((previous) =>
+      previous?.id === projectId ? (remaining[0] ?? null) : previous,
+    );
+    setRoute('home');
+  };
+
   // Initial user & project load
   useEffect(() => {
     async function init() {
@@ -143,6 +184,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // ignore
     }
     setCurrentUser(null);
+    setCurrentProject(null);
+    setProjects([]);
     setRoute('login');
   };
 
@@ -158,6 +201,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         sessionLoading,
         setRoute,
         setCurrentProject,
+        replaceProject,
+        removeProject,
+        createProject,
         toggleMock: setUseMock,
         logout,
         login,

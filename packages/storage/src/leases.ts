@@ -25,6 +25,36 @@ export type LeaseProof = {
   leaseToken: string;
   contextVersion: number;
 };
+/** Close public OTP prompts when trusted recovery invalidates private state. */
+export async function reconcileExpiredOtpInputs(
+  client: PoolClient,
+  projectId: string,
+  runId: string,
+  taskId: string,
+): Promise<void> {
+  const expired = await client.query<{ document: unknown }>(
+    `UPDATE input_requests i
+       SET document=jsonb_set(
+         jsonb_set(i.document,'{status}',to_jsonb('expired'::text)),
+         '{version}',to_jsonb(i.version+1)),
+         version=i.version+1
+       FROM auth_otp_challenges c
+       WHERE c.input_id=i.id AND c.project_id=$1 AND c.run_id=$2
+         AND c.task_id=$3 AND c.status='expired'
+         AND i.document->>'kind'='one_time_code'
+         AND i.document->>'status'='pending'
+       RETURNING i.document`,
+    [projectId, runId, taskId],
+  );
+  for (const row of expired.rows)
+    await appendEvent(
+      client,
+      projectId,
+      runId,
+      'input.resolved',
+      parseContract('InputRequest', row.document),
+    );
+}
 type JobRow = {
   id: string;
   project_id: string;
@@ -321,6 +351,18 @@ export class LeaseRepository {
         [job.id, scope.projectId],
       );
       if (isAdmin) {
+        await client.query(
+          `UPDATE auth_otp_challenges SET status='expired',
+           ciphertext=NULL,nonce=NULL,auth_tag=NULL,key_version=NULL
+           WHERE task_id=$1 AND project_id=$2 AND status IN ('pending','submitted')`,
+          [job.id, scope.projectId],
+        );
+        await reconcileExpiredOtpInputs(
+          client,
+          scope.projectId,
+          job.run_id,
+          job.id,
+        );
         await client.query(
           "UPDATE auth_execution_sessions SET status='ended', ended_at=clock_timestamp(), end_reason='interrupted' WHERE task_id=$1 AND project_id=$2 AND status IN ('allocated','active')",
           [job.id, scope.projectId],

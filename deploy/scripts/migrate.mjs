@@ -1,14 +1,13 @@
 #!/usr/bin/env node
 import { migrate } from '../../packages/storage/dist/index.js';
+import { loadDatabaseUrl } from '../images/database-url.mjs';
 
 const migrationsDir = new URL(
   '../../packages/storage/migrations/',
   import.meta.url,
 );
 
-const connectionString =
-  process.env.DATABASE_URL ||
-  `postgresql://${process.env.POSTGRES_USER || 'localqa'}:${process.env.POSTGRES_PASSWORD || 'localqa'}@${process.env.PGHOST || '127.0.0.1'}:${process.env.PGPORT || '5432'}/${process.env.POSTGRES_DB || 'localqa'}`;
+const connectionString = await loadDatabaseUrl();
 
 console.log(
   '[LocalQA Migrate] Starting database migrations from:',

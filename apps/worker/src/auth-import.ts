@@ -2,9 +2,11 @@ import { isErrorCode } from '@localqa/contracts';
 import type { AuthProfile } from '@localqa/contracts';
 import {
   createPrivateAuthPort,
+  createTrustedBrowserAuthPrimitives,
   validateApprovedAuthState,
   PrivateAuthError,
 } from '@localqa/browser';
+import type { BrowserSessionImpl } from '@localqa/browser';
 import type {
   AuthSessionBinding,
   AuthPermit,
@@ -33,11 +35,72 @@ export interface AuthImportOptions {
   profile: AuthProfile;
   authStateId: string;
   primitives: TrustedAuthPrimitives;
+  /** Task-approved origins; must be a subset of the frozen profile scope. */
+  executionOrigins?: readonly string[];
 }
 
 export interface AuthImportResult {
   status: 'imported' | 'not_required' | 'blocked' | 'cancelled';
   reasonCode: string;
+}
+
+/**
+ * Concrete Worker-side importer binding: the trusted private import service
+ * runs against this task's owned Chromium context, never a fake primitive or
+ * the model-facing ToolCall port. Task allocation and activation remain the
+ * coordinator's responsibility, not this function's.
+ */
+export async function runBrowserAuthImport(
+  options: Omit<AuthImportOptions, 'primitives'> & {
+    session: BrowserSessionImpl;
+  },
+  signal: AbortSignal,
+): Promise<AuthImportResult> {
+  // Anonymous and revoked profiles must never start browser activity.
+  if (options.profile.status !== 'active')
+    return Object.freeze({ status: 'blocked', reasonCode: 'VALIDATION_ERROR' });
+  if (options.profile.mode === 'none')
+    return Object.freeze({
+      status: 'not_required',
+      reasonCode: 'AUTH_NOT_REQUIRED',
+    });
+  if (signal.aborted)
+    return Object.freeze({ status: 'cancelled', reasonCode: 'CANCELLED' });
+  // The lease/binding tuple must identify the very Chromium context receiving
+  // secrets. A valid server grant alone cannot make a different task's tab an
+  // approved recipient; check before any grant, decrypt, or browser operation.
+  if (
+    options.session.isClosed ||
+    options.session.id !== options.binding.contextId ||
+    options.session.taskId !== options.proof.taskId ||
+    options.binding.taskId !== options.proof.taskId ||
+    options.binding.fencingToken !== options.proof.fencingToken ||
+    options.binding.contextVersion !== options.proof.contextVersion
+  )
+    return Object.freeze({ status: 'blocked', reasonCode: 'VALIDATION_ERROR' });
+  try {
+    return await runAuthImport(
+      {
+        client: options.client,
+        proof: options.proof,
+        binding: options.binding,
+        profile: options.profile,
+        authStateId: options.authStateId,
+        ...(options.executionOrigins
+          ? { executionOrigins: options.executionOrigins }
+          : {}),
+        primitives: createTrustedBrowserAuthPrimitives(
+          options.session,
+          options.executionOrigins ?? options.profile.allowedOrigins,
+        ),
+      },
+      signal,
+    );
+  } catch {
+    // Even constructor/route registration errors may contain browser details;
+    // do not forward anything but a fixed code to the task ledger.
+    return Object.freeze({ status: 'blocked', reasonCode: 'VALIDATION_ERROR' });
+  }
 }
 
 const TUPLE = [
@@ -104,7 +167,20 @@ export async function runAuthImport(
     const proof = Object.freeze({ ...options.proof });
     const client = options.client;
     const stateId = options.authStateId;
-    const origins = Object.freeze([...options.profile.allowedOrigins]);
+    const profileOrigins = Object.freeze([...options.profile.allowedOrigins]);
+    const origins = Object.freeze([
+      ...(options.executionOrigins ?? profileOrigins),
+    ]);
+    let approved: Set<string>;
+    let permitted: Set<string>;
+    try {
+      approved = new Set(profileOrigins.map((url) => new URL(url).origin));
+      permitted = new Set(origins.map((url) => new URL(url).origin));
+    } catch {
+      deny();
+    }
+    if (!permitted.size || [...permitted].some((url) => !approved.has(url)))
+      deny();
     const primitives = options.primitives;
     stable = { client, proof, binding };
     if (
@@ -223,7 +299,25 @@ export async function runAuthImport(
         },
       },
     });
-    const state = validateApprovedAuthState(prepared.state, origins);
+    // Verify the complete captured state against the profile BEFORE dropping
+    // out-of-scope data. Only task-approved host cookies and localStorage may
+    // enter this isolated Chromium context. No arbitrary domain suffix match.
+    const complete = validateApprovedAuthState(prepared.state, profileOrigins);
+    const hosts = new Set(
+      [...permitted].map((url) => new URL(url).hostname.toLowerCase()),
+    );
+    const state = validateApprovedAuthState(
+      {
+        cookies:
+          complete.cookies?.filter((cookie) =>
+            hosts.has(cookie.domain.replace(/^\./, '').toLowerCase()),
+          ) ?? [],
+        origins:
+          complete.origins?.filter((entry) => permitted.has(entry.origin)) ??
+          [],
+      },
+      origins,
+    );
     const effect = await port.executeAuth(
       permit,
       { kind: 'prepare_state', state },

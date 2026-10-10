@@ -3,6 +3,7 @@ import type { PoolClient } from 'pg';
 import { parseContract } from '@localqa/contracts';
 import {
   StorageError,
+  reconcileExpiredOtpInputs,
   type WorkerScope,
   type LeaseProof,
 } from '@localqa/storage';
@@ -131,6 +132,70 @@ async function verifySessionNotExpired(
 
 export class AuthExecutionManager {
   constructor(private readonly coordinator: Coordinator) {}
+
+  /**
+   * A renewed Worker lease is necessary but not sufficient for a private
+   * browser session. Extend only a *still-live* active session owned by that
+   * exact Worker/fence/context, and never past five minutes from activation.
+   * This runs in the Coordinator heartbeat's already-locked job/run
+   * transaction, after the actual task lease has been renewed.
+   */
+  async renewForHeartbeat(
+    client: PoolClient,
+    scope: WorkerScope,
+    proof: LeaseProof,
+  ): Promise<void> {
+    const scopeRow = (
+      await client.query<{ status: string; auth_epoch: number }>(
+        'SELECT status,auth_epoch FROM run_auth_scopes WHERE project_id=$1 AND run_id=(SELECT run_id FROM jobs WHERE id=$2) FOR SHARE',
+        [scope.projectId, proof.taskId],
+      )
+    ).rows[0];
+    const session = (
+      await client.query<RawSessionRow>(
+        `SELECT * FROM auth_execution_sessions
+         WHERE project_id=$1 AND task_id=$2 AND worker_id=$3
+           AND fencing_token=$4 AND context_version=$5 AND status='active'
+         FOR UPDATE`,
+        [
+          scope.projectId,
+          proof.taskId,
+          scope.workerId,
+          proof.fencingToken,
+          proof.contextVersion,
+        ],
+      )
+    ).rows[0];
+    if (!session) return;
+    if (
+      !scopeRow ||
+      scopeRow.status === 'revoked' ||
+      scopeRow.auth_epoch !== session.auth_epoch ||
+      !session.activated_at
+    )
+      throw new StorageError('AUTH_FAILED');
+    const profile = (
+      await client.query<{ revoked: boolean }>(
+        'SELECT revoked FROM auth_profiles WHERE project_id=$1 AND id=$2 FOR SHARE',
+        [scope.projectId, session.auth_profile_id],
+      )
+    ).rows[0];
+    if (!profile || profile.revoked) throw new StorageError('AUTH_FAILED');
+    const currentLeaseUntil = await verifyLeaseNotExpired(client, proof);
+    const now = Date.now();
+    const hardDeadline = session.activated_at.getTime() + 5 * 60 * 1000;
+    if (session.expires_at.getTime() <= now || hardDeadline <= now)
+      throw new StorageError('LEASE_EXPIRED');
+    const newExpiry = new Date(
+      Math.min(currentLeaseUntil.getTime(), hardDeadline),
+    );
+    if (newExpiry.getTime() > session.expires_at.getTime())
+      await client.query(
+        `UPDATE auth_execution_sessions SET expires_at=$2
+         WHERE id=$1 AND status='active' AND expires_at>clock_timestamp()`,
+        [session.id, newExpiry],
+      );
+  }
 
   private async validateImporterCaller(
     client: PoolClient,
@@ -658,6 +723,20 @@ export class AuthExecutionManager {
         scope,
         proof,
         sessionId,
+      );
+    }
+    if (row.purpose === 'initializer') {
+      await client.query(
+        `UPDATE auth_otp_challenges SET status='expired',
+          ciphertext=NULL,nonce=NULL,auth_tag=NULL,key_version=NULL
+         WHERE auth_session_id=$1 AND status IN ('pending','submitted')`,
+        [sessionId],
+      );
+      await reconcileExpiredOtpInputs(
+        client,
+        scope.projectId,
+        run.id,
+        row.task_id,
       );
     }
     const updated = (

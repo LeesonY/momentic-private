@@ -129,6 +129,16 @@ function mapProviderCode(code: string): {
         requestResult: 'not_configured',
         errorCode: 'MODEL_NOT_CONFIGURED',
       };
+    case 'MODEL_BILLING_REQUIRED':
+      return {
+        requestResult: 'not_configured',
+        errorCode: 'MODEL_BILLING_REQUIRED',
+      };
+    case 'MODEL_OUTPUT_TRUNCATED':
+      return {
+        requestResult: 'malformed',
+        errorCode: 'MODEL_OUTPUT_TRUNCATED',
+      };
     case 'VALIDATION_ERROR':
       return { requestResult: 'malformed', errorCode: 'VALIDATION_ERROR' };
     case 'BUDGET_EXCEEDED':
@@ -155,7 +165,7 @@ export interface GatewayProfile {
   name: string;
   endpoint: string;
   configuredModelId: string;
-  kind: 'stub' | 'openai_compatible';
+  kind: 'stub' | 'openai_compatible' | 'anthropic_messages';
   dataBoundary: 'internal' | 'external';
   capabilities: {
     structuredOutput: boolean;
@@ -175,6 +185,21 @@ export interface GatewayProfile {
   status?: 'untested' | 'ready' | 'degraded' | 'disabled';
   encryptedApiKey: string | null;
   approvedFallbackIds: readonly string[];
+}
+
+function probeOutputTokenLimit(profile: GatewayProfile | undefined): number {
+  if (profile?.kind === 'anthropic_messages') {
+    try {
+      // MoreSec counts DeepSeek reasoning tokens against max_tokens. A
+      // short JSON probe needs the standard bounded output budget there.
+      if (new URL(profile.endpoint).hostname === 'motoken.moresec.cn') {
+        return DEFAULT_OUTPUT_TOKENS;
+      }
+    } catch {
+      // Invalid endpoints are rejected by the normal call preflight.
+    }
+  }
+  return 200;
 }
 
 export type ResolvedArtifact =
@@ -246,6 +271,20 @@ export interface CallRecord {
   outboundRedacted: string;
   data: unknown;
   errorCode: string | null;
+  /** Allowlisted classification only. No schema field/value or response text. */
+  validationFailureKind?:
+    'invalid_json' | 'schema_mismatch' | 'tool_contract_mismatch';
+  /** Fixed response categories only; never model text or private data. */
+  outputShapeTrace?: Array<
+    | 'empty'
+    | 'json_object_start'
+    | 'json_object_unclosed'
+    | 'json_object_balanced_invalid'
+    | 'json_array_start'
+    | 'code_fence_start'
+    | 'markup_start'
+    | 'other_text'
+  >;
   assessment: Assessment | null;
   attemptedModelIds: string[];
 }
@@ -594,7 +633,10 @@ export function createGateway(options: {
         latencyMs: Date.now() - started,
       });
     }
-    if (profile.kind === 'openai_compatible') {
+    if (
+      profile.kind === 'openai_compatible' ||
+      profile.kind === 'anthropic_messages'
+    ) {
       try {
         assertHttpsEndpoint(profile.endpoint);
       } catch {
@@ -708,7 +750,7 @@ export function createGateway(options: {
       input.purpose === 'probe' && profile.status !== 'disabled'
         ? (profile.responseFormat ?? 'json_schema')
         : selectStructuredOutput(profile);
-    if (outputMode === 'json_object') {
+    if (outputMode === 'json_object' && input.purpose !== 'probe') {
       messages = [
         ...messages,
         messageFromText('user', jsonObjectConstraint(input)),
@@ -854,6 +896,7 @@ export function createGateway(options: {
     const outbound: string[] = [];
     let providerCalls = 0;
     let repairCount = 0;
+    const outputShapeTrace: NonNullable<CallRecord['outputShapeTrace']> = [];
     let visualTransmitted = false;
     let reportedModelId: string | null = null;
     const maxOutput = Math.min(input.maxOutputTokens, DEFAULT_OUTPUT_TOKENS);
@@ -907,6 +950,7 @@ export function createGateway(options: {
       errorCode: string | null,
       data: unknown,
       assessment: Assessment | null,
+      validationFailureKind?: CallRecord['validationFailureKind'],
     ): CallRecord => {
       const usage = combineUsage(attempts);
       const rawOutput = hideSecret(raws.join('\n'), apiKey);
@@ -935,6 +979,10 @@ export function createGateway(options: {
         outboundRedacted: outbound.join('\n'),
         data,
         errorCode,
+        ...(validationFailureKind ? { validationFailureKind } : {}),
+        ...(requestResult === 'malformed' && outputShapeTrace.length > 0
+          ? { outputShapeTrace: [...outputShapeTrace] }
+          : {}),
         assessment,
         attemptedModelIds: [profile.configuredModelId],
       };
@@ -1026,11 +1074,12 @@ export function createGateway(options: {
         return finish('ok', null, parsed, null);
       }
       let parsed = parseWithSchema(response.raw, validator);
+      if (!parsed.ok) outputShapeTrace.push(classifyOutputShape(response.raw));
       if (!parsed.ok && repairCount < 1) {
         repairCount += 1;
         const repair = messageFromText(
           'user',
-          `${REPAIR_MARK}：只输出一个符合 outputSchema 的 JSON 对象，不要解释。`,
+          formatRepairInstruction(input, parsed.kind),
         );
         messages = [...messages, repair];
         response = present(await sendOnce(messages));
@@ -1038,11 +1087,19 @@ export function createGateway(options: {
         const repairedStop = stopForProvider(response);
         if (repairedStop) return repairedStop;
         parsed = parseWithSchema(response.raw, validator);
+        if (!parsed.ok)
+          outputShapeTrace.push(classifyOutputShape(response.raw));
       }
       if (!parsed.ok)
-        return finish('malformed', 'VALIDATION_ERROR', null, null);
+        return finish('malformed', 'VALIDATION_ERROR', null, null, parsed.kind);
       if (!toolCallsMatchContract(parsed.value))
-        return finish('malformed', 'VALIDATION_ERROR', null, null);
+        return finish(
+          'malformed',
+          'VALIDATION_ERROR',
+          null,
+          null,
+          'tool_contract_mismatch',
+        );
       if (input.purpose === 'assert') {
         const assessment = assessCriterionOutput({
           data: parsed.value,
@@ -1090,6 +1147,7 @@ export function createGateway(options: {
 
   return {
     capabilityProbe(profileId, timeoutMs = 1000) {
+      const probeStarted = Date.now();
       const profile = profiles.get(profileId);
       if (profile && profile.status === 'disabled') {
         const record = failure({
@@ -1098,7 +1156,7 @@ export function createGateway(options: {
           profileVersion: profile.version,
           modelId: profile.configuredModelId,
           adapterVersion: options.adapter.version,
-          promptVersion: 'probe.1',
+          promptVersion: 'probe.3',
           role: 'coordinator',
           purpose: 'probe',
           requestResult: 'capability_missing',
@@ -1122,12 +1180,19 @@ export function createGateway(options: {
         profileId,
         contextVersion: 1,
         role: 'coordinator',
-        promptVersion: 'probe.1',
+        promptVersion: 'probe.3',
         purpose: 'probe',
         messages: [
           {
             role: 'user',
-            content: [{ type: 'text', text: '能力探测：只返回 JSON。' }],
+            // A deterministic JSON round trip tests formatting without
+            // asking a reasoning model to introspect unmeasured abilities.
+            content: [
+              {
+                type: 'text',
+                text: '能力探测：这是 JSON 格式连通性检查，请原样返回 {"structuredOutput":true,"nativeTools":false,"imageInput":false}。不要自评能力，不要解释。',
+              },
+            ],
           },
         ],
         approvedImageIds: [],
@@ -1143,9 +1208,9 @@ export function createGateway(options: {
           },
         },
         timeoutMs,
-        maxOutputTokens: 200,
+        maxOutputTokens: probeOutputTokenLimit(profile),
         ...(profile ? {} : {}),
-      }).then((record) => {
+      }).then(async (record) => {
         if (
           record.requestResult !== 'ok' ||
           !record.data ||
@@ -1168,6 +1233,14 @@ export function createGateway(options: {
           }
           return record;
         }
+        try {
+          parseContract('ModelCapabilities', record.data);
+        } catch {
+          record.requestResult = 'malformed';
+          record.errorCode = 'VALIDATION_ERROR';
+          record.data = null;
+          return record;
+        }
         if (profile?.kind === 'stub') {
           const data = record.data as Record<string, unknown>;
           const capabilities = {
@@ -1187,18 +1260,102 @@ export function createGateway(options: {
           record.data = probeResult(profileId, capabilities, status, notes);
           return record;
         }
+        if (!profile || !options.adapter.probeCapability) {
+          record.data = probeResult(
+            profileId,
+            { structuredOutput: true, nativeTools: false, imageInput: false },
+            'degraded',
+            [
+              '结构化输出探测通过。',
+              '适配器未提供工具与图片探测，不采用模型自报。',
+            ],
+          );
+          return record;
+        }
+        const capabilities = {
+          structuredOutput: true,
+          nativeTools: false,
+          imageInput: false,
+        };
+        const notes = ['结构化输出已由本次探测的合法 JSON 验证。'];
+        let apiKey: string;
+        try {
+          apiKey = options.decryptKey(profile.id, profile.encryptedApiKey!);
+        } catch {
+          apiKey = '';
+        }
+        if (!apiKey) {
+          record.requestResult = 'not_configured';
+          record.errorCode = 'MODEL_NOT_CONFIGURED';
+          record.data = null;
+          return record;
+        }
+        for (const capability of ['nativeTools', 'imageInput'] as const) {
+          const remaining = timeoutMs - (Date.now() - probeStarted);
+          if (remaining <= 0) {
+            record.requestResult = 'timeout';
+            record.errorCode = 'MODEL_TIMEOUT';
+            record.data = null;
+            record.latencyMs = Date.now() - probeStarted;
+            return record;
+          }
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), remaining);
+          try {
+            const tested = await options.adapter.probeCapability(
+              {
+                endpoint: profile.endpoint,
+                model: profile.configuredModelId,
+                apiKey,
+                capability,
+                maxOutputTokens: probeOutputTokenLimit(profile),
+              },
+              controller.signal,
+            );
+            record.providerCalls += tested.providerCalls;
+            record.requests += tested.providerCalls;
+            if (tested.providerCalls > 0) {
+              record.inputTokens =
+                record.inputTokens === null
+                  ? null
+                  : record.inputTokens +
+                    (tested.usage?.inputTokens ?? tested.estimatedInputTokens);
+              record.outputTokens =
+                record.outputTokens === null || !tested.usage
+                  ? null
+                  : record.outputTokens + tested.usage.outputTokens;
+              const source = tested.usage ? 'reported' : 'estimated';
+              if (record.usageSource !== source) record.usageSource = 'mixed';
+            }
+            record.latencyMs = Date.now() - probeStarted;
+            if (tested.errorCode) {
+              const outcome = mapProviderCode(tested.errorCode);
+              record.requestResult = outcome.requestResult;
+              record.errorCode = outcome.errorCode;
+              record.data = null;
+              return record;
+            }
+            const modelChanged =
+              record.reportedModelId !== null &&
+              tested.reportedModelId !== null &&
+              record.reportedModelId !== tested.reportedModelId;
+            capabilities[capability] = tested.supported && !modelChanged;
+            notes.push(
+              modelChanged
+                ? `${capability === 'nativeTools' ? '原生工具调用' : '图片输入'}探测返回的模型标识与 JSON 探测不一致，未采纳本项能力结果。`
+                : tested.note,
+            );
+          } finally {
+            clearTimeout(timer);
+          }
+        }
         record.data = probeResult(
           profileId,
-          {
-            structuredOutput: true,
-            nativeTools: false,
-            imageInput: false,
-          },
-          'degraded',
-          [
-            '结构化输出已由本次探测的合法 JSON 验证。',
-            '原生工具与图片未实测，保持未测，不采用模型自报。',
-          ],
+          capabilities,
+          capabilities.nativeTools && capabilities.imageInput
+            ? 'ready'
+            : 'degraded',
+          notes,
         );
         return record;
       });
@@ -1322,13 +1479,90 @@ function parseJson(raw: string): unknown {
   }
 }
 
+function classifyOutputShape(
+  raw: string,
+): NonNullable<CallRecord['outputShapeTrace']>[number] {
+  const text = raw.trimStart();
+  if (!text) return 'empty';
+  if (text.startsWith('{')) {
+    // This scanner does not repair JSON. It emits one safe category only:
+    // incomplete container/string vs syntactically broken but closed object.
+    const stack: string[] = [];
+    let quoted = false;
+    let escaped = false;
+    let mismatched = false;
+    for (const char of text) {
+      if (quoted) {
+        if (escaped) escaped = false;
+        else if (char === '\\') escaped = true;
+        else if (char === '"') quoted = false;
+        continue;
+      }
+      if (char === '"') quoted = true;
+      else if (char === '{' || char === '[') stack.push(char);
+      else if (char === '}' || char === ']') {
+        const opening = stack.pop();
+        if (
+          (char === '}' && opening !== '{') ||
+          (char === ']' && opening !== '[')
+        )
+          mismatched = true;
+      }
+    }
+    if (quoted || stack.length > 0) return 'json_object_unclosed';
+    if (mismatched) return 'json_object_balanced_invalid';
+    return 'json_object_balanced_invalid';
+  }
+  if (text.startsWith('[')) return 'json_array_start';
+  if (text.startsWith('```')) return 'code_fence_start';
+  if (text.startsWith('<')) return 'markup_start';
+  return 'other_text';
+}
+
+function formatRepairInstruction(
+  input: CallInput,
+  kind: 'invalid_json' | 'schema_mismatch',
+): string {
+  const syntax =
+    kind === 'invalid_json'
+      ? '上一条不是合法的完整 JSON。重新生成，不要续写上一条不完整的字符串或括号；所有属性名及字符串值使用双引号，禁止尾逗号。'
+      : '上一条虽然是 JSON，但不符合批准的 outputSchema。只按原冻结 Schema 重新生成，字段类型及必填字段不得更改。';
+  const decision =
+    input.purpose === 'decide' &&
+    Array.isArray(input.outputSchema['required']) &&
+    (input.outputSchema['required'] as unknown[]).includes('toolCalls') &&
+    (input.outputSchema['required'] as unknown[]).includes('done');
+  return [
+    REPAIR_MARK,
+    syntax,
+    '必须输出一个完整且可直接 JSON.parse 的 JSON 对象；不要 Markdown、代码块、解释、前后缀或推理文本。',
+    decision
+      ? '严格只用两个顶层字段：{"done":boolean,"toolCalls":[{"name":"工具名","args":{}}]}。如无工具调用则 toolCalls=[]；工具名称和参数必须来自原请求批准的 tools，不能臆造目标、参数或权限。'
+      : '必须完全满足原请求已经批准的 outputSchema，不能改写测试期望。',
+    '这是原授权请求最多一次的结构化重写，不允许增加工具执行或自行修改断言。',
+  ].join('\n');
+}
+
 function parseWithSchema(
   raw: string,
   validator: ReturnType<typeof ajv.compile> | null,
-): { ok: true; value: unknown } | { ok: false } {
-  const value = parseJson(raw);
-  if (value === null || !validator) return { ok: false };
-  return validator(value) ? { ok: true, value } : { ok: false };
+):
+  | { ok: true; value: unknown }
+  | { ok: false; kind: 'invalid_json' | 'schema_mismatch' } {
+  let value = parseJson(raw);
+  if (value === null) {
+    // Only the entire output being one fenced JSON document qualifies.
+    // Never scan prose for JSON or synthesize a tool. The existing strict
+    // AJV and canonical tool checks remain mandatory after parsing.
+    const fence = /^\s*```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```\s*$/i.exec(
+      raw,
+    );
+    if (fence) value = parseJson(fence[1]!);
+  }
+  if (value === null) return { ok: false, kind: 'invalid_json' };
+  if (!validator || !validator(value))
+    return { ok: false, kind: 'schema_mismatch' };
+  return { ok: true, value };
 }
 
 function jsonObjectConstraint(input: CallInput): string {
@@ -1336,11 +1570,46 @@ function jsonObjectConstraint(input: CallInput): string {
     name: tool.name,
     parameters: tool.parameters,
   }));
+  // The canonical decision schema contains the complete ToolCall $defs tree
+  // (~21 KB), even for coordinator's two allowed tools. Repeating it in a
+  // json_object prompt can exceed the 4k-token request limit *before* a
+  // provider call. Keep the full schema in the local AJV validator and the
+  // tool-contract/permission checks; only compact the prompt's description.
+  const decisionShape =
+    input.purpose !== 'assert' &&
+    input.outputSchema['type'] === 'object' &&
+    Array.isArray(input.outputSchema['required']) &&
+    (input.outputSchema['required'] as unknown[]).includes('toolCalls') &&
+    (input.outputSchema['required'] as unknown[]).includes('done');
   return [
     '输出一个 JSON 对象，不要 Markdown，不要解释。',
-    '该对象必须满足 outputSchema。',
+    decisionShape
+      ? '必须返回 {"done":boolean,"toolCalls":[{"name":工具名,"args":参数对象}]}；无工具调用时 toolCalls=[]。仅使用列出的工具名称及其参数，禁止增加其他字段。'
+      : '该对象必须满足 outputSchema。',
     '若调用工具，toolCalls 的参数必须满足同名 parameters。',
-    `outputSchema=${JSON.stringify(input.outputSchema)}`,
+    `outputSchema=${JSON.stringify(
+      decisionShape
+        ? {
+            type: 'object',
+            required: ['done', 'toolCalls'],
+            additionalProperties: false,
+            properties: {
+              done: { type: 'boolean' },
+              toolCalls: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  required: ['name', 'args'],
+                  properties: {
+                    name: { type: 'string' },
+                    args: { type: 'object' },
+                  },
+                },
+              },
+            },
+          }
+        : input.outputSchema,
+    )}`,
     `tools=${JSON.stringify(tools)}`,
   ].join('\n');
 }

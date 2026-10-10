@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
-import type { Finding, Artifact } from '@localqa/contracts';
+import type { Finding } from '@localqa/contracts';
 import { AppHeader } from '../components/layout/AppHeader.tsx';
 import { StatusBadge } from '../components/ui/Badge.tsx';
-import { ErrorCard } from '../components/ui/ErrorCard.tsx';
+import { FindingEvidencePanel } from '../components/workbench/FindingEvidencePanel.tsx';
 import { TriageModal } from '../components/workbench/TriageModal.tsx';
 
 export const FindingDetailPage: React.FC = () => {
@@ -13,9 +13,6 @@ export const FindingDetailPage: React.FC = () => {
   const runId = routeParams.runId || 'run_mock_001_completed';
 
   const [finding, setFinding] = useState<Finding | null>(null);
-  const [artifact, setArtifact] = useState<Artifact | null>(null);
-  const [artifactError, setArtifactError] = useState<string | null>(null);
-  const [artifactLoading, setArtifactLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isTriageOpen, setIsTriageOpen] = useState(false);
 
@@ -33,32 +30,6 @@ export const FindingDetailPage: React.FC = () => {
     }
     load();
   }, [findingId]);
-
-  useEffect(() => {
-    if (!finding) return;
-    if (finding.evidenceRefs.length === 0) {
-      setArtifact(null);
-      setArtifactError(null);
-      return;
-    }
-    const artId = finding.evidenceRefs[0];
-    setArtifactLoading(true);
-    defaultApiClient
-      .getArtifact(artId)
-      .then((art) => {
-        setArtifact(art);
-        setArtifactError(null);
-      })
-      .catch((err) => {
-        setArtifact(null);
-        setArtifactError(
-          err instanceof Error ? err.message : '获取证据材料失败',
-        );
-      })
-      .finally(() => {
-        setArtifactLoading(false);
-      });
-  }, [finding]);
 
   if (loading) {
     return (
@@ -242,66 +213,7 @@ export const FindingDetailPage: React.FC = () => {
           </ol>
         </div>
 
-        {/* Visual Evidence Artifacts */}
-        <div className="card" data-testid="evidence-section">
-          <div className="card-header">
-            <h3 className="card-title">关联证据材料 (Evidence Artifacts)</h3>
-            <span
-              style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}
-            >
-              证据引用: {finding.evidenceRefs.join(', ') || '无引用'}
-            </span>
-          </div>
-
-          {artifactError ||
-          (finding.evidenceRefs.length > 0 && !artifact && !artifactLoading) ? (
-            <ErrorCard
-              type="missing_evidence"
-              message={`引用的证据材料 (${finding.evidenceRefs.join(', ')}) 在存储层中不存在、加载失败或已被清理。系统已安全降级为纯文本判定。${artifactError ? ` (${artifactError})` : ''}`}
-            />
-          ) : artifact && artifact.contentUrl ? (
-            <div style={{ textAlign: 'center', marginTop: '10px' }}>
-              <div
-                style={{
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '10px',
-                  display: 'inline-block',
-                  backgroundColor: 'white',
-                }}
-              >
-                <img
-                  src={artifact.contentUrl}
-                  alt="缺陷现场截图"
-                  style={{
-                    maxWidth: '100%',
-                    height: 'auto',
-                    maxHeight: '420px',
-                    display: 'block',
-                  }}
-                  data-testid="evidence-screenshot"
-                />
-              </div>
-              <div
-                style={{
-                  marginTop: '8px',
-                  fontSize: '0.75rem',
-                  color: 'var(--color-text-muted)',
-                }}
-              >
-                材料 ID: <code>{artifact.id}</code> · SHA-256:{' '}
-                <code>{artifact.sha256?.slice(0, 16)}...</code> · 状态:{' '}
-                <code>{artifact.status}</code>
-              </div>
-            </div>
-          ) : (
-            <p
-              style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}
-            >
-              暂无已绑定的视觉证据截图。
-            </p>
-          )}
-        </div>
+        <FindingEvidencePanel finding={finding} />
 
         {/* Triage Modal */}
         <TriageModal

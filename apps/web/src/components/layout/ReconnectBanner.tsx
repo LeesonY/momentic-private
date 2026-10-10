@@ -56,7 +56,7 @@ export const ReconnectBanner: React.FC<ReconnectBannerProps> = ({
         onClick={onRetry}
         style={{
           borderColor: 'var(--color-warning-border)',
-          backgroundColor: 'white',
+          backgroundColor: 'var(--color-bg-elevated)',
         }}
         data-testid="btn-retry-sse"
       >

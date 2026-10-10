@@ -3,10 +3,9 @@ import { readdir, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import pg from '../../packages/storage/node_modules/pg/lib/index.js';
+import { loadDatabaseUrl } from '../images/database-url.mjs';
 
-const connectionString =
-  process.env.DATABASE_URL ||
-  `postgresql://${process.env.POSTGRES_USER || 'localqa'}:${process.env.POSTGRES_PASSWORD || 'localqa'}@${process.env.PGHOST || '127.0.0.1'}:${process.env.PGPORT || '5432'}/${process.env.POSTGRES_DB || 'localqa'}`;
+const connectionString = await loadDatabaseUrl();
 
 const dataDir = process.env.DATA_DIR || '/var/localqa/data';
 const scratchDir = process.env.SCRATCH_DIR || '/var/localqa/scratch';

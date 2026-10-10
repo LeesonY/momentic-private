@@ -12,7 +12,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "node test/api.test.mjs"
+    "test": "node test/api.test.mjs",
+    "test:functional-model": "node --test test/t39-run-model-selection.test.mjs"
   },
   "dependencies": {
     "@localqa/contracts": "workspace:*",

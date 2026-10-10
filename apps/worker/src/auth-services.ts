@@ -64,10 +64,12 @@ export interface AuthServiceOptions {
   proof: LeaseProof;
   /** Active AUTH-5 binding: its session/run/epoch scope every service call. */
   binding: AuthSessionBinding;
+  /** Real, private OTP authority. The caller holds the same live Worker lease. */
+  pauseForOtp?: () => Promise<{ code: string }>;
   /**
-   * The only dependency this batch still does not implement is the OTP wait. It
-   * may be injected as an explicit stub, but when absent the flow stays blocked
-   * — and it can never replace a real service method such as finishAuth.
+   * The production initializer supplies the private OTP wait callback.
+   * Legacy isolated unit tests may inject an explicit stub instead; with
+   * neither present the flow fails closed, never using a generic input channel.
    */
   unimplementedServices?: Pick<AuthFlowServices, 'pauseForOtp'>;
 }
@@ -296,8 +298,8 @@ export function createAuthServices(
   // Only explicit stubs may fill the unimplemented slots; absent stays absent so
   // the bridge blocks those steps instead of inventing a completion.
   const unimplemented = options.unimplementedServices;
-  if (unimplemented?.pauseForOtp) {
+  if (options.pauseForOtp) services.pauseForOtp = options.pauseForOtp;
+  else if (unimplemented?.pauseForOtp)
     services.pauseForOtp = unimplemented.pauseForOtp;
-  }
   return services;
 }

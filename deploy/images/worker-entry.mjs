@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from '../../packages/browser/node_modules/playwright/index.mjs';
 import { BrowserManager } from '../../packages/browser/dist/index.js';
-import { Worker } from '../../apps/worker/dist/index.js';
+import { Worker, CandidateVerifier } from '../../apps/worker/dist/index.js';
 import { Database } from '../../packages/storage/dist/index.js';
 import { loadProtectedKek } from './kek.mjs';
 import {
@@ -16,9 +16,10 @@ import { ModelRepository } from '../../packages/storage/dist/index.js';
 import { createWorkerModelOptions } from '../../packages/orchestrator/dist/index.js';
 import { readiness } from './readiness.mjs';
 import { projectOffers } from './project-scheduling.mjs';
+import { loadDatabaseUrl } from './database-url.mjs';
 
 if (process.getuid() === 0) throw new Error('Refusing to run browser as root');
-if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL required');
+const connectionString = await loadDatabaseUrl();
 const allowTestStub = process.env.LOCALQA_ALLOW_TEST_STUB === '1';
 const scratch = '/var/localqa/scratch';
 const slots = Number(process.env.BROWSER_SLOTS || 4);
@@ -33,7 +34,7 @@ const identity = (
 ).trim();
 if (!identity) throw new Error('Worker identity missing');
 const workerId = `worker-${createHash('sha256').update(identity).digest('hex').slice(0, 32)}`;
-const db = new Database(process.env.DATABASE_URL);
+const db = new Database(connectionString);
 const adminId = await db.auth(
   async (client) =>
     (
@@ -79,9 +80,11 @@ const options = createWorkerModelOptions({
 });
 let running = true;
 let nextProject = 0;
+let stopCandidateVerifier = null;
 for (const signal of ['SIGTERM', 'SIGINT'])
   process.once(signal, () => {
     running = false;
+    stopCandidateVerifier?.();
   });
 async function capacityProbe() {
   const browserInstance = await chromium.launch({ chromiumSandbox: true });
@@ -146,6 +149,16 @@ async function capacityProbe() {
   }
 }
 const active = new Set();
+const candidateVerifier = new CandidateVerifier(
+  db,
+  actor,
+  browser,
+  `${workerId}-candidate`,
+  vault,
+);
+stopCandidateVerifier = () => candidateVerifier.cancelActive();
+let candidateFlight = false;
+const evidenceMaintenanceAt = new Map();
 try {
   let capacityAt = 0;
   while (running) {
@@ -192,6 +205,41 @@ try {
         });
         active.add(flight);
         void flight.finally(() => active.delete(flight)).catch(() => {});
+      }
+      // Dedicated candidate validation is strictly separate from ordinary
+      // approved-run leases. Reserve at most one spare browser slot and never
+      // let a draft compete with a slot already occupied by normal work.
+      if (
+        running &&
+        projects.length &&
+        !candidateFlight &&
+        active.size < slots
+      ) {
+        candidateFlight = true;
+        const candidateProject = projects[nextProject % projects.length];
+        const flight = candidateVerifier
+          .once(candidateProject)
+          .catch(() => {
+            console.error('Candidate verifier iteration failed');
+          })
+          .finally(() => {
+            candidateFlight = false;
+          });
+        active.add(flight);
+        void flight.finally(() => active.delete(flight)).catch(() => {});
+      }
+      // Bounded privacy maintenance: at most 100 aged evidence rows/project
+      // per hour. Run only once we have DB readiness, never grant DELETE to
+      // ordinary app sessions or active candidate execution leases.
+      if (projects.length) {
+        const maintenanceProject = projects[nextProject % projects.length];
+        if (
+          Date.now() - (evidenceMaintenanceAt.get(maintenanceProject) ?? 0) >
+          3600_000
+        ) {
+          await candidateVerifier.pruneExpiredEvidence(maintenanceProject);
+          evidenceMaintenanceAt.set(maintenanceProject, Date.now());
+        }
       }
       if (!projects.length && (await readiness()))
         await writeFile(`${scratch}/task-ready`, String(Date.now()));

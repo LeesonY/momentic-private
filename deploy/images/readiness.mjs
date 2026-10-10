@@ -2,12 +2,19 @@ import { access, stat } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import pg from '../../packages/storage/node_modules/pg/lib/index.js';
 import { SecretVault } from '../../packages/storage/dist/index.js';
+import { loadDatabaseUrl } from './database-url.mjs';
+import { hasAllMigrations } from './migration-check.mjs';
 
 export async function readiness({ vault = false, browserMarker = false } = {}) {
-  if (!process.env.DATABASE_URL || (vault && !process.env.MASTER_KEY_FILE))
+  if (vault && !process.env.MASTER_KEY_FILE) return false;
+  let connectionString;
+  try {
+    connectionString = await loadDatabaseUrl();
+  } catch {
     return false;
+  }
   const pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString,
     connectionTimeoutMillis: 3000,
   });
   // A restart can sever an idle readiness connection between query and end.
@@ -27,10 +34,10 @@ export async function readiness({ vault = false, browserMarker = false } = {}) {
     ),
   );
   try {
-    const result = await pool.query(
-      "SELECT count(*)::integer AS n FROM storage_migrations WHERE name IN ('001_core.sql','002_invariants.sql','003_access.sql','004_hardening.sql','005_project_default_model.sql','006_run_messages_redaction.sql','007_p1_saved_cases.sql','008_saved_case_review_previews.sql','009_regression_bindings.sql','010_regression_module_reviews.sql')",
-    );
-    if (result.rows[0]?.n !== 10) return false;
+    // Never silently report ready with an old schema. Auth sessions, captures
+    // and private state imports are introduced after migration 010. Compare
+    // the checked-in migration set rather than maintaining a stale count.
+    if (!(await hasAllMigrations(pool))) return false;
     await access(
       process.env.DATA_DIR || '/var/localqa/data',
       constants.R_OK | constants.W_OK,

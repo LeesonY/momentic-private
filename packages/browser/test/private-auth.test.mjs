@@ -236,6 +236,43 @@ await check(
   },
 );
 
+await check(
+  'auth navigate rejects foreign scheme, host, port and credentials before gate',
+  async () => {
+    const badUrls = [
+      'https://fixture.local.test:8080/login',
+      'http://fixture.local.test:9090/login',
+      'http://evil.local.test:8080/login',
+      'http://fixture.local.test.evil.test:8080/login',
+      'http://user:pass@fixture.local.test:8080/login',
+      'javascript:alert(1)',
+      'not-a-url',
+    ];
+    for (const url of badUrls) {
+      const { port, calls, gateCalls } = harness();
+      await assert.rejects(
+        port.executeAuth(permit({ url }), { kind: 'navigate' }, signal()),
+        (error) =>
+          error.code === 'TARGET_NOT_ALLOWED' &&
+          error.message === 'TARGET_NOT_ALLOWED' &&
+          !String(error).includes(url),
+      );
+      assert.equal(gateCalls.authorize, 0, url);
+      assert.deepEqual(calls, [], url);
+    }
+    const { port, calls, gateCalls } = harness();
+    await port.executeAuth(
+      permit({ url: 'http://fixture.local.test:8080/welcome' }),
+      { kind: 'navigate' },
+      signal(),
+    );
+    assert.equal(gateCalls.authorize, 1);
+    assert.deepEqual(calls, [
+      ['navigate', 'http://fixture.local.test:8080/welcome'],
+    ]);
+  },
+);
+
 await check('prepare_state validates and does not navigate', async () => {
   const { port, calls } = harness();
   const result = await port.executeAuth(
@@ -1239,6 +1276,90 @@ await check(
     assert.equal(JSON.stringify(raw).includes(secret), true);
     assert.equal(raw.redacted, false);
     await port.close();
+  },
+);
+
+await check(
+  'T23 trusted renewal after old lease expires preserves identity and redaction',
+  async () => {
+    const prior = {
+      ...binding,
+      expiresAt: '2026-10-07T00:00:30.000Z',
+    };
+    let now = Date.parse('2026-10-07T00:00:35.000Z');
+    const calls = [];
+    let renewals = 0;
+    const port = createPrivateAuthPort({
+      binding: prior,
+      allowedOrigins: origins,
+      now: () => now,
+      trustedRenewal: async () => {
+        renewals++;
+        return { ...prior, expiresAt: '2026-10-07T00:02:00.000Z' };
+      },
+      gate: {
+        authorize: async () => {},
+        authorizeExport: async () => {},
+      },
+      primitives: primitivesStub(calls),
+    });
+    port.primeSensitiveValues([secret]);
+    const result = await port.executeAuth(
+      permit({
+        grantId: 't23-renewed',
+        deadline: '2026-10-07T00:01:00.000Z',
+      }),
+      { kind: 'navigate' },
+      signal(),
+    );
+    assert.equal(result.snapshot.redacted, true);
+    assert.equal(JSON.stringify(result.snapshot).includes(secret), false);
+    assert.deepEqual(calls, [
+      ['navigate', 'http://fixture.local.test:8080/login'],
+    ]);
+    assert.ok(renewals > 0);
+    now = Date.parse('2026-10-07T00:02:01.000Z');
+    await assert.rejects(
+      port.renewAuthority(),
+      (error) => error.code === 'LEASE_EXPIRED',
+    );
+    await port.close();
+  },
+);
+
+await check(
+  'T23 identity swap, revoked session and unbounded expiry cannot renew a private port',
+  async () => {
+    const prior = { ...binding, expiresAt: '2026-10-07T00:00:30.000Z' };
+    let authority = { ...prior, expiresAt: '2026-10-07T00:02:00.000Z' };
+    const calls = [];
+    const port = createPrivateAuthPort({
+      binding: prior,
+      allowedOrigins: origins,
+      now: () => Date.parse('2026-10-07T00:00:36.000Z'),
+      trustedRenewal: async () => authority,
+      gate: { authorize: async () => {}, authorizeExport: async () => {} },
+      primitives: primitivesStub(calls),
+    });
+    for (const changed of [
+      { ...authority, workerId: 'other-worker' },
+      { ...authority, authEpoch: 2 },
+      { ...authority, fencingToken: 5 },
+      { ...authority, status: 'revoked' },
+      { ...authority, expiresAt: '2026-10-07T00:20:00.000Z' },
+    ]) {
+      authority = changed;
+      await assert.rejects(
+        port.renewAuthority(),
+        (error) => error.code === 'LEASE_EXPIRED',
+      );
+    }
+    assert.deepEqual(calls, []);
+    await port.close();
+    await assert.rejects(
+      port.renewAuthority(),
+      (error) => error.code === 'VALIDATION_ERROR',
+    );
   },
 );
 

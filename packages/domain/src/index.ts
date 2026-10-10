@@ -260,7 +260,7 @@ export function smokeCase(run: Run, url: string, index = 0): CaseDefinition {
   });
 }
 export function evaluateTechnical(
-  c: CaseDefinition,
+  c: Pick<CaseDefinition, 'criteria'>,
   snapshot: BrowserSnapshot,
   httpStatus: number | null,
   evidence: string[],

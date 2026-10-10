@@ -1,0 +1,149 @@
+# Separate local-only Docker development stack. No production settings or
+# production volumes are reused. Vite HMR works through readonly bind mounts;
+# use `docker compose -f deploy/docker-compose.dev.yml watch --no-up` to
+# automatically rebuild/restart API and workers after backend source changes.
+name: localqa-dev
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: localqa
+      POSTGRES_DB: localqa
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    volumes:
+      - dev_pgdata:/var/lib/postgresql
+      - dev_secrets:/run/secrets:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U localqa -d localqa']
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/images/api.Dockerfile
+    image: localqa-dev-api:latest
+    environment: &app_env
+      DATABASE_URL_FILE: /run/secrets/database_url
+      MASTER_KEY_FILE: /run/secrets/kek.json
+      WORKER_IDENTITY_FILE: /run/secrets/worker_identity.json
+      DATA_DIR: /var/localqa/data
+      PUBLIC_ORIGIN: http://localhost:5173
+      BROWSER_SLOTS: '1'
+    volumes: &app_volumes
+      - dev_secrets:/run/secrets:ro
+      - dev_data:/var/localqa/data
+    ports:
+      - '127.0.0.1:3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'node', '/app/deploy/images/check.mjs', 'api', 'ready']
+      interval: 5s
+      timeout: 4s
+      retries: 15
+      start_period: 20s
+    develop:
+      watch:
+        - action: rebuild
+          path: ../apps/api/src
+        - action: rebuild
+          path: ../packages
+        - action: rebuild
+          path: ../deploy/images/api-entry.mjs
+
+  orchestrator:
+    build:
+      context: ..
+      dockerfile: deploy/images/orchestrator.Dockerfile
+    image: localqa-dev-orchestrator:latest
+    environment: *app_env
+    volumes: *app_volumes
+    depends_on:
+      api:
+        condition: service_healthy
+    develop:
+      watch:
+        - action: rebuild
+          path: ../packages
+        - action: rebuild
+          path: ../deploy/images/orchestrator-entry.mjs
+
+  worker:
+    build:
+      context: ..
+      dockerfile: deploy/images/worker.Dockerfile
+    image: localqa-dev-worker:latest
+    user: '1001:1001'
+    cap_add:
+      - SYS_ADMIN
+    shm_size: 256m
+    environment:
+      <<: *app_env
+      HOME: /var/localqa/scratch
+      TMPDIR: /tmp
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+    volumes:
+      - dev_secrets:/run/secrets:ro
+      - dev_data:/var/localqa/data
+    tmpfs:
+      - /tmp:rw,nosuid,size=512m
+      - /var/localqa/scratch:rw,nosuid,size=512m,mode=1777
+    depends_on:
+      api:
+        condition: service_healthy
+    develop:
+      watch:
+        - action: rebuild
+          path: ../apps/worker/src
+        - action: rebuild
+          path: ../packages
+        - action: rebuild
+          path: ../deploy/images/worker-entry.mjs
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/images/web-dev.Dockerfile
+    image: localqa-dev-web:latest
+    environment:
+      API_BASE_URL: http://api:3000
+      CHOKIDAR_USEPOLLING: 'true'
+      CHOKIDAR_INTERVAL: '400'
+    volumes:
+      - ../apps/web/src:/app/apps/web/src:ro
+      - ../apps/web/index.html:/app/apps/web/index.html:ro
+      - ../apps/web/vite.config.ts:/app/apps/web/vite.config.ts:ro
+      - ../packages/contracts/src:/app/packages/contracts/src:ro
+    ports:
+      - '127.0.0.1:5173:5173'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:5173/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 4s
+      retries: 15
+    develop:
+      watch:
+        - action: rebuild
+          path: ../apps/web/package.json
+        - action: rebuild
+          path: ../pnpm-lock.yaml
+        - action: rebuild
+          path: ../packages/contracts/package.json
+
+volumes:
+  dev_pgdata:
+    name: localqa-dev-pgdata
+  dev_data:
+    name: localqa-dev-data
+  dev_secrets:
+    name: localqa-dev-secrets
+    external: true

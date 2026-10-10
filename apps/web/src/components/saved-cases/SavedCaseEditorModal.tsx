@@ -233,10 +233,10 @@ export const SavedCaseEditorModal: React.FC<SavedCaseEditorModalProps> = ({
           <div
             style={{
               padding: '10px 14px',
-              backgroundColor: '#fee2e2',
-              border: '1px solid #f87171',
+              backgroundColor: 'var(--color-danger-bg)',
+              border: '1px solid var(--color-danger-border)',
               borderRadius: 'var(--radius-md)',
-              color: '#991b1b',
+              color: 'var(--color-danger-text)',
               marginBottom: '16px',
               fontSize: '0.85rem',
             }}
@@ -444,7 +444,7 @@ export const SavedCaseEditorModal: React.FC<SavedCaseEditorModalProps> = ({
                       fontSize: '0.8rem',
                       fontWeight: 600,
                       backgroundColor: 'var(--color-primary)',
-                      color: '#fff',
+                      color: 'var(--color-primary-contrast)',
                       width: '24px',
                       height: '24px',
                       borderRadius: '50%',

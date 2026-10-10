@@ -53,6 +53,38 @@ export class RuntimeClient {
   work(proof: LeaseProof): Promise<Work> {
     return this.#coordinator.work(this.#scope, proof);
   }
+  lookupRegressionLocator(
+    proof: LeaseProof,
+    source: import('@localqa/contracts').RegressionStepSource,
+    locator: import('@localqa/contracts').Locator,
+    pageUrl: string,
+  ): Promise<string | null> {
+    return this.#coordinator.lookupRegressionLocator(
+      this.#scope,
+      proof,
+      source,
+      locator,
+      pageUrl,
+    );
+  }
+  recordRegressionLocator(
+    proof: LeaseProof,
+    source: import('@localqa/contracts').RegressionStepSource,
+    locator: import('@localqa/contracts').Locator,
+    pageUrl: string,
+    outcome: 'hit' | 'miss' | 'invalidated',
+    resolved: boolean,
+  ): Promise<void> {
+    return this.#coordinator.recordRegressionLocator(
+      this.#scope,
+      proof,
+      source,
+      locator,
+      pageUrl,
+      outcome,
+      resolved,
+    );
+  }
   async heartbeat(proof: LeaseProof, seconds = 45): Promise<HeartbeatResult> {
     const heartbeat = await this.#coordinator.leases.heartbeat(
       this.#scope,
@@ -67,6 +99,21 @@ export class RuntimeClient {
         true,
       );
       await this.#coordinator.pulse(client, this.#scope.projectId, run.id);
+      // A session outlives the initial 45s lease only while this exact Worker
+      // keeps a valid fenced heartbeat. Never renew on stop/cancel/scope
+      // changes; the browser's authority must be re-fetched privately.
+      if (
+        !heartbeat.cancelRequested &&
+        run.status === 'running' &&
+        !['budget_limit', 'model_failure', 'setup_failure'].includes(
+          run.terminationReason ?? '',
+        )
+      )
+        await this.#coordinator.authExecution.renewForHeartbeat(
+          client,
+          this.#scope,
+          proof,
+        );
       return {
         ...heartbeat,
         cancelRequested:
@@ -175,6 +222,17 @@ export class RuntimeClient {
   }
   poll(): Promise<void> {
     return this.#coordinator.tick(this.#scope.projectId);
+  }
+  issueAuthOtp(proof: LeaseProof, sessionId: string) {
+    return this.#coordinator.authOtp.issue(this.#scope, proof, sessionId);
+  }
+  consumeAuthOtp(proof: LeaseProof, sessionId: string, inputId: string) {
+    return this.#coordinator.authOtp.consume(
+      this.#scope,
+      proof,
+      sessionId,
+      inputId,
+    );
   }
   allocateAuthSession(
     proof: LeaseProof,

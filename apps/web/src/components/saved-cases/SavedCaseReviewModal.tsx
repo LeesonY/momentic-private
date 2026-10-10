@@ -183,10 +183,10 @@ export const SavedCaseReviewModal: React.FC<SavedCaseReviewModalProps> = ({
           <div
             style={{
               padding: '10px 14px',
-              backgroundColor: '#fee2e2',
-              border: '1px solid #f87171',
+              backgroundColor: 'var(--color-danger-bg)',
+              border: '1px solid var(--color-danger-border)',
               borderRadius: 'var(--radius-md)',
-              color: '#991b1b',
+              color: 'var(--color-danger-text)',
               marginBottom: '16px',
               fontSize: '0.85rem',
             }}
@@ -428,8 +428,8 @@ export const SavedCaseReviewModal: React.FC<SavedCaseReviewModalProps> = ({
             {preview.risks && preview.risks.length > 0 && (
               <div
                 style={{
-                  backgroundColor: '#fffbeb',
-                  border: '1px solid #fde68a',
+                  backgroundColor: 'var(--color-warning-bg)',
+                  border: '1px solid var(--color-warning-border)',
                   borderRadius: 'var(--radius-md)',
                   padding: '12px 16px',
                   marginBottom: '16px',
@@ -440,7 +440,7 @@ export const SavedCaseReviewModal: React.FC<SavedCaseReviewModalProps> = ({
                   style={{
                     fontSize: '0.85rem',
                     fontWeight: 600,
-                    color: '#92400e',
+                    color: 'var(--color-warning-text)',
                     marginBottom: '6px',
                   }}
                 >
@@ -451,7 +451,7 @@ export const SavedCaseReviewModal: React.FC<SavedCaseReviewModalProps> = ({
                     margin: 0,
                     paddingLeft: '20px',
                     fontSize: '0.85rem',
-                    color: '#78350f',
+                    color: 'var(--color-warning-text)',
                   }}
                 >
                   {preview.risks.map((risk, idx) => (

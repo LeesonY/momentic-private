@@ -86,30 +86,12 @@ export class PolicyInterceptor {
         };
       }
 
-      // Check allowed origins if configured
+      // Scope is an exact web origin (scheme + hostname + effective port).
+      // A hostname-only fallback permitted HTTP downgrade and arbitrary ports;
+      // localhost and 127.0.0.1 are not interchangeable security principals.
       if (this.allowedOrigins.size > 0) {
         const origin = parsed.origin.toLowerCase();
-        // Allow loopback variants interchangeably if one is allowed
-        const isLoopbackAllowed =
-          this.allowedOrigins.has('http://localhost') ||
-          this.allowedOrigins.has('http://127.0.0.1');
-
-        const isCurrentLoopback =
-          parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
-
-        const matches =
-          this.allowedOrigins.has(origin) ||
-          (isLoopbackAllowed && isCurrentLoopback) ||
-          [...this.allowedOrigins].some((allowed) => {
-            try {
-              const u = new URL(allowed);
-              return u.hostname === parsed.hostname;
-            } catch {
-              return false;
-            }
-          });
-
-        if (!matches) {
+        if (!this.allowedOrigins.has(origin)) {
           return {
             allowed: false,
             reasonCode: STABLE_REASON_CODES.TARGET_NOT_ALLOWED,

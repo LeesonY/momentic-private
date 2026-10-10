@@ -193,7 +193,7 @@ export const SavedCaseYamlExportModal: React.FC<
               <div
                 style={{
                   padding: '10px 14px',
-                  backgroundColor: '#f3f4f6',
+                  backgroundColor: 'var(--color-bg-subtle)',
                   borderRadius: 'var(--radius-md, 6px)',
                   display: 'flex',
                   flexDirection: 'column',
@@ -232,8 +232,8 @@ export const SavedCaseYamlExportModal: React.FC<
                   >
                     <span
                       style={{
-                        backgroundColor: '#d1fae5',
-                        color: '#065f46',
+                        backgroundColor: 'var(--color-success-bg)',
+                        color: 'var(--color-success-text)',
                         padding: '1px 6px',
                         borderRadius: '4px',
                         fontWeight: 600,
@@ -305,7 +305,8 @@ export const SavedCaseYamlExportModal: React.FC<
                     lineHeight: 1.45,
                     tabSize: 2,
                     whiteSpace: 'pre',
-                    backgroundColor: '#fafafa',
+                    backgroundColor: 'var(--color-bg-subtle)',
+                    color: 'var(--color-text-main)',
                   }}
                   value={exportData.yaml}
                   data-testid="textarea-exported-yaml"

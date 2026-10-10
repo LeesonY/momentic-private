@@ -41,13 +41,14 @@ LocalQA 采用基于 Docker Compose 的多容器隔离架构，划分为前端�
 
 ## 2. 上线输入清单（Upstream Inputs Checklist）
 
-所有敏感项与物理凭证严禁硬编码进仓库或构建进 Docker 镜像，通过 `./deploy/secrets/` 目录挂载进容器只读路径 `/run/secrets/`。**已知限制**：当前应用 `DATABASE_URL` 仍需含密码，`.env` 必须 chmod 600 且禁止提交；应用读取 `DATABASE_URL_FILE` 的接线尚未完成，不能把数据库凭据称为完全受保护挂载。PostgreSQL 初始口令采用受保护文件挂载。
+所有敏感项与物理凭证严禁硬编码进仓库或构建进 Docker 镜像，通过 `./deploy/secrets/` 目录挂载进容器只读路径 `/run/secrets/`。API、Worker、Orchestrator、迁移、初始化及维护脚本现已支持 `DATABASE_URL_FILE`；与开发用的 `DATABASE_URL` **只能二选一**。PostgreSQL 初始口令仍由独立受保护的文件提供。此项接线不代表完整生产部署已经验收通过。
 
 | 输入项                  | 挂载 / 配置路径                                           | 格式与权限约束                                  | 职责说明                                                                                |
 | :---------------------- | :-------------------------------------------------------- | :---------------------------------------------- | :-------------------------------------------------------------------------------------- |
 | **公司 CA 与 TLS 证书** | `deploy/certs/tls.crt`<br>`deploy/certs/tls.key`          | PEM 编码，私钥权限 `0600`                       | Gateway 入口 HTTPS 证书（生产必须提供有效域名证书，禁止纯 HTTP）                        |
 | **内网 DNS / 代理**     | `deploy/.env` (`PUBLIC_ORIGIN`, `HTTP_PROXY`, `NO_PROXY`) | URI 字符串                                      | 获准内网被测系统域名与可选出网 HTTP 代理                                                |
 | **数据库初始密码**      | `deploy/secrets/postgres_password`                        | 单行纯文本，权限 `0600`                         | PostgreSQL 超级用户与业务用户的初始强随机密码                                           |
+| **应用数据库连接串**    | `deploy/secrets/database_url`                             | 单行完整 PostgreSQL URL，非符号链接；属主为应用运行 UID，权限 `0400` 或 `0600` | 通过 `DATABASE_URL_FILE=/run/secrets/database_url` 加载，不暴露到环境变量 |
 | **主加密密钥 (KEK)**    | `deploy/secrets/kek.json`                                 | JSON，权限 `0400` 或 `0600`，所有者匹配运行 UID | SecretVault AES-256-GCM 主密钥环：`{"activeVersion":1,"keys":{"1":"<base64-32bytes>"}}` |
 | **Worker 内部身份**     | `deploy/secrets/worker_identity.json`                     | JSON，权限 `0400` 或 `0600`                     | Worker 进程向内部协调器/租约端口认证的私有令牌                                          |
 | **初始管理员密码**      | `deploy/secrets/admin_initial_password`                   | 单行纯文本（≥12字符）                           | 仅在系统初次初始化执行 `bootstrap-admin.mjs` 时消费一次，完成后入口关闭                 |
@@ -121,6 +122,19 @@ chmod 700 deploy/secrets deploy/certs deploy/ca
 openssl rand -hex 24 > deploy/secrets/postgres_password
 chmod 600 deploy/secrets/postgres_password
 
+# 安全生成应用侧的 PostgreSQL DSN，密码需要 URL 编码。下列步骤只适用于
+# 默认用户 localqa、数据库 localqa 和容器 UID 1001；自定义配置时需同步修改。
+python3 - <<'PY'
+from pathlib import Path
+from urllib.parse import quote
+password = Path('deploy/secrets/postgres_password').read_text().strip()
+Path('deploy/secrets/database_url').write_text(
+    'postgresql://localqa:' + quote(password, safe='') + '@postgres:5432/localqa\n'
+)
+PY
+chown 1001:1001 deploy/secrets/database_url
+chmod 400 deploy/secrets/database_url
+
 # 3. 为 .env 设置 0600，提供 TLS 证书、KEK 和 worker 身份文件，
 #    并确认镜像已构建/提供入口与探针；不要把含口令的 .env 提交。
 chmod 600 deploy/.env
@@ -164,7 +178,7 @@ docker compose -f deploy/docker-compose.yml up -d
 - **就绪探针 (Readiness)**：
   ```sh
   node deploy/scripts/health-probe.mjs --ready
-  # 验证数据库连接、全部 5 个 migration 版本、Vault KEK 挂载与数据目录可写性
+  # 验证数据库连接、当前仓库内全部 migration、Vault KEK 挂载与数据目录可写性
   ```
 
 ### 5.2 磁盘容量与清理状态

@@ -1,23 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
+import { AppIcon } from '../components/ui/AppIcon.tsx';
+import { CreateProjectDialog } from '../components/layout/CreateProjectDialog.tsx';
 import type {
   Environment,
   AuthProfile,
   ModelProfile,
 } from '@localqa/contracts';
 
-export const ProjectHomePage: React.FC = () => {
-  const { currentProject, setRoute } = useApp();
+function configuredDefaultAuth(
+  env: Environment | undefined,
+  profiles: AuthProfile[],
+): string {
+  if (!env?.defaultAuthProfileId) return '';
+  const profile = profiles.find((item) => item.id === env.defaultAuthProfileId);
+  const approvedOrigins = new Set(
+    env.allowedOrigins.map((origin) => new URL(origin).origin),
+  );
+  if (
+    !profile ||
+    profile.status !== 'active' ||
+    profile.environmentId !== env.id ||
+    profile.allowedOrigins.some(
+      (origin) => !approvedOrigins.has(new URL(origin).origin),
+    )
+  )
+    return '';
+  return profile.id;
+}
 
-  const [targetUrl, setTargetUrl] = useState('http://localhost:8080/');
+export const ProjectHomePage: React.FC = () => {
+  const { currentProject, currentUser, isMock, setRoute } = useApp();
+  const [creatingProject, setCreatingProject] = useState(false);
+
+  const [targetUrl, setTargetUrl] = useState('');
   const [description, setDescription] = useState('');
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [selectedEnvId, setSelectedEnvId] = useState<string>('');
   const [authProfiles, setAuthProfiles] = useState<AuthProfile[]>([]);
   const [selectedAuthId, setSelectedAuthId] = useState<string>('');
   const [models, setModels] = useState<ModelProfile[]>([]);
-  const [selectedModelId, setSelectedModelId] = useState<string>('');
+  const [selectedModelId, setSelectedModelId] = useState('');
+  const [optionsLoading, setOptionsLoading] = useState(false);
+  const [optionsError, setOptionsError] = useState<string | null>(null);
 
   // Advanced Budget Overrides
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -28,42 +54,72 @@ export const ProjectHomePage: React.FC = () => {
   const [maxActions, setMaxActions] = useState(120);
   const [maxModelCalls] = useState(100);
   const [maxReproductions] = useState(3);
-  const [actionPolicy, setActionPolicy] = useState<
-    'non_submitting' | 'approved_workflows'
-  >('non_submitting');
 
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setTargetUrl('');
+    setSelectedEnvId('');
+    setSelectedAuthId('');
+    setEnvironments([]);
+    setAuthProfiles([]);
+    setModels([]);
+    setSelectedModelId('');
+    setOptionsError(null);
     if (!currentProject) return;
+    let cancelled = false;
     const projId = currentProject.id;
     async function loadOptions() {
+      setOptionsLoading(true);
       try {
         const [envRes, authRes, modelRes] = await Promise.all([
           defaultApiClient.listEnvironments(projId),
           defaultApiClient.listAuthProfiles(projId),
-          defaultApiClient.listModels(),
+          defaultApiClient.listProjectModels(projId, { limit: 100 }),
         ]);
+        if (cancelled) return;
         setEnvironments(envRes.items);
-        if (envRes.items.length > 0) setSelectedEnvId(envRes.items[0].id);
+        if (envRes.items.length > 0) {
+          setSelectedEnvId(envRes.items[0].id);
+          setTargetUrl(envRes.items[0].baseUrl);
+          setSelectedAuthId(
+            configuredDefaultAuth(envRes.items[0], authRes.items),
+          );
+        }
 
         setAuthProfiles(authRes.items);
-        if (authRes.items.length > 0) setSelectedAuthId(authRes.items[0].id);
-
         setModels(modelRes.items);
-        if (modelRes.items.length > 0) setSelectedModelId(modelRes.items[0].id);
       } catch (err) {
-        console.warn('Failed to load project options:', err);
+        if (!cancelled)
+          setOptionsError(
+            err instanceof Error ? err.message : '加载项目配置失败',
+          );
+      } finally {
+        if (!cancelled) setOptionsLoading(false);
       }
     }
-    loadOptions();
+    void loadOptions();
+    return () => {
+      cancelled = true;
+    };
   }, [currentProject]);
 
-  const selectedModel = models.find((m) => m.id === selectedModelId);
+  const projectDefaultModel = models.find(
+    (m) => m.id === currentProject?.defaultModelProfileId,
+  );
+  const missingModel = !isMock && !models.some((m) => m.status !== 'disabled');
 
   const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentProject || currentProject.status !== 'active') {
+      setError('请先选择或创建一个未归档的项目');
+      return;
+    }
+    if (optionsLoading || optionsError || missingModel) {
+      setError('模型或项目配置尚未就绪，请先完成配置后再运行');
+      return;
+    }
     if (!targetUrl.trim()) {
       setError('请输入有效的被测目标 URL');
       return;
@@ -73,7 +129,7 @@ export const ProjectHomePage: React.FC = () => {
     setError(null);
     try {
       const run = await defaultApiClient.createRun({
-        projectId: currentProject?.id || 'proj_default',
+        projectId: currentProject.id,
         targetUrl,
         description: description || undefined,
         environmentId: selectedEnvId || undefined,
@@ -88,9 +144,6 @@ export const ProjectHomePage: React.FC = () => {
           maxModelCalls,
           maxReproductions,
         },
-        config: {
-          actionPolicy,
-        },
       });
 
       // Jump to workbench with runId
@@ -102,16 +155,111 @@ export const ProjectHomePage: React.FC = () => {
     }
   };
 
+  if (!currentProject) {
+    return (
+      <div className="lqa-empty-workspace" data-testid="no-project-empty-state">
+        <div className="lqa-empty-hero">
+          <div>
+            <div className="lqa-eyebrow">
+              <AppIcon name="sparkles" size={16} />
+              AUTOMATED QUALITY WORKSPACE
+            </div>
+            <h1>让每一次测试，都更有把握。</h1>
+            <p>
+              将站点探索、测试执行、缺陷复现和证据报告汇集在一个工作空间。
+              从创建第一个项目开始，建立可追踪的自动化质量流程。
+            </p>
+            <div className="lqa-hero-actions">
+              {currentUser?.globalRole === 'admin' ? (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setCreatingProject(true)}
+                  data-testid="empty-create-project"
+                >
+                  <AppIcon name="plus" size={18} />
+                  创建第一个项目
+                  <AppIcon name="arrow-right" size={17} />
+                </button>
+              ) : (
+                <span className="lqa-hero-note">
+                  尚未获得项目访问权限，请联系平台管理员。
+                </span>
+              )}
+              {currentUser?.globalRole === 'admin' && (
+                <span className="lqa-hero-note">
+                  大约需要 1 分钟即可开始配置
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="lqa-hero-visual" aria-hidden="true">
+            <div className="lqa-visual-halo" />
+            <div className="lqa-visual-window">
+              <AppIcon name="globe" size={33} />
+              <div className="lqa-window-line" />
+              <div className="lqa-window-line" />
+              <div className="lqa-window-line" />
+            </div>
+            <div className="lqa-visual-check">
+              <AppIcon name="check" size={30} />
+            </div>
+          </div>
+        </div>
+        <h2 className="lqa-onboarding-heading">
+          三个步骤，构建你的自动化测试流程
+        </h2>
+        <div className="lqa-onboarding-grid">
+          <div className="lqa-step-card">
+            <div className="lqa-step-icon">
+              <AppIcon name="folder" size={21} />
+            </div>
+            <div>
+              <span className="lqa-step-index">STEP 01</span>
+              <h3>创建测试项目</h3>
+              <p>集中管理目标站点、成员权限与自动化测试任务。</p>
+            </div>
+          </div>
+          <div className="lqa-step-card">
+            <div className="lqa-step-icon">
+              <AppIcon name="shield" size={21} />
+            </div>
+            <div>
+              <span className="lqa-step-index">STEP 02</span>
+              <h3>配置环境与模型</h3>
+              <p>设置测试站点、认证方式和项目可使用的 AI 模型。</p>
+            </div>
+          </div>
+          <div className="lqa-step-card">
+            <div className="lqa-step-icon">
+              <AppIcon name="activity" size={21} />
+            </div>
+            <div>
+              <span className="lqa-step-index">STEP 03</span>
+              <h3>发起测试并查看报告</h3>
+              <p>通过运行工作台查看执行过程、结果与缺陷证据。</p>
+            </div>
+          </div>
+        </div>
+        {creatingProject && (
+          <CreateProjectDialog onClose={() => setCreatingProject(false)} />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div
-      style={{ maxWidth: '880px', margin: '0 auto' }}
+      className="lqa-project-home"
+      style={{ maxWidth: '980px', margin: '0 auto' }}
       data-testid="project-home-page"
     >
-      <div style={{ marginBottom: '24px' }}>
+      <div className="lqa-page-intro">
+        <span className="lqa-eyebrow">
+          <AppIcon name="sparkles" size={15} /> 自动化测试控制台
+        </span>
         <h1
           style={{
-            fontSize: '1.6rem',
-            fontWeight: 700,
             color: 'var(--color-text-main)',
           }}
         >
@@ -145,7 +293,14 @@ export const ProjectHomePage: React.FC = () => {
         </div>
       )}
 
-      <form onSubmit={handleStart} className="card" style={{ padding: '28px' }}>
+      <form onSubmit={handleStart} className="card lqa-run-form">
+        <div className="lqa-run-form-title">
+          <AppIcon name="globe" size={23} />
+          <div>
+            <h2>启动新的测试任务</h2>
+            <p>填写目标地址并检查环境、认证和模型配置。</p>
+          </div>
+        </div>
         {/* URL Input */}
         <div className="form-group" style={{ marginBottom: '20px' }}>
           <label
@@ -200,9 +355,17 @@ export const ProjectHomePage: React.FC = () => {
             <select
               className="form-select"
               value={selectedEnvId}
-              onChange={(e) => setSelectedEnvId(e.target.value)}
+              onChange={(e) => {
+                setSelectedEnvId(e.target.value);
+                const env = environments.find(
+                  (item) => item.id === e.target.value,
+                );
+                setSelectedAuthId(configuredDefaultAuth(env, authProfiles));
+                if (env) setTargetUrl(env.baseUrl);
+              }}
               data-testid="select-environment"
             >
+              <option value="">不指定环境</option>
               {environments.map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.name} ({e.baseUrl})
@@ -220,37 +383,66 @@ export const ProjectHomePage: React.FC = () => {
               data-testid="select-auth-profile"
             >
               <option value="">不使用认证 (匿名访问)</option>
-              {authProfiles.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name} ({a.mode})
-                </option>
-              ))}
+              {authProfiles
+                .filter(
+                  (a) =>
+                    a.status === 'active' &&
+                    (!a.environmentId || a.environmentId === selectedEnvId),
+                )
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} ({a.mode})
+                  </option>
+                ))}
             </select>
+            {!!selectedAuthId &&
+              environments.find((env) => env.id === selectedEnvId)
+                ?.defaultAuthProfileId === selectedAuthId && (
+                <p data-testid="default-auth-notice" className="form-help">
+                  已选择环境默认认证；可手动切换为匿名访问。
+                </p>
+              )}
           </div>
 
           <div className="form-group">
-            <label className="form-label">分析与推理模型 (Model Profile)</label>
+            <label htmlFor="select-model-profile" className="form-label">
+              本次运行模型
+            </label>
             <select
+              id="select-model-profile"
               className="form-select"
               value={selectedModelId}
               onChange={(e) => setSelectedModelId(e.target.value)}
               data-testid="select-model-profile"
             >
-              {models.length === 0 && (
-                <option value="">(未配置模型 / T04 Stub 模式)</option>
-              )}
-              {models.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}{' '}
-                  {m.dataBoundary === 'internal' ? '[内网]' : '[外部商业]'}
-                </option>
-              ))}
+              <option value="">使用项目默认或授权模型</option>
+              {models
+                .filter((m) => m.status !== 'disabled')
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} (
+                    {m.dataBoundary === 'external' ? '外部服务' : '内部服务'})
+                  </option>
+                ))}
             </select>
+            <p data-testid="configured-model-notice" className="form-help">
+              {projectDefaultModel
+                ? `项目默认：${projectDefaultModel.name}`
+                : '未设置项目默认模型时，服务端将从授权模型中选择。'}{' '}
+              手动选择时，服务器会校验该模型是否已授权给本项目。
+            </p>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setRoute('models')}
+            >
+              查看模型配置
+            </button>
           </div>
         </div>
 
         {/* Model Unconfigured / Blocked Notice */}
-        {models.length === 0 && (
+        {!isMock && (optionsLoading || optionsError || missingModel) && (
           <div
             style={{
               backgroundColor: 'var(--color-warning-bg)',
@@ -263,32 +455,39 @@ export const ProjectHomePage: React.FC = () => {
             }}
             data-testid="model-unconfigured-notice"
           >
-            <strong>【模型未配置 / Blocked 状态】</strong>
-            平台尚未配置云端商业模型端点（处于 blocked 状态）。系统将使用 T04
-            内置 Stub 规则进行用例探索与判定。
+            <strong>【尚不能启动真实模型冒烟】</strong>{' '}
+            {optionsLoading
+              ? '正在加载项目配置…'
+              : optionsError
+                ? `配置读取失败：${optionsError}`
+                : '当前没有可用模型。请由管理员在“模型管理”中完成配置与项目授权，系统不会自动使用模拟模型。'}
           </div>
         )}
 
         {/* External Model Data Destination Notice */}
-        {selectedModel && selectedModel.dataBoundary === 'external' && (
-          <div
-            style={{
-              backgroundColor: 'var(--color-warning-bg)',
-              border: '1px solid var(--color-warning-border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '12px 16px',
-              margin: '16px 0',
-              fontSize: '0.85rem',
-              color: 'var(--color-warning-text)',
-            }}
-            data-testid="external-model-notice"
-          >
-            <strong>【外部模型数据去向提示】</strong>
-            当前选择的模型由外部云端商业提供商（如
-            OpenAI）承载。自动化探索期间，脱敏后的 DOM 结构、accessible name
-            与必要截图将出网传输至外部模型服务器。请确认被测系统不包含未经授权的非公开核心涉密数据。
-          </div>
-        )}
+        {!isMock &&
+          (selectedModelId
+            ? models.find((m) => m.id === selectedModelId)?.dataBoundary ===
+              'external'
+            : models.some((m) => m.dataBoundary === 'external')) && (
+            <div
+              style={{
+                backgroundColor: 'var(--color-warning-bg)',
+                border: '1px solid var(--color-warning-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '12px 16px',
+                margin: '16px 0',
+                fontSize: '0.85rem',
+                color: 'var(--color-warning-text)',
+              }}
+              data-testid="external-model-notice"
+            >
+              <strong>【外部模型数据去向提示】</strong>
+              已配置的模型中包含外部商业服务。若本次运行绑定外部模型， 脱敏后的
+              DOM、可访问名称及获准截图可能传输到相应服务商。
+              请在项目模型配置中确认实际绑定的数据去向。
+            </div>
+          )}
 
         {/* Collapsible Advanced Budget Overrides */}
         <div
@@ -407,23 +606,10 @@ export const ProjectHomePage: React.FC = () => {
                   <label className="form-label" style={{ fontSize: '0.8rem' }}>
                     动作变动策略 (Action Policy)
                   </label>
-                  <select
-                    className="form-select"
-                    value={actionPolicy}
-                    onChange={(e) =>
-                      setActionPolicy(
-                        e.target.value as
-                          'non_submitting' | 'approved_workflows',
-                      )
-                    }
-                  >
-                    <option value="non_submitting">
-                      non_submitting (严格避免表单提交与副作用)
-                    </option>
-                    <option value="approved_workflows">
-                      approved_workflows (允许执行预核准业务流程)
-                    </option>
-                  </select>
+                  <p className="form-help" data-testid="smoke-action-policy">
+                    non_submitting（固定安全策略）。经审批的业务写入必须通过独立的授权回归流程发起，
+                    URL 冒烟入口不能切换为写入模式。
+                  </p>
                 </div>
               </div>
             </div>
@@ -442,10 +628,16 @@ export const ProjectHomePage: React.FC = () => {
             type="submit"
             className="btn btn-primary"
             style={{ fontSize: '1rem', padding: '10px 24px', fontWeight: 600 }}
-            disabled={starting}
+            disabled={
+              starting ||
+              optionsLoading ||
+              Boolean(optionsError) ||
+              missingModel ||
+              currentProject.status !== 'active'
+            }
             data-testid="btn-start-smoke-run"
           >
-            {starting ? '正在建立运行...' : '开始冒烟测试 (Start Smoke Run) 🚀'}
+            {starting ? '正在建立运行...' : '开始冒烟测试'}
           </button>
         </div>
       </form>

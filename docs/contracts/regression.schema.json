@@ -327,12 +327,39 @@
               },
               "maxItems": 20,
               "minItems": 1
+            },
+            "maxToolCalls": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4
+            },
+            "minToolCalls": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4
+            },
+            "requiredToolSequence": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "click",
+                  "type_text",
+                  "select_option",
+                  "press",
+                  "scroll",
+                  "wait_for"
+                ]
+              },
+              "maxItems": 4,
+              "minItems": 1
             }
           },
           "required": [
             "kind",
             "goal",
-            "criteriaIds"
+            "criteriaIds",
+            "maxToolCalls"
           ],
           "additionalProperties": false
         },

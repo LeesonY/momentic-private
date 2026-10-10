@@ -11,7 +11,11 @@
     "lint": "eslint src scripts",
     "generate:client": "node scripts/generateClient.mjs",
     "test:e2e": "node scripts/e2eLiveCapture.mjs",
-    "test:t10": "node scripts/e2eT10Flow.mjs"
+    "test:t10": "node scripts/e2eT10Flow.mjs",
+    "test:functional-start": "node scripts/t39-project-start-functional.mjs",
+    "test:functional-report": "node scripts/t44-report-export-functional.mjs",
+    "test:functional-delete": "node scripts/t45-project-delete-functional.mjs",
+    "test:functional-theme": "node scripts/t46-theme-controls-functional.mjs"
   },
   "dependencies": {
     "@localqa/contracts": "workspace:*",

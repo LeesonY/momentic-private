@@ -8,6 +8,8 @@ export type {
   ProviderAdapter,
   ProviderResponse,
   NormalizedCall,
+  CapabilityProbeInput,
+  CapabilityProbeResponse,
 } from './adapter.js';
 export {
   OPENAI_ADAPTER_VERSION,
@@ -19,6 +21,10 @@ export {
   stripTrailingSecretPrefix,
 } from './openai.js';
 export { createStubAdapter } from './stub.js';
+export {
+  ANTHROPIC_ADAPTER_VERSION,
+  createAnthropicAdapter,
+} from './anthropic.js';
 export { redactText, redactMessages, hideSecret } from './redact.js';
 export { estimateTokens, combineUsage } from './usage.js';
 export {

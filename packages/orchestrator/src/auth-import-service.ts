@@ -126,7 +126,7 @@ export class AuthImportService {
       reproduce: 'reproducer',
     };
     if (
-      run.executionMode !== 'smoke' ||
+      (run.executionMode !== 'smoke' && run.executionMode !== 'regression') ||
       roles[job.document.summary] !== job.role
     )
       throw new StorageError('POLICY_DENIED');
@@ -302,6 +302,18 @@ export class AuthImportService {
       return binding(a.session);
     }
     const expires = await this.live(client, proof, a);
+    const taskContext = (
+      await client.query<{ context_id: string | null }>(
+        `SELECT result->>'authContextId' AS context_id
+         FROM jobs WHERE id=$1 AND project_id=$2 AND run_id=$3`,
+        [proof.taskId, scope.projectId, a.run.id],
+      )
+    ).rows[0]?.context_id;
+    if (
+      !taskContext ||
+      !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(taskContext)
+    )
+      throw new StorageError('VALIDATION_ERROR');
     const row = (
       await client.query<SessionRow>(
         `INSERT INTO auth_execution_sessions(id,project_id,run_id,task_id,worker_id,fencing_token,context_version,context_id,
@@ -315,7 +327,7 @@ export class AuthImportService {
           scope.workerId,
           proof.fencingToken,
           proof.contextVersion,
-          randomUUID(),
+          taskContext,
           a.profile.id,
           a.profile.version,
           a.authScope.auth_epoch,

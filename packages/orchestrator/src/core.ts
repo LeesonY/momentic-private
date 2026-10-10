@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { createRegressionPlan } from './regression-plan.js';
 import { AuthStateService, type AuthStateRef } from './auth-state-service.js';
+import { AuthOtpService } from './auth-otp.js';
 import {
   AuthImportService,
   type AuthImportGrant,
@@ -49,6 +50,7 @@ import {
   appendEvent,
   hashToken,
   hashPayload,
+  reconcileExpiredOtpInputs,
   SecretVault,
   claimTask,
   LeaseRepository,
@@ -75,6 +77,7 @@ import {
 
 export type Stage =
   | 'preflight'
+  | 'auth'
   | 'explore'
   | 'plan'
   | 'execute'
@@ -102,6 +105,8 @@ export interface Work {
   stage: Stage;
   targetUrl: string;
   contextId: string;
+  /** Server-verified current auth state, never supplied by a model or caller. */
+  authStateId: string | null;
   attemptId: string | null;
   definition: CaseDefinition | null;
   regressionPlan?: ReturnType<typeof createRegressionPlan>;
@@ -135,6 +140,7 @@ export class Coordinator {
   readonly authExecution: AuthExecutionManager;
   readonly authActions: AuthActionsManager;
   readonly authStateService: AuthStateService;
+  readonly authOtp: AuthOtpService;
   readonly authImportService: AuthImportService;
   readonly platformSlots: number;
   readonly projectSlots: number;
@@ -147,6 +153,7 @@ export class Coordinator {
     this.authExecution = new AuthExecutionManager(this);
     this.authActions = new AuthActionsManager(this);
     this.authStateService = new AuthStateService(this);
+    this.authOtp = new AuthOtpService(this);
     this.authImportService = new AuthImportService(this);
     this.platformSlots = options.platformSlots ?? 4;
     this.projectSlots = options.projectSlots ?? 4;
@@ -500,6 +507,32 @@ export class Coordinator {
       ).rows[0].id
     );
   }
+  private async startApprovedRegression(
+    client: PoolClient,
+    run: Run,
+  ): Promise<Run> {
+    const cases = (
+      await client.query<{ document: CaseDefinition }>(
+        'SELECT document FROM run_cases WHERE project_id=$1 AND run_id=$2 ORDER BY id',
+        [run.projectId, run.id],
+      )
+    ).rows;
+    if (!cases.length || cases.some((row) => !row.document.regression))
+      throw new StorageError('VALIDATION_ERROR');
+    run = await this.change(client, run, 'running', 'execute');
+    for (const { document: c } of cases)
+      await this.enqueue(
+        client,
+        run,
+        'executor',
+        'execute',
+        `${c.id}:v${c.version}`,
+        c.id,
+        1,
+      );
+    return run;
+  }
+
   async change(
     client: PoolClient,
     run: Run,
@@ -961,9 +994,223 @@ export class Coordinator {
       ),
     );
   }
+  private async regressionLocatorKey(
+    client: PoolClient,
+    scope: WorkerScope,
+    proof: LeaseProof,
+    source: import('@localqa/contracts').RegressionStepSource,
+    locator: import('@localqa/contracts').Locator,
+    pageUrl: string,
+  ): Promise<{
+    key: string;
+    fingerprint: string;
+    runId: string;
+    sourceVersionId: string;
+  }> {
+    const { run, job } = await this.validateLease(client, scope, proof);
+    if (
+      run.executionMode !== 'regression' ||
+      !job.case_id ||
+      !['execute', 'reproduce'].includes(String(job.document.summary)) ||
+      locator.by !== 'role' ||
+      !locator.name ||
+      locator.value.length > 80 ||
+      locator.name.length > 120
+    )
+      throw new StorageError('VALIDATION_ERROR');
+    const origin = parseContract('Locator', locator);
+    let page: URL;
+    try {
+      page = new URL(pageUrl);
+    } catch {
+      throw new StorageError('VALIDATION_ERROR');
+    }
+    if (!run.effectiveConfig.allowedOrigins.includes(page.origin))
+      throw new StorageError('TARGET_NOT_ALLOWED');
+    const stepSource = parseContract('RegressionStepSource', source);
+    const binding = (
+      await client.query<{ source_version_id: string; source_sha256: string }>(
+        `SELECT source_version_id,source_sha256
+         FROM run_case_regression_bindings
+         WHERE project_id=$1 AND run_id=$2 AND case_id=$3`,
+        [scope.projectId, run.id, job.case_id],
+      )
+    ).rows[0];
+    if (!binding) throw new StorageError('VALIDATION_ERROR');
+    const isolation = (
+      await client.query<{
+        environment_id: string | null;
+        auth_profile_id: string | null;
+      }>(
+        'SELECT environment_id,auth_profile_id FROM runs WHERE project_id=$1 AND id=$2',
+        [scope.projectId, run.id],
+      )
+    ).rows[0]!;
+    const fingerprint = hashPayload({ role: origin.value, name: origin.name });
+    const key = hashPayload({
+      projectId: scope.projectId,
+      sourceVersionId: binding.source_version_id,
+      sourceSha256: binding.source_sha256,
+      source: stepSource,
+      locator: origin,
+      environmentId: isolation.environment_id,
+      environmentVersion: run.effectiveConfig.environmentVersion,
+      authProfileId: isolation.auth_profile_id,
+      authProfileVersion: run.effectiveConfig.authProfileVersion,
+      allowedOrigins: run.effectiveConfig.allowedOrigins,
+      actionPolicy: run.effectiveConfig.actionPolicy,
+      targetOrigin: new URL(run.targetUrl).origin,
+      pageLocation: page.href,
+      cacheProtocolVersion: 2,
+    });
+    return {
+      key,
+      fingerprint,
+      runId: run.id,
+      sourceVersionId: binding.source_version_id,
+    };
+  }
+  /** Hints never confer authority. A fresh browser snapshot must match the
+   * expected unique role/name before using a newly minted NodeTarget. */
+  async lookupRegressionLocator(
+    scope: WorkerScope,
+    proof: LeaseProof,
+    source: import('@localqa/contracts').RegressionStepSource,
+    locator: import('@localqa/contracts').Locator,
+    pageUrl: string,
+  ): Promise<string | null> {
+    return this.tx(async (client) => {
+      const { key, fingerprint } = await this.regressionLocatorKey(
+        client,
+        scope,
+        proof,
+        source,
+        locator,
+        pageUrl,
+      );
+      const row = (
+        await client.query<{ fingerprint: string }>(
+          `SELECT hint->>'fingerprint' AS fingerprint
+           FROM regression_locator_hints
+           WHERE project_id=$1 AND cache_key=$2
+             AND expires_at>clock_timestamp()`,
+          [scope.projectId, key],
+        )
+      ).rows[0];
+      return row?.fingerprint === fingerprint ? fingerprint : null;
+    });
+  }
+  /** A verified cache hit counts only after browser-side uniqueness/ownership
+   * validation. Invalidated hints are deleted and never reported as hits. */
+  async recordRegressionLocator(
+    scope: WorkerScope,
+    proof: LeaseProof,
+    source: import('@localqa/contracts').RegressionStepSource,
+    locator: import('@localqa/contracts').Locator,
+    pageUrl: string,
+    outcome: 'hit' | 'miss' | 'invalidated',
+    resolved: boolean,
+  ): Promise<void> {
+    await this.tx(async (client) => {
+      const item = await this.regressionLocatorKey(
+        client,
+        scope,
+        proof,
+        source,
+        locator,
+        pageUrl,
+      );
+      await client.query(
+        `INSERT INTO run_locator_cache_stats(
+           project_id,run_id,hits,misses,invalidated
+         ) VALUES($1,$2,$3,$4,$5)
+         ON CONFLICT(project_id,run_id) DO UPDATE SET
+           hits=run_locator_cache_stats.hits+EXCLUDED.hits,
+           misses=run_locator_cache_stats.misses+EXCLUDED.misses,
+           invalidated=run_locator_cache_stats.invalidated+EXCLUDED.invalidated,
+           updated_at=clock_timestamp()`,
+        [
+          scope.projectId,
+          item.runId,
+          outcome === 'hit' ? 1 : 0,
+          outcome === 'miss' ? 1 : 0,
+          outcome === 'invalidated' ? 1 : 0,
+        ],
+      );
+      if (outcome === 'invalidated')
+        await client.query(
+          'DELETE FROM regression_locator_hints WHERE project_id=$1 AND cache_key=$2',
+          [scope.projectId, item.key],
+        );
+      // Store only a hash of a statically approved role/name pair, never a
+      // snapshot, credential, DOM text, old NodeTarget or prior pass result.
+      if (resolved && outcome !== 'hit')
+        await client.query(
+          `INSERT INTO regression_locator_hints(
+             project_id,cache_key,source_version_id,hint
+           ) VALUES($1,$2,$3,$4)
+           ON CONFLICT(project_id,cache_key) DO UPDATE SET
+             hint=EXCLUDED.hint,updated_at=clock_timestamp(),
+             expires_at=clock_timestamp()+interval '7 days'`,
+          [
+            scope.projectId,
+            item.key,
+            item.sourceVersionId,
+            { fingerprint: item.fingerprint },
+          ],
+        );
+    });
+  }
   async work(scope: WorkerScope, proof: LeaseProof): Promise<Work> {
     return this.tx(async (client) => {
       const { job, run } = await this.validateLease(client, scope, proof);
+      const stage = (job.result?.['stage'] ?? job.document.summary) as Stage;
+      let authStateId: string | null = null;
+      if (
+        (run.executionMode === 'smoke' || run.executionMode === 'regression') &&
+        ['explore', 'execute', 'reproduce'].includes(stage) &&
+        run.effectiveConfig.authProfileVersion !== null
+      ) {
+        const bound = (
+          await client.query<{ document: unknown; revoked: boolean }>(
+            `SELECT v.document,p.revoked FROM runs r
+             JOIN auth_profiles p ON p.project_id=r.project_id AND p.id=r.auth_profile_id
+             JOIN auth_profile_versions v ON v.project_id=r.project_id
+               AND v.auth_profile_id=p.id AND v.version=r.auth_profile_version
+             WHERE r.project_id=$1 AND r.id=$2`,
+            [scope.projectId, run.id],
+          )
+        ).rows[0];
+        if (!bound || bound.revoked) throw new StorageError('AUTH_FAILED');
+        const profile = parseContract('AuthProfile', bound.document);
+        if (profile.status !== 'active') throw new StorageError('AUTH_FAILED');
+        if (profile.mode !== 'none') {
+          const authority = (
+            await client.query<{
+              status: string;
+              current_state_id: string | null;
+              context_version: number;
+              auth_profile_id: string;
+              auth_profile_version: number;
+            }>(
+              `SELECT status,current_state_id,context_version,
+                      auth_profile_id,auth_profile_version
+               FROM run_auth_scopes WHERE project_id=$1 AND run_id=$2`,
+              [scope.projectId, run.id],
+            )
+          ).rows[0];
+          if (
+            !authority ||
+            authority.status !== 'granted' ||
+            !authority.current_state_id ||
+            authority.context_version !== proof.contextVersion ||
+            authority.auth_profile_id !== profile.id ||
+            authority.auth_profile_version !== profile.version
+          )
+            throw new StorageError('AUTH_FAILED');
+          authStateId = authority.current_state_id;
+        }
+      }
       let targetUrl = run.targetUrl;
       const raw = (
         await client.query(
@@ -1022,8 +1269,16 @@ export class Coordinator {
         )
           throw new StorageError('VALIDATION_ERROR');
       }
-      let contextId = randomUUID(),
+      let contextId: string = randomUUID(),
         attemptId: string | null = null;
+      if (authStateId && typeof job.result?.['authContextId'] === 'string') {
+        const frozenContext = job.result['authContextId'];
+        if (
+          !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(frozenContext)
+        )
+          throw new StorageError('VALIDATION_ERROR');
+        contextId = frozenContext;
+      }
       if (definition) {
         await client.query('SELECT id FROM run_cases WHERE id=$1 FOR UPDATE', [
           definition.id,
@@ -1036,6 +1291,12 @@ export class Coordinator {
         ).rows[0];
         if (existing) {
           attemptId = existing.id;
+          if (
+            authStateId &&
+            job.result?.['authContextId'] &&
+            job.result['authContextId'] !== existing.context_id
+          )
+            throw new StorageError('VERSION_CONFLICT');
           contextId = existing.context_id;
         } else {
           if (job.role === 'reproducer') {
@@ -1081,12 +1342,24 @@ export class Coordinator {
           );
         }
       }
+      if (authStateId) {
+        // Persist the actual case-attempt/Work context before private
+        // importer allocation; it must never invent another browser context.
+        await client.query(
+          `UPDATE jobs SET result=jsonb_set(
+             COALESCE(result, '{}'::jsonb), '{authContextId}',
+             to_jsonb($3::text), true)
+           WHERE id=$1 AND project_id=$2`,
+          [job.id, scope.projectId, contextId],
+        );
+      }
       return {
         run,
         task: { ...job.document, status: job.status },
-        stage: (job.result?.['stage'] ?? job.document.summary) as Stage,
+        stage,
         targetUrl,
         contextId,
+        authStateId,
         attemptId,
         definition,
         ...(definition?.regression
@@ -1278,6 +1551,50 @@ export class Coordinator {
   ): Promise<ActionGrant> {
     return this.tx(async (client) => {
       const { job, run } = await this.validateLease(client, scope, proof);
+      if (
+        run.effectiveConfig.authProfileVersion !== null &&
+        ['explore', 'execute', 'reproduce'].includes(
+          String(job.result?.['stage'] ?? job.document.summary),
+        )
+      ) {
+        // The Work item was authorized when claimed, but the profile or
+        // captured state may have been revoked since then. Serialize each
+        // new browser grant against profile revocation; do not rely on the
+        // previously imported browser cookie for continuing authority.
+        const bound = (
+          await client.query<{
+            revoked: boolean;
+            document: unknown;
+            scope_status: string | null;
+            current_state_id: string | null;
+            scope_context_version: number | null;
+            scope_profile_version: number | null;
+          }>(
+            `SELECT p.revoked,v.document,s.status AS scope_status,
+               s.current_state_id,s.context_version AS scope_context_version,
+               s.auth_profile_version AS scope_profile_version
+             FROM runs r
+             JOIN auth_profiles p ON p.project_id=r.project_id AND p.id=r.auth_profile_id
+             JOIN auth_profile_versions v ON v.project_id=p.project_id
+               AND v.auth_profile_id=p.id AND v.version=r.auth_profile_version
+             LEFT JOIN run_auth_scopes s ON s.project_id=r.project_id AND s.run_id=r.id
+             WHERE r.project_id=$1 AND r.id=$2 FOR SHARE OF p`,
+            [scope.projectId, run.id],
+          )
+        ).rows[0];
+        if (!bound || bound.revoked) throw new StorageError('AUTH_FAILED');
+        const profile = parseContract('AuthProfile', bound.document);
+        if (
+          profile.status !== 'active' ||
+          profile.version !== run.effectiveConfig.authProfileVersion ||
+          (profile.mode !== 'none' &&
+            (bound.scope_status !== 'granted' ||
+              !bound.current_state_id ||
+              bound.scope_context_version !== proof.contextVersion ||
+              bound.scope_profile_version !== profile.version))
+        )
+          throw new StorageError('AUTH_FAILED');
+      }
       const requested = parseContract('ToolCall', input);
       const call =
         run.executionMode === 'regression' &&
@@ -1810,10 +2127,44 @@ export class Coordinator {
           if (!row || row.criteria_hash !== criteriaHash(definition))
             throw new StorageError('VALIDATION_ERROR');
           const refs = [...new Set(results.flatMap((r) => r.evidenceRefs))];
+          // Do not trust the caller's freshContext declaration. The server
+          // owns attempt/context identities and both sets of artifact links.
+          const original = (
+            await client.query<{
+              context_id: string;
+              verdict_status: string | null;
+            }>(
+              `SELECT a.context_id,v.document->>'status' AS verdict_status
+               FROM case_attempts a
+               LEFT JOIN verdicts v ON v.project_id=a.project_id
+                 AND v.attempt_id=a.id AND v.valid=true
+               WHERE a.project_id=$1 AND a.id=$2 AND a.case_id=$3`,
+              [scope.projectId, row.original_attempt_id, job.case_id],
+            )
+          ).rows[0];
+          if (
+            !original ||
+            original.context_id === attempt.context_id ||
+            row.original_attempt_id === attempt.id
+          )
+            throw new StorageError('VALIDATION_ERROR');
+          const originalRefs = new Set<string>(
+            (
+              await client.query<{ artifact_id: string }>(
+                'SELECT artifact_id FROM finding_evidence WHERE project_id=$1 AND finding_id=$2',
+                [scope.projectId, findingId],
+              )
+            ).rows.map((r) => r.artifact_id),
+          );
+          const independentEvidence =
+            original.verdict_status === 'issue_found' &&
+            originalRefs.size > 0 &&
+            refs.length > 0 &&
+            refs.every((ref) => !originalRefs.has(ref));
           const outcome =
-            status === 'issue_found'
+            status === 'issue_found' && independentEvidence
               ? 'reproduced'
-              : status === 'passed'
+              : status === 'passed' && independentEvidence
                 ? 'not_reproduced'
                 : 'blocked';
           const reproduction = parseContract('Reproduction', {
@@ -1850,7 +2201,7 @@ export class Coordinator {
             ...f,
             status:
               outcome === 'reproduced' &&
-              refs.length &&
+              independentEvidence &&
               f.expectedSource !== 'inferred'
                 ? 'confirmed'
                 : outcome === 'not_reproduced'
@@ -2327,33 +2678,135 @@ export class Coordinator {
               (j.result?.['stage'] ?? j.document.summary) === stage,
           );
         if (
+          run.phase === 'auth' &&
+          !succeeded('auth') &&
+          refreshed.some(
+            (j) =>
+              (j.result?.['stage'] ?? j.document.summary) === 'auth' &&
+              ['interrupted', 'failed', 'cancelled'].includes(j.status),
+          )
+        ) {
+          // Ambiguous authentication must not hang or be replayed with old
+          // tokens after a Worker crash. A new run gets a new lease and scope.
+          await this.finalize(client, run, 'setup_failure', 'completed');
+          continue;
+        }
+        if (
           run.phase === 'preflight' &&
           succeeded('preflight') &&
           run.executionMode === 'regression'
         ) {
-          const cases = (
-            await client.query<{ document: CaseDefinition }>(
-              'SELECT document FROM run_cases WHERE project_id=$1 AND run_id=$2 ORDER BY id',
+          const bound = (
+            await client.query<{ document: unknown; revoked: boolean }>(
+              `SELECT v.document,p.revoked FROM runs r
+               JOIN auth_profiles p ON p.project_id=r.project_id
+                 AND p.id=r.auth_profile_id
+               JOIN auth_profile_versions v ON v.project_id=r.project_id
+                 AND v.auth_profile_id=p.id AND v.version=r.auth_profile_version
+               WHERE r.project_id=$1 AND r.id=$2`,
               [projectId, id],
             )
-          ).rows;
-          if (!cases.length || cases.some((row) => !row.document.regression))
-            throw new StorageError('VALIDATION_ERROR');
-          run = await this.change(client, run, 'running', 'execute');
-          for (const { document: c } of cases)
+          ).rows[0];
+          if (
+            run.effectiveConfig.authProfileVersion !== null &&
+            (!bound || bound.revoked || !bound.document)
+          ) {
+            await this.finalize(client, run, 'setup_failure', 'completed');
+            continue;
+          }
+          const profile = bound
+            ? parseContract('AuthProfile', bound.document)
+            : null;
+          if (profile && profile.status !== 'active') {
+            await this.finalize(client, run, 'setup_failure', 'completed');
+            continue;
+          }
+          if (profile && profile.mode !== 'none') {
+            run = await this.change(client, run, 'running', 'auth');
             await this.enqueue(
               client,
               run,
               'executor',
-              'execute',
-              `${c.id}:v${c.version}`,
-              c.id,
-              1,
+              'auth',
+              'initialize',
+              null,
             );
+          } else {
+            run = await this.startApprovedRegression(client, run);
+          }
         } else if (run.phase === 'preflight' && succeeded('preflight')) {
-          run = await this.change(client, run, 'running', 'auth');
-          run = await this.change(client, run, 'running', 'explore');
-          await this.enqueue(client, run, 'explorer', 'explore', 'entry', null);
+          // A configured, non-anonymous smoke profile must first acquire a
+          // real authenticated state. Never skip auth and explore anonymously.
+          // The frozen profile version is bound to this run at admission.
+          const bound = (
+            await client.query<{
+              document: unknown;
+              revoked: boolean;
+            }>(
+              `SELECT v.document,p.revoked FROM runs r
+               JOIN auth_profiles p ON p.project_id=r.project_id
+                 AND p.id=r.auth_profile_id
+               JOIN auth_profile_versions v ON v.project_id=r.project_id
+                 AND v.auth_profile_id=p.id AND v.version=r.auth_profile_version
+               WHERE r.project_id=$1 AND r.id=$2`,
+              [projectId, id],
+            )
+          ).rows[0];
+          if (
+            run.effectiveConfig.authProfileVersion !== null &&
+            (!bound || bound.revoked || !bound.document)
+          ) {
+            await this.finalize(client, run, 'setup_failure', 'completed');
+            continue;
+          }
+          const profile = bound
+            ? parseContract('AuthProfile', bound.document)
+            : null;
+          if (profile && profile.status !== 'active') {
+            await this.finalize(client, run, 'setup_failure', 'completed');
+            continue;
+          }
+          if (profile && profile.mode !== 'none') {
+            if (run.executionMode !== 'smoke')
+              throw new StorageError('POLICY_DENIED');
+            run = await this.change(client, run, 'running', 'auth');
+            await this.enqueue(
+              client,
+              run,
+              'executor',
+              'auth',
+              'initialize',
+              null,
+            );
+          } else {
+            run = await this.change(client, run, 'running', 'auth');
+            run = await this.change(client, run, 'running', 'explore');
+            await this.enqueue(
+              client,
+              run,
+              'explorer',
+              'explore',
+              'entry',
+              null,
+            );
+          }
+        } else if (run.phase === 'auth' && succeeded('auth')) {
+          // finishAuth alone can mark the auth job successful after a real,
+          // server-verified criterion and state capture. Normal job finish
+          // explicitly refuses to forge this result.
+          if (run.executionMode === 'regression') {
+            run = await this.startApprovedRegression(client, run);
+          } else {
+            run = await this.change(client, run, 'running', 'explore');
+            await this.enqueue(
+              client,
+              run,
+              'explorer',
+              'explore',
+              'entry',
+              null,
+            );
+          }
         } else if (run.phase === 'explore' && succeeded('explore')) {
           run = await this.change(client, run, 'running', 'plan');
           await this.enqueue(client, run, 'coordinator', 'plan', 'plan', null);
@@ -2512,6 +2965,13 @@ export class Coordinator {
     status: 'cancelled' | 'interrupted',
   ): Promise<void> {
     await client.query(
+      `UPDATE auth_otp_challenges SET status='expired',
+       ciphertext=NULL,nonce=NULL,auth_tag=NULL,key_version=NULL
+       WHERE project_id=$1 AND task_id=$2 AND status IN ('pending','submitted')`,
+      [run.projectId, job.id],
+    );
+    await reconcileExpiredOtpInputs(client, run.projectId, run.id, job.id);
+    await client.query(
       "UPDATE action_intents SET outcome='unknown', execution_state='completed' WHERE project_id=$1 AND task_id=$2 AND outcome='pending'",
       [run.projectId, job.id],
     );
@@ -2590,6 +3050,46 @@ export class Coordinator {
       'UPDATE task_leases SET released_at=clock_timestamp() WHERE task_id=$1',
       [job.id],
     );
+    // A reproducer that crashes or is cancelled before producing a verdict
+    // must not leave its original finding looking like a live confirmed
+    // candidate. There is no valid independent Reproduction to attach:
+    // record an explicit blocked Finding without inventing evidence.
+    if (
+      job.role === 'reproducer' &&
+      typeof job.result?.['findingId'] === 'string'
+    ) {
+      const row = (
+        await client.query<{
+          id: string;
+          document: import('@localqa/contracts').Finding;
+        }>(
+          `SELECT id,document FROM findings
+           WHERE project_id=$1 AND run_id=$2 AND id=$3
+             AND status='suspected' FOR UPDATE`,
+          [run.projectId, run.id, job.result['findingId']],
+        )
+      ).rows[0];
+      if (row) {
+        const finding = parseContract('Finding', {
+          ...row.document,
+          status: 'blocked',
+          reproductionRef: null,
+          version: row.document.version + 1,
+        });
+        await client.query(
+          `UPDATE findings SET status='blocked',version=version+1,document=$2
+           WHERE id=$1`,
+          [row.id, finding],
+        );
+        await appendEvent(
+          client,
+          run.projectId,
+          run.id,
+          'finding.updated',
+          finding,
+        );
+      }
+    }
     await client.query(
       "UPDATE model_requests SET status='unknown',redacted_diagnostic=redacted_diagnostic||'{\"usageSource\":\"unknown\"}'::jsonb WHERE project_id=$1 AND task_id=$2 AND status='reserved'",
       [run.projectId, job.id],

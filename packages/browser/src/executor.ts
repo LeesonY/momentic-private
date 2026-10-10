@@ -303,6 +303,7 @@ export class ToolExecutor {
           });
 
           if (!policyCheck.allowed) {
+            await resolved.elementHandle.dispose().catch(() => undefined);
             return this.finalizeResult(
               {
                 requestId,
@@ -318,7 +319,13 @@ export class ToolExecutor {
             );
           }
 
-          await resolved.locator.click({ timeout: 15000 });
+          try {
+            if (ctx.signal?.aborted)
+              throw new Error(STABLE_REASON_CODES.USER_CANCELLED);
+            await resolved.elementHandle.click({ timeout: 15000 });
+          } finally {
+            await resolved.elementHandle.dispose().catch(() => undefined);
+          }
 
           const snapshot = await captureBrowserSnapshot(targetPage, {
             pageId: target.pageId,
@@ -333,9 +340,13 @@ export class ToolExecutor {
             {
               requestId,
               actionId,
-              status: 'succeeded',
+              // Cancellation during dispatch does not undo a browser-side
+              // click. Preserve a non-null actionId for ambiguous outcomes.
+              status: ctx.signal?.aborted ? 'cancelled' : 'succeeded',
               data: snapshot as unknown as JsonValue,
-              reasonCode: null,
+              reasonCode: ctx.signal?.aborted
+                ? STABLE_REASON_CODES.USER_CANCELLED
+                : null,
               evidenceRefs: [],
             },
             toolCall,
@@ -388,6 +399,7 @@ export class ToolExecutor {
           });
 
           if (!policyCheck.allowed) {
+            await resolved.elementHandle.dispose().catch(() => undefined);
             return this.finalizeResult(
               {
                 requestId,
@@ -403,7 +415,13 @@ export class ToolExecutor {
             );
           }
 
-          await resolved.locator.fill(text, { timeout: 15000 });
+          try {
+            if (ctx.signal?.aborted)
+              throw new Error(STABLE_REASON_CODES.USER_CANCELLED);
+            await resolved.elementHandle.fill(text, { timeout: 15000 });
+          } finally {
+            await resolved.elementHandle.dispose().catch(() => undefined);
+          }
 
           const snapshot = await captureBrowserSnapshot(targetPage, {
             pageId: target.pageId,
@@ -463,7 +481,15 @@ export class ToolExecutor {
             );
           }
 
-          await resolved.locator.selectOption(value, { timeout: 15000 });
+          try {
+            if (ctx.signal?.aborted)
+              throw new Error(STABLE_REASON_CODES.USER_CANCELLED);
+            await resolved.elementHandle.selectOption(value, {
+              timeout: 15000,
+            });
+          } finally {
+            await resolved.elementHandle.dispose().catch(() => undefined);
+          }
 
           const snapshot = await captureBrowserSnapshot(targetPage, {
             pageId: target.pageId,
@@ -523,7 +549,13 @@ export class ToolExecutor {
                 ctx.currentSnapshot!,
               );
             }
-            await resolved.locator.press(key, { timeout: 15000 });
+            try {
+              if (ctx.signal?.aborted)
+                throw new Error(STABLE_REASON_CODES.USER_CANCELLED);
+              await resolved.elementHandle.press(key, { timeout: 15000 });
+            } finally {
+              await resolved.elementHandle.dispose().catch(() => undefined);
+            }
           } else {
             await targetPage.keyboard.press(key);
           }
@@ -613,23 +645,16 @@ export class ToolExecutor {
                 targetPage,
                 target,
                 ctx.currentSnapshot!,
+                { allowHiddenForWait: true },
               );
               if (resolved.status === 'resolved') {
-                await resolved.locator.waitFor({
-                  state: 'visible',
-                  timeout: timeoutMs || 15000,
-                });
-              } else if (target.nodeId.startsWith('testid_')) {
-                const rawTestId = target.nodeId.replace('testid_', '');
-                await targetPage
-                  .locator(
-                    `[data-testid="${rawTestId}"], [data-test="${rawTestId}"]`,
-                  )
-                  .first()
-                  .waitFor({
-                    state: 'visible',
+                try {
+                  await resolved.elementHandle.waitForElementState('visible', {
                     timeout: timeoutMs || 15000,
                   });
+                } finally {
+                  await resolved.elementHandle.dispose().catch(() => undefined);
+                }
               } else {
                 return this.finalizeResult(
                   {
@@ -968,7 +993,11 @@ export class ToolExecutor {
       const errStr = (err as Error).message || String(err);
       let reasonCode: string = STABLE_REASON_CODES.BROWSER_UNAVAILABLE;
 
-      if (errStr.includes(STABLE_REASON_CODES.REPEATED_ACTION_LIMIT)) {
+      if (ctx.signal?.aborted) {
+        // If the browser command was already in flight, its side effects
+        // are unknown. Do not claim the action never happened.
+        reasonCode = STABLE_REASON_CODES.USER_CANCELLED;
+      } else if (errStr.includes(STABLE_REASON_CODES.REPEATED_ACTION_LIMIT)) {
         reasonCode = STABLE_REASON_CODES.REPEATED_ACTION_LIMIT;
       } else if (errStr.includes(STABLE_REASON_CODES.USER_CANCELLED)) {
         reasonCode = STABLE_REASON_CODES.USER_CANCELLED;

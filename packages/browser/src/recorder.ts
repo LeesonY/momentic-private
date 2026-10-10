@@ -2,6 +2,7 @@ import type { Page, BrowserContext, Request, Response } from 'playwright';
 import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { Artifact, NetworkEntry } from '@localqa/contracts';
 import { validateContract } from '@localqa/contracts';
 import { sanitizeUrl, sanitizeText } from './redaction.js';
@@ -19,13 +20,10 @@ export class SessionRecorder {
   private readonly maxConsoleBuffer: number;
   private readonly maxNetworkBuffer: number;
   private readonly artifactsDir: string | null;
+  private readonly actionAuditPath: string | null;
 
   private consoleLogs: string[] = [];
   private networkEntries: NetworkEntry[] = [];
-  private activeRequests: Map<
-    string,
-    { url: string; method: string; resourceType: string; startTime: number }
-  > = new Map();
 
   private isTracing = false;
   private traceDegraded = false;
@@ -61,6 +59,9 @@ export class SessionRecorder {
     this.maxConsoleBuffer = options.maxConsoleBuffer || 500;
     this.maxNetworkBuffer = options.maxNetworkBuffer || 1000;
     this.artifactsDir = options.artifactsDir || null;
+    this.actionAuditPath = this.artifactsDir
+      ? path.join(this.artifactsDir, `action-audit-${randomUUID()}.ndjson`)
+      : null;
 
     if (this.artifactsDir && !fs.existsSync(this.artifactsDir)) {
       fs.mkdirSync(this.artifactsDir, { recursive: true });
@@ -77,6 +78,76 @@ export class SessionRecorder {
 
   public getTaskId(): string | null {
     return this.taskId;
+  }
+
+  /** Synchronously durable intent and settlement records. Never include
+   * tool arguments, URLs, credentials, DOM, exception or provider bodies.
+   * An unmatched intent means the action outcome is UNKNOWN, not safe to retry.
+   */
+  public recordActionAudit(entry: {
+    attemptId: string;
+    tool: string;
+    phase: 'intent' | 'settlement';
+    outcome?:
+      'succeeded' | 'failed' | 'denied' | 'cancelled' | 'blocked' | 'unknown';
+    reasonCode?: string | null;
+    actionId?: string | null;
+  }): void {
+    if (!this.actionAuditPath) return;
+    if (
+      !isValidUuid(entry.attemptId) ||
+      ![
+        'navigate',
+        'click',
+        'type_text',
+        'select_option',
+        'press',
+        'scroll',
+      ].includes(entry.tool) ||
+      !['intent', 'settlement'].includes(entry.phase) ||
+      (entry.phase === 'settlement' && entry.outcome === undefined) ||
+      (entry.actionId != null && !isValidUuid(entry.actionId)) ||
+      (entry.outcome !== undefined &&
+        ![
+          'succeeded',
+          'failed',
+          'denied',
+          'cancelled',
+          'blocked',
+          'unknown',
+        ].includes(entry.outcome))
+    )
+      throw new Error('ACTION_AUDIT_INVALID_METADATA');
+    const safeReason =
+      entry.reasonCode === null || entry.reasonCode === undefined
+        ? null
+        : /^[A-Z0-9_]{1,80}$/.test(entry.reasonCode)
+          ? entry.reasonCode
+          : 'UNRECOGNIZED_REASON';
+    const row = {
+      schema: 1,
+      attemptId: entry.attemptId,
+      projectId: this.projectId,
+      runId: this.runId,
+      taskId: this.taskId,
+      phase: entry.phase,
+      tool: entry.tool,
+      outcome: entry.outcome ?? null,
+      reasonCode: safeReason,
+      actionId: isValidUuid(entry.actionId) ? entry.actionId : null,
+      at: new Date().toISOString(),
+    };
+    const fd = fs.openSync(this.actionAuditPath, 'a', 0o600);
+    try {
+      fs.writeSync(fd, JSON.stringify(row) + '\n');
+      fs.fsyncSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
+  }
+
+  public getActionAuditPath(): string | null {
+    return this.actionAuditPath;
   }
 
   /**
@@ -100,20 +171,23 @@ export class SessionRecorder {
     });
 
     page.on('pageerror', (err) => {
-      const entry = `[error] ${sanitizeText(err.message || String(err))}`;
-      this.consoleLogs.push(entry.slice(0, 1000));
+      try {
+        const entry = `[error] ${sanitizeText(err.message || String(err))}`;
+        if (this.consoleLogs.length >= this.maxConsoleBuffer) {
+          this.consoleLogs.shift();
+          this.recordDegradation(
+            'Console buffer limit exceeded (500 logs max)',
+          );
+        }
+        this.consoleLogs.push(entry.slice(0, 1000));
+      } catch {
+        // Error handling and logging must not propagate to page execution.
+      }
     });
 
     page.on('request', (req: Request) => {
       try {
         const sanitizedUrl = sanitizeUrl(req.url());
-        const id = `${req.method()}_${req.url()}_${Date.now()}`;
-        this.activeRequests.set(id, {
-          url: sanitizedUrl,
-          method: req.method(),
-          resourceType: req.resourceType(),
-          startTime: Date.now(),
-        });
 
         // Record request entry
         this.appendNetworkEntry({
@@ -292,7 +366,10 @@ export class SessionRecorder {
         `screenshot-${screenshotId}.png`,
       );
       fs.writeFileSync(filePath, buffer);
-      storageUri = `file://${filePath}`;
+      // Windows drive paths (E:\\...) are not valid URI references when
+      // concatenated after file://. Use Node's canonical URL encoder so the
+      // Artifact contract accepts it and fileURLToPath can read it back.
+      storageUri = pathToFileURL(filePath).href;
     }
 
     const artifact: Artifact = {

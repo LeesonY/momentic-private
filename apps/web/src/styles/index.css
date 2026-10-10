@@ -220,7 +220,7 @@
 }
 
 .data-table tr:hover td {
-  background-color: #f8fafc;
+  background-color: var(--color-bg-subtle);
 }
 
 /* Phase status bar */
@@ -250,7 +250,7 @@
 
 .phase-item.active {
   background: var(--color-primary);
-  color: var(--color-text-inverse);
+  color: var(--color-primary-contrast);
   box-shadow: var(--shadow-sm);
 }
 
@@ -261,15 +261,15 @@
 }
 
 .phase-item.failed {
-  background: var(--color-danger-subtle, #fef2f2);
-  color: var(--color-danger, #dc2626);
-  border: 1px solid var(--color-danger-border, #fecaca);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  border: 1px solid var(--color-danger-border);
 }
 
 .phase-item.cancelled {
-  background: var(--color-warning-subtle, #fffbeb);
-  color: var(--color-warning-text, #92400e);
-  border: 1px solid var(--color-warning, #f59e0b);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  border: 1px solid var(--color-warning-border);
 }
 
 .phase-item.skipped {

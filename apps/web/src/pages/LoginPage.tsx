@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { useApp } from '../state/AppContext.tsx';
+import { ThemeToggle } from '../components/ui/ThemeToggle.tsx';
 
 export const LoginPage: React.FC = () => {
-  const { login } = useApp();
-  const [username, setUsername] = useState('admin@localqa.fixture');
-  const [password, setPassword] = useState('AdminPass123!');
+  const { login, isMock } = useApp();
+  const [username, setUsername] = useState(
+    isMock ? 'admin@localqa.fixture' : '',
+  );
+  const [password, setPassword] = useState(isMock ? 'AdminPass123!' : '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,6 +31,7 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div
+      className="lqa-login-shell"
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -37,9 +41,12 @@ export const LoginPage: React.FC = () => {
       }}
       data-testid="login-page"
     >
+      <div className="lqa-login-theme">
+        <ThemeToggle />
+      </div>
       <div
-        className="card"
-        style={{ maxWidth: '420px', width: '100%', padding: '32px' }}
+        className="card lqa-login-card"
+        style={{ maxWidth: '420px', width: '100%', padding: '36px' }}
       >
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <div
@@ -51,7 +58,7 @@ export const LoginPage: React.FC = () => {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'white',
+              color: 'var(--color-primary-contrast)',
               fontWeight: 'bold',
               fontSize: '1.5rem',
               marginBottom: '12px',
@@ -115,19 +122,21 @@ export const LoginPage: React.FC = () => {
             />
           </div>
 
-          <div
-            style={{
-              margin: '14px 0',
-              fontSize: '0.75rem',
-              color: 'var(--color-text-muted)',
-              lineHeight: 1.5,
-            }}
-          >
-            * 系统支持固定角色账号快速演示：
-            <br />- 管理员: <code>admin@localqa.fixture</code>
-            <br />- 操作员: <code>operator@localqa.fixture</code>
-            <br />- 观察员: <code>viewer@localqa.fixture</code>
-          </div>
+          {isMock && (
+            <div
+              style={{
+                margin: '14px 0',
+                fontSize: '0.75rem',
+                color: 'var(--color-text-muted)',
+                lineHeight: 1.5,
+              }}
+            >
+              * 模拟演示账号：
+              <br />- 管理员: <code>admin@localqa.fixture</code>
+              <br />- 操作员: <code>operator@localqa.fixture</code>
+              <br />- 观察员: <code>viewer@localqa.fixture</code>
+            </div>
+          )}
 
           <button
             type="submit"

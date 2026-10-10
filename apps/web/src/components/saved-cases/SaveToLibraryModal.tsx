@@ -202,10 +202,10 @@ export const SaveToLibraryModal: React.FC<SaveToLibraryModalProps> = ({
           <div
             style={{
               padding: '10px 14px',
-              backgroundColor: '#fee2e2',
-              border: '1px solid #f87171',
+              backgroundColor: 'var(--color-danger-bg)',
+              border: '1px solid var(--color-danger-border)',
               borderRadius: 'var(--radius-md)',
-              color: '#991b1b',
+              color: 'var(--color-danger-text)',
               marginBottom: '16px',
               fontSize: '0.85rem',
             }}

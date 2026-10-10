@@ -217,6 +217,39 @@ const projectDTO = (row: ProjectRow): Project =>
   });
 export class ProjectRepository {
   constructor(private db: Database) {}
+  /**
+   * Permanent deletion is limited to pristine projects. The SECURITY DEFINER
+   * database function rechecks admin identity, name, version, ownership and
+   * every project-scoped table under a project row lock, preserving audit logs.
+   */
+  async deleteEmpty(
+    actor: Actor,
+    id: string,
+    input: { expectedVersion: number; confirmName: string },
+  ): Promise<void> {
+    await this.db.actor(actor, async (client) => {
+      await requireAdmin(client);
+      const result = await client.query<{ result: string }>(
+        'SELECT public.remove_empty_project($1::uuid,$2::integer,$3::text) AS result',
+        [id, input.expectedVersion, input.confirmName],
+      );
+      switch (result.rows[0]?.result) {
+        case 'deleted':
+          return;
+        case 'not_found':
+          throw new StorageError('NOT_FOUND');
+        case 'version_conflict':
+          throw new StorageError('VERSION_CONFLICT');
+        case 'not_empty':
+          throw new StorageError(
+            'VALIDATION_ERROR',
+            '项目包含运行、配置、成员或其他业务数据，不能直接删除。请使用归档。',
+          );
+        default:
+          throw new StorageError('VALIDATION_ERROR', '项目名称确认不匹配');
+      }
+    });
+  }
   async create(actor: Actor, input: ProjectCreate): Promise<Project> {
     const data = parseContract('ProjectCreate', input);
     return this.db.actor(actor, async (client) => {
@@ -427,6 +460,8 @@ function validateAuth(data: AuthProfileCreate): void {
   )
     throw new StorageError('TARGET_NOT_ALLOWED');
   if (data.mode === 'storage_state') {
+    // Importing a state alone is not proof that the user is authenticated.
+    if (!data.storageCriterion) throw new StorageError('VALIDATION_ERROR');
     try {
       const state = JSON.parse(data.secretInput?.storageState ?? '') as {
         origins?: { origin: string }[];
@@ -471,6 +506,8 @@ export class ConfigurationRepository {
     input: EnvironmentCreate,
   ): Promise<Environment> {
     const data = parseContract('EnvironmentCreate', input);
+    // A new environment cannot yet own an authentication profile.
+    if (data.defaultAuthProfileId) throw new StorageError('TARGET_NOT_ALLOWED');
     return this.db.actor(actor, async (client) => {
       await authorize(client, projectId, 'config.write');
       const dto = parseContract('Environment', {
@@ -508,12 +545,40 @@ export class ConfigurationRepository {
       await authorize(client, projectId, 'config.write');
       if (old.version !== expectedVersion)
         throw new StorageError('VERSION_CONFLICT');
-      await bump(client, 'environments', projectId, id, expectedVersion);
       const dto = parseContract('Environment', {
         ...old,
         ...patch,
         version: expectedVersion + 1,
       });
+      if (dto.defaultAuthProfileId) {
+        // Only an active profile *bound to this exact environment* may become
+        // its default. This must be enforced server-side, not by the Web select.
+        let auth: AuthProfile;
+        try {
+          auth = await versionDocument(
+            client,
+            'AuthProfile',
+            projectId,
+            dto.defaultAuthProfileId,
+          );
+        } catch (error) {
+          if (error instanceof StorageError && error.code === 'NOT_FOUND')
+            throw new StorageError('TARGET_NOT_ALLOWED');
+          throw error;
+        }
+        const allowedOrigins = new Set(
+          dto.allowedOrigins.map((origin) => new URL(origin).origin),
+        );
+        if (
+          auth.environmentId !== id ||
+          auth.status !== 'active' ||
+          auth.allowedOrigins.some(
+            (origin) => !allowedOrigins.has(new URL(origin).origin),
+          )
+        )
+          throw new StorageError('TARGET_NOT_ALLOWED');
+      }
+      await bump(client, 'environments', projectId, id, expectedVersion);
       await client.query(
         'INSERT INTO environment_versions(project_id,environment_id,version,document,default_auth_profile_id) VALUES($1,$2,$3,$4,$5)',
         [projectId, id, dto.version, dto, dto.defaultAuthProfileId],
@@ -531,6 +596,23 @@ export class ConfigurationRepository {
     validateAuth(data);
     return this.db.actor(actor, async (client) => {
       await authorize(client, projectId, 'config.write');
+      if (data.environmentId) {
+        const env = await versionDocument(
+          client,
+          'Environment',
+          projectId,
+          data.environmentId,
+        );
+        const allowedOrigins = new Set(
+          env.allowedOrigins.map((origin) => new URL(origin).origin),
+        );
+        if (
+          data.allowedOrigins.some(
+            (origin) => !allowedOrigins.has(new URL(origin).origin),
+          )
+        )
+          throw new StorageError('TARGET_NOT_ALLOWED');
+      }
       const id = randomUUID();
       const secret = data.secretInput
         ? await storeSecret(
@@ -554,6 +636,9 @@ export class ConfigurationRepository {
         version: 1,
         status: 'active',
         formConfig: data.formConfig ?? null,
+        ...(data.storageCriterion
+          ? { storageCriterion: data.storageCriterion }
+          : {}),
       });
       await client.query(
         'INSERT INTO auth_profiles(id,project_id) VALUES($1,$2)',
@@ -598,6 +683,11 @@ export class ConfigurationRepository {
       ).rows[0]!;
       if (old.version !== expectedVersion)
         throw new StorageError('VERSION_CONFLICT');
+      if (
+        old.mode === 'storage_state' &&
+        !(patch.storageCriterion ?? old.storageCriterion)
+      )
+        throw new StorageError('VALIDATION_ERROR');
       if (secretInput)
         validateAuth(
           parseContract('AuthProfileCreate', {
@@ -605,6 +695,12 @@ export class ConfigurationRepository {
             mode: old.mode,
             allowedOrigins: old.allowedOrigins,
             secretInput,
+            ...(old.mode === 'storage_state'
+              ? {
+                  storageCriterion:
+                    patch.storageCriterion ?? old.storageCriterion,
+                }
+              : {}),
             ...((patch.formConfig ?? old.formConfig)
               ? { formConfig: patch.formConfig ?? old.formConfig! }
               : {}),

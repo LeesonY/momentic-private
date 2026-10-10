@@ -183,9 +183,9 @@ export const ModuleRegisterModal: React.FC<ModuleRegisterModalProps> = ({
             className="card"
             style={{
               padding: '8px 12px',
-              backgroundColor: '#fef2f2',
-              borderColor: '#fecaca',
-              color: '#dc2626',
+              backgroundColor: 'var(--color-danger-bg)',
+              borderColor: 'var(--color-danger-border)',
+              color: 'var(--color-danger-text)',
               marginBottom: '16px',
               fontSize: '0.85rem',
             }}

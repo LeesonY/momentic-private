@@ -20,6 +20,8 @@ export type ProviderErrorCode =
   | 'MODEL_TIMEOUT'
   | 'IMAGE_UNSUPPORTED'
   | 'MODEL_NOT_CONFIGURED'
+  | 'MODEL_BILLING_REQUIRED'
+  | 'MODEL_OUTPUT_TRUNCATED'
   | 'VALIDATION_ERROR'
   | 'BUDGET_EXCEEDED'
   | 'SERVICE_UNAVAILABLE'
@@ -59,13 +61,36 @@ export interface NormalizedCall {
 }
 
 export interface ProviderAdapter {
-  readonly kind: 'stub' | 'openai_compatible';
+  readonly kind: 'stub' | 'openai_compatible' | 'anthropic_messages';
   readonly version: string;
   build(input: NormalizedCall): { endpoint: string; body: unknown };
   send(
     input: { model: string; endpoint: string; body: unknown; apiKey: string },
     signal: AbortSignal,
   ): Promise<ProviderResponse>;
+  /** Isolated wire probes. Returned tool calls are validated, never executed. */
+  probeCapability?(
+    input: CapabilityProbeInput,
+    signal: AbortSignal,
+  ): Promise<CapabilityProbeResponse>;
+}
+
+export interface CapabilityProbeInput {
+  endpoint: string;
+  model: string;
+  apiKey: string;
+  capability: 'nativeTools' | 'imageInput';
+  maxOutputTokens: number;
+}
+
+export interface CapabilityProbeResponse {
+  supported: boolean;
+  note: string;
+  errorCode: ProviderErrorCode;
+  usage: ProviderUsage | null;
+  reportedModelId: string | null;
+  providerCalls: number;
+  estimatedInputTokens: number;
 }
 
 export const DEFAULT_INPUT_TOKENS = 12_000;

@@ -2,6 +2,7 @@ import { parseContract } from '@localqa/contracts';
 import type { Member } from '@localqa/contracts';
 import { StorageError } from '@localqa/storage';
 import { requireAuth, requireAdmin } from '../auth.js';
+import { ApiError } from '../errors.js';
 import { parsePagination, paginate, type Router } from '../router.js';
 import type { RequestContext } from '../types.js';
 
@@ -51,6 +52,40 @@ export function registerProjectRoutes(router: Router): void {
 
     ctx.res.statusCode = 200;
     return parseContract('Project', updated);
+  });
+
+  // DELETE /api/v1/projects/{projectId}
+  // Platform admin only; unmodified empty projects only. The database
+  // revalidates the exact name/version and project data under a row lock.
+  router.delete('/api/v1/projects/{projectId}', async (ctx: RequestContext) => {
+    await requireAdmin(ctx);
+    const id = ctx.params.projectId!;
+    const body = ctx.body;
+    const valid =
+      /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(id) &&
+      body !== null &&
+      typeof body === 'object' &&
+      !Array.isArray(body) &&
+      Object.keys(body).length === 2 &&
+      'expectedVersion' in body &&
+      'confirmName' in body &&
+      Number.isSafeInteger(body.expectedVersion) &&
+      Number(body.expectedVersion) > 0 &&
+      typeof body.confirmName === 'string' &&
+      body.confirmName.length > 0 &&
+      body.confirmName.length <= 120;
+    if (!valid)
+      throw new ApiError(
+        'VALIDATION_ERROR',
+        'Invalid project deletion confirmation',
+        422,
+      );
+    await ctx.api.projectRepo.deleteEmpty(ctx.actor!, id, {
+      expectedVersion: (body as { expectedVersion: number }).expectedVersion,
+      confirmName: (body as { confirmName: string }).confirmName,
+    });
+    ctx.res.statusCode = 204;
+    ctx.res.end();
   });
 
   // GET /api/v1/projects/{projectId}/members

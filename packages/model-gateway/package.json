@@ -15,7 +15,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "pnpm build && pnpm --filter @localqa/agents build && node --test --test-concurrency=1 scripts/verify.mjs"
+    "test": "pnpm build && pnpm --filter @localqa/agents build && node --test --test-concurrency=1 scripts/verify.mjs test/probe-budget.test.mjs test/capability-probe.test.mjs"
   },
   "dependencies": {
     "@localqa/contracts": "workspace:*",

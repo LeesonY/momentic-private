@@ -52,8 +52,8 @@ for (const [path, methods] of Object.entries(openApi.paths)) {
   }
 }
 
-if (operations.length !== 80) {
-  throw new Error(`Expected 80 public operations, found ${operations.length}`);
+if (operations.length !== 90) {
+  throw new Error(`Expected 90 public operations, found ${operations.length}`);
 }
 
 const opNames = operations.map((op) => op.operationId);
@@ -150,6 +150,7 @@ import type {
   ScheduleCreate,
   SchedulePage,
   SchedulePatch,
+  ScheduleOccurrencePage,
   ApiKey,
   ApiKeyCreate,
   ApiKeyCreated,
@@ -157,6 +158,11 @@ import type {
   CacheStats,
   RepairProposal,
   RepairProposalCreate,
+  RepairProposalReviewInput,
+  RepairCandidateVerification,
+  RepairCandidateVerificationPage,
+  RepairCandidateEvidence,
+  RepairCandidateEvidencePage,
   RepairProposalPage,
 } from '../../../../packages/contracts/src/generated/types.ts';
 
@@ -246,6 +252,7 @@ export type {
   ScheduleCreate,
   SchedulePage,
   SchedulePatch,
+  ScheduleOccurrencePage,
   ApiKey,
   ApiKeyCreate,
   ApiKeyCreated,
@@ -253,6 +260,11 @@ export type {
   CacheStats,
   RepairProposal,
   RepairProposalCreate,
+  RepairProposalReviewInput,
+  RepairCandidateVerification,
+  RepairCandidateVerificationPage,
+  RepairCandidateEvidence,
+  RepairCandidateEvidencePage,
   RepairProposalPage,
 };
 
@@ -328,6 +340,8 @@ export interface ApiClient {
   createKnowledge(projectId: string, input: KnowledgeCreate): Promise<Knowledge>;
   updateKnowledge(knowledgeId: string, input: KnowledgePatch): Promise<Knowledge>;
   listModels(query?: PaginationQuery): Promise<ModelProfilePage>;
+  listProjectModels(projectId: string, query?: PaginationQuery): Promise<ModelProfilePage>;
+  grantProjectModel(projectId: string, input: { modelProfileId: string }): Promise<ModelProfile>;
   createModel(input: ModelProfileCreate): Promise<ModelProfile>;
   getModel(modelProfileId: string): Promise<ModelProfile>;
   updateModel(modelProfileId: string, input: ModelProfilePatch): Promise<ModelProfile>;
@@ -413,6 +427,7 @@ export interface ApiClient {
   createSchedule(projectId: string, input: ScheduleCreate): Promise<Schedule>;
   updateSchedule(scheduleId: string, input: SchedulePatch): Promise<Schedule>;
   runScheduleNow(scheduleId: string): Promise<Run>;
+  listScheduleOccurrences(scheduleId: string, query?: PaginationQuery): Promise<ScheduleOccurrencePage>;
 
   // API Keys
   listApiKeys(projectId: string, query?: PaginationQuery): Promise<ApiKeyPage>;
@@ -423,6 +438,12 @@ export interface ApiClient {
   getCacheStats(runId: string): Promise<CacheStats>;
   listRepairProposals(caseId: string, query?: PaginationQuery): Promise<RepairProposalPage>;
   createRepairProposal(caseId: string, input: RepairProposalCreate): Promise<RepairProposal>;
+  reviewRepairProposal(caseId: string, proposalId: string, input: RepairProposalReviewInput): Promise<RepairProposal>;
+  createRepairCandidateDraft(caseId: string, proposalId: string, input: SavedCaseVersionCreate): Promise<SavedCaseVersion>;
+  getRepairCandidateDraft(caseId: string, proposalId: string): Promise<SavedCaseVersion>;
+  startRepairCandidateVerification(caseId: string, proposalId: string): Promise<RepairCandidateVerification>;
+  listRepairCandidateVerifications(caseId: string, proposalId: string, query?: PaginationQuery): Promise<RepairCandidateVerificationPage>;
+  listRepairCandidateEvidence(caseId: string, proposalId: string, verificationId: string): Promise<RepairCandidateEvidencePage>;
 
   // Regression Modules (Module Management & Two-Stage Review)
   createRegressionModule(projectId: string, input: RegressionModuleCreate): Promise<RegressionModuleRecord>;
@@ -524,6 +545,7 @@ import type {
   ScheduleCreate,
   SchedulePage,
   SchedulePatch,
+  ScheduleOccurrencePage,
   ApiKey,
   ApiKeyCreate,
   ApiKeyCreated,
@@ -531,6 +553,11 @@ import type {
   CacheStats,
   RepairProposal,
   RepairProposalCreate,
+  RepairProposalReviewInput,
+  RepairCandidateVerification,
+  RepairCandidateVerificationPage,
+  RepairCandidateEvidence,
+  RepairCandidateEvidencePage,
   RepairProposalPage,
 } from './types.ts';
 
@@ -715,6 +742,23 @@ export class HttpApiClient implements ApiClient {
       \`/projects/\${encodeURIComponent(projectId)}/members\${qs}\`,
       { method: 'GET' },
       'MemberPage',
+    );
+  }
+
+  public async listProjectModels(projectId: string, query?: PaginationQuery): Promise<ModelProfilePage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<ModelProfilePage>(
+      '/projects/' + encodeURIComponent(projectId) + '/model-profiles' + qs,
+      { method: 'GET' },
+      'ModelProfilePage',
+    );
+  }
+
+  public async grantProjectModel(projectId: string, input: { modelProfileId: string }): Promise<ModelProfile> {
+    return this.request<ModelProfile>(
+      '/projects/' + encodeURIComponent(projectId) + '/model-profiles',
+      { method: 'POST', body: JSON.stringify(input) },
+      'ModelProfile',
     );
   }
 
@@ -914,6 +958,7 @@ export class HttpApiClient implements ApiClient {
     }
     if (input.environmentId) payload.environmentId = input.environmentId;
     if (input.authProfileId) payload.authProfileId = input.authProfileId;
+    if (input.modelProfileId) payload.modelProfileId = input.modelProfileId;
     const budget = ('budget' in input ? input.budget : undefined) ?? ('budgetOverrides' in input ? input.budgetOverrides : undefined);
     if (budget && Object.keys(budget).length > 0) {
       payload.budget = budget;
@@ -1483,6 +1528,15 @@ export class HttpApiClient implements ApiClient {
     );
   }
 
+  public async listScheduleOccurrences(scheduleId: string, query?: PaginationQuery): Promise<ScheduleOccurrencePage> {
+    const qs = this.buildQuery(query as Record<string, string | number>);
+    return this.request<ScheduleOccurrencePage>(
+      \`/schedules/\${encodeURIComponent(scheduleId)}/occurrences\${qs}\`,
+      { method: 'GET' },
+      'ScheduleOccurrencePage',
+    );
+  }
+
   // 64. listApiKeys
   public async listApiKeys(projectId: string, query?: PaginationQuery): Promise<ApiKeyPage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
@@ -1542,6 +1596,61 @@ export class HttpApiClient implements ApiClient {
         body: JSON.stringify(input),
       },
       'RepairProposal',
+    );
+  }
+
+  public async reviewRepairProposal(
+    caseId: string, proposalId: string, input: RepairProposalReviewInput,
+  ): Promise<RepairProposal> {
+    return this.request<RepairProposal>(
+      \`/saved-cases/\${encodeURIComponent(caseId)}/repair-proposals/\${encodeURIComponent(proposalId)}/review\`,
+      { method: 'POST', body: JSON.stringify(input) },
+      'RepairProposal',
+    );
+  }
+  public async createRepairCandidateDraft(
+    caseId: string, proposalId: string, input: SavedCaseVersionCreate,
+  ): Promise<SavedCaseVersion> {
+    return this.request<SavedCaseVersion>(
+      \`/saved-cases/\${encodeURIComponent(caseId)}/repair-proposals/\${encodeURIComponent(proposalId)}/candidate-version\`,
+      { method: 'POST', body: JSON.stringify(input) },
+      'SavedCaseVersion',
+    );
+  }
+  public async getRepairCandidateDraft(
+    caseId: string, proposalId: string,
+  ): Promise<SavedCaseVersion> {
+    return this.request<SavedCaseVersion>(
+      \`/saved-cases/\${encodeURIComponent(caseId)}/repair-proposals/\${encodeURIComponent(proposalId)}/candidate-version\`,
+      { method: 'GET' },
+      'SavedCaseVersion',
+    );
+  }
+
+  public async startRepairCandidateVerification(
+    caseId: string, proposalId: string,
+  ): Promise<RepairCandidateVerification> {
+    return this.request<RepairCandidateVerification>(
+      \`/saved-cases/\${encodeURIComponent(caseId)}/repair-proposals/\${encodeURIComponent(proposalId)}/verifications\`,
+      { method: 'POST' }, 'RepairCandidateVerification',
+    );
+  }
+  public async listRepairCandidateVerifications(
+    caseId: string, proposalId: string, query?: PaginationQuery,
+  ): Promise<RepairCandidateVerificationPage> {
+    const qs=this.buildQuery(query as Record<string, string | number>);
+    return this.request<RepairCandidateVerificationPage>(
+      \`/saved-cases/\${encodeURIComponent(caseId)}/repair-proposals/\${encodeURIComponent(proposalId)}/verifications\${qs}\`,
+      { method: 'GET' }, 'RepairCandidateVerificationPage',
+    );
+  }
+
+  public async listRepairCandidateEvidence(
+    caseId: string, proposalId: string, verificationId: string,
+  ): Promise<RepairCandidateEvidencePage> {
+    return this.request<RepairCandidateEvidencePage>(
+      \`/saved-cases/\${encodeURIComponent(caseId)}/repair-proposals/\${encodeURIComponent(proposalId)}/verifications/\${encodeURIComponent(verificationId)}/evidence\`,
+      { method: 'GET' }, 'RepairCandidateEvidencePage',
     );
   }
 
@@ -1687,6 +1796,6 @@ if (checkMode) {
   await writeFile(targetTypes, typesContent, 'utf8');
   await writeFile(targetClient, clientContent, 'utf8');
   console.log(
-    'Successfully generated apps/web/src/api/types.ts and apps/web/src/api/client.ts (80 operations).',
+    `Successfully generated apps/web/src/api/types.ts and apps/web/src/api/client.ts (${operations.length} operations).`,
   );
 }

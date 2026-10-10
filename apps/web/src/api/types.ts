@@ -89,6 +89,7 @@ import type {
   ScheduleCreate,
   SchedulePage,
   SchedulePatch,
+  ScheduleOccurrencePage,
   ApiKey,
   ApiKeyCreate,
   ApiKeyCreated,
@@ -96,6 +97,11 @@ import type {
   CacheStats,
   RepairProposal,
   RepairProposalCreate,
+  RepairProposalReviewInput,
+  RepairCandidateVerification,
+  RepairCandidateVerificationPage,
+  RepairCandidateEvidence,
+  RepairCandidateEvidencePage,
   RepairProposalPage,
 } from '../../../../packages/contracts/src/generated/types.ts';
 
@@ -185,6 +191,7 @@ export type {
   ScheduleCreate,
   SchedulePage,
   SchedulePatch,
+  ScheduleOccurrencePage,
   ApiKey,
   ApiKeyCreate,
   ApiKeyCreated,
@@ -192,6 +199,11 @@ export type {
   CacheStats,
   RepairProposal,
   RepairProposalCreate,
+  RepairProposalReviewInput,
+  RepairCandidateVerification,
+  RepairCandidateVerificationPage,
+  RepairCandidateEvidence,
+  RepairCandidateEvidencePage,
   RepairProposalPage,
 };
 
@@ -223,6 +235,8 @@ export type PublicOperationName =
   | 'getModel'
   | 'updateModel'
   | 'probeModel'
+  | 'listProjectModels'
+  | 'grantProjectModel'
   | 'createRun'
   | 'listRuns'
   | 'getRun'
@@ -268,12 +282,20 @@ export type PublicOperationName =
   | 'createSchedule'
   | 'updateSchedule'
   | 'runScheduleNow'
+  | 'listScheduleOccurrences'
   | 'listApiKeys'
   | 'createApiKey'
   | 'revokeApiKey'
   | 'getCacheStats'
   | 'listRepairProposals'
   | 'createRepairProposal'
+  | 'reviewRepairProposal'
+  | 'createRepairCandidateDraft'
+  | 'getRepairCandidateDraft'
+  | 'startRepairCandidateVerification'
+  | 'listRepairCandidateVerifications'
+  | 'listRepairCandidateEvidence'
+  | 'getRepairCandidateScreenshot'
   | 'healthLive'
   | 'healthReady';
 
@@ -331,60 +353,26 @@ export interface ApiClient {
   replaceMembers(projectId: string, input: MemberUpdate): Promise<Project>;
 
   // Environments & Auth Profiles
-  listEnvironment(
-    projectId: string,
-    query?: PaginationQuery,
-  ): Promise<EnvironmentPage>;
-  listEnvironments(
-    projectId: string,
-    query?: PaginationQuery,
-  ): Promise<EnvironmentPage>;
-  createEnvironment(
-    projectId: string,
-    input: EnvironmentCreate,
-  ): Promise<Environment>;
+  listEnvironment(projectId: string, query?: PaginationQuery): Promise<EnvironmentPage>;
+  listEnvironments(projectId: string, query?: PaginationQuery): Promise<EnvironmentPage>;
+  createEnvironment(projectId: string, input: EnvironmentCreate): Promise<Environment>;
   getEnvironment(environmentId: string): Promise<Environment>;
-  updateEnvironment(
-    environmentId: string,
-    input: EnvironmentPatch,
-  ): Promise<Environment>;
-  listAuthProfile(
-    projectId: string,
-    query?: PaginationQuery,
-  ): Promise<AuthProfilePage>;
-  listAuthProfiles(
-    projectId: string,
-    query?: PaginationQuery,
-  ): Promise<AuthProfilePage>;
-  createAuthProfile(
-    projectId: string,
-    input: AuthProfileCreate,
-  ): Promise<AuthProfile>;
-  updateAuthProfile(
-    authProfileId: string,
-    input: AuthProfilePatch,
-  ): Promise<AuthProfile>;
+  updateEnvironment(environmentId: string, input: EnvironmentPatch): Promise<Environment>;
+  listAuthProfile(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage>;
+  listAuthProfiles(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage>;
+  createAuthProfile(projectId: string, input: AuthProfileCreate): Promise<AuthProfile>;
+  updateAuthProfile(authProfileId: string, input: AuthProfilePatch): Promise<AuthProfile>;
 
   // Knowledge & Models
-  listKnowledge(
-    projectId: string,
-    query?: PaginationQuery,
-  ): Promise<KnowledgePage>;
-  createKnowledge(
-    projectId: string,
-    input: KnowledgeCreate,
-  ): Promise<Knowledge>;
-  updateKnowledge(
-    knowledgeId: string,
-    input: KnowledgePatch,
-  ): Promise<Knowledge>;
+  listKnowledge(projectId: string, query?: PaginationQuery): Promise<KnowledgePage>;
+  createKnowledge(projectId: string, input: KnowledgeCreate): Promise<Knowledge>;
+  updateKnowledge(knowledgeId: string, input: KnowledgePatch): Promise<Knowledge>;
   listModels(query?: PaginationQuery): Promise<ModelProfilePage>;
+  listProjectModels(projectId: string, query?: PaginationQuery): Promise<ModelProfilePage>;
+  grantProjectModel(projectId: string, input: { modelProfileId: string }): Promise<ModelProfile>;
   createModel(input: ModelProfileCreate): Promise<ModelProfile>;
   getModel(modelProfileId: string): Promise<ModelProfile>;
-  updateModel(
-    modelProfileId: string,
-    input: ModelProfilePatch,
-  ): Promise<ModelProfile>;
+  updateModel(modelProfileId: string, input: ModelProfilePatch): Promise<ModelProfile>;
   probeModel(modelProfileId: string): Promise<ModelProbeResult>;
 
   // Runs & Execution
@@ -411,17 +399,11 @@ export interface ApiClient {
   // Work Breakdown, Cases, Tasks, Steps & Events
   listRunCases(runId: string, query?: PaginationQuery): Promise<CaseRecordPage>;
   getCase(caseId: string): Promise<CaseRecord>;
-  listCaseAttempts(
-    caseId: string,
-    query?: PaginationQuery,
-  ): Promise<CaseAttemptPage>;
+  listCaseAttempts(caseId: string, query?: PaginationQuery): Promise<CaseAttemptPage>;
   listRunTasks(runId: string, query?: PaginationQuery): Promise<TaskPage>;
   listTaskSteps(taskId: string, query?: PaginationQuery): Promise<StepPage>;
   getStep(stepId: string): Promise<Step>;
-  listEventHistory(
-    runId: string,
-    query?: ListEventHistoryQuery,
-  ): Promise<RunEventPage>;
+  listEventHistory(runId: string, query?: ListEventHistoryQuery): Promise<RunEventPage>;
 
   // Findings & Triage
   listRunFindings(runId: string, query?: PaginationQuery): Promise<FindingPage>;
@@ -453,59 +435,27 @@ export interface ApiClient {
   healthReady(): Promise<Health>;
 
   // Saved Cases (Case Library & Versioning)
-  listSavedCases(
-    projectId: string,
-    query?: SavedCaseListQuery,
-  ): Promise<SavedCasePage>;
-  createSavedCase(
-    projectId: string,
-    input: SavedCaseCreate,
-  ): Promise<SavedCase>;
-  listSavedCaseVersions(
-    caseId: string,
-    query?: PaginationQuery,
-  ): Promise<SavedCaseVersionPage>;
-  createSavedCaseVersion(
-    caseId: string,
-    input: SavedCaseVersionCreate,
-  ): Promise<SavedCaseVersion>;
-  previewSavedCaseReview(
-    versionId: string,
-    input: ReviewPreviewInput,
-  ): Promise<ReviewPreview>;
-  commitSavedCaseReview(
-    versionId: string,
-    input: ReviewCommit,
-  ): Promise<SavedCaseVersion>;
-  importSavedCaseYaml(
-    projectId: string,
-    input: SavedCaseYamlImport,
-  ): Promise<SavedCase>;
+  listSavedCases(projectId: string, query?: SavedCaseListQuery): Promise<SavedCasePage>;
+  createSavedCase(projectId: string, input: SavedCaseCreate): Promise<SavedCase>;
+  listSavedCaseVersions(caseId: string, query?: PaginationQuery): Promise<SavedCaseVersionPage>;
+  createSavedCaseVersion(caseId: string, input: SavedCaseVersionCreate): Promise<SavedCaseVersion>;
+  previewSavedCaseReview(versionId: string, input: ReviewPreviewInput): Promise<ReviewPreview>;
+  commitSavedCaseReview(versionId: string, input: ReviewCommit): Promise<SavedCaseVersion>;
+  importSavedCaseYaml(projectId: string, input: SavedCaseYamlImport): Promise<SavedCase>;
   exportSavedCaseYaml(versionId: string): Promise<SavedCaseYamlExport>;
-  archiveSavedCase(
-    caseId: string,
-    input: SavedCaseArchiveInput,
-  ): Promise<SavedCase>;
-  restoreSavedCase(
-    caseId: string,
-    input: SavedCaseRestoreInput,
-  ): Promise<SavedCase>;
-  duplicateSavedCase(
-    caseId: string,
-    input: SavedCaseDuplicateInput,
-  ): Promise<SavedCase>;
+  archiveSavedCase(caseId: string, input: SavedCaseArchiveInput): Promise<SavedCase>;
+  restoreSavedCase(caseId: string, input: SavedCaseRestoreInput): Promise<SavedCase>;
+  duplicateSavedCase(caseId: string, input: SavedCaseDuplicateInput): Promise<SavedCase>;
 
   // Regression Runs
   createRegressionRun(input: RegressionRunCreate): Promise<Run>;
 
   // Schedules
-  listSchedules(
-    projectId: string,
-    query?: PaginationQuery,
-  ): Promise<SchedulePage>;
+  listSchedules(projectId: string, query?: PaginationQuery): Promise<SchedulePage>;
   createSchedule(projectId: string, input: ScheduleCreate): Promise<Schedule>;
   updateSchedule(scheduleId: string, input: SchedulePatch): Promise<Schedule>;
   runScheduleNow(scheduleId: string): Promise<Run>;
+  listScheduleOccurrences(scheduleId: string, query?: PaginationQuery): Promise<ScheduleOccurrencePage>;
 
   // API Keys
   listApiKeys(projectId: string, query?: PaginationQuery): Promise<ApiKeyPage>;
@@ -514,39 +464,19 @@ export interface ApiClient {
 
   // Cache & Repair Proposals
   getCacheStats(runId: string): Promise<CacheStats>;
-  listRepairProposals(
-    caseId: string,
-    query?: PaginationQuery,
-  ): Promise<RepairProposalPage>;
-  createRepairProposal(
-    caseId: string,
-    input: RepairProposalCreate,
-  ): Promise<RepairProposal>;
+  listRepairProposals(caseId: string, query?: PaginationQuery): Promise<RepairProposalPage>;
+  createRepairProposal(caseId: string, input: RepairProposalCreate): Promise<RepairProposal>;
+  reviewRepairProposal(caseId: string, proposalId: string, input: RepairProposalReviewInput): Promise<RepairProposal>;
+  createRepairCandidateDraft(caseId: string, proposalId: string, input: SavedCaseVersionCreate): Promise<SavedCaseVersion>;
+  getRepairCandidateDraft(caseId: string, proposalId: string): Promise<SavedCaseVersion>;
+  startRepairCandidateVerification(caseId: string, proposalId: string): Promise<RepairCandidateVerification>;
+  listRepairCandidateVerifications(caseId: string, proposalId: string, query?: PaginationQuery): Promise<RepairCandidateVerificationPage>;
+  listRepairCandidateEvidence(caseId: string, proposalId: string, verificationId: string): Promise<RepairCandidateEvidencePage>;
 
   // Regression Modules (Module Management & Two-Stage Review)
-  createRegressionModule(
-    projectId: string,
-    input: RegressionModuleCreate,
-  ): Promise<RegressionModuleRecord>;
-  listRegressionModules(
-    projectId: string,
-    query?: PaginationQuery,
-  ): Promise<RegressionModuleRecordPage>;
-  listRegressionModuleVersions(
-    projectId: string,
-    moduleName: string,
-    query?: PaginationQuery,
-  ): Promise<RegressionModuleRecordPage>;
-  previewRegressionModuleReview(
-    projectId: string,
-    moduleName: string,
-    version: number,
-    input: RegressionModuleReviewPreviewInput,
-  ): Promise<RegressionModuleReviewPreview>;
-  reviewRegressionModuleVersion(
-    projectId: string,
-    moduleName: string,
-    version: number,
-    input: RegressionModuleReviewCommit,
-  ): Promise<RegressionModuleRecord>;
+  createRegressionModule(projectId: string, input: RegressionModuleCreate): Promise<RegressionModuleRecord>;
+  listRegressionModules(projectId: string, query?: PaginationQuery): Promise<RegressionModuleRecordPage>;
+  listRegressionModuleVersions(projectId: string, moduleName: string, query?: PaginationQuery): Promise<RegressionModuleRecordPage>;
+  previewRegressionModuleReview(projectId: string, moduleName: string, version: number, input: RegressionModuleReviewPreviewInput): Promise<RegressionModuleReviewPreview>;
+  reviewRegressionModuleVersion(projectId: string, moduleName: string, version: number, input: RegressionModuleReviewCommit): Promise<RegressionModuleRecord>;
 }

@@ -5,10 +5,9 @@ import {
   AccountsRepository,
   StorageError,
 } from '../../packages/storage/dist/index.js';
+import { loadDatabaseUrl } from '../images/database-url.mjs';
 
-const connectionString =
-  process.env.DATABASE_URL ||
-  `postgresql://${process.env.POSTGRES_USER || 'localqa'}:${process.env.POSTGRES_PASSWORD || 'localqa'}@${process.env.PGHOST || '127.0.0.1'}:${process.env.PGPORT || '5432'}/${process.env.POSTGRES_DB || 'localqa'}`;
+const connectionString = await loadDatabaseUrl();
 
 const email = process.env.ADMIN_INITIAL_EMAIL || 'admin@localqa.internal';
 const displayName =

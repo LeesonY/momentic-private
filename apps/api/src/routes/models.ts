@@ -7,6 +7,49 @@ import { parsePagination, paginate, type Router } from '../router.js';
 import type { RequestContext } from '../types.js';
 
 export function registerModelRoutes(router: Router): void {
+  // Project-scoped profiles: a globally listed model is not permission to use it.
+  router.get(
+    '/api/v1/projects/{projectId}/model-profiles',
+    async (ctx: RequestContext) => {
+      await requireAuth(ctx);
+      const projectId = ctx.params.projectId!;
+      await ctx.api.projectRepo.get(ctx.actor!, projectId);
+      const models = await ctx.api.db.actor(ctx.actor!, async (client) => {
+        const result = await client.query<{ document: unknown }>(
+          `SELECT v.document
+           FROM model_profile_grants g
+           JOIN model_profiles p ON p.id = g.profile_id
+           JOIN model_profile_versions v ON v.profile_id = p.id AND v.version = p.version
+          WHERE g.project_id = $1
+          ORDER BY p.created_at, p.id`,
+          [projectId],
+        );
+        return result.rows.map((row) =>
+          parseContract('ModelProfile', row.document),
+        );
+      });
+      const { limit, offset } = parsePagination(ctx.query);
+      ctx.res.statusCode = 200;
+      return parseContract('ModelProfilePage', paginate(models, limit, offset));
+    },
+  );
+
+  // Admin grant. The repository enforces both admin identity and project
+  // owner permission; no credentials or unapproved model content is returned.
+  router.post(
+    '/api/v1/projects/{projectId}/model-profiles',
+    async (ctx: RequestContext) => {
+      await requireAdmin(ctx);
+      const projectId = ctx.params.projectId!;
+      const { modelProfileId } = parseContract('ModelGrantCreate', ctx.body);
+      await ctx.api.projectRepo.get(ctx.actor!, projectId);
+      const model = await ctx.api.modelRepo.get(ctx.actor!, modelProfileId);
+      await ctx.api.modelRepo.grant(ctx.actor!, projectId, modelProfileId);
+      ctx.res.statusCode = 201;
+      return parseContract('ModelProfile', model);
+    },
+  );
+
   // GET /api/v1/model-profiles
   router.get('/api/v1/model-profiles', async (ctx: RequestContext) => {
     await requireAuth(ctx);
@@ -110,7 +153,7 @@ export function registerModelRoutes(router: Router): void {
       const probeRecord = await createFrozenGateway(
         frozen,
         ctx.api.modelTransport,
-      ).capabilityProbe(profileId);
+      ).capabilityProbe(profileId, 30000);
       if (
         probeRecord.requestResult !== 'ok' ||
         probeRecord.errorCode ||

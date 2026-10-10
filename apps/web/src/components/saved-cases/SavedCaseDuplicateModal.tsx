@@ -248,10 +248,10 @@ export const SavedCaseDuplicateModal: React.FC<
           <div
             style={{
               padding: '10px 14px',
-              backgroundColor: '#eff6ff',
-              border: '1px solid #bfdbfe',
+              backgroundColor: 'var(--color-info-bg)',
+              border: '1px solid var(--color-info-border)',
               borderRadius: 'var(--radius-md)',
-              color: '#1e40af',
+              color: 'var(--color-info-text)',
               fontSize: '0.8rem',
               marginBottom: '16px',
             }}
@@ -337,10 +337,10 @@ export const SavedCaseDuplicateModal: React.FC<
             <div
               style={{
                 padding: '10px 14px',
-                backgroundColor: '#fef2f2',
-                border: '1px solid #fecaca',
+                backgroundColor: 'var(--color-danger-bg)',
+                border: '1px solid var(--color-danger-border)',
                 borderRadius: 'var(--radius-md)',
-                color: '#991b1b',
+                color: 'var(--color-danger-text)',
                 fontSize: '0.8rem',
                 marginBottom: '16px',
               }}

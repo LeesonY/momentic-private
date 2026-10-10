@@ -2,6 +2,7 @@ import type { ServerResponse } from 'node:http';
 import { StorageError } from '@localqa/storage';
 import { ApiError } from './errors.js';
 import type { RequestContext } from './types.js';
+import { authenticateApiKey } from './apiKeys.js';
 
 export function parseCookies(cookieHeader?: string): Record<string, string> {
   if (!cookieHeader) return {};
@@ -35,12 +36,16 @@ export function validateOriginAndCsrf(ctx: RequestContext): void {
   if (origin) {
     try {
       const originUrl = new URL(origin);
-      const host = ctx.headers['host'] || '';
-      const allowedHosts = [host];
+      // Compare the full scheme+host+port origin to prevent a POST from a
+      // downgraded HTTP origin with the same hostname as the HTTPS frontend.
+      // A reverse proxy can use an internal Host, so the configured public
+      // frontend origin is the authority when one is available.
       if (ctx.api.publicOrigin) {
-        allowedHosts.push(new URL(ctx.api.publicOrigin).host);
-      }
-      if (!allowedHosts.includes(originUrl.host)) {
+        if (originUrl.origin !== new URL(ctx.api.publicOrigin).origin) {
+          throw new ApiError('FORBIDDEN', 'Origin mismatch', 403);
+        }
+      } else if (originUrl.host !== (ctx.headers['host'] || '')) {
+        // Development-only same-host fallback when PUBLIC_ORIGIN is absent.
         throw new ApiError('FORBIDDEN', 'Origin mismatch', 403);
       }
     } catch (e) {
@@ -52,6 +57,13 @@ export function validateOriginAndCsrf(ctx: RequestContext): void {
 
 export async function requireAuth(ctx: RequestContext): Promise<void> {
   validateOriginAndCsrf(ctx);
+  const authorization = ctx.headers['authorization'];
+  if (authorization !== undefined) {
+    // API keys are not browser sessions. The dedicated route allowlist,
+    // project binding and live creator membership checks are mandatory.
+    await authenticateApiKey(ctx, authorization);
+    return;
+  }
   const cookies = parseCookies(ctx.headers['cookie']);
   const token = cookies['session'];
   if (!token) {

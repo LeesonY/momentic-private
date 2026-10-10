@@ -6,10 +6,10 @@ import type {
   Report,
   Run,
 } from '@localqa/contracts';
-import { defaultApiClient } from '../../api/index.ts';
 import { StatusBadge } from '../ui/Badge.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { ErrorCard } from '../ui/ErrorCard.tsx';
+import { ReportExportPanel } from './ReportExportPanel.tsx';
 import { useApp } from '../../state/AppContext.tsx';
 import { getRegressionProvenanceStatus } from '../../utils/provenance.ts';
 
@@ -20,6 +20,7 @@ interface TaskCaseTabsProps {
   report: Report | null;
   runId: string;
   run?: Run | null;
+  onRefreshReport?: () => void;
 }
 
 export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
@@ -29,31 +30,13 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
   report,
   runId,
   run,
+  onRefreshReport,
 }) => {
   const [activeTab, setActiveTab] = useState<
     'cases' | 'findings' | 'tasks' | 'report'
   >('cases');
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [exportingFormat, setExportingFormat] = useState<string | null>(null);
-  const [exportNotice, setExportNotice] = useState<string | null>(null);
   const { setRoute } = useApp();
-
-  const handleExport = async (format: 'json' | 'markdown') => {
-    setExportingFormat(format);
-    setExportNotice(null);
-    try {
-      const exp = await defaultApiClient.createExport(runId, format);
-      setExportNotice(
-        `已成功生成 ${format.toUpperCase()} 导出报告 (ID: ${exp.id}，状态: ${exp.status})`,
-      );
-    } catch (err) {
-      setExportNotice(
-        `导出失败: ${err instanceof Error ? err.message : '未知错误'}`,
-      );
-    } finally {
-      setExportingFormat(null);
-    }
-  };
 
   return (
     <div
@@ -496,10 +479,20 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
           {/* TAB 4: REPORT */}
           {activeTab === 'report' && (
             <div data-testid="tab-content-report">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                data-testid="btn-refresh-report"
+                onClick={onRefreshReport}
+                disabled={!onRefreshReport}
+                style={{ marginBottom: 10 }}
+              >
+                刷新运行与报告
+              </button>
               {!report ? (
                 <EmptyState
-                  title="报告尚未就绪"
-                  description="运行进入 finalize 阶段后将自动生成终态验收报告。"
+                  title="报告暂不可用"
+                  description="运行可能尚未形成可用报告，或报告加载失败。可刷新重试；不要将缺失的报告视为通过。"
                 />
               ) : (
                 <div>
@@ -679,6 +672,12 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
                           {report.summary.blocked}
                         </strong>
                       </div>
+                      <div>
+                        不确定: <strong>{report.summary.inconclusive}</strong>
+                      </div>
+                      <div>
+                        未执行: <strong>{report.summary.notRun}</strong>
+                      </div>
                     </div>
                     <div
                       style={{
@@ -695,47 +694,99 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
                             : '无判定'}
                         </strong>
                       </div>
+                      <div>
+                        尝试率：
+                        {report.summary.attemptRate !== null
+                          ? `${Math.round(report.summary.attemptRate * 100)}%`
+                          : '暂无数据'}
+                      </div>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      style={{ flex: 1 }}
-                      disabled={exportingFormat !== null}
-                      onClick={() => handleExport('json')}
-                      data-testid="btn-export-json"
-                    >
-                      {exportingFormat === 'json' ? '正在生成...' : '导出 JSON'}
-                    </button>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      style={{ flex: 1 }}
-                      disabled={exportingFormat !== null}
-                      onClick={() => handleExport('markdown')}
-                      data-testid="btn-export-markdown"
-                    >
-                      {exportingFormat === 'markdown'
-                        ? '正在生成...'
-                        : '导出 Markdown'}
-                    </button>
+                  <div
+                    data-testid="report-evidence-summary"
+                    style={{ fontSize: '0.8rem' }}
+                  >
+                    <p>
+                      缺陷：{report.findings.length} · 复现：
+                      {report.reproductions.length} · 证据：
+                      {report.artifacts.length} · 清理状态：
+                      {report.cleanupStatus}
+                    </p>
+                    {report.coverageGaps.length > 0 && (
+                      <div>
+                        <strong>覆盖缺口</strong>
+                        <ul>
+                          {report.coverageGaps.map((gap, i) => (
+                            <li key={i}>{gap}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {report.warnings.length > 0 && (
+                      <div>
+                        <strong>运行警告</strong>
+                        <ul>
+                          {report.warnings.map((warning, i) => (
+                            <li key={i}>{warning}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
-                  {exportNotice && (
+                  {report.findings.length > 0 && (
                     <div
-                      style={{
-                        marginTop: '10px',
-                        padding: '8px 12px',
-                        backgroundColor: 'var(--color-bg-subtle)',
-                        border: '1px solid var(--color-border-subtle)',
-                        borderRadius: 'var(--radius-sm)',
-                        fontSize: '0.8rem',
-                        color: 'var(--color-text-main)',
-                      }}
-                      data-testid="export-notice-message"
+                      data-testid="report-findings"
+                      style={{ fontSize: '0.8rem' }}
                     >
-                      {exportNotice}
+                      <strong>缺陷明细（查看证据）</strong>
+                      {report.findings.map((finding) => (
+                        <div key={finding.id} style={{ marginTop: 6 }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            data-testid={`report-finding-${finding.id}`}
+                            onClick={() =>
+                              setRoute('finding-detail', {
+                                findingId: finding.id,
+                                runId,
+                              })
+                            }
+                          >
+                            {finding.title} · {finding.status} · 证据{' '}
+                            {finding.evidenceRefs.length} 条
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
+                  <div
+                    data-testid="report-case-results"
+                    style={{ fontSize: '0.8rem', marginTop: 12 }}
+                  >
+                    <strong>报告用例判定（{report.cases.length}）</strong>
+                    {report.cases.map((item) => (
+                      <div key={item.definition.id} style={{ marginTop: 5 }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          data-testid={`report-case-${item.definition.id}`}
+                          onClick={() =>
+                            setRoute('case-detail', {
+                              caseId: item.definition.id,
+                              runId,
+                            })
+                          }
+                        >
+                          {item.definition.title} · {item.outcome} ·
+                          {item.verdict
+                            ? ` ${item.verdict.status}`
+                            : ' 未形成判定'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <ReportExportPanel runId={runId} />
                 </div>
               )}
             </div>

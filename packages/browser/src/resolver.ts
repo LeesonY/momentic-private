@@ -1,14 +1,17 @@
-import type { Page, Frame, Locator } from 'playwright';
+import type { Page, Frame, Locator, ElementHandle } from 'playwright';
 import type {
   NodeTarget,
   BrowserSnapshot,
   SnapshotNode,
 } from '@localqa/contracts';
 import { STABLE_REASON_CODES, type StableReasonCode } from './types.js';
+import { isSameOriginOwnedFrame, snapshotFrameUnchanged } from './snapshot.js';
 
 export interface ResolveTargetSuccess {
   status: 'resolved';
   locator: Locator;
+  /** Pins the original DOM object, without Locator auto-rebinding. */
+  elementHandle: ElementHandle<SVGElement | HTMLElement>;
   node: SnapshotNode;
   frame: Frame;
 }
@@ -31,6 +34,7 @@ export async function resolveTarget(
   page: Page,
   target: NodeTarget,
   currentSnapshot: BrowserSnapshot,
+  options: { allowHiddenForWait?: boolean } = {},
 ): Promise<ResolveTargetResult> {
   // 1. Page ID Check: target.pageId must match currentSnapshot.pageId
   if (
@@ -57,8 +61,7 @@ export async function resolveTarget(
   // 2. Find Node in Current Snapshot Registry
   const node = currentSnapshot.nodes.find(
     (n) =>
-      n.nodeId === target.nodeId &&
-      (!target.frameId || n.frameId === target.frameId),
+      n.nodeId === target.nodeId && n.frameId === (target.frameId ?? 'main'),
   );
 
   if (!node) {
@@ -71,22 +74,44 @@ export async function resolveTarget(
 
   // 3. Locate Target Frame
   let frame: Frame = page.mainFrame();
-  if (target.frameId && target.frameId !== 'main') {
+  if (node.frameId !== 'main') {
     const foundFrame = page
       .frames()
       .find(
         (f, idx) =>
-          f.name() === target.frameId ||
-          `frame-${idx}-${f.name() || 'subframe'}` === target.frameId,
+          `frame-${idx}-${f.name() || 'subframe'}`.slice(0, 120) ===
+          node.frameId,
       );
     if (!foundFrame) {
       return {
         status: 'rejected',
         reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
-        message: `Target frame '${target.frameId}' not accessible or detached.`,
+        message: `Target frame '${node.frameId}' not accessible or detached.`,
       };
     }
     frame = foundFrame;
+    if (!isSameOriginOwnedFrame(frame, page.mainFrame()))
+      return {
+        status: 'rejected',
+        reasonCode: STABLE_REASON_CODES.TARGET_NOT_ALLOWED,
+        message: 'Target frame origin differs from the approved main page.',
+      };
+  }
+
+  if (
+    !(await snapshotFrameUnchanged(
+      page,
+      currentSnapshot.snapshotId,
+      node.frameId,
+      frame,
+    ))
+  ) {
+    return {
+      status: 'rejected',
+      reasonCode: STABLE_REASON_CODES.VERSION_CONFLICT,
+      message:
+        'The observed document or DOM changed; capture a fresh snapshot before acting.',
+    };
   }
 
   // 4. Construct Candidate Locators in Priority Order
@@ -205,7 +230,7 @@ export async function resolveTarget(
   // 6. Pre-action Validation: Visibility Check
   try {
     const isVisible = await bestLocator.isVisible();
-    if (!isVisible) {
+    if (!isVisible && !options.allowHiddenForWait) {
       return {
         status: 'rejected',
         reasonCode: STABLE_REASON_CODES.TARGET_HIDDEN,
@@ -234,9 +259,32 @@ export async function resolveTarget(
     // Some elements don't support isEnabled, proceed
   }
 
+  const elementHandle = await bestLocator.elementHandle().catch(() => null);
+  if (!elementHandle)
+    return {
+      status: 'rejected',
+      reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
+      message: 'Approved element detached while binding its identity.',
+    };
+  if (
+    !(await snapshotFrameUnchanged(
+      page,
+      currentSnapshot.snapshotId,
+      node.frameId,
+      frame,
+    ))
+  ) {
+    await elementHandle.dispose().catch(() => undefined);
+    return {
+      status: 'rejected',
+      reasonCode: STABLE_REASON_CODES.VERSION_CONFLICT,
+      message: 'The DOM changed while binding the approved element.',
+    };
+  }
   return {
     status: 'resolved',
     locator: bestLocator,
+    elementHandle,
     node,
     frame,
   };

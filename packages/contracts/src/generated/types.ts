@@ -60,6 +60,7 @@ export type Contract =
   | MessageInput
   | ModelBinding
   | ModelCapabilities
+  | ModelGrantCreate
   | ModelMessage
   | ModelPart
   | ModelProbeResult
@@ -88,9 +89,14 @@ export type Contract =
   | RegressionModuleVersion
   | RegressionRunCreate
   | RegressionStepSource
+  | RepairCandidateEvidence
+  | RepairCandidateEvidencePage
+  | RepairCandidateVerification
+  | RepairCandidateVerificationPage
   | RepairProposal
   | RepairProposalCreate
   | RepairProposalPage
+  | RepairProposalReviewInput
   | ReplayStep
   | Report
   | Reproduction
@@ -119,8 +125,11 @@ export type Contract =
   | SavedCaseYamlImport
   | Schedule
   | ScheduleCreate
+  | ScheduleOccurrence
+  | ScheduleOccurrencePage
   | SchedulePage
   | SchedulePatch
+  | ScheduleRunTemplate
   | SnapshotNode
   | Step
   | StepPage
@@ -304,6 +313,7 @@ export type AuthProfileCreate = {
   secretInput?: {
     [k: string]: string | undefined;
   };
+  storageCriterion?: Criterion;
 };
 /**
  * @minItems 0
@@ -336,6 +346,16 @@ export type ReplayStep =
        * @maxItems 20
        */
       criteriaIds: [string, ...string[]];
+      maxToolCalls: number;
+      minToolCalls?: number;
+      /**
+       * @minItems 1
+       * @maxItems 4
+       */
+      requiredToolSequence?: [
+        "click" | "type_text" | "select_option" | "press" | "scroll" | "wait_for",
+        ...("click" | "type_text" | "select_option" | "press" | "scroll" | "wait_for")[]
+      ];
     }
   | {
       kind: "module";
@@ -406,6 +426,7 @@ export type RunEvent = {
     [k: string]: JsonValue | undefined;
   };
 };
+export type ScheduleRunTemplate = RunCreate | RegressionRunCreate;
 
 export interface ActionPermit {
   actionId: string;
@@ -540,6 +561,7 @@ export interface AuthProfile {
   version: number;
   status: "active" | "revoked";
   formConfig: FormConfig | null;
+  storageCriterion?: Criterion;
 }
 export interface FormConfig {
   loginUrl: string;
@@ -566,6 +588,7 @@ export interface AuthProfilePatch {
     [k: string]: string | undefined;
   };
   revoke?: boolean;
+  storageCriterion?: Criterion;
 }
 export interface AuthResolve {
   taskId: string;
@@ -1020,6 +1043,9 @@ export interface ModelCapabilities {
   nativeTools: boolean;
   imageInput: boolean;
 }
+export interface ModelGrantCreate {
+  modelProfileId: string;
+}
 export interface ModelMessage {
   role: "system" | "user" | "assistant" | "tool";
   /**
@@ -1043,7 +1069,7 @@ export interface ModelProfile {
   name: string;
   endpoint: string;
   configuredModelId: string;
-  adapter: "openai_compatible";
+  adapter: "openai_compatible" | "anthropic_messages";
   dataBoundary: "internal" | "external";
   capabilities: ModelCapabilities;
   status: "untested" | "ready" | "degraded" | "disabled";
@@ -1054,7 +1080,7 @@ export interface ModelProfileCreate {
   name: string;
   endpoint: string;
   configuredModelId: string;
-  adapter: "openai_compatible";
+  adapter: "openai_compatible" | "anthropic_messages";
   dataBoundary: "internal" | "external";
   apiKey?: string;
   responseFormat?: "json_schema" | "json_object" | "native_tools";
@@ -1196,6 +1222,54 @@ export interface RegressionRunCreate {
   authProfileId?: string;
   budget?: BudgetOverrides;
 }
+export interface RepairCandidateEvidence {
+  id: string;
+  verificationId: string;
+  candidateVersionId: string;
+  stepIndex: number;
+  stepKind: "navigate" | "click" | "type_text" | "assert";
+  criterionId: string | null;
+  criterionPassed: boolean | null;
+  snapshotId: string;
+  snapshotSha256: string;
+  displayUrl: string;
+  screenshotSha256: string | null;
+  screenshotBytes: number | null;
+  retention: "available" | "purged";
+  purgedAt: string | null;
+  createdAt: string;
+}
+export interface RepairCandidateEvidencePage {
+  /**
+   * @minItems 0
+   * @maxItems 30
+   */
+  items: RepairCandidateEvidence[];
+}
+export interface RepairCandidateVerification {
+  id: string;
+  projectId: string;
+  proposalId: string;
+  caseId: string;
+  candidateVersionId: string;
+  candidateSha256: string;
+  status: "queued" | "running" | "completed";
+  outcome: ("passed" | "failed" | "inconclusive") | null;
+  reasonCode: string | null;
+  observedSteps: number;
+  verifiedCriteria: number;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+}
+export interface RepairCandidateVerificationPage {
+  /**
+   * @minItems 0
+   * @maxItems 100
+   */
+  items: RepairCandidateVerification[];
+  nextCursor: string | null;
+}
 export interface RepairProposal {
   id: string;
   caseId: string;
@@ -1205,6 +1279,9 @@ export interface RepairProposal {
   verificationRunId: string | null;
   status: "draft" | "approved" | "rejected";
   createdAt: string;
+  reviewReason: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
 }
 export interface RepairProposalCreate {
   findingId: string;
@@ -1217,6 +1294,10 @@ export interface RepairProposalPage {
    */
   items: RepairProposal[];
   nextCursor: string | null;
+}
+export interface RepairProposalReviewInput {
+  decision: "approve" | "reject";
+  reason: string;
 }
 export interface Report {
   schemaVersion: 1;
@@ -1369,6 +1450,7 @@ export interface RunCreate {
   brief?: string;
   environmentId?: string;
   authProfileId?: string;
+  modelProfileId?: string;
   mode?: "smoke";
   budget?: BudgetOverrides;
 }
@@ -1481,7 +1563,7 @@ export interface Schedule {
   cron: string;
   timezone: string;
   templateKind: "smoke" | "regression";
-  runTemplate: RunCreate;
+  runTemplate: ScheduleRunTemplate;
   overlapPolicy: "skip" | "queue";
   missedPolicy: "skip" | "catchup_one";
   enabled: boolean;
@@ -1493,10 +1575,29 @@ export interface ScheduleCreate {
   cron: string;
   timezone?: string;
   templateKind: "smoke" | "regression";
-  runTemplate: RunCreate;
+  runTemplate: ScheduleRunTemplate;
   overlapPolicy?: "skip" | "queue";
   missedPolicy?: "skip" | "catchup_one";
   enabled?: boolean;
+}
+export interface ScheduleOccurrence {
+  id: string;
+  scheduleId: string;
+  projectId: string;
+  scheduleVersion: number;
+  scheduledAt: string;
+  scheduledLocal: string;
+  status: "pending" | "dispatching" | "started" | "skipped" | "failed";
+  runId: string | null;
+  createdAt: string;
+}
+export interface ScheduleOccurrencePage {
+  /**
+   * @minItems 0
+   * @maxItems 100
+   */
+  items: ScheduleOccurrence[];
+  nextCursor: string | null;
 }
 export interface SchedulePage {
   /**
@@ -1512,7 +1613,7 @@ export interface SchedulePatch {
   cron?: string;
   timezone?: string;
   templateKind?: "smoke" | "regression";
-  runTemplate?: RunCreate;
+  runTemplate?: ScheduleRunTemplate;
   overlapPolicy?: "skip" | "queue";
   missedPolicy?: "skip" | "catchup_one";
   enabled?: boolean;
@@ -1679,6 +1780,7 @@ export interface ContractTypes {
   MessageInput: MessageInput;
   ModelBinding: ModelBinding;
   ModelCapabilities: ModelCapabilities;
+  ModelGrantCreate: ModelGrantCreate;
   ModelMessage: ModelMessage;
   ModelPart: ModelPart;
   ModelProbeResult: ModelProbeResult;
@@ -1707,9 +1809,14 @@ export interface ContractTypes {
   RegressionModuleVersion: RegressionModuleVersion;
   RegressionRunCreate: RegressionRunCreate;
   RegressionStepSource: RegressionStepSource;
+  RepairCandidateEvidence: RepairCandidateEvidence;
+  RepairCandidateEvidencePage: RepairCandidateEvidencePage;
+  RepairCandidateVerification: RepairCandidateVerification;
+  RepairCandidateVerificationPage: RepairCandidateVerificationPage;
   RepairProposal: RepairProposal;
   RepairProposalCreate: RepairProposalCreate;
   RepairProposalPage: RepairProposalPage;
+  RepairProposalReviewInput: RepairProposalReviewInput;
   ReplayStep: ReplayStep;
   Report: Report;
   Reproduction: Reproduction;
@@ -1738,8 +1845,11 @@ export interface ContractTypes {
   SavedCaseYamlImport: SavedCaseYamlImport;
   Schedule: Schedule;
   ScheduleCreate: ScheduleCreate;
+  ScheduleOccurrence: ScheduleOccurrence;
+  ScheduleOccurrencePage: ScheduleOccurrencePage;
   SchedulePage: SchedulePage;
   SchedulePatch: SchedulePatch;
+  ScheduleRunTemplate: ScheduleRunTemplate;
   SnapshotNode: SnapshotNode;
   Step: Step;
   StepPage: StepPage;

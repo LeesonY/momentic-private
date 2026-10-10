@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -37,10 +37,7 @@ import {
 } from '../dist/index.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const reportPath = path.resolve(
-  here,
-  '../../../docs/validation-results/T04-model.json',
-);
+const reportPath = path.resolve(here, '../.evidence/T04-model-latest.json');
 const secret = 'hunter2';
 const apiKey = 'super-secret-key-t04';
 const passed = [];
@@ -2153,15 +2150,15 @@ test('tool parameters are inlined and an untested profile is still probed', asyn
     }),
   });
   const probe = await untested.capabilityProbe(profileId, 1000);
-  assert.equal(probeCalls, 1);
-  assert.equal(probe.providerCalls, 1);
+  assert.equal(probeCalls, 3);
+  assert.equal(probe.providerCalls, 3);
   assert.equal(probeBody.response_format.type, 'json_object');
   assert.equal(probeBody.model, 'deepseek-chat');
   assert.equal(probe.data.status, 'degraded');
   assert.equal(probe.data.capabilities.structuredOutput, true);
   assert.equal(probe.data.capabilities.nativeTools, false);
   assert.equal(probe.data.capabilities.imageInput, false);
-  assert.match(probe.data.notes.join(''), /未实测/);
+  assert.match(probe.data.notes.join(''), /探测未通过/);
   keep('g3c.untested-probe', {
     requestResult: probe.requestResult,
     errorCode: probe.errorCode,
@@ -2446,6 +2443,9 @@ test('write evidence', () => {
   const text = `${JSON.stringify(report, null, 2)}\n`;
   assert.equal(text.includes(secret), false);
   assert.equal(text.includes(apiKey), false);
+  // Routine CI must never overwrite the checked-in historical acceptance
+  // evidence; each test run records its synthetic output under ignored scratch.
+  mkdirSync(path.dirname(reportPath), { recursive: true });
   writeFileSync(reportPath, text);
   assert.deepEqual(missing, []);
   const parsed = JSON.parse(readFileSync(reportPath, 'utf8'));

@@ -11,6 +11,7 @@ import { SavedCaseEditorModal } from '../components/saved-cases/SavedCaseEditorM
 import { RegressionRunModal } from '../components/saved-cases/RegressionRunModal.tsx';
 import { SavedCaseYamlExportModal } from '../components/saved-cases/SavedCaseYamlExportModal.tsx';
 import { SavedCaseDuplicateModal } from '../components/saved-cases/SavedCaseDuplicateModal.tsx';
+import { RepairProposalsPanel } from '../components/saved-cases/RepairProposalsPanel.tsx';
 import {
   LifecycleScopeGuard,
   findCaseAcrossPages,
@@ -447,9 +448,9 @@ export const SavedCaseDetailPage: React.FC = () => {
               <button
                 className="btn btn-warning"
                 style={{
-                  backgroundColor: '#f59e0b',
-                  borderColor: '#d97706',
-                  color: '#fff',
+                  backgroundColor: 'var(--color-warning-bg)',
+                  borderColor: 'var(--color-warning-border)',
+                  color: 'var(--color-warning-text)',
                   fontWeight: 600,
                 }}
                 disabled={isReadOnly}
@@ -472,11 +473,11 @@ export const SavedCaseDetailPage: React.FC = () => {
           <div
             style={{
               padding: '12px 16px',
-              backgroundColor: 'var(--color-bg-warning-subtle, #fef3c7)',
-              border: '1px solid var(--color-border-warning, #f59e0b)',
+              backgroundColor: 'var(--color-warning-bg)',
+              border: '1px solid var(--color-warning-border)',
               borderRadius: 'var(--radius-md)',
               marginBottom: '16px',
-              color: '#92400e',
+              color: 'var(--color-warning-text)',
               fontSize: '0.875rem',
               display: 'flex',
               alignItems: 'center',
@@ -702,8 +703,8 @@ export const SavedCaseDetailPage: React.FC = () => {
                         <span
                           style={{
                             fontSize: '0.75rem',
-                            backgroundColor: '#e0e7ff',
-                            color: '#3730a3',
+                            backgroundColor: 'var(--color-primary-subtle)',
+                            color: 'var(--color-primary)',
                             padding: '1px 6px',
                             borderRadius: 'var(--radius-sm)',
                             fontWeight: 600,
@@ -777,7 +778,7 @@ export const SavedCaseDetailPage: React.FC = () => {
                           fontSize: '0.75rem',
                           fontWeight: 700,
                           backgroundColor: 'var(--color-primary)',
-                          color: '#fff',
+                          color: 'var(--color-primary-contrast)',
                           width: '22px',
                           height: '22px',
                           borderRadius: '50%',
@@ -961,6 +962,28 @@ export const SavedCaseDetailPage: React.FC = () => {
             </table>
           </div>
         )}
+
+        <RepairProposalsPanel
+          key={caseRecord.id}
+          caseId={caseRecord.id}
+          archived={isArchived}
+          canCreate={isOwnerOrOperator}
+          caseVersion={caseRecord.version}
+          baselineVersion={
+            versions.find(
+              (v) => v.id === caseRecord.currentApprovedVersionId,
+            ) ?? null
+          }
+          onCandidateCreated={async (versionId) => {
+            await fetchCaseAndVersions();
+            setSelectedVersionId(versionId);
+            setActiveTab('document');
+          }}
+          canReview={
+            currentMember?.role === 'owner' ||
+            currentUser?.globalRole === 'admin'
+          }
+        />
 
         {/* Modals */}
         <SavedCaseReviewModal

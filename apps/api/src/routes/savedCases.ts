@@ -77,6 +77,238 @@ export function parseRegressionPayload(body: unknown): RegressionDocument {
   }
 }
 
+/** Trusted dispatch reuses exactly the ordinary API admission path. Caller must authenticate independently. */
+export async function startTrustedRegressionRun(
+  ctx: RequestContext,
+): Promise<unknown> {
+  const input = parseContract('RegressionRunCreate', ctx.body);
+  const idempotencyKey = ctx.headers['idempotency-key'];
+  if (
+    !idempotencyKey ||
+    typeof idempotencyKey !== 'string' ||
+    idempotencyKey.length < 1 ||
+    idempotencyKey.length > 128
+  ) {
+    throw new ApiError(
+      'VALIDATION_ERROR',
+      'Idempotency-Key header is required (1-128 chars)',
+      422,
+    );
+  }
+  const result = await ctx.api.db.actor(ctx.actor!, async (client) => {
+    const versions = (
+      await client.query<{
+        id: string;
+        case_id: string;
+        project_id: string;
+        document: unknown;
+        review_status: string;
+        sha256: string;
+      }>(
+        'SELECT id, case_id, project_id, document, sha256, review_status FROM saved_case_versions WHERE id = ANY($1::uuid[]) AND project_id = $2 ORDER BY array_position($1::uuid[], id)',
+        [input.caseVersionIds, input.projectId],
+      )
+    ).rows;
+    if (versions.length !== input.caseVersionIds.length)
+      throw new StorageError('NOT_FOUND');
+    for (const v of versions) {
+      if (v.review_status !== 'approved')
+        throw new StorageError('VALIDATION_ERROR');
+    }
+
+    // Lock case heads in stable deterministic order FOR SHARE to avoid deadlocks
+    // and prevent admission of cases that are concurrently archived.
+    const uniqueCaseIds = Array.from(
+      new Set(versions.map((v) => v.case_id)),
+    ).sort();
+    const caseHeads = (
+      await client.query<{ id: string; status: string }>(
+        'SELECT id, status FROM saved_cases WHERE project_id = $1 AND id = ANY($2::uuid[]) ORDER BY id ASC FOR SHARE',
+        [input.projectId, uniqueCaseIds],
+      )
+    ).rows;
+
+    for (const head of caseHeads) {
+      if (head.status !== 'active') {
+        const err = new StorageError('VALIDATION_ERROR');
+        err.message = 'Archived case cannot be scheduled for regression';
+        throw err;
+      }
+    }
+    // Reuse the standard run creation but with the fixed approved documents as trusted cases.
+    const regressionRunId = randomUUID();
+    const environmentRow = input.environmentId
+      ? (
+          await client.query(
+            'SELECT v.document FROM environments e JOIN environment_versions v ON v.project_id=e.project_id AND v.environment_id=e.id AND v.version=e.version WHERE e.project_id=$1 AND e.id=$2',
+            [input.projectId, input.environmentId],
+          )
+        ).rows[0]
+      : null;
+    if (input.environmentId && !environmentRow)
+      throw new StorageError('NOT_FOUND');
+    const environment = environmentRow
+      ? parseContract('Environment', environmentRow.document)
+      : null;
+    const firstUrl = (versions[0]?.document as RegressionDocument).steps.find(
+      (s) => s.kind === 'navigate',
+    );
+    const targetUrl =
+      environment?.baseUrl ??
+      (firstUrl?.kind === 'navigate' ? firstUrl.url : 'http://localhost:8080/');
+    let allowedOrigins: string[];
+    try {
+      allowedOrigins = environment?.allowedOrigins ?? [
+        new URL(targetUrl).origin,
+      ];
+    } catch {
+      throw new StorageError('VALIDATION_ERROR');
+    }
+    const authProfile = await resolveRunAuth(
+      client,
+      input.projectId,
+      input.authProfileId ?? environment?.defaultAuthProfileId,
+      input.environmentId,
+      allowedOrigins,
+      true,
+    );
+    const budget = { ...DEFAULT_LIMITS, ...(input.budget ?? {}) };
+    const registered = (
+      await client.query(
+        'SELECT project_id,name,version,sha256,document,review_status FROM regression_module_versions WHERE project_id=$1 ORDER BY name,version',
+        [input.projectId],
+      )
+    ).rows.map((m) =>
+      parseContract('RegressionModuleVersion', {
+        projectId: m.project_id,
+        name: m.name,
+        version: m.version,
+        sha256: m.sha256,
+        document: m.document,
+        reviewStatus: m.review_status,
+      }),
+    );
+    const trustedCases = versions.map((v) => {
+      const doc = v.document as RegressionDocument;
+      const options = {
+        projectId: input.projectId,
+        allowedOrigins,
+        env: { BASE_URL: targetUrl },
+        maxExpandedSteps: budget.maxActionsPerCase,
+      };
+      let plan: ReturnType<typeof createRegressionPlan>;
+      let binding;
+      try {
+        const expanded = compileRegression(doc, {
+          ...options,
+          resolveModule: (name, version) =>
+            registered.find(
+              (module) => module.name === name && module.version === version,
+            ),
+        });
+        const used = new Set(
+          expanded.flatMap((entry) =>
+            entry.source.modulePath.map((module) => module.ref),
+          ),
+        );
+        binding = parseContract('RegressionBinding', {
+          sourceVersionId: v.id,
+          sourceDocumentSha256: v.sha256,
+          snapshotDocumentSha256: hashPayload(doc),
+          document: doc,
+          moduleSnapshots: registered.filter((module) =>
+            used.has(`${module.name}@${module.version}`),
+          ),
+        });
+        plan = createRegressionPlan(binding, options);
+      } catch {
+        throw new StorageError('VALIDATION_ERROR');
+      }
+      return parseContract('CaseDefinition', {
+        id: randomUUID(),
+        runId: regressionRunId,
+        projectId: input.projectId,
+        version: 1,
+        title: doc.name,
+        summary: `Regression from saved case version ${v.id}`,
+        preconditions: ['approved saved case version'],
+        outline: doc.steps.map(
+          (s) => `${s.kind} ${JSON.stringify(s).slice(0, 60)}`,
+        ),
+        criteria: plan.criteria,
+        regression: binding,
+      });
+    });
+    const modelBindings = await ctx.api.db.actor(ctx.actor!, async (client) => {
+      const projectRow = (
+        await client.query<{ default_model_profile_id: string | null }>(
+          'SELECT default_model_profile_id FROM projects WHERE id = $1',
+          [input.projectId],
+        )
+      ).rows[0];
+      let profileId = projectRow?.default_model_profile_id;
+      if (!profileId) {
+        const grantRow = (
+          await client.query<{ profile_id: string }>(
+            'SELECT profile_id FROM model_profile_grants WHERE project_id = $1 LIMIT 1',
+            [input.projectId],
+          )
+        ).rows[0];
+        profileId = grantRow?.profile_id;
+      }
+      if (!profileId) throw new StorageError('MODEL_NOT_CONFIGURED');
+      const versionRow = (
+        await client.query<{ version: number; status: string }>(
+          `SELECT p.version, v.document->>'status' AS status
+             FROM model_profiles p
+             JOIN model_profile_versions v ON v.profile_id=p.id AND v.version=p.version
+             WHERE p.id = $1`,
+          [profileId],
+        )
+      ).rows[0];
+      if (!versionRow) throw new StorageError('MODEL_NOT_CONFIGURED');
+      if (versionRow.status === 'disabled' || versionRow.status === 'revoked')
+        throw new StorageError('MODEL_NOT_CONFIGURED');
+      const binding = { profileId, version: versionRow.version };
+      return {
+        coordinator: binding,
+        explorer: binding,
+        executor: binding,
+        assertion: binding,
+        reproducer: binding,
+      };
+    });
+    const runConfig: RunConfig = parseContract('RunConfig', {
+      allowedOrigins,
+      actionPolicy: 'non_submitting',
+      environmentVersion: environment?.version ?? null,
+      authProfileVersion: authProfile?.version ?? null,
+      models: modelBindings,
+      knowledgeVersionIds: [],
+      budget,
+    });
+    const run = await ctx.api.coordinator.start(
+      ctx.actor!,
+      {
+        projectId: input.projectId,
+        targetUrl,
+        brief: `Regression run of ${versions.length} approved case version(s)`,
+        ...(input.environmentId !== undefined
+          ? { environmentId: input.environmentId }
+          : {}),
+        ...(authProfile ? { authProfileId: authProfile.id } : {}),
+        ...(input.budget !== undefined ? { budget: input.budget } : {}),
+      },
+      runConfig,
+      idempotencyKey,
+      trustedCases,
+    );
+    return parseContract('Run', run);
+  });
+  ctx.res.statusCode = 202;
+  return result;
+}
+
 export function registerSavedCaseRoutes(router: Router): void {
   // GET /projects/{projectId}/saved-cases
   router.get(
@@ -627,261 +859,42 @@ export function registerSavedCaseRoutes(router: Router): void {
   // POST /regression-runs
   router.post('/api/v1/regression-runs', async (ctx: RequestContext) => {
     await requireAuth(ctx);
-    const input = parseContract('RegressionRunCreate', ctx.body);
-    const idempotencyKey = ctx.headers['idempotency-key'];
-    if (
-      !idempotencyKey ||
-      typeof idempotencyKey !== 'string' ||
-      idempotencyKey.length < 1 ||
-      idempotencyKey.length > 128
-    ) {
-      throw new ApiError(
-        'VALIDATION_ERROR',
-        'Idempotency-Key header is required (1-128 chars)',
-        422,
-      );
-    }
-    const result = await ctx.api.db.actor(ctx.actor!, async (client) => {
-      const versions = (
-        await client.query<{
-          id: string;
-          case_id: string;
-          project_id: string;
-          document: unknown;
-          review_status: string;
-          sha256: string;
-        }>(
-          'SELECT id, case_id, project_id, document, sha256, review_status FROM saved_case_versions WHERE id = ANY($1::uuid[]) AND project_id = $2 ORDER BY array_position($1::uuid[], id)',
-          [input.caseVersionIds, input.projectId],
-        )
-      ).rows;
-      if (versions.length !== input.caseVersionIds.length)
-        throw new StorageError('NOT_FOUND');
-      for (const v of versions) {
-        if (v.review_status !== 'approved')
-          throw new StorageError('VALIDATION_ERROR');
-      }
-
-      // Lock case heads in stable deterministic order FOR SHARE to avoid deadlocks
-      // and prevent admission of cases that are concurrently archived.
-      const uniqueCaseIds = Array.from(
-        new Set(versions.map((v) => v.case_id)),
-      ).sort();
-      const caseHeads = (
-        await client.query<{ id: string; status: string }>(
-          'SELECT id, status FROM saved_cases WHERE project_id = $1 AND id = ANY($2::uuid[]) ORDER BY id ASC FOR SHARE',
-          [input.projectId, uniqueCaseIds],
-        )
-      ).rows;
-
-      for (const head of caseHeads) {
-        if (head.status !== 'active') {
-          const err = new StorageError('VALIDATION_ERROR');
-          err.message = 'Archived case cannot be scheduled for regression';
-          throw err;
-        }
-      }
-      // Reuse the standard run creation but with the fixed approved documents as trusted cases.
-      const regressionRunId = randomUUID();
-      const environmentRow = input.environmentId
-        ? (
-            await client.query(
-              'SELECT v.document FROM environments e JOIN environment_versions v ON v.project_id=e.project_id AND v.environment_id=e.id AND v.version=e.version WHERE e.project_id=$1 AND e.id=$2',
-              [input.projectId, input.environmentId],
-            )
-          ).rows[0]
-        : null;
-      if (input.environmentId && !environmentRow)
-        throw new StorageError('NOT_FOUND');
-      const environment = environmentRow
-        ? parseContract('Environment', environmentRow.document)
-        : null;
-      const firstUrl = (versions[0]?.document as RegressionDocument).steps.find(
-        (s) => s.kind === 'navigate',
-      );
-      const targetUrl =
-        environment?.baseUrl ??
-        (firstUrl?.kind === 'navigate'
-          ? firstUrl.url
-          : 'http://localhost:8080/');
-      let allowedOrigins: string[];
-      try {
-        allowedOrigins = environment?.allowedOrigins ?? [
-          new URL(targetUrl).origin,
-        ];
-      } catch {
-        throw new StorageError('VALIDATION_ERROR');
-      }
-      const authProfile = await resolveRunAuth(
-        client,
-        input.projectId,
-        input.authProfileId ?? environment?.defaultAuthProfileId,
-        input.environmentId,
-        allowedOrigins,
-        true,
-      );
-      const budget = { ...DEFAULT_LIMITS, ...(input.budget ?? {}) };
-      const registered = (
-        await client.query(
-          'SELECT project_id,name,version,sha256,document,review_status FROM regression_module_versions WHERE project_id=$1 ORDER BY name,version',
-          [input.projectId],
-        )
-      ).rows.map((m) =>
-        parseContract('RegressionModuleVersion', {
-          projectId: m.project_id,
-          name: m.name,
-          version: m.version,
-          sha256: m.sha256,
-          document: m.document,
-          reviewStatus: m.review_status,
-        }),
-      );
-      const trustedCases = versions.map((v) => {
-        const doc = v.document as RegressionDocument;
-        const options = {
-          projectId: input.projectId,
-          allowedOrigins,
-          env: { BASE_URL: targetUrl },
-          maxExpandedSteps: budget.maxActionsPerCase,
-        };
-        let plan: ReturnType<typeof createRegressionPlan>;
-        let binding;
-        try {
-          const expanded = compileRegression(doc, {
-            ...options,
-            resolveModule: (name, version) =>
-              registered.find(
-                (module) => module.name === name && module.version === version,
-              ),
-          });
-          const used = new Set(
-            expanded.flatMap((entry) =>
-              entry.source.modulePath.map((module) => module.ref),
-            ),
-          );
-          binding = parseContract('RegressionBinding', {
-            sourceVersionId: v.id,
-            sourceDocumentSha256: v.sha256,
-            snapshotDocumentSha256: hashPayload(doc),
-            document: doc,
-            moduleSnapshots: registered.filter((module) =>
-              used.has(`${module.name}@${module.version}`),
-            ),
-          });
-          plan = createRegressionPlan(binding, options);
-        } catch {
-          throw new StorageError('VALIDATION_ERROR');
-        }
-        return parseContract('CaseDefinition', {
-          id: randomUUID(),
-          runId: regressionRunId,
-          projectId: input.projectId,
-          version: 1,
-          title: doc.name,
-          summary: `Regression from saved case version ${v.id}`,
-          preconditions: ['approved saved case version'],
-          outline: doc.steps.map(
-            (s) => `${s.kind} ${JSON.stringify(s).slice(0, 60)}`,
-          ),
-          criteria: plan.criteria,
-          regression: binding,
-        });
-      });
-      const modelBindings = await ctx.api.db.actor(
-        ctx.actor!,
-        async (client) => {
-          const projectRow = (
-            await client.query<{ default_model_profile_id: string | null }>(
-              'SELECT default_model_profile_id FROM projects WHERE id = $1',
-              [input.projectId],
-            )
-          ).rows[0];
-          let profileId = projectRow?.default_model_profile_id;
-          if (!profileId) {
-            const grantRow = (
-              await client.query<{ profile_id: string }>(
-                'SELECT profile_id FROM model_profile_grants WHERE project_id = $1 LIMIT 1',
-                [input.projectId],
-              )
-            ).rows[0];
-            profileId = grantRow?.profile_id;
-          }
-          if (!profileId) throw new StorageError('MODEL_NOT_CONFIGURED');
-          const versionRow = (
-            await client.query<{ version: number; status: string }>(
-              `SELECT p.version, v.document->>'status' AS status
-             FROM model_profiles p
-             JOIN model_profile_versions v ON v.profile_id=p.id AND v.version=p.version
-             WHERE p.id = $1`,
-              [profileId],
-            )
-          ).rows[0];
-          if (!versionRow) throw new StorageError('MODEL_NOT_CONFIGURED');
-          if (
-            versionRow.status === 'disabled' ||
-            versionRow.status === 'revoked'
-          )
-            throw new StorageError('MODEL_NOT_CONFIGURED');
-          const binding = { profileId, version: versionRow.version };
-          return {
-            coordinator: binding,
-            explorer: binding,
-            executor: binding,
-            assertion: binding,
-            reproducer: binding,
-          };
-        },
-      );
-      const runConfig: RunConfig = parseContract('RunConfig', {
-        allowedOrigins,
-        actionPolicy: 'non_submitting',
-        environmentVersion: environment?.version ?? null,
-        authProfileVersion: authProfile?.version ?? null,
-        models: modelBindings,
-        knowledgeVersionIds: [],
-        budget,
-      });
-      const run = await ctx.api.coordinator.start(
-        ctx.actor!,
-        {
-          projectId: input.projectId,
-          targetUrl,
-          brief: `Regression run of ${versions.length} approved case version(s)`,
-          ...(input.environmentId !== undefined
-            ? { environmentId: input.environmentId }
-            : {}),
-          ...(authProfile ? { authProfileId: authProfile.id } : {}),
-          ...(input.budget !== undefined ? { budget: input.budget } : {}),
-        },
-        runConfig,
-        idempotencyKey,
-        trustedCases,
-      );
-      return parseContract('Run', run);
-    });
-    ctx.res.statusCode = 202;
-    return result;
+    return startTrustedRegressionRun(ctx);
   });
 
-  // GET /runs/{runId}/cache-stats (T12 stub)
+  // GET /runs/{runId}/cache-stats (actual persisted locator cache events)
   router.get(
     '/api/v1/runs/{runId}/cache-stats',
     async (ctx: RequestContext) => {
       await requireAuth(ctx);
       const runId = ctx.params.runId!;
-      await ctx.api.db.actor(ctx.actor!, async (client) => {
+      const stats = await ctx.api.db.actor(ctx.actor!, async (client) => {
         const row = (
-          await client.query('SELECT 1 FROM runs WHERE id = $1', [runId])
+          await client.query<{ id: string; project_id: string }>(
+            'SELECT id,project_id FROM runs WHERE id=$1',
+            [runId],
+          )
         ).rows[0];
         if (!row) throw new StorageError('NOT_FOUND');
+        const counters = (
+          await client.query<{
+            hits: number;
+            misses: number;
+            invalidated: number;
+          }>(
+            'SELECT hits,misses,invalidated FROM run_locator_cache_stats WHERE project_id=$1 AND run_id=$2',
+            [row.project_id, runId],
+          )
+        ).rows[0];
+        return counters ?? { hits: 0, misses: 0, invalidated: 0 };
       });
       ctx.res.statusCode = 200;
       return parseContract('CacheStats', {
         runId,
-        hits: 0,
-        misses: 0,
-        invalidated: 0,
-        resolution: 'not_implemented',
+        hits: stats.hits,
+        misses: stats.misses,
+        invalidated: stats.invalidated,
+        resolution: 'live_snapshot_verified_role_locator_v1',
         savedModelCalls: 0,
         savedMs: 0,
       });

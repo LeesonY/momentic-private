@@ -64,7 +64,7 @@ export class SseClient {
         this.setStatus('connected');
       };
 
-      this.eventSource.onmessage = (e) => {
+      const onMessage = (e: MessageEvent) => {
         try {
           const rawEvent = JSON.parse(e.data) as RunEvent;
           // 1. Strict seq deduplication
@@ -79,6 +79,29 @@ export class SseClient {
           console.error('[SSE] Failed to parse event payload:', parseErr);
         }
       };
+      this.eventSource.onmessage = onMessage;
+      // API SSE frames use `event: input.requested` (and other explicit
+      // names). Native EventSource.onmessage only receives unnamed events:
+      // without these listeners the Workbench never sees real OTP prompts.
+      const eventTypes: RunEvent['type'][] = [
+        'run.updated',
+        'phase.changed',
+        'task.updated',
+        'case.created',
+        'case.result',
+        'finding.updated',
+        'step.recorded',
+        'budget.updated',
+        'input.requested',
+        'input.resolved',
+        'artifact.updated',
+        'report.ready',
+        'run.finished',
+      ];
+      for (const eventType of eventTypes)
+        this.eventSource.addEventListener(eventType, (event) =>
+          onMessage(event as MessageEvent),
+        );
 
       this.eventSource.onerror = (_err) => {
         if (this.isManuallyClosed) return;

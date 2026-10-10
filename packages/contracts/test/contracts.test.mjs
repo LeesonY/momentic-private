@@ -310,6 +310,7 @@ test('form and storage state auth conditional requirements', () => {
       ...auth,
       mode: 'storage_state',
       secretInput: { storageState: '{}' },
+      storageCriterion: sample(domain.$defs.Criterion),
     }),
   );
   const formConfig = sample(domain.$defs.FormConfig);
@@ -452,7 +453,7 @@ test('every OpenAPI request, response, media and parameter validator compiles; I
           count++;
         }
     }
-  assert.equal(publicOperationIds.length, 80);
+  assert.equal(publicOperationIds.length, 88);
   assert.equal(internalOperationIds.length, 8);
   for (const id of internalOperationIds)
     assert.throws(() =>

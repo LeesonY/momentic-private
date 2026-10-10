@@ -26,6 +26,8 @@ import type { Coordinator } from './core.js';
 export type AgentRoleName = CallInput['role'];
 export interface ModelOptions {
   adapter: ProviderAdapter;
+  /** Selects a wire protocol from the persisted, frozen model profile. */
+  adapterForKind?: (kind: GatewayProfile['kind']) => ProviderAdapter;
   allowTestStub?: boolean;
   profile: (id: string, version: number) => Promise<GatewayProfile>;
   decryptKey: (id: string, ciphertext: string) => string;
@@ -332,7 +334,8 @@ export class BoundModel {
       object,
       { inputTokens: number; maxOutputTokens: number }
     >();
-    const delegate = this.options.adapter;
+    const delegate =
+      this.options.adapterForKind?.(profile.kind) ?? this.options.adapter;
     const coordinator = this.coordinator;
     const scope = this.scope;
     return {
@@ -544,8 +547,14 @@ export class BoundModel {
       promptVersion: prompt.version,
       approvedImageIds: bound.images.map((image) => image.id),
       toolSchemas: roleToolSchemas(role),
-      timeoutMs: 1000,
-      maxInputTokens: 4000,
+      // Real hosted models routinely need more than one second to return a
+      // structured answer. Keep a finite upper bound, aligned with the
+      // already-public complete() path, while honouring lease cancellation.
+      timeoutMs: 30000,
+      // json_object mode appends the *canonical* output schema to the prompt;
+      // 4k truncated otherwise valid coordinator/planner inputs before any
+      // provider call. Use the gateway's still-bounded 12k input allowance.
+      maxInputTokens: 12000,
       knownEvidenceIds: bound.evidence,
       ...(bound.criterion ? { criterion: bound.criterion } : {}),
     };

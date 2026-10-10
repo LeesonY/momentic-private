@@ -15,7 +15,13 @@ const files = [
 const documents = {};
 const hashes = {};
 for (const file of files) {
-  const raw = await readFile(`${root}docs/contracts/${file}`, 'utf8');
+  // Hash the canonical repository content, not Git's platform-specific
+  // working-tree CRLF translation. Generated manifests must match on Windows
+  // and Linux for the same committed contracts.
+  const raw = (await readFile(`${root}docs/contracts/${file}`, 'utf8')).replace(
+    /\r\n/g,
+    '\n',
+  );
   documents[file] = JSON.parse(raw);
   hashes[file] = createHash('sha256').update(raw).digest('hex');
 }

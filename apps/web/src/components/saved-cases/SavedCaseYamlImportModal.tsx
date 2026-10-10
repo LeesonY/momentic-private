@@ -189,11 +189,11 @@ export const SavedCaseYamlImportModal: React.FC<
           <div
             style={{
               padding: '10px 14px',
-              backgroundColor: '#fffbeb',
-              border: '1px solid #fef3c7',
+              backgroundColor: 'var(--color-warning-bg)',
+              border: '1px solid var(--color-warning-border)',
               borderRadius: 'var(--radius-md, 6px)',
               fontSize: '0.82rem',
-              color: '#92400e',
+              color: 'var(--color-warning-text)',
               lineHeight: 1.45,
             }}
             data-testid="yaml-import-safety-notice"
@@ -223,7 +223,8 @@ export const SavedCaseYamlImportModal: React.FC<
                   marginBottom: '4px',
                 }}
               >
-                用例标识 (Slug) <span style={{ color: '#dc2626' }}>*</span>
+                用例标识 (Slug){' '}
+                <span style={{ color: 'var(--color-danger-text)' }}>*</span>
               </label>
               <input
                 id="input-yaml-slug"
@@ -243,7 +244,7 @@ export const SavedCaseYamlImportModal: React.FC<
               {validationErrors.slug && (
                 <p
                   style={{
-                    color: '#dc2626',
+                    color: 'var(--color-danger-text)',
                     fontSize: '0.75rem',
                     margin: '4px 0 0 0',
                   }}
@@ -263,7 +264,8 @@ export const SavedCaseYamlImportModal: React.FC<
                   marginBottom: '4px',
                 }}
               >
-                用例名称 (Name) <span style={{ color: '#dc2626' }}>*</span>
+                用例名称 (Name){' '}
+                <span style={{ color: 'var(--color-danger-text)' }}>*</span>
               </label>
               <input
                 id="input-yaml-name"
@@ -283,7 +285,7 @@ export const SavedCaseYamlImportModal: React.FC<
               {validationErrors.name && (
                 <p
                   style={{
-                    color: '#dc2626',
+                    color: 'var(--color-danger-text)',
                     fontSize: '0.75rem',
                     margin: '4px 0 0 0',
                   }}
@@ -313,7 +315,8 @@ export const SavedCaseYamlImportModal: React.FC<
                   fontWeight: 600,
                 }}
               >
-                YAML 测试用例文本 <span style={{ color: '#dc2626' }}>*</span>
+                YAML 测试用例文本{' '}
+                <span style={{ color: 'var(--color-danger-text)' }}>*</span>
               </label>
               <div
                 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
@@ -342,7 +345,7 @@ export const SavedCaseYamlImportModal: React.FC<
                     fontSize: '0.75rem',
                     fontFamily: 'monospace',
                     color: isOverLimit
-                      ? '#dc2626'
+                      ? 'var(--color-danger-text)'
                       : 'var(--color-text-muted, #6b7280)',
                     fontWeight: isOverLimit ? 700 : 400,
                   }}
@@ -368,7 +371,9 @@ export const SavedCaseYamlImportModal: React.FC<
                 lineHeight: 1.45,
                 tabSize: 2,
                 whiteSpace: 'pre',
-                borderColor: isOverLimit ? '#dc2626' : undefined,
+                borderColor: isOverLimit
+                  ? 'var(--color-danger-border)'
+                  : undefined,
               }}
               placeholder={`schemaVersion: 1\nkind: localqa/test\nid: sample-test\nname: 示例用例\nsteps:\n  - kind: navigate\n    url: https://example.com\n`}
               value={yamlContent}
@@ -383,7 +388,7 @@ export const SavedCaseYamlImportModal: React.FC<
             {validationErrors.yaml && (
               <p
                 style={{
-                  color: '#dc2626',
+                  color: 'var(--color-danger-text)',
                   fontSize: '0.75rem',
                   margin: '4px 0 0 0',
                 }}

@@ -241,8 +241,15 @@ export function RunStoreProvider({
         break;
       }
       case 'input.requested': {
-        setActiveInputRequest(event.payload as unknown as InputRequest);
-        setRun((prev) => (prev ? { ...prev, status: 'awaiting_input' } : null));
+        const request = event.payload as unknown as InputRequest;
+        setActiveInputRequest(request);
+        // A private OTP challenge deliberately keeps the same leased Worker
+        // and browser session active. It is NOT the ordinary job-requeue
+        // clarification flow and must not project a false awaiting_input run.
+        if (request.kind !== 'one_time_code')
+          setRun((prev) =>
+            prev ? { ...prev, status: 'awaiting_input' } : null,
+          );
         break;
       }
       case 'input.resolved': {
@@ -339,9 +346,10 @@ export function RunStoreProvider({
       expectedVersion: capturedVersion,
       decision,
     };
-    if (decision !== 'reject' && text !== undefined && text !== '') {
+    if (targetRequest.kind === 'one_time_code') {
+      if (decision === 'provide' && text) payload.oneTimeCode = text;
+    } else if (decision !== 'reject' && text !== undefined && text !== '')
       payload.text = text;
-    }
 
     respondingInputRef.current = lockToken;
     try {

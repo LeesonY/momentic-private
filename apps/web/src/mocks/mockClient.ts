@@ -48,6 +48,7 @@ import type {
   Report,
   MemberUpdate,
   MemberPage,
+  Member,
   TriageInput,
   TriagePreview,
   TriageCommit,
@@ -83,6 +84,7 @@ import type {
   ScheduleCreate,
   SchedulePage,
   SchedulePatch,
+  ScheduleOccurrencePage,
   ApiKey,
   ApiKeyCreate,
   ApiKeyCreated,
@@ -90,6 +92,10 @@ import type {
   CacheStats,
   RepairProposal,
   RepairProposalCreate,
+  RepairProposalReviewInput,
+  RepairCandidateVerification,
+  RepairCandidateVerificationPage,
+  RepairCandidateEvidencePage,
   RepairProposalPage,
   RegressionModuleCreate,
   RegressionModuleRecord,
@@ -256,6 +262,9 @@ async function computeCanonicalDocSha256(doc: unknown): Promise<string> {
 export class MockApiClient implements ApiClient {
   private runs: Run[] = [...mockRuns];
   private projects: Project[] = [{ ...mockProject }];
+  private projectMembers: Member[] = mockMembers.map((member) => ({
+    ...member,
+  }));
   private cases: CaseRecord[] = [...mockCases];
   private findings: Finding[] = [...mockFindings];
   private knowledge: Knowledge[] = [...mockKnowledge];
@@ -273,6 +282,11 @@ export class MockApiClient implements ApiClient {
   private schedules: Schedule[] = [...mockSchedules];
   private apiKeys: ApiKey[] = [...mockApiKeys];
   private repairProposals: Record<string, RepairProposal[]> = {};
+  private repairCandidates: Record<string, SavedCaseVersion> = {};
+  private candidateVerifications: Record<
+    string,
+    RepairCandidateVerification[]
+  > = {};
   private activeReviewPreviews: Record<string, ReviewPreview> = {};
   private environments: Environment[] = [...mockEnvironments];
   private authProfiles: AuthProfile[] = [...mockAuthProfiles];
@@ -345,24 +359,41 @@ export class MockApiClient implements ApiClient {
   }
 
   public async updateProject(
-    _projectId: string,
+    projectId: string,
     input: ProjectPatch,
   ): Promise<Project> {
-    return { ...mockProject, ...input };
+    const index = this.projects.findIndex((p) =>
+      matchesProjectId(p.id, projectId),
+    );
+    if (index < 0) throw new Error('项目不存在');
+    const project = this.projects[index]!;
+    if (project.version !== input.expectedVersion)
+      throw new Error('VERSION_CONFLICT');
+    const { expectedVersion: _expectedVersion, ...patch } = input;
+    const updated = { ...project, ...patch, version: project.version + 1 };
+    this.projects[index] = updated;
+    return updated;
   }
 
   public async listMembers(
     _projectId: string,
     _query?: PaginationQuery,
   ): Promise<MemberPage> {
-    return { items: mockMembers, nextCursor: null };
+    return {
+      items: this.projectMembers.map((member) => ({ ...member })),
+      nextCursor: null,
+    };
   }
 
   public async replaceMembers(
-    _projectId: string,
-    _input: MemberUpdate,
+    projectId: string,
+    input: MemberUpdate,
   ): Promise<Project> {
-    return mockProject;
+    const updated = await this.updateProject(projectId, {
+      expectedVersion: input.expectedVersion,
+    });
+    this.projectMembers = input.members.map((member) => ({ ...member }));
+    return updated;
   }
 
   public async listEnvironment(
@@ -492,6 +523,22 @@ export class MockApiClient implements ApiClient {
 
   public async listModels(_query?: PaginationQuery): Promise<ModelProfilePage> {
     return { items: mockModelProfiles, nextCursor: null };
+  }
+
+  public async listProjectModels(
+    _projectId: string,
+    _query?: PaginationQuery,
+  ): Promise<ModelProfilePage> {
+    return { items: mockModelProfiles, nextCursor: null };
+  }
+
+  public async grantProjectModel(
+    _projectId: string,
+    input: { modelProfileId: string },
+  ): Promise<ModelProfile> {
+    const model = mockModelProfiles.find((m) => m.id === input.modelProfileId);
+    if (!model) throw new Error('MODEL_NOT_CONFIGURED');
+    return model;
   }
 
   public async createModel(input: ModelProfileCreate): Promise<ModelProfile> {
@@ -1243,7 +1290,16 @@ export class MockApiClient implements ApiClient {
   public async runScheduleNow(scheduleId: string): Promise<Run> {
     const s = this.schedules.find((x) => x.id === scheduleId);
     if (!s) throw new Error(`定时调度不存在: ${scheduleId}`);
-    return this.createRun(s.runTemplate);
+    return s.templateKind === 'regression'
+      ? this.createRegressionRun(s.runTemplate as RegressionRunCreate)
+      : this.createRun(s.runTemplate as RunCreate);
+  }
+
+  public async listScheduleOccurrences(
+    _scheduleId: string,
+    _query?: PaginationQuery,
+  ): Promise<ScheduleOccurrencePage> {
+    return { items: [], nextCursor: null };
   }
 
   // 64. listApiKeys
@@ -1328,10 +1384,111 @@ export class MockApiClient implements ApiClient {
       verificationRunId: null,
       status: 'draft',
       createdAt: new Date().toISOString(),
+      reviewReason: null,
+      reviewedBy: null,
+      reviewedAt: null,
     };
     list.unshift(p);
     this.repairProposals[caseId] = list;
     return p;
+  }
+
+  public async reviewRepairProposal(
+    caseId: string,
+    proposalId: string,
+    input: RepairProposalReviewInput,
+  ): Promise<RepairProposal> {
+    const proposal = (this.repairProposals[caseId] ?? []).find(
+      (item) => item.id === proposalId,
+    );
+    if (!proposal || proposal.status !== 'draft')
+      throw new Error('Version conflict');
+    if (input.reason.trim().length < 10) throw new Error('Reason too short');
+    proposal.status = input.decision === 'approve' ? 'approved' : 'rejected';
+    proposal.reviewReason = input.reason.trim();
+    proposal.reviewedBy = mockCurrentUser.id;
+    proposal.reviewedAt = new Date().toISOString();
+    return proposal;
+  }
+
+  public async createRepairCandidateDraft(
+    caseId: string,
+    proposalId: string,
+    input: SavedCaseVersionCreate,
+  ): Promise<SavedCaseVersion> {
+    const proposal = (this.repairProposals[caseId] ?? []).find(
+      (item) => item.id === proposalId,
+    );
+    if (!proposal || proposal.status !== 'approved')
+      throw new Error('Repair proposal is not approved');
+    if (this.repairCandidates[proposalId])
+      throw new Error('Repair candidate already created');
+    const draft = await this.createSavedCaseVersion(caseId, input);
+    this.repairCandidates[proposalId] = draft;
+    return draft;
+  }
+
+  public async getRepairCandidateDraft(
+    _caseId: string,
+    proposalId: string,
+  ): Promise<SavedCaseVersion> {
+    const candidate = this.repairCandidates[proposalId];
+    if (!candidate) throw new Error('Repair candidate not created');
+    return candidate;
+  }
+
+  public async startRepairCandidateVerification(
+    caseId: string,
+    proposalId: string,
+  ): Promise<RepairCandidateVerification> {
+    const candidate = this.repairCandidates[proposalId];
+    if (
+      !candidate ||
+      candidate.caseId !== caseId ||
+      candidate.reviewStatus !== 'draft'
+    )
+      throw new Error('Verified candidate draft required');
+    const prior = this.candidateVerifications[proposalId] ?? [];
+    if (prior.some((v) => v.status === 'queued' || v.status === 'running'))
+      throw new Error('Verification already pending');
+    const result: RepairCandidateVerification = {
+      id: `verify_mock_${Date.now()}`,
+      projectId: MOCK_PROJECT_ID,
+      proposalId,
+      caseId,
+      candidateVersionId: candidate.id,
+      candidateSha256: candidate.sha256,
+      status: 'queued',
+      outcome: null,
+      reasonCode: null,
+      observedSteps: 0,
+      verifiedCriteria: 0,
+      createdAt: new Date().toISOString(),
+      startedAt: null,
+      finishedAt: null,
+    };
+    this.candidateVerifications[proposalId] = [result, ...prior];
+    return result;
+  }
+
+  public async listRepairCandidateVerifications(
+    _caseId: string,
+    proposalId: string,
+    _query?: PaginationQuery,
+  ): Promise<RepairCandidateVerificationPage> {
+    return {
+      items: this.candidateVerifications[proposalId] ?? [],
+      nextCursor: null,
+    };
+  }
+
+  public async listRepairCandidateEvidence(
+    _caseId: string,
+    _proposalId: string,
+    _verificationId: string,
+  ): Promise<RepairCandidateEvidencePage> {
+    // Mock verifications never execute Chromium; no fabricated evidence.
+    return { items: [] };
   }
 
   // 70. importSavedCaseYaml

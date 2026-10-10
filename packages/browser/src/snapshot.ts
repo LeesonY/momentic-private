@@ -1,4 +1,4 @@
-import type { Page, Frame } from 'playwright';
+import type { Page, Frame, JSHandle } from 'playwright';
 import { randomUUID } from 'node:crypto';
 import type { BrowserSnapshot, SnapshotNode } from '@localqa/contracts';
 import { validateContract } from '@localqa/contracts';
@@ -11,6 +11,83 @@ export interface SnapshotOptions {
   screenshotRef?: string | null;
   recorder?: SessionRecorder;
   lastResponseStatus?: number | null;
+}
+
+type DomWitness = {
+  frame: Frame;
+  handle: JSHandle<{ changed: () => boolean; stop: () => void }>;
+};
+// Process-local only: never persisted, serialized into model messages or
+// exposed to page JS. Old handles invalidate on frame document navigation.
+const pageWitnesses = new WeakMap<Page, Map<string, Map<string, DomWitness>>>();
+const MAX_SNAPSHOT_WITNESSES_PER_PAGE = 12;
+
+async function disposeWitnesses(witnesses: Map<string, DomWitness>) {
+  await Promise.allSettled(
+    [...witnesses.values()].map(async ({ handle }) => {
+      await handle.evaluate((w) => w.stop()).catch(() => undefined);
+      await handle.dispose().catch(() => undefined);
+    }),
+  );
+}
+
+export async function snapshotFrameUnchanged(
+  page: Page,
+  snapshotId: string,
+  frameId: string,
+  frame: Frame,
+): Promise<boolean> {
+  const record = pageWitnesses.get(page)?.get(snapshotId)?.get(frameId);
+  if (!record || record.frame !== frame) return false;
+  try {
+    return !(await record.handle.evaluate((w) => w.changed()));
+  } catch {
+    // Detached frame, destroyed execution context or disposed observer.
+    return false;
+  }
+}
+
+async function newDomWitness(frame: Frame): Promise<DomWitness> {
+  const handle = await frame.evaluateHandle(() => {
+    let changed = false;
+    const observer = new MutationObserver(() => {
+      changed = true;
+    });
+    observer.observe(document, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      characterData: true,
+    });
+    return {
+      changed: () => changed || observer.takeRecords().length > 0,
+      stop: () => observer.disconnect(),
+    };
+  });
+  return { frame, handle };
+}
+
+/** Browser automation can observe cross-origin frame DOM unlike page JS.
+ * Constrain observations/actions to the approved main origin. The only
+ * opaque child URLs allowed are inherited about:blank and about:srcdoc.
+ */
+export function isSameOriginOwnedFrame(frame: Frame, main: Frame): boolean {
+  const origin = new URL(main.url()).origin;
+  if (origin === 'null' && main.url() !== 'about:blank') return frame === main;
+  let current: Frame | null = frame;
+  while (current && current !== main) {
+    const url = current.url();
+    if (url !== 'about:blank' && url !== 'about:srcdoc') {
+      try {
+        if (origin === 'null') return false;
+        if (new URL(url).origin !== origin) return false;
+      } catch {
+        return false;
+      }
+    }
+    current = current.parentFrame();
+  }
+  return current === main;
 }
 
 /**
@@ -30,6 +107,7 @@ export async function captureBrowserSnapshot(
 
   const frameIds: string[] = ['main'];
   const allNodes: SnapshotNode[] = [];
+  const domWitnesses = new Map<string, DomWitness>();
   let isTruncated = false;
 
   const frames = page.frames();
@@ -46,9 +124,22 @@ export async function captureBrowserSnapshot(
     }
 
     try {
+      // Do not disclose cross-origin frame text to the model even if
+      // Playwright is technically capable of evaluating its DOM.
+      if (!isSameOriginOwnedFrame(frame, page.mainFrame()))
+        throw new Error('FRAME_ORIGIN_NOT_ALLOWED');
+      const witness = await newDomWitness(frame);
       // Evaluate within frame context
-      const frameNodes = await extractNodesFromFrame(frame, frameId);
-      for (const node of frameNodes) {
+      let frameExtract: Awaited<ReturnType<typeof extractNodesFromFrame>>;
+      try {
+        frameExtract = await extractNodesFromFrame(frame, frameId);
+      } catch (error) {
+        await disposeWitnesses(new Map([[frameId, witness]]));
+        throw error;
+      }
+      domWitnesses.set(frameId, witness);
+      if (frameExtract.truncated) isTruncated = true;
+      for (const node of frameExtract.nodes) {
         if (allNodes.length >= 1000) {
           isTruncated = true;
           break;
@@ -114,12 +205,28 @@ export async function captureBrowserSnapshot(
   // Validate output against contracts schema
   const validation = validateContract('BrowserSnapshot', snapshot);
   if (!validation.success) {
+    await disposeWitnesses(domWitnesses);
     const errorDetails = validation.errors
       .map((e) => `${e.instancePath} ${e.message}`)
       .join(', ');
     throw new Error(
       `Generated BrowserSnapshot violated contract schema: ${errorDetails}`,
     );
+  }
+
+  let registered = pageWitnesses.get(page);
+  if (!registered) {
+    registered = new Map();
+    pageWitnesses.set(page, registered);
+  }
+  registered.set(snapshotId, domWitnesses);
+  // Bound retained observers/JS handles; evicted snapshots fail closed.
+  while (registered.size > MAX_SNAPSHOT_WITNESSES_PER_PAGE) {
+    const oldestId = registered.keys().next().value;
+    if (!oldestId) break;
+    const oldest = registered.get(oldestId);
+    registered.delete(oldestId);
+    if (oldest) await disposeWitnesses(oldest);
   }
 
   return snapshot;
@@ -132,7 +239,7 @@ export async function captureBrowserSnapshot(
 async function extractNodesFromFrame(
   frame: Frame,
   frameId: string,
-): Promise<SnapshotNode[]> {
+): Promise<{ nodes: SnapshotNode[]; truncated: boolean }> {
   const rawNodes = await frame.evaluate((fId) => {
     const selector = [
       'button',
@@ -158,7 +265,22 @@ async function extractNodesFromFrame(
       '[tabindex]',
     ].join(',');
 
-    const elements = Array.from(document.querySelectorAll(selector));
+    // The legacy snapshot only traversed light DOM. Open Shadow Roots are
+    // accessible browser DOM but excluded by document.querySelectorAll,
+    // causing the AI to invent targets even though Playwright can locate them.
+    // Traverse open roots only, with a hard shared work cap. Closed roots
+    // remain opaque; there is no shadow-root piercing or instrumentation.
+    const elements: Element[] = [];
+    let scanned = 0;
+    const scan = (root: Document | ShadowRoot): void => {
+      if (scanned >= 5000 || elements.length >= 1000) return;
+      for (const el of root.querySelectorAll('*')) {
+        if (scanned++ >= 5000 || elements.length >= 1000) return;
+        if (el.matches(selector)) elements.push(el);
+        if (el.shadowRoot) scan(el.shadowRoot);
+      }
+    };
+    scan(document);
     const results: Array<{
       nodeId: string;
       frameId: string;
@@ -249,18 +371,24 @@ async function extractNodesFromFrame(
       counter++;
     }
 
-    return results;
+    return {
+      results,
+      truncated: scanned >= 5000 || elements.length >= 1000,
+    };
   }, frameId);
 
   // Apply Node.js-side regex sanitization
-  return rawNodes.map((rn) => ({
-    nodeId: rn.nodeId,
-    frameId: rn.frameId,
-    role: rn.role,
-    name: sanitizeText(rn.name),
-    text: sanitizeText(rn.text),
-    visible: rn.visible,
-    enabled: rn.enabled,
-    bounds: rn.bounds,
-  }));
+  return {
+    nodes: rawNodes.results.map((rn) => ({
+      nodeId: rn.nodeId,
+      frameId: rn.frameId,
+      role: rn.role,
+      name: sanitizeText(rn.name),
+      text: sanitizeText(rn.text),
+      visible: rn.visible,
+      enabled: rn.enabled,
+      bounds: rn.bounds,
+    })),
+    truncated: rawNodes.truncated,
+  };
 }

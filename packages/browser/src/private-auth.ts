@@ -1,5 +1,5 @@
 import type { BrowserSnapshot, NodeTarget } from '@localqa/contracts';
-import { validateApprovedAuthState } from './auth-state.js';
+import { AuthStateError, validateApprovedAuthState } from './auth-state.js';
 import type { ApprovedAuthState } from './types.js';
 
 export type AuthSessionStatus = 'allocated' | 'active' | 'ended' | 'revoked';
@@ -97,6 +97,12 @@ export interface TrustedAuthPrimitives {
 
 export interface PrivateAuthPort {
   readonly sessionId: string;
+  /**
+   * Optional, trusted server-side lease refresh. It has no caller-supplied
+   * expiry or identity parameters: only the sealed Worker authority may
+   * produce the new binding, with all identity fields held constant.
+   */
+  renewAuthority?(): Promise<void>;
   /**
    * Registers known sensitive values before any browser effect, so the first
    * snapshot after a navigation cannot expose material that the page already
@@ -301,6 +307,40 @@ function assertEffect(permit: AuthPermit, effect: AuthEffect): void {
   fail('VALIDATION_ERROR');
 }
 
+/** Auth permits never expand approved network scope. Compare exact protocol,
+ * host, and port, before invoking the gate or any browser effect. */
+function assertAllowedAuthUrl(
+  url: string,
+  allowedOrigins: readonly string[],
+): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new AuthStateError('TARGET_NOT_ALLOWED');
+  }
+  if (
+    !['http:', 'https:'].includes(parsed.protocol) ||
+    parsed.username !== '' ||
+    parsed.password !== '' ||
+    !allowedOrigins.some((approved) => {
+      try {
+        const candidate = new URL(approved);
+        return (
+          ['http:', 'https:'].includes(candidate.protocol) &&
+          candidate.username === '' &&
+          candidate.password === '' &&
+          candidate.origin === parsed.origin
+        );
+      } catch {
+        return false;
+      }
+    })
+  ) {
+    throw new AuthStateError('TARGET_NOT_ALLOWED');
+  }
+}
+
 function cloneValue<T>(
   value: T,
   ancestors = new WeakSet<object>(),
@@ -463,8 +503,9 @@ export function createPrivateAuthPort(options: {
   primitives: TrustedAuthPrimitives;
   allowedOrigins: readonly string[];
   now?: () => number;
+  trustedRenewal?: () => Promise<AuthSessionBinding>;
 }): PrivateAuthPort {
-  const binding = snapshotCopy(options.binding);
+  let binding = snapshotCopy(options.binding);
   assertBindingShape(binding);
   const gate = bindGate(options.gate);
   const { authorize, authorizeExport } = gate;
@@ -475,6 +516,28 @@ export function createPrivateAuthPort(options: {
   const targets: NodeTarget[] = [];
   let closed = false;
   const now = options.now ?? Date.now;
+  const absoluteRenewalLimit = parseTime(binding.expiresAt) + 5 * 60 * 1000;
+
+  async function renewAuthority(): Promise<void> {
+    if (!options.trustedRenewal || closed) fail('VALIDATION_ERROR');
+    let next: AuthSessionBinding;
+    try {
+      next = snapshotCopy(await options.trustedRenewal());
+      assertBindingShape(next);
+    } catch {
+      fail('LEASE_EXPIRED');
+    }
+    const oldExpiry = parseTime(binding.expiresAt);
+    const newExpiry = parseTime(next.expiresAt);
+    if (
+      !sameBinding(next, binding) ||
+      newExpiry < oldExpiry ||
+      newExpiry <= now() ||
+      newExpiry > absoluteRenewalLimit
+    )
+      fail('LEASE_EXPIRED');
+    binding = next;
+  }
 
   function assertActive(signal?: AbortSignal): void {
     if (closed) fail('VALIDATION_ERROR');
@@ -551,6 +614,7 @@ export function createPrivateAuthPort(options: {
 
   return {
     sessionId: binding.sessionId,
+    ...(options.trustedRenewal ? { renewAuthority } : {}),
     primeSensitiveValues,
     redactObservation,
     async executeAuth(permit, effect, signal) {
@@ -562,11 +626,18 @@ export function createPrivateAuthPort(options: {
       ) {
         fail('VALIDATION_ERROR');
       }
+      // The Worker heartbeat can extend the server session between issuing
+      // the permit and reaching this private browser port. Fetch the proven
+      // authority *after* the permit, avoiding a stale-deadline race.
+      if (options.trustedRenewal) await renewAuthority();
       assertActive(signal);
       if (!sameBinding(approvedPermit, binding)) fail('LEASE_EXPIRED');
       assertLive(now(), approvedPermit.deadline, binding.expiresAt);
       assertEffect(approvedPermit, approvedEffect);
       if (grants.has(approvedPermit.grantId)) fail('VALIDATION_ERROR');
+      if (approvedEffect.kind === 'navigate') {
+        assertAllowedAuthUrl(approvedPermit.url ?? '', allowedOrigins);
+      }
       grants.set(approvedPermit.grantId, 'pending');
       try {
         await authorize({ binding, permit: approvedPermit });
@@ -619,9 +690,18 @@ export function createPrivateAuthPort(options: {
     async exportAuthState(grant, signal) {
       const approvedGrant = snapshotCopy(grant);
       assertGrantShape(approvedGrant);
+      if (options.trustedRenewal) await renewAuthority();
       assertActive(signal);
       if (!sameBinding(approvedGrant, binding)) fail('LEASE_EXPIRED');
-      if (approvedGrant.expiresAt !== binding.expiresAt) fail('LEASE_EXPIRED');
+      // A heartbeat may advance the *same* session after this grant was
+      // issued. Accept an earlier grant deadline only if the renewed, frozen
+      // authority tuple remains identical and the server gate approves it.
+      if (
+        options.trustedRenewal
+          ? parseTime(approvedGrant.expiresAt) > parseTime(binding.expiresAt)
+          : approvedGrant.expiresAt !== binding.expiresAt
+      )
+        fail('LEASE_EXPIRED');
       assertLive(now(), approvedGrant.deadline, binding.expiresAt);
       if (grants.has(approvedGrant.grantId)) fail('VALIDATION_ERROR');
       grants.set(approvedGrant.grantId, 'pending');

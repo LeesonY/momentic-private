@@ -1,0 +1,205 @@
+import type { AuthProfile } from '@localqa/contracts';
+import {
+  BrowserManager,
+  BrowserSessionImpl,
+  createPrivateAuthPort,
+  createTrustedBrowserAuthPrimitives,
+} from '@localqa/browser';
+import type { AuthSessionBinding } from '@localqa/browser';
+import type { RuntimeClient } from '@localqa/orchestrator';
+import type { LeaseProof } from '@localqa/storage';
+import { setTimeout as delay } from 'node:timers/promises';
+import { createAuthAdapters } from './auth-adapters.js';
+import { runAuthFlow } from './auth-flow.js';
+import type { AuthFlowOutcome } from './auth-flow.js';
+import { createAuthRuntimeBridge } from './auth-runtime.js';
+import { createAuthServices } from './auth-services.js';
+
+const blocked: AuthFlowOutcome = Object.freeze({
+  status: 'blocked',
+  reasonCode: 'AUTH_FAILED',
+  steps: [],
+  stateRef: null,
+});
+
+const same = (allocated: AuthSessionBinding, active: AuthSessionBinding) =>
+  allocated.status === 'allocated' &&
+  active.status === 'active' &&
+  allocated.purpose === 'initializer' &&
+  active.purpose === 'initializer' &&
+  (
+    [
+      'sessionId',
+      'projectId',
+      'runId',
+      'taskId',
+      'workerId',
+      'fencingToken',
+      'contextVersion',
+      'contextId',
+      'profileId',
+      'profileVersion',
+      'authEpoch',
+      'expiresAt',
+    ] as const
+  ).every((key) => allocated[key] === active[key]) &&
+  Date.parse(active.expiresAt) > Date.now();
+
+/**
+ * Run the production, server-authorized form authentication in an owned
+ * Chromium context. This is not a model tool and never exposes credential
+ * material, private tickets or imported state to ordinary task output.
+ * finishAuth performs the *only* successful auth-job settlement in PostgreSQL.
+ */
+export async function initializeBrowserAuthentication(
+  options: {
+    runtime: RuntimeClient;
+    browser: BrowserManager;
+    proof: LeaseProof;
+    profile: AuthProfile;
+    projectId: string;
+    runId: string;
+  },
+  signal: AbortSignal,
+): Promise<AuthFlowOutcome> {
+  if (signal.aborted)
+    return { ...blocked, status: 'cancelled', reasonCode: 'CANCELLED' };
+  const { profile, runtime, proof } = options;
+  // Both modes require a frozen success criterion. Importing a storage state
+  // without verifying the authenticated page must never grant auth authority.
+  const criterion =
+    profile.mode === 'form'
+      ? profile.formConfig?.successCriterion
+      : profile.mode === 'storage_state'
+        ? profile.storageCriterion
+        : undefined;
+  if (
+    !['form', 'storage_state'].includes(profile.mode) ||
+    profile.status !== 'active' ||
+    !criterion ||
+    profile.projectId !== options.projectId
+  )
+    return blocked;
+
+  let binding: AuthSessionBinding | undefined;
+  let session: BrowserSessionImpl | undefined;
+  let port: ReturnType<typeof createPrivateAuthPort> | undefined;
+  let finished = false;
+  try {
+    const allocated = await runtime.allocateAuthSession(proof);
+    binding = allocated;
+    if (
+      allocated.taskId !== proof.taskId ||
+      allocated.fencingToken !== proof.fencingToken ||
+      allocated.contextVersion !== proof.contextVersion ||
+      allocated.profileId !== profile.id ||
+      allocated.profileVersion !== profile.version ||
+      allocated.projectId !== options.projectId ||
+      allocated.runId !== options.runId ||
+      allocated.purpose !== 'initializer' ||
+      allocated.status !== 'allocated'
+    )
+      return blocked;
+    if (signal.aborted)
+      return { ...blocked, status: 'cancelled', reasonCode: 'CANCELLED' };
+    const { activationTicket } = await runtime.issueAuthActivationTicket(
+      proof,
+      allocated.sessionId,
+    );
+    if (!activationTicket || signal.aborted) return blocked;
+    const active = await runtime.activateAuthSession(
+      proof,
+      allocated.sessionId,
+      activationTicket,
+    );
+    if (!same(allocated, active) || signal.aborted) return blocked;
+    const created = await options.browser.createSession({
+      sessionId: active.contextId,
+      projectId: active.projectId,
+      runId: active.runId,
+      taskId: active.taskId,
+      allowedOrigins: profile.allowedOrigins,
+      mode: 'non_submitting',
+      enableTrace: false,
+    });
+    if (!(created instanceof BrowserSessionImpl)) {
+      await created.close();
+      return blocked;
+    }
+    session = created;
+    const services = createAuthServices({
+      client: runtime,
+      proof,
+      binding: active,
+      pauseForOtp: async () => {
+        if (signal.aborted) throw new Error('CANCELLED');
+        const input = await runtime.issueAuthOtp(proof, active.sessionId);
+        // The existing Worker heartbeat stays active and its private Chromium
+        // session remains held. No generic waitForInput()/job requeue occurs.
+        // A crash or lease revocation ends this task, never replays the OTP.
+        while (!signal.aborted) {
+          const result = await runtime.consumeAuthOtp(
+            proof,
+            active.sessionId,
+            input.id,
+          );
+          if (result.status === 'ready' && result.code)
+            return { code: result.code };
+          if (result.status !== 'pending') throw new Error('AUTH_FAILED');
+          await delay(250, undefined, { signal });
+        }
+        throw new Error('CANCELLED');
+      },
+    });
+    const { runtime: flowRuntime, gate } = createAuthRuntimeBridge({
+      client: runtime,
+      proof,
+      binding: active,
+      services,
+    });
+    port = createPrivateAuthPort({
+      binding: active,
+      allowedOrigins: profile.allowedOrigins,
+      gate,
+      trustedRenewal: () => runtime.authSession(proof, active.sessionId),
+      primitives: createTrustedBrowserAuthPrimitives(
+        session,
+        profile.allowedOrigins,
+      ),
+    });
+    const adapters = createAuthAdapters({
+      session,
+      binding: active,
+      criterion,
+      // The exact observed snapshot is registered in the server-side auth
+      // ledger; its immutable ID is the supporting evidence for this oracle.
+      ownedEvidence: (snapshot) => [snapshot.snapshotId],
+    });
+    const outcome = await runAuthFlow(
+      {
+        profile,
+        binding: active,
+        runtime: flowRuntime,
+        port,
+        adapters,
+        criterion,
+      },
+      signal,
+    );
+    finished = outcome.status === 'succeeded';
+    return outcome;
+  } catch {
+    // No raw exceptions or secrets enter ordinary task results.
+    return signal.aborted
+      ? { ...blocked, status: 'cancelled', reasonCode: 'CANCELLED' }
+      : blocked;
+  } finally {
+    await port?.close().catch(() => {});
+    await session?.close().catch(() => {});
+    if (binding && !finished) {
+      await runtime
+        .endAuthSession(proof, binding.sessionId, 'failed')
+        .catch(() => {});
+    }
+  }
+}

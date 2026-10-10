@@ -2,7 +2,13 @@
 // Defaults come from technical design §8/§12 and SRS §6/NFR-010; EVENT_RETENTION_DAYS
 // has no documented default and must be chosen explicitly by the deploy owner.
 export const CONFIG_KEYS = Object.freeze({
-  DATABASE_URL: { kind: 'postgres-url', required: true, sensitive: true },
+  // Exactly one source must be configured by the production launcher.
+  DATABASE_URL: { kind: 'postgres-url', required: false, sensitive: true },
+  DATABASE_URL_FILE: {
+    kind: 'protected-file',
+    required: false,
+    sensitive: true,
+  },
   PUBLIC_ORIGIN: { kind: 'https-origin', required: true, sensitive: false },
   DATA_DIR: { kind: 'absolute-path', required: true, sensitive: false },
   MASTER_KEY_FILE: { kind: 'protected-file', required: true, sensitive: true },

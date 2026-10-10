@@ -21,6 +21,7 @@ const ai = {
   kind: 'ai_action',
   goal: 'Controlled action',
   criteriaIds: ['visible'],
+  maxToolCalls: 4,
 };
 function doc(steps) {
   return {
@@ -156,6 +157,54 @@ test('AI uses the shared guarded tool port and is followed by frozen criteria ev
   );
   assert.equal(result.steps[0].tools.length, 1);
   assert.equal(result.steps[0].criterionResults[0].result, 'passed');
+});
+
+test('T27 frozen minimum and maximum travel through compiler to the guarded replay port', async () => {
+  const frozen = { ...ai, maxToolCalls: 2, minToolCalls: 2 };
+  const compiled = compile([frozen]);
+  assert.equal(compiled[0].step.maxToolCalls, 2);
+  assert.equal(compiled[0].step.minToolCalls, 2);
+  const { ports } = fake();
+  let forwarded = 0;
+  ports.aiAction = async ({ minToolCalls, maxToolCalls, source }) => {
+    forwarded++;
+    assert.equal(minToolCalls, 2);
+    assert.equal(maxToolCalls, 2);
+    assert.equal(source.stepIndex, 0);
+  };
+  const result = await replayRegression(
+    compiled,
+    ports,
+    new AbortController().signal,
+  );
+  assert.equal(result.status, 'completed');
+  assert.equal(forwarded, 1);
+  assert.equal(result.steps[0].criterionResults[0].result, 'passed');
+});
+
+test('T33 frozen two-click tool order is conveyed unchanged through the guarded replay compiler', async () => {
+  const frozen = {
+    ...ai,
+    maxToolCalls: 2,
+    minToolCalls: 2,
+    requiredToolSequence: ['click', 'click'],
+  };
+  const { ports } = fake();
+  ports.aiAction = async ({
+    requiredToolSequence,
+    minToolCalls,
+    maxToolCalls,
+  }) => {
+    assert.deepEqual(requiredToolSequence, ['click', 'click']);
+    assert.equal(minToolCalls, 2);
+    assert.equal(maxToolCalls, 2);
+  };
+  const result = await replayRegression(
+    compile([frozen]),
+    ports,
+    new AbortController().signal,
+  );
+  assert.equal(result.status, 'completed');
 });
 
 test('missing AI adapter fails closed with no exploration or subsequent action', async () => {

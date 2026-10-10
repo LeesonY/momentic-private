@@ -53,12 +53,13 @@ D["Knowledge"] = obj({"id": UUID, "projectId": UUID, "title": text(200), "kind":
 D["KnowledgeCreate"] = obj({"title": text(200, minLength=1), "kind": enum("terminology", "rule", "flow", "restriction"), "text": text(20000, minLength=1)})
 D["KnowledgePatch"] = obj({"expectedVersion": VER, "title": text(200), "text": text(20000), "approved": BOOL}, ["expectedVersion"])
 D["ModelCapabilities"] = obj({"structuredOutput": BOOL, "nativeTools": BOOL, "imageInput": BOOL})
-D["ModelProfile"] = obj({"id": UUID, "name": text(120), "endpoint": URI, "configuredModelId": text(200, minLength=1), "adapter": enum("openai_compatible"), "dataBoundary": enum("internal", "external"), "capabilities": ref("ModelCapabilities"), "status": enum("untested", "ready", "degraded", "disabled"), "version": VER})
-D["ModelProfileCreate"] = obj({"name": text(120, minLength=1), "endpoint": URI, "configuredModelId": text(200, minLength=1), "adapter": enum("openai_compatible"), "dataBoundary": enum("internal", "external"), "apiKey": text(1000, writeOnly=True)}, ["name", "endpoint", "configuredModelId", "adapter", "dataBoundary"])
+D["ModelProfile"] = obj({"id": UUID, "name": text(120), "endpoint": URI, "configuredModelId": text(200, minLength=1), "adapter": enum("openai_compatible", "anthropic_messages"), "dataBoundary": enum("internal", "external"), "capabilities": ref("ModelCapabilities"), "status": enum("untested", "ready", "degraded", "disabled"), "version": VER})
+D["ModelProfileCreate"] = obj({"name": text(120, minLength=1), "endpoint": URI, "configuredModelId": text(200, minLength=1), "adapter": enum("openai_compatible", "anthropic_messages"), "dataBoundary": enum("internal", "external"), "apiKey": text(1000, writeOnly=True)}, ["name", "endpoint", "configuredModelId", "adapter", "dataBoundary"])
 for model_schema in ["ModelProfile", "ModelProfileCreate"]:
     D[model_schema]["properties"]["responseFormat"] = enum("json_schema", "json_object", "native_tools")
 D["ModelProbeResult"] = obj({"profileId": UUID, "capabilities": ref("ModelCapabilities"), "status": enum("ready", "degraded", "disabled"), "notes": arr(text(1000), 20)})
-D["RunCreate"] = obj({"projectId": UUID, "targetUrl": URI, "brief": text(4000), "environmentId": UUID, "authProfileId": UUID, "mode": enum("smoke"), "budget": ref("BudgetOverrides")}, ["projectId", "targetUrl"])
+D["ModelGrantCreate"] = obj({"modelProfileId": UUID}, ["modelProfileId"])
+D["RunCreate"] = obj({"projectId": UUID, "targetUrl": URI, "brief": text(4000), "environmentId": UUID, "authProfileId": UUID, "modelProfileId": UUID, "mode": enum("smoke"), "budget": ref("BudgetOverrides")}, ["projectId", "targetUrl"])
 D["RunConfig"] = obj({"allowedOrigins": arr(URI, 30, 1), "actionPolicy": enum("non_submitting", "approved_workflows"), "budget": ref("BudgetLimits"), "environmentVersion": nullable(VER), "authProfileVersion": nullable(VER), "modelProfileIds": arr(UUID, 10, 1), "knowledgeVersionIds": arr(UUID, 100)})
 RUN_STATUS = ["draft", "queued", "running", "awaiting_input", "cancelling", "completed", "cancelled", "failed"]
 PHASE = ["preflight", "auth", "explore", "plan", "execute", "reproduce", "finalize"]
@@ -135,10 +136,12 @@ D["Criterion"]["allOf"] = [
 ]
 D["AuthProfileCreate"]["allOf"] = [
     {"if": {"properties": {"mode": {"const": "form"}}, "required": ["mode"]}, "then": {"required": ["formConfig", "secretInput"], "properties": {"secretInput": {"required": ["username", "password"]}}}},
-    {"if": {"properties": {"mode": {"const": "storage_state"}}, "required": ["mode"]}, "then": {"required": ["secretInput"], "properties": {"secretInput": {"required": ["storageState"]}}}},
+    {"if": {"properties": {"mode": {"const": "storage_state"}}, "required": ["mode"]}, "then": {"required": ["secretInput", "storageCriterion"], "properties": {"secretInput": {"required": ["storageState"]}}}},
 ]
 D["AuthProfile"]["properties"].update({"status": enum("active", "revoked"), "formConfig": nullable(ref("FormConfig"))})
 D["AuthProfile"]["required"].extend(["status", "formConfig"])
+for auth_name in ("AuthProfile", "AuthProfileCreate", "AuthProfilePatch"):
+    D[auth_name]["properties"]["storageCriterion"] = ref("Criterion")
 event_payloads = {
     "run.updated": ref("Run"), "phase.changed": obj({"phase": enum(*PHASE), "contextVersion": VER}),
     "task.updated": ref("Task"), "case.created": ref("CaseDefinition"), "case.result": ref("CaseRecord"),
@@ -175,7 +178,7 @@ tool_results = {**{n: "BrowserSnapshot" for n in ["observe", "navigate", "click"
 for name, result in tool_results.items(): tools[name]["x-result-schema"] = ref(result)
 D["ToolCall"] = {"oneOf": list(tools.values())}
 D["ActionReservation"]["properties"]["toolCall"] = ref("ToolCall")
-replay_steps = [obj({"kind": {"const": "navigate"}, "url": text(8192, minLength=1)}), obj({"kind": {"const": "click"}, "locator": ref("Locator")}), obj({"kind": {"const": "type_text"}, "locator": ref("Locator"), "text": text(2000)}), obj({"kind": {"const": "assert"}, "criterionId": text(64)}), obj({"kind": {"const": "ai_action"}, "goal": text(2000), "criteriaIds": arr(text(64), 20, 1)}), obj({"kind": {"const": "module"}, "ref": text(131, pattern="^[a-zA-Z0-9_./-]+@[1-9][0-9]*$"), "arguments": {"type": "object", "additionalProperties": ref("JsonValue")}}, ["kind", "ref"])]
+replay_steps = [obj({"kind": {"const": "navigate"}, "url": text(8192, minLength=1)}), obj({"kind": {"const": "click"}, "locator": ref("Locator")}), obj({"kind": {"const": "type_text"}, "locator": ref("Locator"), "text": text(2000)}), obj({"kind": {"const": "assert"}, "criterionId": text(64)}), obj({"kind": {"const": "ai_action"}, "goal": text(2000), "criteriaIds": arr(text(64), 20, 1), "maxToolCalls": integer(1,4), "minToolCalls": integer(1,4), "requiredToolSequence": arr(enum("click", "type_text", "select_option", "press", "scroll", "wait_for"), 4, 1)}, ["kind", "goal", "criteriaIds", "maxToolCalls"]), obj({"kind": {"const": "module"}, "ref": text(131, pattern="^[a-zA-Z0-9_./-]+@[1-9][0-9]*$"), "arguments": {"type": "object", "additionalProperties": ref("JsonValue")}}, ["kind", "ref"])]
 D["ReplayStep"] = {"oneOf": replay_steps}
 D["RegressionDocument"] = obj({"schemaVersion": {"const": 1}, "kind": {"const": "localqa/test"}, "id": text(120, pattern="^[a-zA-Z0-9_.-]+$"), "name": text(200, minLength=1), "variables": {"type": "object", "additionalProperties": {"type": ["string", "number", "boolean"]}}, "criteria": arr(ref("Criterion"), 20, 1), "steps": arr(ref("ReplayStep"), 100, 1), "fixtureRefs": arr(obj({"id": UUID, "version": VER}), 10)}, ["schemaVersion", "kind", "id", "name", "criteria", "steps"])
 D["RegressionModuleVersion"] = obj({"projectId": UUID, "name": text(120, pattern="^[a-zA-Z0-9_./-]+$"), "version": VER, "sha256": text(64, pattern="^[0-9a-f]{64}$"), "document": ref("RegressionDocument"), "reviewStatus": enum("draft", "approved", "rejected")})
@@ -219,9 +222,52 @@ D["ApiKey"] = obj({"id": UUID, "projectId": UUID, "name": text(120, minLength=1)
 D["ApiKeyCreate"] = obj({"name": text(120, minLength=1), "scope": arr(ref("ApiKeyScope"), 20, 1), "expiresAt": nullable(DATE)}, ["name", "scope"])
 D["ApiKeyCreated"] = obj({"key": ref("ApiKey"), "token": text(2000)})
 D["CacheStats"] = obj({"runId": UUID, "hits": integer(), "misses": integer(), "invalidated": integer(), "resolution": text(200), "savedModelCalls": integer(), "savedMs": integer()})
-D["RepairProposal"] = obj({"id": UUID, "caseId": UUID, "findingId": UUID, "proposedVersion": VER, "diff": text(20000), "verificationRunId": nullable(UUID), "status": enum("draft", "approved", "rejected"), "createdAt": DATE})
+D["RepairProposal"] = obj({"id": UUID, "caseId": UUID, "findingId": UUID, "proposedVersion": VER, "diff": text(20000), "verificationRunId": nullable(UUID), "status": enum("draft", "approved", "rejected"), "createdAt": DATE, "reviewReason": nullable(text(2000)), "reviewedBy": nullable(UUID), "reviewedAt": nullable(DATE)})
 D["RepairProposalCreate"] = obj({"findingId": UUID, "diff": text(20000, minLength=1)})
+D["RepairProposalReviewInput"] = obj({"decision": enum("approve","reject"), "reason": text(2000, minLength=10)}, ["decision","reason"])
+D["RepairCandidateVerification"] = obj({
+    "id": UUID, "projectId": UUID, "proposalId": UUID,
+    "caseId": UUID, "candidateVersionId": UUID,
+    "candidateSha256": text(64, minLength=64),
+    "status": enum("queued", "running", "completed"),
+    "outcome": nullable(enum("passed", "failed", "inconclusive")),
+    "reasonCode": nullable(text(64)),
+    "observedSteps": integer(0, 100),
+    "verifiedCriteria": integer(0, 100),
+    "createdAt": DATE, "startedAt": nullable(DATE),
+    "finishedAt": nullable(DATE),
+}, ["id", "projectId", "proposalId", "caseId", "candidateVersionId",
+    "candidateSha256", "status", "outcome", "reasonCode", "observedSteps",
+    "verifiedCriteria", "createdAt", "startedAt", "finishedAt"])
+D["RepairCandidateVerificationPage"] = obj({
+    "items": arr(ref("RepairCandidateVerification"), 100),
+    "nextCursor": nullable(text(2000)),
+})
+D["RepairCandidateEvidence"] = obj({
+    "id": UUID, "verificationId": UUID, "candidateVersionId": UUID,
+    "stepIndex": integer(0, 30),
+    "stepKind": enum("navigate","click","type_text","assert"),
+    "criterionId": nullable(text(200)),
+    "criterionPassed": nullable({"type":"boolean"}),
+    "snapshotId": UUID, "snapshotSha256": text(64,minLength=64),
+    "displayUrl": text(8192),
+    "screenshotSha256": nullable(text(64,minLength=64)),
+    "screenshotBytes": nullable(integer(1, 1048576)),
+    "retention": enum("available","purged"),
+    "purgedAt": nullable(DATE),
+    "createdAt": DATE,
+}, ["id","verificationId","candidateVersionId","stepIndex","stepKind",
+    "criterionId","criterionPassed","snapshotId","snapshotSha256","displayUrl",
+    "screenshotSha256","screenshotBytes","retention","purgedAt","createdAt"])
+D["RepairCandidateEvidencePage"] = obj({
+    "items": arr(ref("RepairCandidateEvidence"), 30),
+})
 D["RegressionRunCreate"] = obj({"projectId": UUID, "caseVersionIds": arr(UUID, 100, 1), "environmentId": UUID, "authProfileId": UUID, "budget": ref("BudgetOverrides")}, ["projectId", "caseVersionIds"])
+D["ScheduleRunTemplate"] = {"oneOf": [ref("RunCreate"), ref("RegressionRunCreate")]}
+for name in ("Schedule", "ScheduleCreate", "SchedulePatch"):
+    D[name]["properties"]["runTemplate"] = ref("ScheduleRunTemplate")
+D["ScheduleOccurrence"] = obj({"id": UUID, "scheduleId": UUID, "projectId": UUID, "scheduleVersion": VER, "scheduledAt": DATE, "scheduledLocal": text(100), "status": enum("pending","dispatching","started","skipped","failed"), "runId": nullable(UUID), "createdAt": DATE}, ["id","scheduleId","projectId","scheduleVersion","scheduledAt","scheduledLocal","status","runId","createdAt"])
+D["ScheduleOccurrencePage"] = obj({"items": arr(ref("ScheduleOccurrence"), 100), "nextCursor": nullable(text(2000))})
 
 def convert_refs(value):
     if isinstance(value, dict): return {k: convert_refs(v) for k, v in value.items()}
@@ -266,6 +312,8 @@ operation(P+"/model-profiles", "post", "createModel", "ModelProfile", "ModelProf
 operation(P+"/model-profiles/{modelProfileId}", "get", "getModel", "ModelProfile")
 operation(P+"/model-profiles/{modelProfileId}", "patch", "updateModel", "ModelProfile", "ModelProfilePatch")
 operation(P+"/model-profiles/{modelProfileId}/probe", "post", "probeModel", "ModelProbeResult")
+operation(P+"/projects/{projectId}/model-profiles", "get", "listProjectModels", "ModelProfilePage", queries=[("cursor", False, text(2000)), ("limit", False, integer(1, 100))])
+operation(P+"/projects/{projectId}/model-profiles", "post", "grantProjectModel", "ModelProfile", "ModelGrantCreate", 201)
 operation(P+"/runs", "post", "createRun", "Run", "RunCreate", 202, idem=True)
 operation(P+"/runs", "get", "listRuns", "RunPage", queries=[("projectId", True, UUID), ("cursor", False, text(2000)), ("limit", False, integer(1, 100)), ("status", False, enum(*RUN_STATUS)), ("environmentId", False, UUID)])
 operation(P+"/runs/{runId}", "get", "getRun", "Run")
@@ -317,12 +365,20 @@ operation(P+"/projects/{projectId}/schedules", "get", "listSchedules", "Schedule
 operation(P+"/projects/{projectId}/schedules", "post", "createSchedule", "Schedule", "ScheduleCreate", 201)
 operation(P+"/schedules/{scheduleId}", "patch", "updateSchedule", "Schedule", "SchedulePatch")
 operation(P+"/schedules/{scheduleId}/run-now", "post", "runScheduleNow", "Run", status=202)
+operation(P+"/schedules/{scheduleId}/occurrences", "get", "listScheduleOccurrences", "ScheduleOccurrencePage", queries=[("cursor",False,text(2000)),("limit",False,integer(1,100))])
 operation(P+"/projects/{projectId}/api-keys", "get", "listApiKeys", "ApiKeyPage")
 operation(P+"/projects/{projectId}/api-keys", "post", "createApiKey", "ApiKeyCreated", "ApiKeyCreate", 201)
 operation(P+"/api-keys/{keyId}/revoke", "post", "revokeApiKey", "ApiKey")
 operation(P+"/runs/{runId}/cache-stats", "get", "getCacheStats", "CacheStats")
 operation(P+"/saved-cases/{caseId}/repair-proposals", "get", "listRepairProposals", "RepairProposalPage")
 operation(P+"/saved-cases/{caseId}/repair-proposals", "post", "createRepairProposal", "RepairProposal", "RepairProposalCreate", 201)
+operation(P+"/saved-cases/{caseId}/repair-proposals/{proposalId}/review", "post", "reviewRepairProposal", "RepairProposal", "RepairProposalReviewInput")
+operation(P+"/saved-cases/{caseId}/repair-proposals/{proposalId}/candidate-version", "post", "createRepairCandidateDraft", "SavedCaseVersion", "SavedCaseVersionCreate", 201)
+operation(P+"/saved-cases/{caseId}/repair-proposals/{proposalId}/candidate-version", "get", "getRepairCandidateDraft", "SavedCaseVersion")
+operation(P+"/saved-cases/{caseId}/repair-proposals/{proposalId}/verifications", "post", "startRepairCandidateVerification", "RepairCandidateVerification", status=202)
+operation(P+"/saved-cases/{caseId}/repair-proposals/{proposalId}/verifications", "get", "listRepairCandidateVerifications", "RepairCandidateVerificationPage", queries=[("cursor",False,text(2000)),("limit",False,integer(1,100))])
+operation(P+"/saved-cases/{caseId}/repair-proposals/{proposalId}/verifications/{verificationId}/evidence", "get", "listRepairCandidateEvidence", "RepairCandidateEvidencePage")
+operation(P+"/saved-cases/{caseId}/repair-proposals/{proposalId}/verifications/{verificationId}/evidence/{evidenceId}/screenshot", "get", "getRepairCandidateScreenshot", "Binary", media="image/png")
 for suffix in ["live", "ready"]: operation(P+"/health/"+suffix, "get", "health"+suffix.title(), "Health", public=True)
 paths[P+"/health/ready"]["get"]["responses"]["503"] = {"description": "Core API dependencies not ready", "content": {"application/json": {"schema": convert_refs(ref("Health"))}}}
 I = "/internal/v1"

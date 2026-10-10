@@ -245,7 +245,8 @@ function isCanonicalStorageState(value: JsonValue | undefined): boolean {
  * Failures stop the flow: no loop, no second OTP request, no fabricated pass.
  * The outcome and every error carry constant codes only. Without a configured,
  * supported success criterion this adapter reports blocked, never succeeded.
- * Real capture-ticket CAS/OTP services are not implemented here.
+ * The real OTP and capture-ticket services are supplied by the trusted
+ * adapters, not by the model or this pure flow.
  *
  * Supported scope of this batch:
  * - `form` and `storage_state` profiles over the AUTH-5 private port only.
@@ -452,6 +453,16 @@ export async function runAuthFlow(
     effect: AuthEffect,
     target?: NodeTarget,
   ): Promise<BrowserSnapshot | null> {
+    // In production the Worker heartbeat advances the DB-backed private
+    // session TTL. Refresh its browser-side snapshot using only the trusted
+    // Runtime (never a model/page-supplied timestamp) before any new grant.
+    if (requirePort().renewAuthority) {
+      try {
+        await requirePort().renewAuthority!();
+      } catch (error) {
+        throw failure(error, 'LEASE_EXPIRED');
+      }
+    }
     const permit = await grant(action, slot, target);
     let snapshot: BrowserSnapshot | null;
     try {
@@ -535,6 +546,13 @@ export async function runAuthFlow(
   /** Capture and finish. Every step must succeed for the flow to succeed. */
   async function captureAndFinish(): Promise<string> {
     check();
+    if (requirePort().renewAuthority) {
+      try {
+        await requirePort().renewAuthority!();
+      } catch (error) {
+        throw failure(error, 'LEASE_EXPIRED');
+      }
+    }
     let granted: AuthExportGrant;
     try {
       granted = await runtime.issueCaptureGrant();

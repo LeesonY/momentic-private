@@ -13,6 +13,7 @@ import { MembersOpsPage } from './pages/MembersOpsPage.tsx';
 import { SavedCasesPage } from './pages/SavedCasesPage.tsx';
 import { SavedCaseDetailPage } from './pages/SavedCaseDetailPage.tsx';
 import { ModulesPage } from './pages/ModulesPage.tsx';
+import { SchedulesPage } from './pages/SchedulesPage.tsx';
 
 export const App: React.FC = () => {
   const { currentRoute, currentUser, sessionLoading } = useApp();
@@ -62,6 +63,8 @@ export const App: React.FC = () => {
       return <FindingDetailPage />;
     case 'saved-cases':
       return <SavedCasesPage />;
+    case 'schedules':
+      return <SchedulesPage />;
     case 'saved-case-detail':
       return <SavedCaseDetailPage />;
     case 'modules':

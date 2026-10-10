@@ -195,6 +195,7 @@ payload 为各 type 对应资源摘要；UI 从这些摘要更新状态，并按
 | NOT_FOUND | 404；跨项目 ID 不泄露存在性 |
 | VALIDATION_ERROR / TARGET_NOT_ALLOWED | 422 |
 | MODEL_NOT_CONFIGURED / PROJECT_ARCHIVED | 409；派发前失败 |
+| MODEL_BILLING_REQUIRED | 402；上游模型账户欠费/余额不足/需要计费授权，非 JSON 格式错误；不自动重试或使用其他模型 |
 | IDEMPOTENCY_CONFLICT / VERSION_CONFLICT | 409 |
 | EVENTS_EXPIRED | 410；重新取得快照 |
 | RATE_LIMITED | 429，Retry-After |
@@ -203,6 +204,8 @@ payload 为各 type 对应资源摘要；UI 从这些摘要更新状态，并按
 | LEASE_EXPIRED / ACTION_OUTCOME_UNKNOWN | 内部 409；不自动重放动作 |
 | AUTH_REQUIRED / AUTH_FAILED / CAPTCHA_REQUIRED | InputRequest 或 blocked reason，非自动产品 Bug |
 | MODEL_CAPABILITY_MISSING / MODEL_TIMEOUT | 能力/模型受阻；不假造结论 |
+| MODEL_OUTPUT_TRUNCATED | Anthropic Messages stop_reason=max_tokens；不可执行不完整输出，不自动重复计费请求；保留实际 token 用量 |
+| MODEL_INVALID_JSON / MODEL_SCHEMA_MISMATCH / MODEL_TOOL_CONTRACT_INVALID | 修复机会耗尽后仍不合规的模型输出；仅记录受控原因码，不泄露模型原文 |
 | POLICY_DENIED / SCOPE_CHANGED | 动作不执行，记录原因 |
 | BUDGET_EXCEEDED / INPUT_TIMEOUT / USER_CANCELLED | 保留部分报告和未执行范围 |
 

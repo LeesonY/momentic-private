@@ -24,6 +24,7 @@ export * from './errors.js';
 export * from './router.js';
 export * from './auth.js';
 export * from './app.js';
+export { tickSchedules } from './scheduleService.js';
 
 export interface CreateApiOptions {
   connectionString: string;

@@ -3,21 +3,24 @@ import { readFile } from 'node:fs/promises';
 import {
   createApiContext,
   createApiServer,
+  tickSchedules,
 } from '../../apps/api/dist/index.js';
 import { loadProtectedKek } from './kek.mjs';
 import { Database } from '../../packages/storage/dist/index.js';
 import { readiness } from './readiness.mjs';
+import { loadDatabaseUrl } from './database-url.mjs';
 
 const vault = await loadProtectedKek();
 const secretFile =
   process.env.WORKER_IDENTITY_FILE || '/run/secrets/worker_identity.json';
 const workerSecret = (await readFile(secretFile, 'utf8')).trim();
-if (!workerSecret || !process.env.DATABASE_URL)
+const connectionString = await loadDatabaseUrl();
+if (!workerSecret)
   throw new Error('Missing required API identity or database configuration');
 const slots = Number(process.env.BROWSER_SLOTS || 4);
 if (!Number.isSafeInteger(slots) || slots < 1)
   throw new Error('Invalid BROWSER_SLOTS');
-const bootstrapDb = new Database(process.env.DATABASE_URL);
+const bootstrapDb = new Database(connectionString);
 const adminId = await bootstrapDb.auth(
   async (client) =>
     (
@@ -34,7 +37,7 @@ const context = createApiContext({
   serviceActor: { userId: adminId },
   platformSlots: slots,
   projectSlots: slots,
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
   vault,
   artifactsDir: process.env.DATA_DIR,
   publicOrigin: process.env.PUBLIC_ORIGIN,
@@ -66,5 +69,25 @@ server.on('request', (req, res) => {
 server.listen(Number(process.env.PORT || 3000), '0.0.0.0', () =>
   console.log('API listening'),
 );
+// Durable, DB-fenced occurrences survive process restarts. Scheduler dispatch
+// reuses API run admission; never inject a privileged pre-approved run.
+let scheduleTicking = false;
+let scheduleStopped = false;
+const schedulerLoop = setInterval(async () => {
+  if (scheduleTicking || scheduleStopped) return;
+  scheduleTicking = true;
+  try {
+    if (await readiness({ vault: true })) await tickSchedules(context);
+  } catch {
+    console.error('Scheduler tick failed');
+  } finally {
+    scheduleTicking = false;
+  }
+}, 30_000);
+schedulerLoop.unref();
 for (const signal of ['SIGTERM', 'SIGINT'])
-  process.once(signal, () => server.close(() => process.exit(0)));
+  process.once(signal, () => {
+    scheduleStopped = true;
+    clearInterval(schedulerLoop);
+    server.close(() => process.exit(0));
+  });

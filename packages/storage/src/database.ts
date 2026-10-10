@@ -7,7 +7,7 @@ import type { ErrorCode, Member } from '@localqa/contracts';
 export class StorageError extends Error {
   constructor(
     readonly code: ErrorCode,
-    message = code,
+    message: string = code,
   ) {
     super(message);
     this.name = 'StorageError';
@@ -34,6 +34,9 @@ export class Database {
     this.#pool = new pg.Pool({
       connectionString,
       max: 8,
+      // Bounded acquisition on outage: pooled callers must not wait forever.
+      // Transactions are still fenced by their own worker leases.
+      connectionTimeoutMillis: 10000,
       options: '-c TimeZone=UTC',
     });
     // pg emits errors on idle pooled clients when PostgreSQL restarts. Without
@@ -62,7 +65,14 @@ export class Database {
     settings: Record<string, string>,
     work: (client: PoolClient) => Promise<T>,
   ): Promise<T> {
-    const client = await this.#pool.connect();
+    let client: PoolClient;
+    try {
+      client = await this.#pool.connect();
+    } catch (error) {
+      // pg.Pool.connect() failures happen before BEGIN/ROLLBACK. Map them
+      // into stable, redacted storage errors just like in-flight failures.
+      return mapDatabaseError(error);
+    }
     let connectionLost = false;
     const onClientError = () => {
       connectionLost = true;

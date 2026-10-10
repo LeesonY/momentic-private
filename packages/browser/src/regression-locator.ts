@@ -70,3 +70,67 @@ export async function resolveRegressionLocator(
     await handle.dispose();
   }
 }
+
+/** Fast revalidation of an untrusted role/name hint against the LIVE DOM.
+ * The caller may supply only a NodeTarget derived from the current, budgeted
+ * snapshot. The cached entry never contains a target, a verdict or an element.
+ * A failed check must return null and trigger normal frozen-locator replay.
+ */
+export async function resolveCachedRegressionLocator(
+  page: Page,
+  input: Locator,
+  candidate: NodeTarget,
+  snapshot: BrowserSnapshot,
+  signal?: AbortSignal,
+): Promise<NodeTarget | null> {
+  if (signal?.aborted) throw new RegressionLocatorError('CANCELLED');
+  const locator = parseContract('Locator', input);
+  if (locator.by !== 'role' || !locator.name) return null;
+  if (
+    candidate.snapshotId !== snapshot.snapshotId ||
+    candidate.pageId !== snapshot.pageId ||
+    candidate.frameId !== 'main'
+  )
+    return null;
+  const nodes = snapshot.nodes.filter(
+    (node) =>
+      node.frameId === 'main' &&
+      node.visible &&
+      node.enabled &&
+      node.role === locator.value &&
+      node.name === locator.name,
+  );
+  if (nodes.length !== 1 || nodes[0]!.nodeId !== candidate.nodeId) return null;
+  const selected = page.getByRole(
+    locator.value as Parameters<Page['getByRole']>[0],
+    { name: locator.name, exact: true },
+  );
+  try {
+    if (
+      (await selected.count()) !== 1 ||
+      !(await selected.isVisible()) ||
+      !(await selected.isEnabled())
+    )
+      return null;
+    const handle = await selected.elementHandle();
+    if (!handle) return null;
+    try {
+      if (signal?.aborted) throw new RegressionLocatorError('CANCELLED');
+      const resolved = await resolveTarget(page, candidate, snapshot);
+      if (
+        resolved.status !== 'resolved' ||
+        !(await resolved.locator.evaluate(
+          (element, expected) => element === expected,
+          handle,
+        ))
+      )
+        return null;
+      return parseContract('NodeTarget', candidate);
+    } finally {
+      await handle.dispose();
+    }
+  } catch (error) {
+    if (signal?.aborted) throw new RegressionLocatorError('CANCELLED');
+    return null;
+  }
+}

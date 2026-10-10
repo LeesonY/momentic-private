@@ -1,5 +1,6 @@
 import type { ModelProfile } from '@localqa/contracts';
 import {
+  createAnthropicAdapter,
   createOpenAIAdapter,
   createStubAdapter,
   type GatewayProfile,
@@ -29,10 +30,15 @@ export function createWorkerModelOptions(input: {
 }): ModelOptions {
   const keys = new Map<string, string>();
   const allowTestStub = input.allowTestStub === true;
+  const openai = createOpenAIAdapter(input.transport);
+  const anthropic = createAnthropicAdapter(input.transport);
+  const stub = createStubAdapter();
   return {
-    adapter: allowTestStub
-      ? createStubAdapter()
-      : createOpenAIAdapter(input.transport),
+    adapter: allowTestStub ? stub : openai,
+    adapterForKind: (kind) => {
+      if (allowTestStub) return stub;
+      return kind === 'anthropic_messages' ? anthropic : openai;
+    },
     allowTestStub,
     async profile(id, version) {
       const loaded = await input.load(id, version);
@@ -55,7 +61,7 @@ export function createWorkerModelOptions(input: {
         name: document.name,
         endpoint: document.endpoint,
         configuredModelId: document.configuredModelId,
-        kind: 'openai_compatible',
+        kind: document.adapter,
         dataBoundary: document.dataBoundary,
         capabilities: document.capabilities,
         responseFormat: document.responseFormat ?? 'json_schema',

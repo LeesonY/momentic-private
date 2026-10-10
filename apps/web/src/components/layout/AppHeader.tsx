@@ -1,8 +1,25 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp, type AppRoute } from '../../state/AppContext.tsx';
 import { StatusBadge } from '../ui/Badge.tsx';
+import { AppIcon, type AppIconName } from '../ui/AppIcon.tsx';
+import { ThemeToggle } from '../ui/ThemeToggle.tsx';
+import { CreateProjectDialog } from './CreateProjectDialog.tsx';
+
+const navItems: { key: AppRoute; label: string; icon: AppIconName }[] = [
+  { key: 'home', label: '项目首页', icon: 'grid' },
+  { key: 'workbench', label: '运行工作台', icon: 'activity' },
+  { key: 'saved-cases', label: '用例库', icon: 'layers' },
+  { key: 'schedules', label: '定时回归', icon: 'calendar' },
+  { key: 'modules', label: '模块库', icon: 'boxes' },
+  { key: 'environments', label: '环境与认证', icon: 'shield' },
+  { key: 'knowledge', label: '项目知识', icon: 'book' },
+  { key: 'models', label: '模型管理', icon: 'cpu' },
+  { key: 'members-ops', label: '成员与运维', icon: 'users' },
+];
 
 export const AppHeader: React.FC = () => {
+  const [creatingProject, setCreatingProject] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const {
     currentUser,
     projects,
@@ -15,227 +32,215 @@ export const AppHeader: React.FC = () => {
     logout,
   } = useApp();
 
-  const navItems: { key: AppRoute; label: string }[] = [
-    { key: 'home', label: '项目首页' },
-    { key: 'workbench', label: '运行工作台' },
-    { key: 'saved-cases', label: '用例库' },
-    { key: 'modules', label: '模块库' },
-    { key: 'environments', label: '环境/认证' },
-    { key: 'knowledge', label: '项目知识' },
-    { key: 'models', label: '模型管理' },
-    { key: 'members-ops', label: '成员/运维' },
-  ];
+  useEffect(() => setMenuOpen(false), [currentRoute]);
+
+  const navigate = (route: AppRoute) => {
+    setMenuOpen(false);
+    setRoute(route);
+  };
+
+  const navigation = (mobile: boolean) => (
+    <nav
+      className={mobile ? 'lqa-mobile-nav' : 'lqa-desktop-nav'}
+      aria-label={mobile ? '移动端主导航' : '主导航'}
+      data-testid={mobile ? 'mobile-navigation' : 'main-navigation'}
+    >
+      {navItems.map(({ key, label, icon }) => (
+        <button
+          key={key}
+          type="button"
+          className={`lqa-nav-link ${currentRoute === key ? 'is-active' : ''}`}
+          aria-current={currentRoute === key ? 'page' : undefined}
+          onClick={() => navigate(key)}
+          data-testid={mobile ? `mobile-nav-${key}` : `nav-${key}`}
+        >
+          <AppIcon name={icon} size={17} />
+          <span>{label}</span>
+        </button>
+      ))}
+    </nav>
+  );
 
   return (
     <>
       {isMock && (
-        <div
-          style={{
-            backgroundColor: '#fef3c7',
-            color: '#92400e',
-            padding: '5px 16px',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            textAlign: 'center',
-            borderBottom: '1px solid #fde68a',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-          }}
-          data-testid="offline-mock-banner"
-        >
-          <span>
-            ⚠️ 当前处于离线演示模式 (Mock 模拟数据，未连接真实后端服务)。
-          </span>
-          <button
-            className="btn btn-secondary btn-sm"
-            style={{ padding: '1px 8px', fontSize: '0.75rem', height: '22px' }}
-            onClick={() => toggleMock(false)}
-          >
-            切换到真实 API 模式
+        <div className="lqa-demo-banner" data-testid="offline-mock-banner">
+          <span>当前为离线演示模式，数据不会写入真实服务。</span>
+          <button type="button" onClick={() => toggleMock(false)}>
+            切换真实 API
           </button>
         </div>
       )}
-      <header
-        style={{
-          backgroundColor: 'var(--color-bg-surface)',
-          borderBottom: '1px solid var(--color-border-subtle)',
-          padding: '0 24px',
-          height: '60px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          position: 'sticky',
-          top: 0,
-          zIndex: 40,
-        }}
-        data-testid="app-header"
-      >
-        {/* Brand & Project Selector */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-            }}
-            onClick={() => setRoute('home')}
-          >
-            <div
-              style={{
-                width: '32px',
-                height: '32px',
-                backgroundColor: 'var(--color-primary)',
-                borderRadius: 'var(--radius-md)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontWeight: 'bold',
-                fontSize: '1.1rem',
-              }}
-            >
-              L
-            </div>
-            <span
-              style={{
-                fontSize: '1.15rem',
-                fontWeight: 700,
-                letterSpacing: '-0.5px',
-              }}
-            >
-              LocalQA
-            </span>
-          </div>
-
-          {/* Project Selector */}
-          {projects.length > 0 && currentProject && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span
-                style={{ color: 'var(--color-border)', fontSize: '1.2rem' }}
-              >
-                /
-              </span>
-              <select
-                className="form-select"
-                style={{
-                  padding: '4px 8px',
-                  fontSize: '0.85rem',
-                  width: 'auto',
-                  fontWeight: 500,
-                }}
-                value={currentProject.id}
-                onChange={(e) => {
-                  const p = projects.find((proj) => proj.id === e.target.value);
-                  if (p) setCurrentProject(p);
-                }}
-                data-testid="project-selector"
-              >
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
-
-        {/* Navigation Links */}
-        <nav
-          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-          data-testid="main-navigation"
-        >
-          {navItems.map((item) => {
-            const isActive = currentRoute === item.key;
-            return (
-              <button
-                key={item.key}
-                onClick={() => setRoute(item.key)}
-                style={{
-                  background: isActive
-                    ? 'var(--color-primary-subtle)'
-                    : 'transparent',
-                  color: isActive
-                    ? 'var(--color-primary)'
-                    : 'var(--color-text-muted)',
-                  fontWeight: isActive ? 600 : 500,
-                  border: 'none',
-                  padding: '6px 12px',
-                  borderRadius: 'var(--radius-md)',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  transition: 'all 0.15s',
-                }}
-                data-testid={`nav-${item.key}`}
-              >
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* User Info & Mock Mode indicator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          {/* Mock Badge */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: isMock
-                ? 'var(--color-warning-bg)'
-                : 'var(--color-success-bg)',
-              border: `1px solid ${isMock ? 'var(--color-warning-border)' : 'var(--color-success-border)'}`,
-              padding: '3px 8px',
-              borderRadius: 'var(--radius-full)',
-              fontSize: '0.75rem',
-              color: isMock
-                ? 'var(--color-warning-text)'
-                : 'var(--color-success-text)',
-              cursor: 'pointer',
-            }}
-            title="点击切换 Mock 模式与真实 API 客户端"
-            onClick={() => toggleMock(!isMock)}
-            data-testid="mock-mode-indicator"
-          >
-            <span>{isMock ? '🧪 Mock 模式 (已启用)' : '🌐 真实 API 模式'}</span>
-          </div>
-
-          {currentUser ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span
-                style={{
-                  fontSize: '0.85rem',
-                  color: 'var(--color-text-main)',
-                  fontWeight: 500,
-                }}
-              >
-                {currentUser.email}
-              </span>
-              <StatusBadge status={currentUser.globalRole} size="sm" />
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={logout}
-                style={{ padding: '2px 8px', fontSize: '0.75rem' }}
-                data-testid="btn-logout"
-              >
-                退出
-              </button>
-            </div>
-          ) : (
+      <header className="lqa-shell-header" data-testid="app-header">
+        <div className="lqa-topbar">
+          <div className="lqa-brand-area">
             <button
-              className="btn btn-primary btn-sm"
-              onClick={() => setRoute('login')}
-              data-testid="btn-login-nav"
+              className="lqa-brand"
+              type="button"
+              onClick={() => navigate('home')}
+              aria-label="LocalQA 项目首页"
+              data-testid="app-logo-home"
             >
-              登录
+              <span className="lqa-brand-mark">
+                <AppIcon name="layers" size={22} />
+              </span>
+              <span className="lqa-brand-wordmark">
+                Local<span>QA</span>
+              </span>
             </button>
-          )}
+            <span className="lqa-brand-divider" aria-hidden="true" />
+            <div className="lqa-workspace-select">
+              {projects.length > 0 && currentProject ? (
+                <>
+                  <AppIcon name="folder" size={16} />
+                  <select
+                    className="lqa-project-select"
+                    aria-label="切换项目"
+                    value={currentProject.id}
+                    onChange={(event) => {
+                      const selected = projects.find(
+                        (project) => project.id === event.target.value,
+                      );
+                      if (selected) {
+                        setCurrentProject(selected);
+                        navigate('home');
+                      }
+                    }}
+                    data-testid="project-selector"
+                  >
+                    {projects.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                        {projects.some(
+                          (other) =>
+                            other.id !== project.id &&
+                            other.name === project.name,
+                        )
+                          ? ` · ID ${project.id.slice(0, 8)}`
+                          : ''}
+                        {project.status === 'archived' ? '（已归档）' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <AppIcon name="chevron-down" size={14} />
+                </>
+              ) : (
+                <span>我的工作空间</span>
+              )}
+            </div>
+          </div>
+
+          <div className="lqa-header-actions">
+            {currentUser?.globalRole === 'admin' && (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm lqa-create-button"
+                data-testid="btn-create-project"
+                onClick={() => setCreatingProject(true)}
+              >
+                <AppIcon name="plus" size={16} />
+                <span>新建项目</span>
+              </button>
+            )}
+            <button
+              type="button"
+              className={`lqa-environment-indicator ${isMock ? 'is-mock' : ''}`}
+              title={isMock ? '切换到真实 API 模式' : '切换到 Mock 演示模式'}
+              aria-label={
+                isMock ? 'Mock 模式，点击切换' : '真实 API 模式，点击切换'
+              }
+              onClick={() => toggleMock(!isMock)}
+              data-testid="mock-mode-indicator"
+            >
+              <span className="lqa-live-dot" />
+              {isMock ? '演示模式' : '真实 API'}
+            </button>
+            <ThemeToggle />
+            {currentUser ? (
+              <div className="lqa-user-controls">
+                <span className="lqa-user-avatar" aria-hidden="true">
+                  {currentUser.email.slice(0, 1).toUpperCase()}
+                </span>
+                <div className="lqa-user-meta">
+                  <span className="lqa-user-email" title={currentUser.email}>
+                    {currentUser.email}
+                  </span>
+                  <StatusBadge status={currentUser.globalRole} size="sm" />
+                </div>
+                <button
+                  className="lqa-icon-button lqa-logout"
+                  type="button"
+                  onClick={logout}
+                  aria-label="退出登录"
+                  title="退出登录"
+                  data-testid="btn-logout"
+                >
+                  <AppIcon name="log-out" size={18} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => navigate('login')}
+                data-testid="btn-login-nav"
+              >
+                登录
+              </button>
+            )}
+            <button
+              type="button"
+              className="lqa-icon-button lqa-menu-button"
+              aria-label={menuOpen ? '关闭导航菜单' : '打开导航菜单'}
+              aria-expanded={menuOpen}
+              aria-controls="lqa-mobile-menu"
+              onClick={() => setMenuOpen((open) => !open)}
+              data-testid="btn-mobile-menu"
+            >
+              <AppIcon name={menuOpen ? 'close' : 'menu'} size={20} />
+            </button>
+          </div>
         </div>
+
+        <div className="lqa-nav-strip">
+          <div className="lqa-nav-inner">{navigation(false)}</div>
+        </div>
+        {menuOpen && (
+          <div id="lqa-mobile-menu" className="lqa-mobile-menu">
+            {navigation(true)}
+            {currentUser?.globalRole === 'admin' && (
+              <button
+                type="button"
+                className="btn btn-primary lqa-menu-create"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setCreatingProject(true);
+                }}
+              >
+                <AppIcon name="plus" size={17} />
+                新建项目
+              </button>
+            )}
+            {currentUser && (
+              <button
+                type="button"
+                className="lqa-nav-link lqa-mobile-logout"
+                onClick={() => {
+                  setMenuOpen(false);
+                  void logout();
+                }}
+                data-testid="mobile-btn-logout"
+              >
+                <AppIcon name="log-out" size={17} />
+                <span>退出登录</span>
+              </button>
+            )}
+          </div>
+        )}
       </header>
+      {creatingProject && (
+        <CreateProjectDialog onClose={() => setCreatingProject(false)} />
+      )}
     </>
   );
 };

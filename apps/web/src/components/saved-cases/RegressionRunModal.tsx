@@ -138,10 +138,10 @@ export const RegressionRunModal: React.FC<RegressionRunModalProps> = ({
           <div
             style={{
               padding: '10px 14px',
-              backgroundColor: '#fee2e2',
-              border: '1px solid #f87171',
+              backgroundColor: 'var(--color-danger-bg)',
+              border: '1px solid var(--color-danger-border)',
               borderRadius: 'var(--radius-md)',
-              color: '#991b1b',
+              color: 'var(--color-danger-text)',
               marginBottom: '16px',
               fontSize: '0.85rem',
             }}
@@ -202,8 +202,8 @@ export const RegressionRunModal: React.FC<RegressionRunModalProps> = ({
                     <span
                       style={{
                         fontSize: '0.75rem',
-                        backgroundColor: '#d1fae5',
-                        color: '#065f46',
+                        backgroundColor: 'var(--color-success-bg)',
+                        color: 'var(--color-success-text)',
                         padding: '1px 6px',
                         borderRadius: 'var(--radius-sm)',
                         fontWeight: 600,

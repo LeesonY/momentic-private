@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 import pg from '../../packages/storage/node_modules/pg/lib/index.js';
+import { loadDatabaseUrl } from '../images/database-url.mjs';
 
-const connectionString =
-  process.env.DATABASE_URL ||
-  `postgresql://${process.env.POSTGRES_USER || 'localqa'}:${process.env.POSTGRES_PASSWORD || 'localqa'}@${process.env.PGHOST || '127.0.0.1'}:${process.env.PGPORT || '5432'}/${process.env.POSTGRES_DB || 'localqa'}`;
+const connectionString = await loadDatabaseUrl();
 
 const workerId = process.env.WORKER_ID || process.argv[2] || null;
 const timeoutSeconds = Number(process.env.SHUTDOWN_TIMEOUT_SECONDS || 30);

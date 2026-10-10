@@ -15,6 +15,10 @@ import { registerInternalRoutes } from './routes/internal.js';
 import { registerSavedCaseRoutes } from './routes/savedCases.js';
 import { registerRegressionModuleRoutes } from './routes/regressionModules.js';
 import { registerCaseLifecycleRoutes } from './routes/caseLifecycle.js';
+import { registerApiKeyRoutes } from './routes/apiKeys.js';
+import { registerScheduleRoutes } from './routes/schedules.js';
+import { registerRepairProposalRoutes } from './routes/repairProposals.js';
+import { registerCandidateVerificationRoutes } from './routes/candidateVerifications.js';
 import { validateOriginAndCsrf } from './auth.js';
 
 export function createRouter(): Router {
@@ -31,6 +35,10 @@ export function createRouter(): Router {
   registerSavedCaseRoutes(router);
   registerRegressionModuleRoutes(router);
   registerCaseLifecycleRoutes(router);
+  registerApiKeyRoutes(router);
+  registerScheduleRoutes(router);
+  registerRepairProposalRoutes(router);
+  registerCandidateVerificationRoutes(router);
   return router;
 }
 
@@ -42,9 +50,24 @@ export function createRequestHandler(api: ApiContext, router = createRouter()) {
     const requestId = randomUUID();
     res.setHeader('X-Request-Id', requestId);
 
-    // Handle CORS
+    // Only the explicitly configured frontend may make credentialed cross-origin
+    // requests. Reflecting an arbitrary Origin here lets hostile sites read
+    // cookie-authenticated GET responses (POST's CSRF gate is not sufficient).
     const origin = req.headers['origin'];
-    if (origin) {
+    let allowedOrigin: string | null = null;
+    if (api.publicOrigin) {
+      try {
+        allowedOrigin = new URL(api.publicOrigin).origin;
+      } catch {
+        // A malformed deployment origin must fail closed.
+      }
+    }
+    const corsAllowed =
+      typeof origin === 'string' &&
+      origin === allowedOrigin &&
+      allowedOrigin !== null;
+    if (origin) res.setHeader('Vary', 'Origin');
+    if (corsAllowed) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       res.setHeader(
@@ -58,7 +81,7 @@ export function createRequestHandler(api: ApiContext, router = createRouter()) {
     }
 
     if (req.method === 'OPTIONS') {
-      res.statusCode = 204;
+      res.statusCode = origin && !corsAllowed ? 403 : 204;
       res.end();
       return;
     }

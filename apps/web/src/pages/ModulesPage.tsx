@@ -308,9 +308,9 @@ export const ModulesPage: React.FC = () => {
             className="card"
             style={{
               padding: '8px 12px',
-              backgroundColor: '#eff6ff',
-              borderColor: '#bfdbfe',
-              color: '#1d4ed8',
+              backgroundColor: 'var(--color-info-bg)',
+              borderColor: 'var(--color-info-border)',
+              color: 'var(--color-info-text)',
               fontSize: '0.8rem',
               marginBottom: '16px',
             }}
@@ -325,9 +325,9 @@ export const ModulesPage: React.FC = () => {
             className="card"
             style={{
               padding: '12px 16px',
-              backgroundColor: '#fef2f2',
-              borderColor: '#fecaca',
-              color: '#dc2626',
+              backgroundColor: 'var(--color-danger-bg)',
+              borderColor: 'var(--color-danger-border)',
+              color: 'var(--color-danger-text)',
               marginBottom: '16px',
             }}
           >
@@ -431,7 +431,7 @@ export const ModulesPage: React.FC = () => {
                               style={{
                                 marginLeft: '6px',
                                 fontSize: '0.7rem',
-                                color: '#b45309',
+                                color: 'var(--color-warning-text)',
                               }}
                             >
                               (待审批)
@@ -610,7 +610,7 @@ export const ModulesPage: React.FC = () => {
                               <div
                                 style={{
                                   fontSize: '0.7rem',
-                                  color: '#b45309',
+                                  color: 'var(--color-warning-text)',
                                   marginTop: '2px',
                                 }}
                               >
