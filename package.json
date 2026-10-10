@@ -10,7 +10,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "contracts:generate": "pnpm --filter @localqa/contracts generate",
-    "contracts:check": "pnpm --filter @localqa/contracts check",
+    "contracts:check": "pnpm --filter @localqa/contracts check && pnpm --filter @localqa/web check:client",
     "lint": "eslint eslint.config.mjs packages/contracts/src packages/contracts/scripts packages/contracts/test packages/storage/src packages/storage/scripts packages/storage/test packages/browser/src packages/browser/test packages/model-gateway/src packages/model-gateway/scripts packages/agents/src packages/report/src packages/report/scripts packages/report/test apps/web/src apps/web/scripts",
     "format": "prettier --write package.json pnpm-workspace.yaml tsconfig.base.json eslint.config.mjs .prettierrc.json .github/workflows/ci.yml \"packages/*/package.json\" \"packages/*/{src,test,scripts}/**/*.{ts,mjs,json}\" \"apps/*/{src,test,scripts}/**/*.{ts,tsx,mjs,json,css,html}\"",
     "format:check": "prettier --check --end-of-line auto package.json pnpm-workspace.yaml tsconfig.base.json eslint.config.mjs .prettierrc.json .github/workflows/ci.yml \"packages/*/package.json\" \"packages/*/{src,test,scripts}/**/*.{ts,mjs,json}\" \"apps/*/{src,test,scripts}/**/*.{ts,tsx,mjs,json,css,html}\"",

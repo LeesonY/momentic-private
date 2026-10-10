@@ -3,4 +3,7 @@ dist
 .cache
 .localqa-t01
 packages/contracts/src/generated
+# Written by apps/web/scripts/generateClient.mjs; drift is checked by its --check mode
+apps/web/src/api/types.ts
+apps/web/src/api/client.ts
 pnpm-lock.yaml

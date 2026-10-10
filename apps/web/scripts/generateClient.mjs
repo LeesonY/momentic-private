@@ -556,7 +556,6 @@ import type {
   RepairProposalReviewInput,
   RepairCandidateVerification,
   RepairCandidateVerificationPage,
-  RepairCandidateEvidence,
   RepairCandidateEvidencePage,
   RepairProposalPage,
 } from './types.ts';
@@ -1790,7 +1789,7 @@ if (checkMode) {
     );
   }
   console.log(
-    'Contract check passed: 80 public operations in sync with openapi.json',
+    `Contract check passed: ${operations.length} public operations in sync with openapi.json`,
   );
 } else {
   await writeFile(targetTypes, typesContent, 'utf8');

@@ -99,7 +99,6 @@ import type {
   RepairProposalReviewInput,
   RepairCandidateVerification,
   RepairCandidateVerificationPage,
-  RepairCandidateEvidence,
   RepairCandidateEvidencePage,
   RepairProposalPage,
 } from './types.ts';
