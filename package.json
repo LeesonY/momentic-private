@@ -81,10 +81,11 @@
     "test:t18-real": "node scripts/t18-real-interactive.mjs deepseek && node scripts/t18-real-interactive.mjs deepseek broken",
     "test:t18-wire": "node scripts/t18-wire-interactive.mjs && node scripts/t18-wire-interactive.mjs broken",
     "localqa": "node apps/cli/localqa.mjs",
-    "test": "pnpm --filter @localqa/contracts test && pnpm --filter @localqa/model-gateway test && pnpm test:api-security && pnpm test:auth-pure",
+    "test": "pnpm build && pnpm test:unit",
+    "test:unit": "node scripts/test-unit.mjs",
     "test:integration": "pnpm --filter @localqa/browser test && pnpm --filter @localqa/storage test",
     "typecheck": "pnpm -r typecheck",
-    "ci": "pnpm contracts:check && pnpm lint && pnpm format:check && pnpm typecheck && pnpm build && pnpm test"
+    "ci": "pnpm contracts:check && pnpm lint && pnpm format:check && pnpm build && pnpm typecheck && pnpm test:unit"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

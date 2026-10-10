@@ -1,0 +1,59 @@
+#!/usr/bin/env node
+// Pure Node tests run by `pnpm test` and CI: no PostgreSQL, Docker, Chromium
+// or model provider. Tests import package dist/ output, so build first.
+//
+// Deliberately excluded (need real resources; run them separately):
+// - PostgreSQL/Docker: apps/api/test/{api,g3d-*,g3e-*,t10-*,t11-*},
+//   packages/storage/test, packages/orchestrator/test/slot-fairness,
+//   apps/worker/test/{integration,t10-b5-fakebrowser,*.integration}
+// - Chromium: packages/browser/test/{browser,trusted-auth-primitives,*chromium*},
+//   apps/worker/test/{auth-adapters,auth-import-browser,auth-import-task},
+//   packages/report/test/integration
+// See `pnpm test:integration` and `pnpm acceptance --list`.
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const files = [
+  'packages/contracts/test/contracts.test.mjs',
+  'packages/contracts/test/drift.test.mjs',
+  'packages/domain/test/domain.test.mjs',
+  'packages/model-gateway/scripts/verify.mjs',
+  'packages/model-gateway/test/anthropic-adapter.test.mjs',
+  'packages/model-gateway/test/capability-probe.test.mjs',
+  'packages/model-gateway/test/g3d4-assert-complete.test.mjs',
+  'packages/model-gateway/test/g3e-image-assert.test.mjs',
+  'packages/model-gateway/test/g3f-output-format.test.mjs',
+  'packages/model-gateway/test/probe-budget.test.mjs',
+  'packages/model-gateway/test/t26-billing-http.test.mjs',
+  'packages/model-gateway/test/t30-structured-diagnostics.test.mjs',
+  'packages/report/test/unit.test.mjs',
+  'packages/orchestrator/test/boundary.test.mjs',
+  'packages/orchestrator/test/g3c-bound-model.test.mjs',
+  'packages/orchestrator/test/g3d-process-model.test.mjs',
+  'packages/orchestrator/test/regression-compiler.test.mjs',
+  'packages/browser/test/auth-state.test.mjs',
+  'packages/browser/test/policy-origin.test.mjs',
+  'packages/browser/test/private-auth.test.mjs',
+  'packages/browser/test/regression-locator.test.mjs',
+  'apps/worker/test/auth-flow.test.mjs',
+  'apps/worker/test/auth-import.test.mjs',
+  'apps/worker/test/auth-redaction.test.mjs',
+  'apps/worker/test/auth-runtime.test.mjs',
+  'apps/worker/test/auth-services.test.mjs',
+  'apps/worker/test/regression-replay.test.mjs',
+  'apps/worker/test/t27-approved-action-min.test.mjs',
+  'apps/worker/test/t29-decision-cause.test.mjs',
+  'apps/api/test/cors.test.mjs',
+  'apps/api/test/t10-policy-error-controller.test.mjs',
+  'apps/api/test/t14-anthropic-probe.test.mjs',
+  'apps/api/test/t39-run-model-selection.test.mjs',
+  'apps/cli/localqa.test.mjs',
+];
+
+const result = spawnSync(
+  process.execPath,
+  ['--test', '--test-concurrency=1', ...files, ...process.argv.slice(2)],
+  { cwd: fileURLToPath(new URL('..', import.meta.url)), stdio: 'inherit' },
+);
+if (result.error) throw result.error;
+process.exit(result.status ?? 1);
