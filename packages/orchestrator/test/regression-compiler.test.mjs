@@ -358,3 +358,9 @@ test('criteria are scoped to their document, unknown assertions/actions and fixt
   ];
   rejects(fixture, 'UNRESOLVED_FIXTURE');
 });
+test('legacy ai_action without maxToolCalls compiles unchanged for the Worker default', () => {
+  const step = { kind: 'ai_action', goal: 'Observe', criteriaIds: ['visible'] };
+  const result = compileRegression(doc('root', [navigate, step]), options());
+  assert.deepEqual(result[1].step, step);
+  assert.equal('maxToolCalls' in result[1].step, false);
+});

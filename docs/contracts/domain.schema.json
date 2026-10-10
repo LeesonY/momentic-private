@@ -5786,8 +5786,7 @@
           "required": [
             "kind",
             "goal",
-            "criteriaIds",
-            "maxToolCalls"
+            "criteriaIds"
           ],
           "additionalProperties": false
         },

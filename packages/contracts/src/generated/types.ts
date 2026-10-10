@@ -346,7 +346,7 @@ export type ReplayStep =
        * @maxItems 20
        */
       criteriaIds: [string, ...string[]];
-      maxToolCalls: number;
+      maxToolCalls?: number;
       minToolCalls?: number;
       /**
        * @minItems 1

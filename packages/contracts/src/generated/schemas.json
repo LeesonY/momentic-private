@@ -5787,8 +5787,7 @@
             "required": [
               "kind",
               "goal",
-              "criteriaIds",
-              "maxToolCalls"
+              "criteriaIds"
             ],
             "additionalProperties": false
           },
@@ -8895,8 +8894,7 @@
             "required": [
               "kind",
               "goal",
-              "criteriaIds",
-              "maxToolCalls"
+              "criteriaIds"
             ],
             "additionalProperties": false
           },
@@ -20912,8 +20910,7 @@
               "required": [
                 "kind",
                 "goal",
-                "criteriaIds",
-                "maxToolCalls"
+                "criteriaIds"
               ],
               "additionalProperties": false
             },
@@ -23144,8 +23141,7 @@
             "required": [
               "kind",
               "goal",
-              "criteriaIds",
-              "maxToolCalls"
+              "criteriaIds"
             ],
             "additionalProperties": false
           },
@@ -24208,8 +24204,7 @@
             "required": [
               "kind",
               "goal",
-              "criteriaIds",
-              "maxToolCalls"
+              "criteriaIds"
             ],
             "additionalProperties": false
           },
@@ -26501,8 +26496,7 @@
             "required": [
               "kind",
               "goal",
-              "criteriaIds",
-              "maxToolCalls"
+              "criteriaIds"
             ],
             "additionalProperties": false
           },
