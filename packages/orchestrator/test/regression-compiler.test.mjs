@@ -134,7 +134,12 @@ test('ordered expansion, bound variables, provenance, frozen scoped criteria and
     [
       { kind: 'navigate', url: '{{env.ORIGIN}}/{{vars.PATH}}' },
       use('child@1', { VALUE: '{{vars.VALUE}}' }),
-      { kind: 'ai_action', goal: 'Observe', criteriaIds: ['visible'] },
+      {
+        kind: 'ai_action',
+        goal: 'Observe',
+        criteriaIds: ['visible'],
+        maxToolCalls: 1,
+      },
     ],
     { PATH: 'home', VALUE: 'bound' },
   );
@@ -324,7 +329,12 @@ test('criteria are scoped to their document, unknown assertions/actions and fixt
   );
   rejects(
     doc('root', [
-      { kind: 'ai_action', goal: 'Check', criteriaIds: ['missing'] },
+      {
+        kind: 'ai_action',
+        goal: 'Check',
+        criteriaIds: ['missing'],
+        maxToolCalls: 1,
+      },
     ]),
     'UNKNOWN_CRITERION',
   );

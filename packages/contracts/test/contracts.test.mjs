@@ -453,7 +453,7 @@ test('every OpenAPI request, response, media and parameter validator compiles; I
           count++;
         }
     }
-  assert.equal(publicOperationIds.length, 88);
+  assert.equal(publicOperationIds.length, 90);
   assert.equal(internalOperationIds.length, 8);
   for (const id of internalOperationIds)
     assert.throws(() =>
