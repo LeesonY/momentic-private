@@ -2,8 +2,12 @@ import React, { useEffect, useState } from 'react';
 import type { Member, Health, User } from '@localqa/contracts';
 import { useAppContext } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
-import { AppHeader } from '../components/layout/AppHeader.tsx';
+import { Page } from '../components/layout/Page.tsx';
 import { StatusBadge } from '../components/ui/Badge.tsx';
+import { Section } from '../components/ui/Section.tsx';
+import { Field } from '../components/ui/Field.tsx';
+import { Alert } from '../components/ui/Alert.tsx';
+import { AppIcon } from '../components/ui/AppIcon.tsx';
 
 export const MembersOpsPage: React.FC = () => {
   const {
@@ -273,316 +277,291 @@ export const MembersOpsPage: React.FC = () => {
     }
   };
 
+  const roleScope: Record<Member['role'], string> = {
+    owner: '管理环境、成员、认证资料、项目知识及策略',
+    operator: '启动冒烟、停止运行、补充说明、提交人工审查决议',
+    viewer: '查看运行事实、测试报告与脱敏证据（只读）',
+  };
+
   return (
-    <div className="app-container" data-testid="members-ops-page">
-      <AppHeader />
-      <main className="main-content">
-        <div style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
-            项目成员与运维状态 (Members & Operations)
-          </h1>
-          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-            项目成员角色鉴权、执行槽位配额及平台核心服务健康度。
-          </p>
-        </div>
-
-        {/* Section 1: System Health */}
-        <div
-          className="card"
-          style={{ marginBottom: '24px' }}
-          data-testid="system-health-card"
-        >
-          <div className="card-header">
-            <h2 className="card-title">平台核心服务健康度 (System Health)</h2>
-            <span
-              className={`badge ${health?.status === 'ok' ? 'badge-success' : 'badge-warning'}`}
-            >
-              整体状态:{' '}
-              {health === null
-                ? '未取得健康状态'
-                : health.status === 'ok'
-                  ? '就绪 (READY)'
-                  : '未就绪 (NOT_READY)'}
-            </span>
-          </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-              gap: '14px',
-            }}
+    <Page
+      testId="members-ops-page"
+      title="成员与运维"
+      description="管理项目成员与角色，查看平台服务状态，以及归档或删除项目。"
+    >
+      <Section
+        icon="server"
+        title="平台服务状态"
+        testId="system-health-card"
+        actions={
+          <span
+            className={`badge badge-dot ${health?.status === 'ok' ? 'badge-success' : 'badge-warning'}`}
           >
+            {health === null
+              ? '未取得健康状态'
+              : health.status === 'ok'
+                ? '就绪'
+                : '未就绪'}
+          </span>
+        }
+      >
+        <div className="stat-grid">
+          <div className="stat">
+            <div className="stat-label">服务运行状态</div>
             <div
-              style={{
-                padding: '12px',
-                backgroundColor: 'var(--color-bg-subtle)',
-                borderRadius: 'var(--radius-md)',
-              }}
+              className={`stat-value ${health?.status === 'ok' ? 'text-success' : 'text-warning'}`}
             >
-              <div
-                style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}
-              >
-                服务运行状态 (Status)
-              </div>
-              <div
-                style={{
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  color:
-                    health?.status === 'ok'
-                      ? 'var(--color-success)'
-                      : 'var(--color-warning)',
-                  marginTop: '4px',
-                }}
-              >
-                {health === null
-                  ? '状态未知'
-                  : health.status === 'ok'
-                    ? '就绪 (OK)'
-                    : '未就绪'}
-              </div>
+              {health === null
+                ? '状态未知'
+                : health.status === 'ok'
+                  ? '就绪'
+                  : '未就绪'}
             </div>
-
-            <div
-              style={{
-                padding: '12px',
-                backgroundColor: 'var(--color-bg-subtle)',
-                borderRadius: 'var(--radius-md)',
-              }}
-            >
-              <div
-                style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}
-              >
-                契约协议版本 (Version)
-              </div>
-              <div
-                style={{
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  color: 'var(--color-text-main)',
-                  marginTop: '4px',
-                }}
-              >
-                {health?.version ? `v${health.version}` : '尚未获取'}
-              </div>
+          </div>
+          <div className="stat">
+            <div className="stat-label">契约协议版本</div>
+            <div className="stat-value">
+              {health?.version ? `v${health.version}` : '尚未获取'}
             </div>
           </div>
         </div>
+      </Section>
 
-        {/* Section 2: Members & RBAC */}
-        <div className="card" style={{ marginBottom: '24px' }}>
-          <div className="card-header">
-            <h2 className="card-title">项目成员权限 (Members & RBAC)</h2>
-            <span
-              style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}
-            >
-              项目级权限，提交后由服务器最终验证
-            </span>
-          </div>
-
-          {loading && <p data-testid="members-loading">正在读取成员与权限…</p>}
-          {loadError && (
-            <p role="alert" data-testid="members-load-error">
-              {loadError}
-            </p>
-          )}
-          {currentProject && (
+      <Section
+        icon="users"
+        title="项目成员"
+        description="项目级权限，保存后由服务器最终校验。"
+        actions={
+          currentProject && (
             <button
               type="button"
-              className="btn btn-secondary btn-sm"
+              className="btn btn-ghost btn-sm"
               data-testid="btn-reload-members"
               disabled={loading || savingMembers || archiving}
               onClick={() => void reloadMembers()}
             >
-              重新加载成员和项目版本
+              <AppIcon name="refresh" size={14} />
+              重新加载
             </button>
-          )}
-          {!membersComplete && (
-            <p role="alert" data-testid="members-pagination-blocker">
-              成员超过当前单页上限。为避免整体替换时意外删除未加载的成员，禁止编辑。
+          )
+        }
+      >
+        <div className="stack stack-sm">
+          {loading && (
+            <p className="muted text-sm" data-testid="members-loading">
+              正在读取成员与权限…
             </p>
           )}
-          {!loading && !loadError && draftMembers.length === 0 && (
-            <p data-testid="members-empty">尚未读取到项目成员。</p>
+          {loadError && (
+            <Alert tone="danger" role="alert" testId="members-load-error">
+              {loadError}
+            </Alert>
           )}
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>用户标识 (User ID)</th>
-                  <th>项目内角色 (Project Role)</th>
-                  <th>权限范围说明</th>
-                  <th>状态</th>
-                  {canManage && <th>操作</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {draftMembers.map((m) => (
-                  <tr key={m.userId} data-testid={`member-row-${m.userId}`}>
-                    <td>
-                      <code>{m.userId}</code>
-                      {users.find((u) => u.id === m.userId)?.displayName && (
-                        <div>
-                          {users.find((u) => u.id === m.userId)?.displayName}
-                        </div>
-                      )}
-                      {m.userId === currentUser?.id && (
-                        <small>（当前账号）</small>
-                      )}
-                    </td>
-                    <td>
-                      {canManage && membersComplete ? (
-                        <select
-                          className="form-select"
-                          aria-label="项目成员角色"
-                          data-testid={`member-role-${m.userId}`}
-                          value={m.role}
-                          disabled={savingMembers}
-                          onChange={(event) => {
-                            const role = event.target.value as Member['role'];
-                            setDraftMembers((old) =>
-                              old.map((item) =>
-                                item.userId === m.userId
-                                  ? { ...item, role }
-                                  : item,
-                              ),
-                            );
-                            setConfirmChanges(false);
-                            setMembersSuccess('');
-                          }}
-                        >
-                          <option value="owner">负责人 (owner)</option>
-                          <option value="operator">操作员 (operator)</option>
-                          <option value="viewer">观察员 (viewer)</option>
-                        </select>
-                      ) : (
-                        <StatusBadge status={m.role} size="sm" />
-                      )}
-                    </td>
-                    <td style={{ fontSize: '0.85rem' }}>
-                      {m.role === 'owner' &&
-                        '管理环境、成员、认证资料、项目知识及策略'}
-                      {m.role === 'operator' &&
-                        '启动冒烟、停止运行、补充说明、提交人工审查决议'}
-                      {m.role === 'viewer' &&
-                        '查看运行事实、测试报告与脱敏证据（只读）'}
-                    </td>
-                    <td>
-                      <span className="badge badge-neutral">
-                        {members.some((member) => member.userId === m.userId)
-                          ? '已有授权'
-                          : '待保存'}
-                      </span>
-                    </td>
-                    {canManage && (
-                      <td>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          data-testid={`remove-member-${m.userId}`}
-                          disabled={
-                            savingMembers ||
-                            !membersComplete ||
-                            m.userId === currentUser?.id ||
-                            (m.role === 'owner' && remainingOwners <= 1)
-                          }
-                          onClick={() => {
-                            setDraftMembers((old) =>
-                              old.filter((item) => item.userId !== m.userId),
-                            );
-                            setConfirmChanges(false);
-                            setMembersSuccess('');
-                          }}
-                        >
-                          移除
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {canManage && membersComplete && !loading && !loadError && (
-            <div
-              style={{ display: 'grid', gap: 12, marginTop: 16 }}
-              data-testid="members-editor"
+          {!membersComplete && (
+            <Alert
+              tone="warning"
+              role="alert"
+              testId="members-pagination-blocker"
             >
-              <h3 style={{ fontSize: '0.95rem' }}>添加已有平台用户</h3>
-              <form
-                onSubmit={addMember}
-                style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}
-              >
-                {users.length > 0 && (
-                  <select
-                    className="form-select"
-                    data-testid="member-user-directory"
-                    value={addUserId}
-                    onChange={(event) => setAddUserId(event.target.value)}
-                    disabled={savingMembers}
-                    style={{ maxWidth: 280 }}
-                  >
-                    <option value="">从平台用户目录选择</option>
-                    {users
-                      .filter(
-                        (user) =>
-                          !user.disabled &&
-                          !draftMembers.some(
-                            (member) => member.userId === user.id,
-                          ),
-                      )
-                      .map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.displayName} ({user.email})
-                        </option>
-                      ))}
-                  </select>
-                )}
-                <input
-                  className="form-input"
-                  data-testid="member-new-user-id"
-                  aria-label="已有平台用户 UUID"
-                  value={addUserId}
-                  onChange={(event) => setAddUserId(event.target.value)}
-                  placeholder="或输入已有用户 UUID"
-                  disabled={savingMembers}
-                  style={{ maxWidth: 350 }}
-                />
+              成员超过当前单页上限。为避免整体替换时意外删除未加载的成员，已禁止编辑。
+            </Alert>
+          )}
+          {!loading && !loadError && draftMembers.length === 0 && (
+            <p className="muted text-sm" data-testid="members-empty">
+              尚未读取到项目成员。
+            </p>
+          )}
+
+          {draftMembers.length > 0 && (
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>成员</th>
+                    <th>项目角色</th>
+                    <th>权限范围</th>
+                    <th>状态</th>
+                    {canManage && <th className="cell-actions">操作</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {draftMembers.map((m) => {
+                    const displayName = users.find(
+                      (u) => u.id === m.userId,
+                    )?.displayName;
+                    const saved = members.some(
+                      (member) => member.userId === m.userId,
+                    );
+                    return (
+                      <tr key={m.userId} data-testid={`member-row-${m.userId}`}>
+                        <td>
+                          <div className="row">
+                            <span
+                              className={`cell-title ${displayName ? '' : 'mono'}`}
+                            >
+                              {displayName || m.userId}
+                            </span>
+                            {m.userId === currentUser?.id && (
+                              <span className="badge badge-sm badge-primary">
+                                当前账号
+                              </span>
+                            )}
+                          </div>
+                          {displayName && (
+                            <div className="cell-sub mono">{m.userId}</div>
+                          )}
+                        </td>
+                        <td>
+                          {canManage && membersComplete ? (
+                            <select
+                              className="form-select lqa-role-select"
+                              aria-label="项目成员角色"
+                              data-testid={`member-role-${m.userId}`}
+                              value={m.role}
+                              disabled={savingMembers}
+                              onChange={(event) => {
+                                const role = event.target
+                                  .value as Member['role'];
+                                setDraftMembers((old) =>
+                                  old.map((item) =>
+                                    item.userId === m.userId
+                                      ? { ...item, role }
+                                      : item,
+                                  ),
+                                );
+                                setConfirmChanges(false);
+                                setMembersSuccess('');
+                              }}
+                            >
+                              <option value="owner">负责人</option>
+                              <option value="operator">操作员</option>
+                              <option value="viewer">只读成员</option>
+                            </select>
+                          ) : (
+                            <StatusBadge status={m.role} size="sm" />
+                          )}
+                        </td>
+                        <td className="muted text-sm">{roleScope[m.role]}</td>
+                        <td>
+                          <span
+                            className={`badge ${saved ? 'badge-neutral' : 'badge-warning'}`}
+                          >
+                            {saved ? '已授权' : '待保存'}
+                          </span>
+                        </td>
+                        {canManage && (
+                          <td className="cell-actions">
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              data-testid={`remove-member-${m.userId}`}
+                              disabled={
+                                savingMembers ||
+                                !membersComplete ||
+                                m.userId === currentUser?.id ||
+                                (m.role === 'owner' && remainingOwners <= 1)
+                              }
+                              onClick={() => {
+                                setDraftMembers((old) =>
+                                  old.filter(
+                                    (item) => item.userId !== m.userId,
+                                  ),
+                                );
+                                setConfirmChanges(false);
+                                setMembersSuccess('');
+                              }}
+                            >
+                              移除
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {canManage && membersComplete && !loading && !loadError && (
+          <div
+            className="panel lqa-members-editor"
+            data-testid="members-editor"
+          >
+            <h3 className="lqa-panel-title">添加成员</h3>
+            <p className="field-hint lqa-panel-hint">
+              这里只为已有账号授予项目权限，不会新建用户。
+            </p>
+            <form onSubmit={addMember} className="lqa-add-member">
+              {users.length > 0 && (
                 <select
                   className="form-select"
-                  data-testid="member-new-role"
-                  value={addRole}
+                  aria-label="从平台用户目录选择"
+                  data-testid="member-user-directory"
+                  value={addUserId}
+                  onChange={(event) => setAddUserId(event.target.value)}
                   disabled={savingMembers}
-                  onChange={(event) =>
-                    setAddRole(event.target.value as Member['role'])
-                  }
-                  style={{ maxWidth: 150 }}
                 >
-                  <option value="viewer">观察员</option>
-                  <option value="operator">操作员</option>
-                  <option value="owner">负责人</option>
+                  <option value="">从平台用户目录选择</option>
+                  {users
+                    .filter(
+                      (user) =>
+                        !user.disabled &&
+                        !draftMembers.some(
+                          (member) => member.userId === user.id,
+                        ),
+                    )
+                    .map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.displayName}（{user.email}）
+                      </option>
+                    ))}
                 </select>
-                <button
-                  type="submit"
-                  className="btn btn-secondary"
-                  data-testid="btn-add-member"
-                  disabled={savingMembers}
-                >
-                  添加至待保存列表
-                </button>
-              </form>
-              {usersNotice && <p className="form-help">{usersNotice}</p>}
-              <p className="form-help">
-                这里仅为已有账号授予项目权限，不会新建用户；保存采用完整成员列表及项目版本号。
-              </p>
+              )}
+              <input
+                className="form-input"
+                data-testid="member-new-user-id"
+                aria-label="已有平台用户 UUID"
+                value={addUserId}
+                onChange={(event) => setAddUserId(event.target.value)}
+                placeholder="或输入已有用户 UUID"
+                disabled={savingMembers}
+              />
+              <select
+                className="form-select"
+                aria-label="新成员角色"
+                data-testid="member-new-role"
+                value={addRole}
+                disabled={savingMembers}
+                onChange={(event) =>
+                  setAddRole(event.target.value as Member['role'])
+                }
+              >
+                <option value="viewer">只读成员</option>
+                <option value="operator">操作员</option>
+                <option value="owner">负责人</option>
+              </select>
+              <button
+                type="submit"
+                className="btn btn-secondary"
+                data-testid="btn-add-member"
+                disabled={savingMembers}
+              >
+                <AppIcon name="plus" size={14} />
+                加入待保存
+              </button>
+            </form>
+            {usersNotice && <p className="field-hint">{usersNotice}</p>}
+
+            <div className="stack stack-sm lqa-members-save">
               {remainingOwners === 0 && (
-                <p role="alert" data-testid="last-owner-error">
+                <Alert tone="danger" role="alert" testId="last-owner-error">
                   至少保留一位负责人，不能保存当前变更。
-                </p>
+                </Alert>
               )}
               {changed && (
-                <label style={{ display: 'flex', gap: 8 }}>
+                <label className="check">
                   <input
                     type="checkbox"
                     data-testid="confirm-member-changes"
@@ -592,206 +571,234 @@ export const MembersOpsPage: React.FC = () => {
                     }
                     disabled={savingMembers}
                   />
-                  我已核对成员列表及角色；保存会替换项目的完整成员授权。
+                  我已核对成员列表及角色；保存会用完整列表替换项目的成员授权。
                 </label>
               )}
               {membersError && (
-                <p role="alert" data-testid="members-save-error">
+                <Alert tone="danger" role="alert" testId="members-save-error">
                   {membersError}
-                </p>
+                </Alert>
               )}
               {membersSuccess && (
-                <p role="status" data-testid="members-save-success">
-                  {membersSuccess}
-                </p>
-              )}
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  data-testid="btn-save-members"
-                  disabled={
-                    !changed ||
-                    !confirmChanges ||
-                    remainingOwners === 0 ||
-                    savingMembers
-                  }
-                  onClick={() => void saveMembers()}
+                <Alert
+                  tone="success"
+                  role="status"
+                  testId="members-save-success"
                 >
-                  {savingMembers ? '保存中…' : '保存成员权限'}
-                </button>
+                  {membersSuccess}
+                </Alert>
+              )}
+            </div>
+            <div className="form-actions">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                data-testid="btn-discard-member-changes"
+                disabled={!changed || savingMembers}
+                onClick={() => {
+                  setDraftMembers(members.map((m) => ({ ...m })));
+                  setConfirmChanges(false);
+                  setMembersError('');
+                }}
+              >
+                放弃修改
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                data-testid="btn-save-members"
+                disabled={
+                  !changed ||
+                  !confirmChanges ||
+                  remainingOwners === 0 ||
+                  savingMembers
+                }
+                onClick={() => void saveMembers()}
+              >
+                {savingMembers ? '保存中…' : '保存成员权限'}
+              </button>
+            </div>
+          </div>
+        )}
+        {!canManage && !loading && !loadError && (
+          <p
+            data-testid="members-readonly-notice"
+            className="field-hint lqa-members-readonly"
+          >
+            当前账号仅可查看项目成员，或项目已归档，无权修改成员列表。
+          </p>
+        )}
+      </Section>
+
+      {(canManage ||
+        (currentUser?.globalRole === 'admin' && currentProject)) && (
+        <div className="grid-2 lqa-lifecycle-grid">
+          {canManage && (
+            <Section
+              icon="archive"
+              title="归档项目"
+              description="归档后不能再发起新的冒烟运行，历史报告会保留。服务器确认成功后才更新项目状态。"
+              testId="archive-project-card"
+            >
+              <Field label="输入项目名称以确认" htmlFor="archive-project-name">
+                <input
+                  id="archive-project-name"
+                  className="form-input"
+                  data-testid="archive-project-name"
+                  value={archiveName}
+                  onChange={(event) => setArchiveName(event.target.value)}
+                  disabled={archiving}
+                  autoComplete="off"
+                  placeholder={currentProject?.name}
+                />
+              </Field>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  data-testid="confirm-project-archive"
+                  checked={archiveConfirmed}
+                  onChange={(event) =>
+                    setArchiveConfirmed(event.target.checked)
+                  }
+                  disabled={archiving}
+                />
+                我确认将当前项目归档，而不是删除数据。
+              </label>
+              {(changed || archiveError) && (
+                <div className="stack stack-sm lqa-card-messages">
+                  {changed && (
+                    <Alert tone="warning" role="alert">
+                      请先保存或放弃未提交的成员变更。
+                    </Alert>
+                  )}
+                  {archiveError && (
+                    <Alert
+                      tone="danger"
+                      role="alert"
+                      testId="archive-project-error"
+                    >
+                      {archiveError}
+                    </Alert>
+                  )}
+                </div>
+              )}
+              <div className="form-actions is-start">
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  data-testid="btn-discard-member-changes"
-                  disabled={!changed || savingMembers}
-                  onClick={() => {
-                    setDraftMembers(members.map((m) => ({ ...m })));
-                    setConfirmChanges(false);
-                    setMembersError('');
-                  }}
+                  data-testid="btn-archive-project"
+                  disabled={
+                    archiving ||
+                    changed ||
+                    !archiveConfirmed ||
+                    archiveName !== currentProject?.name
+                  }
+                  onClick={() => void archiveProject()}
                 >
-                  放弃未保存修改
+                  <AppIcon name="archive" size={14} />
+                  {archiving ? '归档中…' : '确认归档'}
                 </button>
               </div>
-            </div>
+            </Section>
           )}
-          {!canManage && !loading && !loadError && (
-            <p data-testid="members-readonly-notice" className="form-help">
-              当前账号仅可查看项目成员，或项目已归档；无权限修改成员列表。
-            </p>
-          )}
-        </div>
 
-        {/* Section 3: Project archive */}
-        {canManage && (
-          <div
-            className="card"
-            style={{ marginBottom: '24px' }}
-            data-testid="archive-project-card"
-          >
-            <div className="card-header">
-              <h2 className="card-title">归档项目</h2>
-            </div>
-            <p className="form-help">
-              归档后不可启动新冒烟运行；历史报告不会因此删除。
-              输入完整项目名称并确认，服务器成功返回后才更新项目状态。
-            </p>
-            <label className="form-label" htmlFor="archive-project-name">
-              输入项目名称以确认
-            </label>
-            <input
-              id="archive-project-name"
-              className="form-input"
-              data-testid="archive-project-name"
-              value={archiveName}
-              onChange={(event) => setArchiveName(event.target.value)}
-              disabled={archiving}
-              autoComplete="off"
-              style={{ maxWidth: 360 }}
-            />
-            <label style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-              <input
-                type="checkbox"
-                data-testid="confirm-project-archive"
-                checked={archiveConfirmed}
-                onChange={(event) => setArchiveConfirmed(event.target.checked)}
-                disabled={archiving}
-              />
-              我确认将当前项目归档，而不是删除数据。
-            </label>
-            {changed && <p role="alert">请先保存或放弃未提交的成员变更。</p>}
-            {archiveError && (
-              <p role="alert" data-testid="archive-project-error">
-                {archiveError}
-              </p>
-            )}
-            <button
-              type="button"
-              className="btn btn-secondary"
-              data-testid="btn-archive-project"
-              style={{ marginTop: 12 }}
-              disabled={
-                archiving ||
-                changed ||
-                !archiveConfirmed ||
-                archiveName !== currentProject?.name
-              }
-              onClick={() => void archiveProject()}
+          {currentUser?.globalRole === 'admin' && currentProject && (
+            <section
+              className="card is-danger"
+              data-testid="delete-project-card"
+              aria-labelledby="delete-project-heading"
             >
-              {archiving ? '归档中…' : '确认归档当前项目'}
-            </button>
-          </div>
-        )}
-
-        {currentUser?.globalRole === 'admin' && currentProject && (
-          <section
-            className="card lqa-project-danger-zone"
-            data-testid="delete-project-card"
-            aria-labelledby="delete-project-heading"
-          >
-            <div className="card-header">
-              <h2 id="delete-project-heading" className="card-title">
-                危险操作 · 永久删除项目
-              </h2>
-            </div>
-            <p className="form-help">
-              仅支持删除没有运行记录、测试用例、环境、模型授权、其他成员或配置的空项目。
-              删除后项目不可恢复，历史安全审计记录仍会保留；有业务数据的项目请使用归档。
-            </p>
-            <p className="form-help">
-              当前项目 ID：
-              <code data-testid="delete-project-target-id">
-                {currentProject.id}
-              </code>
-              （请核对，重名项目不会一起删除）
-            </p>
-            <label className="form-label" htmlFor="delete-project-name">
-              输入当前项目的完整名称「{currentProject.name}」以确认
-            </label>
-            <input
-              id="delete-project-name"
-              data-testid="delete-project-name"
-              className="form-input"
-              autoComplete="off"
-              style={{ maxWidth: 360 }}
-              value={deleteName}
-              onChange={(event) => setDeleteName(event.target.value)}
-              disabled={deletingProject || isMock}
-            />
-            <label className="lqa-project-delete-check">
-              <input
-                type="checkbox"
-                checked={deleteConfirmed}
-                onChange={(event) => setDeleteConfirmed(event.target.checked)}
-                disabled={deletingProject || isMock}
-                data-testid="confirm-project-delete"
-              />
-              我理解永久删除不可恢复，并确认当前项目不再需要。
-            </label>
-            {isMock && (
-              <p className="form-help">演示模式不提供真实项目删除。</p>
-            )}
-            {deleteError && (
-              <p
-                role="alert"
-                className="lqa-project-delete-error"
-                data-testid="delete-project-error"
+              <div className="card-header">
+                <div className="card-heading">
+                  <h2 id="delete-project-heading" className="card-title">
+                    <AppIcon name="trash" size={17} />
+                    永久删除项目
+                  </h2>
+                  <p className="card-description">
+                    仅可删除没有运行记录、测试用例、环境、模型授权、其他成员或配置的空项目。删除后不可恢复，安全审计记录仍会保留；有业务数据的项目请使用归档。
+                  </p>
+                </div>
+              </div>
+              <p className="field-hint lqa-delete-target">
+                项目 ID：
+                <code data-testid="delete-project-target-id">
+                  {currentProject.id}
+                </code>
+                （请核对，重名项目不会一起删除）
+              </p>
+              <Field
+                label={`输入完整项目名称「${currentProject.name}」以确认`}
+                htmlFor="delete-project-name"
               >
-                {deleteError}
-              </p>
-            )}
-            <button
-              type="button"
-              className="btn btn-danger"
-              data-testid="btn-delete-project"
-              disabled={
-                deletingProject ||
-                isMock ||
-                archiving ||
-                changed ||
-                !deleteConfirmed ||
-                deleteName !== currentProject.name
-              }
-              onClick={() => void deleteProject()}
-            >
-              {deletingProject ? '正在删除…' : '永久删除当前项目'}
-            </button>
-          </section>
-        )}
-
-        {/* Section 4: Audit status, without synthetic entries */}
-        <div className="card">
-          <div className="card-header">
-            <h2 className="card-title">安全审计日志 (Audit Log)</h2>
-            <span className="badge badge-neutral">暂无查询接口</span>
-          </div>
-          <p data-testid="audit-unavailable-notice">
-            系统记录授权变更的服务器审计事件，但当前页面尚未接入可查询的审计日志接口；
-            不展示任何模拟记录作为真实历史。
-          </p>
+                <input
+                  id="delete-project-name"
+                  data-testid="delete-project-name"
+                  className="form-input"
+                  autoComplete="off"
+                  value={deleteName}
+                  onChange={(event) => setDeleteName(event.target.value)}
+                  disabled={deletingProject || isMock}
+                />
+              </Field>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={deleteConfirmed}
+                  onChange={(event) => setDeleteConfirmed(event.target.checked)}
+                  disabled={deletingProject || isMock}
+                  data-testid="confirm-project-delete"
+                />
+                我理解永久删除不可恢复，并确认当前项目不再需要。
+              </label>
+              {(isMock || deleteError) && (
+                <div className="stack stack-sm lqa-card-messages">
+                  {isMock && (
+                    <p className="field-hint">演示模式不提供真实项目删除。</p>
+                  )}
+                  {deleteError && (
+                    <Alert
+                      tone="danger"
+                      role="alert"
+                      testId="delete-project-error"
+                    >
+                      {deleteError}
+                    </Alert>
+                  )}
+                </div>
+              )}
+              <div className="form-actions is-start">
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  data-testid="btn-delete-project"
+                  disabled={
+                    deletingProject ||
+                    isMock ||
+                    archiving ||
+                    changed ||
+                    !deleteConfirmed ||
+                    deleteName !== currentProject.name
+                  }
+                  onClick={() => void deleteProject()}
+                >
+                  <AppIcon name="trash" size={14} />
+                  {deletingProject ? '正在删除…' : '永久删除'}
+                </button>
+              </div>
+            </section>
+          )}
         </div>
-      </main>
-    </div>
+      )}
+
+      <Section
+        icon="history"
+        title="安全审计日志"
+        actions={<span className="badge badge-neutral">暂无查询接口</span>}
+      >
+        <p className="muted text-sm" data-testid="audit-unavailable-notice">
+          系统会记录授权变更的服务器审计事件，但当前页面尚未接入可查询的审计日志接口；不会展示任何模拟记录冒充真实历史。
+        </p>
+      </Section>
+    </Page>
   );
 };

@@ -14,7 +14,7 @@ import type {
 } from '../api/types.ts';
 import { useApp } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
-import { AppHeader } from '../components/layout/AppHeader.tsx';
+import { Page } from '../components/layout/Page.tsx';
 
 type Kind = 'smoke' | 'regression';
 type Draft = {
@@ -311,552 +311,542 @@ export const SchedulesPage: React.FC = () => {
   }
 
   return (
-    <div className="app-container" data-testid="schedules-page">
-      <AppHeader />
-      <main className="main-content">
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              gap: 14,
-              alignItems: 'center',
-              marginBottom: 18,
-            }}
-          >
-            <div>
-              <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
-                定时测试 / Scheduled Runs
-              </h1>
-              <p
-                style={{
-                  color: 'var(--color-text-muted)',
-                  fontSize: '0.875rem',
-                }}
-              >
-                {currentProject?.name ?? '请选择项目'} · 五段 Cron / IANA 时区 ·
-                已批准用例版本
-              </p>
-            </div>
-            <button
-              className="btn btn-primary"
-              type="button"
-              disabled={!projectId || !canManage || busy || isMock}
-              onClick={beginCreate}
-              data-testid="btn-new-schedule"
-            >
-              新建计划
-            </button>
-          </div>
-          {isMock && (
-            <p role="note">
-              演示模式不执行实际计划。请切换真实 API 以使用定时调度。
-            </p>
-          )}
-          {error && (
-            <div
-              role="alert"
-              className="card"
+    <Page testId="schedules-page">
+      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: 14,
+            alignItems: 'center',
+            marginBottom: 18,
+          }}
+        >
+          <div>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
+              定时测试 / Scheduled Runs
+            </h1>
+            <p
               style={{
-                padding: 14,
-                color: 'var(--color-danger-text)',
-                marginBottom: 12,
+                color: 'var(--color-text-muted)',
+                fontSize: '0.875rem',
               }}
             >
-              {error}
-            </div>
-          )}
-          {notice && (
-            <div
-              role="status"
-              className="card"
-              style={{ padding: 14, marginBottom: 12 }}
-            >
-              {notice}
-            </div>
-          )}
-          {loading ? (
-            <p>正在加载定时计划…</p>
-          ) : (
-            <div className="card" style={{ padding: 20, marginBottom: 20 }}>
-              {!schedules.length ? (
-                <p style={{ color: 'var(--color-text-muted)' }}>
-                  尚无定时计划。创建计划后，后台将按设定时区自动发起运行。
-                </p>
-              ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table
-                    style={{
-                      width: '100%',
-                      borderCollapse: 'collapse',
-                      textAlign: 'left',
-                    }}
-                  >
-                    <thead>
-                      <tr>
-                        <th>名称</th>
-                        <th>Cron / 时区</th>
-                        <th>类型</th>
-                        <th>策略</th>
-                        <th>状态</th>
-                        <th>操作</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {schedules.map((schedule) => (
-                        <React.Fragment key={schedule.id}>
-                          <tr
-                            style={{
-                              borderTop: '1px solid var(--color-border-subtle)',
-                            }}
-                          >
-                            <td>
-                              <strong>{schedule.name}</strong>
-                              <div style={{ fontSize: '0.75rem' }}>
-                                v{schedule.version}
-                              </div>
-                            </td>
-                            <td>
-                              <code>{schedule.cron}</code>
-                              <div style={{ fontSize: '0.8rem' }}>
-                                {schedule.timezone}
-                              </div>
-                            </td>
-                            <td>
-                              {schedule.templateKind === 'smoke'
-                                ? '冒烟'
-                                : '回归'}
-                            </td>
-                            <td>
-                              {schedule.overlapPolicy === 'queue'
-                                ? '重叠排队'
-                                : '重叠跳过'}{' '}
-                              /{' '}
-                              {schedule.missedPolicy === 'catchup_one'
-                                ? '补执行一次'
-                                : '错过跳过'}
-                            </td>
-                            <td>{schedule.enabled ? '已启用' : '已暂停'}</td>
-                            <td style={{ minWidth: 270 }}>
-                              <div
+              {currentProject?.name ?? '请选择项目'} · 五段 Cron / IANA 时区 ·
+              已批准用例版本
+            </p>
+          </div>
+          <button
+            className="btn btn-primary"
+            type="button"
+            disabled={!projectId || !canManage || busy || isMock}
+            onClick={beginCreate}
+            data-testid="btn-new-schedule"
+          >
+            新建计划
+          </button>
+        </div>
+        {isMock && (
+          <p role="note">
+            演示模式不执行实际计划。请切换真实 API 以使用定时调度。
+          </p>
+        )}
+        {error && (
+          <div
+            role="alert"
+            className="card"
+            style={{
+              padding: 14,
+              color: 'var(--color-danger-text)',
+              marginBottom: 12,
+            }}
+          >
+            {error}
+          </div>
+        )}
+        {notice && (
+          <div
+            role="status"
+            className="card"
+            style={{ padding: 14, marginBottom: 12 }}
+          >
+            {notice}
+          </div>
+        )}
+        {loading ? (
+          <p>正在加载定时计划…</p>
+        ) : (
+          <div className="card" style={{ padding: 20, marginBottom: 20 }}>
+            {!schedules.length ? (
+              <p style={{ color: 'var(--color-text-muted)' }}>
+                尚无定时计划。创建计划后，后台将按设定时区自动发起运行。
+              </p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table
+                  style={{
+                    width: '100%',
+                    borderCollapse: 'collapse',
+                    textAlign: 'left',
+                  }}
+                >
+                  <thead>
+                    <tr>
+                      <th>名称</th>
+                      <th>Cron / 时区</th>
+                      <th>类型</th>
+                      <th>策略</th>
+                      <th>状态</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {schedules.map((schedule) => (
+                      <React.Fragment key={schedule.id}>
+                        <tr
+                          style={{
+                            borderTop: '1px solid var(--color-border-subtle)',
+                          }}
+                        >
+                          <td>
+                            <strong>{schedule.name}</strong>
+                            <div style={{ fontSize: '0.75rem' }}>
+                              v{schedule.version}
+                            </div>
+                          </td>
+                          <td>
+                            <code>{schedule.cron}</code>
+                            <div style={{ fontSize: '0.8rem' }}>
+                              {schedule.timezone}
+                            </div>
+                          </td>
+                          <td>
+                            {schedule.templateKind === 'smoke'
+                              ? '冒烟'
+                              : '回归'}
+                          </td>
+                          <td>
+                            {schedule.overlapPolicy === 'queue'
+                              ? '重叠排队'
+                              : '重叠跳过'}{' '}
+                            /{' '}
+                            {schedule.missedPolicy === 'catchup_one'
+                              ? '补执行一次'
+                              : '错过跳过'}
+                          </td>
+                          <td>{schedule.enabled ? '已启用' : '已暂停'}</td>
+                          <td style={{ minWidth: 270 }}>
+                            <div
+                              style={{
+                                display: 'flex',
+                                gap: 6,
+                                flexWrap: 'wrap',
+                              }}
+                            >
+                              <button
+                                className="btn btn-secondary btn-sm"
+                                type="button"
+                                onClick={() => void showHistory(schedule.id)}
+                              >
+                                {historyId === schedule.id
+                                  ? '收起历史'
+                                  : '执行历史'}
+                              </button>
+                              {canManage && !isMock && (
+                                <>
+                                  <button
+                                    className="btn btn-secondary btn-sm"
+                                    disabled={busy}
+                                    type="button"
+                                    onClick={() => beginEdit(schedule)}
+                                  >
+                                    编辑
+                                  </button>
+                                  <button
+                                    className="btn btn-secondary btn-sm"
+                                    disabled={busy}
+                                    type="button"
+                                    onClick={() => void toggleEnabled(schedule)}
+                                  >
+                                    {schedule.enabled ? '暂停' : '启用'}
+                                  </button>
+                                  <button
+                                    className="btn btn-primary btn-sm"
+                                    disabled={busy || !schedule.enabled}
+                                    type="button"
+                                    onClick={() => void runNow(schedule)}
+                                  >
+                                    立即运行
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                        {historyId === schedule.id && (
+                          <tr>
+                            <td
+                              colSpan={6}
+                              style={{
+                                padding: 14,
+                                background: 'var(--color-bg-surface)',
+                              }}
+                            >
+                              <h3
                                 style={{
-                                  display: 'flex',
-                                  gap: 6,
-                                  flexWrap: 'wrap',
+                                  fontSize: '0.9rem',
+                                  marginBottom: 8,
                                 }}
                               >
-                                <button
-                                  className="btn btn-secondary btn-sm"
-                                  type="button"
-                                  onClick={() => void showHistory(schedule.id)}
-                                >
-                                  {historyId === schedule.id
-                                    ? '收起历史'
-                                    : '执行历史'}
-                                </button>
-                                {canManage && !isMock && (
-                                  <>
+                                最近执行记录
+                              </h3>
+                              {historyLoading && !occurrences.length ? (
+                                '加载中…'
+                              ) : !occurrences.length ? (
+                                '暂无执行记录。'
+                              ) : (
+                                <div style={{ overflowX: 'auto' }}>
+                                  <table
+                                    style={{
+                                      width: '100%',
+                                      textAlign: 'left',
+                                    }}
+                                  >
+                                    <thead>
+                                      <tr>
+                                        <th>计划本地时间</th>
+                                        <th>计划 UTC</th>
+                                        <th>状态</th>
+                                        <th>版本</th>
+                                        <th>运行</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {occurrences.map((o) => (
+                                        <tr key={o.id}>
+                                          <td>{o.scheduledLocal}</td>
+                                          <td>
+                                            {new Date(
+                                              o.scheduledAt,
+                                            ).toISOString()}
+                                          </td>
+                                          <td>{o.status}</td>
+                                          <td>v{o.scheduleVersion}</td>
+                                          <td>
+                                            {o.runId ? (
+                                              <button
+                                                className="btn btn-secondary btn-sm"
+                                                type="button"
+                                                onClick={() =>
+                                                  setRoute('workbench', {
+                                                    runId: o.runId!,
+                                                  })
+                                                }
+                                              >
+                                                查看运行
+                                              </button>
+                                            ) : (
+                                              '—'
+                                            )}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                  {historyCursor && (
                                     <button
                                       className="btn btn-secondary btn-sm"
-                                      disabled={busy}
                                       type="button"
-                                      onClick={() => beginEdit(schedule)}
-                                    >
-                                      编辑
-                                    </button>
-                                    <button
-                                      className="btn btn-secondary btn-sm"
-                                      disabled={busy}
-                                      type="button"
+                                      disabled={historyLoading}
                                       onClick={() =>
-                                        void toggleEnabled(schedule)
+                                        void showHistory(
+                                          schedule.id,
+                                          historyCursor,
+                                        )
                                       }
                                     >
-                                      {schedule.enabled ? '暂停' : '启用'}
+                                      更多记录
                                     </button>
-                                    <button
-                                      className="btn btn-primary btn-sm"
-                                      disabled={busy || !schedule.enabled}
-                                      type="button"
-                                      onClick={() => void runNow(schedule)}
-                                    >
-                                      立即运行
-                                    </button>
-                                  </>
-                                )}
-                              </div>
+                                  )}
+                                </div>
+                              )}
                             </td>
                           </tr>
-                          {historyId === schedule.id && (
-                            <tr>
-                              <td
-                                colSpan={6}
-                                style={{
-                                  padding: 14,
-                                  background: 'var(--color-bg-surface)',
-                                }}
-                              >
-                                <h3
-                                  style={{
-                                    fontSize: '0.9rem',
-                                    marginBottom: 8,
-                                  }}
-                                >
-                                  最近执行记录
-                                </h3>
-                                {historyLoading && !occurrences.length ? (
-                                  '加载中…'
-                                ) : !occurrences.length ? (
-                                  '暂无执行记录。'
-                                ) : (
-                                  <div style={{ overflowX: 'auto' }}>
-                                    <table
-                                      style={{
-                                        width: '100%',
-                                        textAlign: 'left',
-                                      }}
-                                    >
-                                      <thead>
-                                        <tr>
-                                          <th>计划本地时间</th>
-                                          <th>计划 UTC</th>
-                                          <th>状态</th>
-                                          <th>版本</th>
-                                          <th>运行</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {occurrences.map((o) => (
-                                          <tr key={o.id}>
-                                            <td>{o.scheduledLocal}</td>
-                                            <td>
-                                              {new Date(
-                                                o.scheduledAt,
-                                              ).toISOString()}
-                                            </td>
-                                            <td>{o.status}</td>
-                                            <td>v{o.scheduleVersion}</td>
-                                            <td>
-                                              {o.runId ? (
-                                                <button
-                                                  className="btn btn-secondary btn-sm"
-                                                  type="button"
-                                                  onClick={() =>
-                                                    setRoute('workbench', {
-                                                      runId: o.runId!,
-                                                    })
-                                                  }
-                                                >
-                                                  查看运行
-                                                </button>
-                                              ) : (
-                                                '—'
-                                              )}
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                    {historyCursor && (
-                                      <button
-                                        className="btn btn-secondary btn-sm"
-                                        type="button"
-                                        disabled={historyLoading}
-                                        onClick={() =>
-                                          void showHistory(
-                                            schedule.id,
-                                            historyCursor,
-                                          )
-                                        }
-                                      >
-                                        更多记录
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              {nextCursor && (
-                <button
-                  className="btn btn-secondary btn-sm"
-                  type="button"
-                  disabled={busy}
-                  style={{ marginTop: 12 }}
-                  onClick={() => {
-                    if (!projectId) return;
-                    void defaultApiClient
-                      .listSchedules(projectId, {
-                        limit: 30,
-                        cursor: nextCursor,
-                      })
-                      .then((page) => {
-                        setSchedules((old) => [...old, ...page.items]);
-                        setNextCursor(page.nextCursor);
-                      })
-                      .catch((e) => setError(errorText(e)));
-                  }}
-                >
-                  加载更多计划
-                </button>
-              )}
-            </div>
-          )}
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {nextCursor && (
+              <button
+                className="btn btn-secondary btn-sm"
+                type="button"
+                disabled={busy}
+                style={{ marginTop: 12 }}
+                onClick={() => {
+                  if (!projectId) return;
+                  void defaultApiClient
+                    .listSchedules(projectId, {
+                      limit: 30,
+                      cursor: nextCursor,
+                    })
+                    .then((page) => {
+                      setSchedules((old) => [...old, ...page.items]);
+                      setNextCursor(page.nextCursor);
+                    })
+                    .catch((e) => setError(errorText(e)));
+                }}
+              >
+                加载更多计划
+              </button>
+            )}
+          </div>
+        )}
 
-          {editor && (
-            <section
-              className="card"
-              style={{ padding: 22 }}
-              data-testid="schedule-editor"
-            >
-              <h2 style={{ fontSize: '1.2rem', marginBottom: 18 }}>
-                {editing ? '编辑定时计划' : '创建定时计划'}
-              </h2>
-              <form onSubmit={(e) => void save(e)}>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
-                    gap: 16,
-                  }}
-                >
+        {editor && (
+          <section
+            className="card"
+            style={{ padding: 22 }}
+            data-testid="schedule-editor"
+          >
+            <h2 style={{ fontSize: '1.2rem', marginBottom: 18 }}>
+              {editing ? '编辑定时计划' : '创建定时计划'}
+            </h2>
+            <form onSubmit={(e) => void save(e)}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+                  gap: 16,
+                }}
+              >
+                <div className="form-group">
+                  <label className="form-label">名称 *</label>
+                  <input
+                    className="form-input"
+                    required
+                    maxLength={120}
+                    value={draft.name}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, name: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">执行类型 *</label>
+                  <select
+                    className="form-select"
+                    value={draft.kind}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        kind: e.target.value as Kind,
+                      }))
+                    }
+                  >
+                    <option value="smoke">冒烟测试</option>
+                    <option value="regression">已批准用例回归</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Cron（5 段）*</label>
+                  <input
+                    className="form-input"
+                    required
+                    value={draft.cron}
+                    placeholder="0 9 * * 1-5"
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, cron: e.target.value }))
+                    }
+                  />
+                  <span className="form-help">
+                    例如 0 9 * * 1-5：工作日每天 9:00
+                  </span>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">IANA 时区 *</label>
+                  <input
+                    className="form-input"
+                    required
+                    value={draft.timezone}
+                    placeholder="Asia/Shanghai"
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, timezone: e.target.value }))
+                    }
+                  />
+                </div>
+                {draft.kind === 'smoke' ? (
                   <div className="form-group">
-                    <label className="form-label">名称 *</label>
+                    <label className="form-label">目标 URL *</label>
                     <input
-                      className="form-input"
+                      type="url"
                       required
-                      maxLength={120}
-                      value={draft.name}
+                      className="form-input"
+                      value={draft.targetUrl}
+                      placeholder="https://test.example.com/"
                       onChange={(e) =>
-                        setDraft((d) => ({ ...d, name: e.target.value }))
+                        setDraft((d) => ({ ...d, targetUrl: e.target.value }))
                       }
                     />
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">执行类型 *</label>
-                    <select
-                      className="form-select"
-                      value={draft.kind}
-                      onChange={(e) =>
-                        setDraft((d) => ({
-                          ...d,
-                          kind: e.target.value as Kind,
-                        }))
-                      }
-                    >
-                      <option value="smoke">冒烟测试</option>
-                      <option value="regression">已批准用例回归</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Cron（5 段）*</label>
-                    <input
-                      className="form-input"
-                      required
-                      value={draft.cron}
-                      placeholder="0 9 * * 1-5"
-                      onChange={(e) =>
-                        setDraft((d) => ({ ...d, cron: e.target.value }))
-                      }
-                    />
-                    <span className="form-help">
-                      例如 0 9 * * 1-5：工作日每天 9:00
-                    </span>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">IANA 时区 *</label>
-                    <input
-                      className="form-input"
-                      required
-                      value={draft.timezone}
-                      placeholder="Asia/Shanghai"
-                      onChange={(e) =>
-                        setDraft((d) => ({ ...d, timezone: e.target.value }))
-                      }
-                    />
-                  </div>
-                  {draft.kind === 'smoke' ? (
-                    <div className="form-group">
-                      <label className="form-label">目标 URL *</label>
-                      <input
-                        type="url"
-                        required
-                        className="form-input"
-                        value={draft.targetUrl}
-                        placeholder="https://test.example.com/"
-                        onChange={(e) =>
-                          setDraft((d) => ({ ...d, targetUrl: e.target.value }))
-                        }
-                      />
-                    </div>
-                  ) : (
+                ) : (
+                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                    <label className="form-label">已批准用例版本 *</label>
                     <div
-                      className="form-group"
-                      style={{ gridColumn: '1 / -1' }}
+                      style={{
+                        maxHeight: 210,
+                        overflowY: 'auto',
+                        padding: 12,
+                        border: '1px solid var(--color-border-subtle)',
+                        borderRadius: 6,
+                      }}
                     >
-                      <label className="form-label">已批准用例版本 *</label>
-                      <div
-                        style={{
-                          maxHeight: 210,
-                          overflowY: 'auto',
-                          padding: 12,
-                          border: '1px solid var(--color-border-subtle)',
-                          borderRadius: 6,
-                        }}
-                      >
-                        {!approvedCases.length && (
-                          <p>本项目暂无当前已批准的可执行用例。</p>
-                        )}
-                        {approvedCases.map((c) => (
-                          <label
-                            key={c.id}
-                            style={{ display: 'block', padding: '4px 0' }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={draft.caseVersionIds.includes(
-                                c.currentApprovedVersionId!,
-                              )}
-                              onChange={(e) =>
-                                setDraft((d) => ({
-                                  ...d,
-                                  caseVersionIds: e.target.checked
-                                    ? [
-                                        ...d.caseVersionIds,
-                                        c.currentApprovedVersionId!,
-                                      ]
-                                    : d.caseVersionIds.filter(
-                                        (id) =>
-                                          id !== c.currentApprovedVersionId,
-                                      ),
-                                }))
-                              }
-                            />{' '}
-                            {c.name} <small>({c.slug})</small>
-                          </label>
-                        ))}
-                        {casesTruncated && (
-                          <p className="form-help">
-                            用例超过 500 条，当前仅列出前 500 条。
-                          </p>
-                        )}
-                      </div>
+                      {!approvedCases.length && (
+                        <p>本项目暂无当前已批准的可执行用例。</p>
+                      )}
+                      {approvedCases.map((c) => (
+                        <label
+                          key={c.id}
+                          style={{ display: 'block', padding: '4px 0' }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={draft.caseVersionIds.includes(
+                              c.currentApprovedVersionId!,
+                            )}
+                            onChange={(e) =>
+                              setDraft((d) => ({
+                                ...d,
+                                caseVersionIds: e.target.checked
+                                  ? [
+                                      ...d.caseVersionIds,
+                                      c.currentApprovedVersionId!,
+                                    ]
+                                  : d.caseVersionIds.filter(
+                                      (id) => id !== c.currentApprovedVersionId,
+                                    ),
+                              }))
+                            }
+                          />{' '}
+                          {c.name} <small>({c.slug})</small>
+                        </label>
+                      ))}
+                      {casesTruncated && (
+                        <p className="form-help">
+                          用例超过 500 条，当前仅列出前 500 条。
+                        </p>
+                      )}
                     </div>
-                  )}
-                  <div className="form-group">
-                    <label className="form-label">执行环境</label>
-                    <select
-                      className="form-select"
-                      value={draft.environmentId}
-                      onChange={(e) =>
-                        setDraft((d) => ({
-                          ...d,
-                          environmentId: e.target.value,
-                        }))
-                      }
-                    >
-                      <option value="">不指定</option>
-                      {environments.map((e) => (
-                        <option key={e.id} value={e.id}>
-                          {e.name}
+                  </div>
+                )}
+                <div className="form-group">
+                  <label className="form-label">执行环境</label>
+                  <select
+                    className="form-select"
+                    value={draft.environmentId}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        environmentId: e.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">不指定</option>
+                    {environments.map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">认证配置</label>
+                  <select
+                    className="form-select"
+                    value={draft.authProfileId}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        authProfileId: e.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">使用环境默认配置 / 无</option>
+                    {authProfiles
+                      .filter((a) => a.status === 'active')
+                      .map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
                         </option>
                       ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">认证配置</label>
-                    <select
-                      className="form-select"
-                      value={draft.authProfileId}
-                      onChange={(e) =>
-                        setDraft((d) => ({
-                          ...d,
-                          authProfileId: e.target.value,
-                        }))
-                      }
-                    >
-                      <option value="">使用环境默认配置 / 无</option>
-                      {authProfiles
-                        .filter((a) => a.status === 'active')
-                        .map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.name}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">运行重叠策略</label>
-                    <select
-                      className="form-select"
-                      value={draft.overlapPolicy}
-                      onChange={(e) =>
-                        setDraft((d) => ({
-                          ...d,
-                          overlapPolicy: e.target
-                            .value as Draft['overlapPolicy'],
-                        }))
-                      }
-                    >
-                      <option value="skip">跳过重叠运行</option>
-                      <option value="queue">排队等待（最多一项）</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">错过执行策略</label>
-                    <select
-                      className="form-select"
-                      value={draft.missedPolicy}
-                      onChange={(e) =>
-                        setDraft((d) => ({
-                          ...d,
-                          missedPolicy: e.target.value as Draft['missedPolicy'],
-                        }))
-                      }
-                    >
-                      <option value="skip">跳过</option>
-                      <option value="catchup_one">最多补执行一次</option>
-                    </select>
-                  </div>
+                  </select>
                 </div>
-                <label style={{ display: 'block', margin: '16px 0' }}>
-                  <input
-                    type="checkbox"
-                    checked={draft.enabled}
+                <div className="form-group">
+                  <label className="form-label">运行重叠策略</label>
+                  <select
+                    className="form-select"
+                    value={draft.overlapPolicy}
                     onChange={(e) =>
-                      setDraft((d) => ({ ...d, enabled: e.target.checked }))
+                      setDraft((d) => ({
+                        ...d,
+                        overlapPolicy: e.target.value as Draft['overlapPolicy'],
+                      }))
                     }
-                  />{' '}
-                  启用计划
-                </label>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button
-                    className="btn btn-primary"
-                    type="submit"
-                    disabled={busy}
                   >
-                    {busy ? '保存中…' : '保存计划'}
-                  </button>
-                  <button
-                    className="btn btn-secondary"
-                    type="button"
-                    disabled={busy}
-                    onClick={() => setEditor(false)}
-                  >
-                    取消
-                  </button>
+                    <option value="skip">跳过重叠运行</option>
+                    <option value="queue">排队等待（最多一项）</option>
+                  </select>
                 </div>
-              </form>
-            </section>
-          )}
-        </div>
-      </main>
-    </div>
+                <div className="form-group">
+                  <label className="form-label">错过执行策略</label>
+                  <select
+                    className="form-select"
+                    value={draft.missedPolicy}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        missedPolicy: e.target.value as Draft['missedPolicy'],
+                      }))
+                    }
+                  >
+                    <option value="skip">跳过</option>
+                    <option value="catchup_one">最多补执行一次</option>
+                  </select>
+                </div>
+              </div>
+              <label style={{ display: 'block', margin: '16px 0' }}>
+                <input
+                  type="checkbox"
+                  checked={draft.enabled}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, enabled: e.target.checked }))
+                  }
+                />{' '}
+                启用计划
+              </label>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  className="btn btn-primary"
+                  type="submit"
+                  disabled={busy}
+                >
+                  {busy ? '保存中…' : '保存计划'}
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setEditor(false)}
+                >
+                  取消
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
+      </div>
+    </Page>
   );
 };

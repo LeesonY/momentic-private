@@ -357,7 +357,7 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
                 <EmptyState
                   title="未发现任何缺陷"
                   description="当前所有自动化检查均未触发失败判定。"
-                  icon="🎉"
+                  icon="check-circle"
                 />
               ) : (
                 <div

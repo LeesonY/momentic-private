@@ -6,7 +6,8 @@ import type {
 } from '@localqa/contracts';
 import { defaultApiClient } from '../api/index.ts';
 import { useAppContext } from '../state/AppContext.tsx';
-import { AppHeader } from '../components/layout/AppHeader.tsx';
+import { Page } from '../components/layout/Page.tsx';
+import { Alert } from '../components/ui/Alert.tsx';
 import { AppIcon } from '../components/ui/AppIcon.tsx';
 
 const probeFailureHints: Record<string, string> = {
@@ -221,507 +222,486 @@ export const ModelsPage: React.FC = () => {
   };
 
   return (
-    <div className="app-container lqa-models-page" data-testid="models-page">
-      <AppHeader />
-      <main className="main-content lqa-models-content">
-        <div className="lqa-models-heading">
-          <div className="lqa-models-heading-icon">
-            <AppIcon name="cpu" size={28} />
-          </div>
-          <div className="lqa-models-heading-copy">
-            <div className="lqa-eyebrow">AI CONFIGURATION / 模型中心</div>
-            <h1>
-              AI 模型管理
-              <span className="lqa-models-heading-count">
-                {models.length} 个模型
-              </span>
-            </h1>
-            <p>
-              统一管理模型接入、能力探测及项目授权，为自动化测试提供可靠的推理能力。
-            </p>
-          </div>
-        </div>
+    <Page
+      className="lqa-models-page"
+      testId="models-page"
+      title={
+        <>
+          模型管理
+          <span className="badge badge-neutral">{models.length} 个模型</span>
+        </>
+      }
+      description="统一管理模型接入、能力探测与项目授权，为自动化测试提供可靠的推理能力。"
+    >
+      <Alert tone="info" title="安全提示">
+        访问密钥只用于加密存储，不会在页面回显；外部模型可能接收脱敏后的测试页面信息。
+      </Alert>
 
-        <div className="lqa-models-info-strip">
-          <AppIcon name="shield" size={18} />
-          <p>
-            <strong>安全提示</strong>
-            访问密钥仅用于加密存储，不会在页面回显；外部模型可能接收脱敏后的测试页面信息。
-          </p>
-        </div>
-
-        {currentProject && (
-          <section
-            className="card lqa-models-section lqa-models-grants"
-            data-testid="project-model-settings"
-          >
-            <div className="lqa-models-section-heading">
-              <span className="lqa-models-section-icon">
-                <AppIcon name="shield" size={21} />
-              </span>
-              <div>
-                <h2>项目模型授权</h2>
-                <p>
-                  当前项目：{currentProject.name} · 仅授权模型可用于运行测试
-                </p>
-              </div>
+      {currentProject && (
+        <section
+          className="card lqa-models-section lqa-models-grants"
+          data-testid="project-model-settings"
+        >
+          <div className="lqa-models-section-heading">
+            <span className="lqa-models-section-icon">
+              <AppIcon name="shield" size={21} />
+            </span>
+            <div>
+              <h2>项目模型授权</h2>
+              <p>当前项目：{currentProject.name} · 仅授权模型可用于运行测试</p>
             </div>
-            {projectModelsError && (
-              <p
-                role="alert"
-                className="lqa-models-alert"
-                data-testid="project-model-error"
+          </div>
+          {projectModelsError && (
+            <p
+              role="alert"
+              className="lqa-models-alert"
+              data-testid="project-model-error"
+            >
+              {projectModelsError}
+            </p>
+          )}
+          {projectModelsLoading ? (
+            <p>正在读取项目模型…</p>
+          ) : (
+            <>
+              <div
+                className="lqa-models-grants-summary"
+                data-testid="project-grants-summary"
               >
-                {projectModelsError}
-              </p>
-            )}
-            {projectModelsLoading ? (
-              <p>正在读取项目模型…</p>
-            ) : (
-              <>
-                <div
-                  className="lqa-models-grants-summary"
-                  data-testid="project-grants-summary"
+                <span className="lqa-models-summary-label">已授权模型</span>
+                <span
+                  className={
+                    grantedModels.length
+                      ? 'lqa-models-summary-names'
+                      : 'lqa-models-summary-empty'
+                  }
                 >
-                  <span className="lqa-models-summary-label">已授权模型</span>
-                  <span
-                    className={
-                      grantedModels.length
-                        ? 'lqa-models-summary-names'
-                        : 'lqa-models-summary-empty'
-                    }
-                  >
-                    {grantedModels.length > 0
-                      ? grantedModels.map((m) => m.name).join('、')
-                      : '暂无，请先添加并授权模型'}
-                  </span>
-                </div>
-                {currentUser?.globalRole === 'admin' && (
-                  <div className="lqa-models-control-row">
-                    <label className="form-label" htmlFor="grant-model-select">
-                      授权新模型
-                    </label>
-                    <select
-                      id="grant-model-select"
-                      className="form-select"
-                      data-testid="grant-model-select"
-                      value={grantChoice}
-                      disabled={grantSaving}
-                      onChange={(e) => setGrantChoice(e.target.value)}
-                    >
-                      <option value="">选择全局已有模型</option>
-                      {models
-                        .filter(
-                          (m) =>
-                            !grantedModels.some((g) => g.id === m.id) &&
-                            m.status !== 'disabled',
-                        )
-                        .map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.name}（{m.status}）
-                          </option>
-                        ))}
-                    </select>
-                    <button
-                      className="btn btn-secondary"
-                      type="button"
-                      onClick={() => void grantModel()}
-                      disabled={!grantChoice || grantSaving}
-                      data-testid="btn-grant-model"
-                    >
-                      {grantSaving ? '授权中…' : '授权给当前项目'}
-                    </button>
-                  </div>
-                )}
+                  {grantedModels.length > 0
+                    ? grantedModels.map((m) => m.name).join('、')
+                    : '暂无，请先添加并授权模型'}
+                </span>
+              </div>
+              {currentUser?.globalRole === 'admin' && (
                 <div className="lqa-models-control-row">
-                  <label className="form-label" htmlFor="default-model-select">
-                    默认模型
+                  <label className="form-label" htmlFor="grant-model-select">
+                    授权新模型
                   </label>
                   <select
-                    id="default-model-select"
+                    id="grant-model-select"
                     className="form-select"
-                    value={defaultChoice}
-                    data-testid="default-model-select"
-                    disabled={
-                      currentUser?.globalRole !== 'admin' || defaultSaving
-                    }
-                    onChange={(e) => setDefaultChoice(e.target.value)}
+                    data-testid="grant-model-select"
+                    value={grantChoice}
+                    disabled={grantSaving}
+                    onChange={(e) => setGrantChoice(e.target.value)}
                   >
-                    <option value="">不指定（按授权模型选择）</option>
-                    {grantedModels
-                      .filter((m) => m.status !== 'disabled')
+                    <option value="">选择全局已有模型</option>
+                    {models
+                      .filter(
+                        (m) =>
+                          !grantedModels.some((g) => g.id === m.id) &&
+                          m.status !== 'disabled',
+                      )
                       .map((m) => (
                         <option key={m.id} value={m.id}>
-                          {m.name}
+                          {m.name}（{m.status}）
                         </option>
                       ))}
                   </select>
-                  {currentUser?.globalRole === 'admin' && (
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      data-testid="btn-save-default-model"
-                      disabled={
-                        defaultSaving ||
-                        defaultChoice ===
-                          (currentProject.defaultModelProfileId ?? '')
-                      }
-                      onClick={() => void saveDefault()}
+                  <button
+                    className="btn btn-secondary"
+                    type="button"
+                    onClick={() => void grantModel()}
+                    disabled={!grantChoice || grantSaving}
+                    data-testid="btn-grant-model"
+                  >
+                    {grantSaving ? '授权中…' : '授权给当前项目'}
+                  </button>
+                </div>
+              )}
+              <div className="lqa-models-control-row">
+                <label className="form-label" htmlFor="default-model-select">
+                  默认模型
+                </label>
+                <select
+                  id="default-model-select"
+                  className="form-select"
+                  value={defaultChoice}
+                  data-testid="default-model-select"
+                  disabled={
+                    currentUser?.globalRole !== 'admin' || defaultSaving
+                  }
+                  onChange={(e) => setDefaultChoice(e.target.value)}
+                >
+                  <option value="">不指定（按授权模型选择）</option>
+                  {grantedModels
+                    .filter((m) => m.status !== 'disabled')
+                    .map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                </select>
+                {currentUser?.globalRole === 'admin' && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    data-testid="btn-save-default-model"
+                    disabled={
+                      defaultSaving ||
+                      defaultChoice ===
+                        (currentProject.defaultModelProfileId ?? '')
+                    }
+                    onClick={() => void saveDefault()}
+                  >
+                    {defaultSaving ? '保存中…' : '保存默认模型'}
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </section>
+      )}
+      {currentUser?.globalRole === 'admin' && (
+        <section
+          className="card lqa-models-section lqa-models-create-section"
+          data-testid="model-create-section"
+        >
+          <div className="lqa-models-section-heading lqa-models-create-heading">
+            <span className="lqa-models-section-icon">
+              <AppIcon name="plus" size={21} />
+            </span>
+            <div>
+              <h2>接入新模型</h2>
+              <p>添加模型服务的基础配置，完成能力探测后即可授权给项目。</p>
+            </div>
+            <button
+              type="button"
+              className={
+                showCreate
+                  ? 'btn btn-secondary lqa-models-create-toggle'
+                  : 'btn btn-primary lqa-models-create-toggle'
+              }
+              onClick={() => setShowCreate((open) => !open)}
+              aria-expanded={showCreate}
+              data-testid="btn-toggle-create-model"
+            >
+              <AppIcon name={showCreate ? 'close' : 'plus'} size={17} />
+              {showCreate ? '收起配置' : '添加模型'}
+            </button>
+          </div>
+          {showCreate && (
+            <form
+              className="lqa-model-create-form"
+              onSubmit={(e) => void handleCreate(e)}
+              data-testid="form-create-model"
+            >
+              <div className="lqa-model-form-grid">
+                <label className="lqa-model-field">
+                  <span className="form-label">
+                    配置名称 <span className="lqa-required">*</span>
+                  </span>
+                  <input
+                    className="form-input"
+                    required
+                    maxLength={120}
+                    placeholder="例如：DeepSeek V3 / Claude Sonnet"
+                    value={newModel.name}
+                    onChange={(e) =>
+                      setNewModel((m) => ({ ...m, name: e.target.value }))
+                    }
+                  />
+                  <span className="lqa-field-hint">
+                    用于在平台中识别此模型配置
+                  </span>
+                </label>
+                <label className="lqa-model-field">
+                  <span className="form-label">
+                    接口协议 <span className="lqa-required">*</span>
+                  </span>
+                  <select
+                    className="form-select"
+                    value={newModel.adapter}
+                    onChange={(e) =>
+                      setNewModel((m) => ({
+                        ...m,
+                        adapter: e.target
+                          .value as ModelProfileCreate['adapter'],
+                        responseFormat:
+                          e.target.value === 'anthropic_messages'
+                            ? 'json_object'
+                            : 'json_schema',
+                      }))
+                    }
+                  >
+                    <option value="anthropic_messages">
+                      Anthropic Messages
+                    </option>
+                    <option value="openai_compatible">
+                      OpenAI Chat Completions
+                    </option>
+                  </select>
+                  <span className="lqa-field-hint">
+                    按服务商提供的 API 格式选择
+                  </span>
+                </label>
+                <label className="lqa-model-field lqa-model-field-wide">
+                  <span className="form-label">
+                    HTTPS 服务地址 <span className="lqa-required">*</span>
+                  </span>
+                  <input
+                    className="form-input"
+                    required
+                    type="url"
+                    pattern="https://.*"
+                    placeholder="https://provider.example/v1"
+                    value={newModel.endpoint}
+                    onChange={(e) =>
+                      setNewModel((m) => ({ ...m, endpoint: e.target.value }))
+                    }
+                  />
+                  <span className="lqa-field-hint">
+                    仅支持 HTTPS，请填写兼容的 API 基础地址
+                  </span>
+                </label>
+                <label className="lqa-model-field">
+                  <span className="form-label">
+                    模型标识 (Model ID) <span className="lqa-required">*</span>
+                  </span>
+                  <input
+                    className="form-input"
+                    required
+                    maxLength={200}
+                    placeholder="例如：deepseek-chat"
+                    value={newModel.configuredModelId}
+                    onChange={(e) =>
+                      setNewModel((m) => ({
+                        ...m,
+                        configuredModelId: e.target.value,
+                      }))
+                    }
+                  />
+                  <span className="lqa-field-hint">
+                    填写服务商实际使用的模型 ID
+                  </span>
+                </label>
+                <label className="lqa-model-field">
+                  <span className="form-label">
+                    API Key{' '}
+                    <span className="lqa-field-optional">
+                      加密保存 · 不回显
+                    </span>
+                  </span>
+                  <input
+                    className="form-input"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="输入模型服务商提供的 API Key"
+                    value={newModel.apiKey ?? ''}
+                    onChange={(e) =>
+                      setNewModel((m) => ({ ...m, apiKey: e.target.value }))
+                    }
+                  />
+                  <span className="lqa-field-hint">
+                    密钥不会在保存后显示于页面
+                  </span>
+                </label>
+              </div>
+              <div className="lqa-model-form-note">
+                <AppIcon name="shield" size={17} />
+                <span>
+                  创建后需通过连通性与能力探测，才能授权给项目并参与正式运行。
+                </span>
+              </div>
+              {createError && (
+                <p className="lqa-models-alert" role="alert">
+                  {createError}
+                </p>
+              )}
+              <div className="lqa-model-form-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowCreate(false)}
+                  disabled={creating}
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={creating}
+                  data-testid="btn-create-model-submit"
+                >
+                  <AppIcon name="check" size={17} />
+                  {creating ? '正在安全保存…' : '创建模型'}
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
+      )}
+
+      <section className="lqa-models-inventory" data-testid="model-inventory">
+        <div className="lqa-models-inventory-heading">
+          <h2>
+            已接入模型 <span>{models.length}</span>
+          </h2>
+          <p>查看模型状态、API 配置与能力探测结果</p>
+        </div>
+        <div className="lqa-models-list">
+          {models.length === 0 ? (
+            <div className="lqa-models-empty" data-testid="models-empty-state">
+              <div className="lqa-models-empty-visual">
+                <AppIcon name="cpu" size={27} />
+              </div>
+              <h3>还没有接入 AI 模型</h3>
+              <p>
+                添加模型并完成能力探测与项目授权后，就可以为真实站点执行自动化测试。离线演示不会代替真实模型。
+              </p>
+              {currentUser?.globalRole === 'admin' && !showCreate && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setShowCreate(true)}
+                  data-testid="models-empty-add"
+                >
+                  <AppIcon name="plus" size={17} /> 添加第一个模型
+                </button>
+              )}
+            </div>
+          ) : (
+            models.map((m) => {
+              const probe = probeResults[m.id];
+              const isInternal = m.dataBoundary === 'internal';
+              return (
+                <div
+                  key={m.id}
+                  className="card lqa-model-profile"
+                  data-testid={`model-card-${m.id}`}
+                >
+                  <div className="lqa-model-profile-header">
+                    <div className="lqa-model-profile-heading">
+                      <span className="lqa-model-profile-icon">
+                        <AppIcon name="cpu" size={21} />
+                      </span>
+                      <h3>{m.name}</h3>
+                      <span
+                        className={`badge ${isInternal ? 'badge-success' : 'badge-warning'}`}
+                      >
+                        {isInternal ? '内网本地部署' : '外部云端商业服务'}
+                      </span>
+                      <span className="badge badge-neutral">
+                        适配器: {m.adapter}
+                      </span>
+                    </div>
+
+                    <div className="lqa-model-profile-actions">
+                      {probe && (
+                        <span
+                          className="badge"
+                          style={{
+                            backgroundColor:
+                              probe.status === 'ready'
+                                ? 'var(--color-success-bg)'
+                                : probe.status === 'degraded'
+                                  ? 'var(--color-warning-bg)'
+                                  : 'var(--color-danger-bg)',
+                            color:
+                              probe.status === 'ready'
+                                ? 'var(--color-success-text)'
+                                : probe.status === 'degraded'
+                                  ? 'var(--color-warning-text)'
+                                  : 'var(--color-danger-text)',
+                          }}
+                        >
+                          {probe.status === 'ready'
+                            ? '可用 (Ready)'
+                            : probe.status === 'degraded'
+                              ? '降级 (Degraded)'
+                              : '探测失败 (Disabled)'}
+                        </span>
+                      )}
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => handleProbe(m.id)}
+                        disabled={probingId === m.id}
+                        data-testid={`btn-probe-${m.id}`}
+                      >
+                        {probingId === m.id ? '正在探测…' : '连通性探测'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {probeErrors[m.id] && (
+                    <div
+                      className="lqa-model-probe-error"
+                      role="alert"
+                      data-testid={`probe-error-${m.id}`}
                     >
-                      {defaultSaving ? '保存中…' : '保存默认模型'}
-                    </button>
+                      <AppIcon name="shield" size={17} />
+                      <span>{probeErrors[m.id]}</span>
+                    </div>
+                  )}
+
+                  <div className="lqa-model-profile-details">
+                    <div>
+                      <span>模型 ID</span>
+                      <code>{m.configuredModelId}</code>
+                    </div>
+                    <div>
+                      <span>服务地址</span>
+                      <code>{m.endpoint}</code>
+                    </div>
+                    <div>
+                      <span>运行状态</span>
+                      <code>{m.status}</code>
+                    </div>
+                  </div>
+
+                  {/* Capabilities Badges */}
+                  <div className="lqa-model-profile-capabilities">
+                    <span
+                      className={`badge ${m.capabilities.structuredOutput ? 'badge-info' : 'badge-neutral'}`}
+                    >
+                      结构化输出 (JSON):{' '}
+                      {m.capabilities.structuredOutput ? '支持' : '不支持'}
+                    </span>
+                    <span
+                      className={`badge ${m.capabilities.nativeTools ? 'badge-info' : 'badge-neutral'}`}
+                    >
+                      原生工具调用 (Tool Call):{' '}
+                      {m.capabilities.nativeTools ? '支持' : '不支持'}
+                    </span>
+                    <span
+                      className={`badge ${m.capabilities.imageInput ? 'badge-info' : 'badge-neutral'}`}
+                    >
+                      视觉截图解析 (Vision):{' '}
+                      {m.capabilities.imageInput ? '支持' : '不支持'}
+                    </span>
+                  </div>
+
+                  {/* Data Notice */}
+                  {!isInternal ? (
+                    <div className="lqa-model-profile-notice is-external">
+                      <AppIcon name="shield" size={17} />
+                      <span>
+                        外部模型数据提示：Prompt、节点标签及页面截图可能经加密通道发送至外部服务，请确保脱敏策略已生效。
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="lqa-model-profile-notice">
+                      <AppIcon name="shield" size={17} />
+                      <span>
+                        内网模型提示：该端点标记为内部服务，仍需检查实际路由、代理、日志和部署策略。
+                      </span>
+                    </div>
                   )}
                 </div>
-              </>
-            )}
-          </section>
-        )}
-        {currentUser?.globalRole === 'admin' && (
-          <section
-            className="card lqa-models-section lqa-models-create-section"
-            data-testid="model-create-section"
-          >
-            <div className="lqa-models-section-heading lqa-models-create-heading">
-              <span className="lqa-models-section-icon">
-                <AppIcon name="plus" size={21} />
-              </span>
-              <div>
-                <h2>接入新模型</h2>
-                <p>添加模型服务的基础配置，完成能力探测后即可授权给项目。</p>
-              </div>
-              <button
-                type="button"
-                className={
-                  showCreate
-                    ? 'btn btn-secondary lqa-models-create-toggle'
-                    : 'btn btn-primary lqa-models-create-toggle'
-                }
-                onClick={() => setShowCreate((open) => !open)}
-                aria-expanded={showCreate}
-                data-testid="btn-toggle-create-model"
-              >
-                <AppIcon name={showCreate ? 'close' : 'plus'} size={17} />
-                {showCreate ? '收起配置' : '添加模型'}
-              </button>
-            </div>
-            {showCreate && (
-              <form
-                className="lqa-model-create-form"
-                onSubmit={(e) => void handleCreate(e)}
-                data-testid="form-create-model"
-              >
-                <div className="lqa-model-form-grid">
-                  <label className="lqa-model-field">
-                    <span className="form-label">
-                      配置名称 <span className="lqa-required">*</span>
-                    </span>
-                    <input
-                      className="form-input"
-                      required
-                      maxLength={120}
-                      placeholder="例如：DeepSeek V3 / Claude Sonnet"
-                      value={newModel.name}
-                      onChange={(e) =>
-                        setNewModel((m) => ({ ...m, name: e.target.value }))
-                      }
-                    />
-                    <span className="lqa-field-hint">
-                      用于在平台中识别此模型配置
-                    </span>
-                  </label>
-                  <label className="lqa-model-field">
-                    <span className="form-label">
-                      接口协议 <span className="lqa-required">*</span>
-                    </span>
-                    <select
-                      className="form-select"
-                      value={newModel.adapter}
-                      onChange={(e) =>
-                        setNewModel((m) => ({
-                          ...m,
-                          adapter: e.target
-                            .value as ModelProfileCreate['adapter'],
-                          responseFormat:
-                            e.target.value === 'anthropic_messages'
-                              ? 'json_object'
-                              : 'json_schema',
-                        }))
-                      }
-                    >
-                      <option value="anthropic_messages">
-                        Anthropic Messages
-                      </option>
-                      <option value="openai_compatible">
-                        OpenAI Chat Completions
-                      </option>
-                    </select>
-                    <span className="lqa-field-hint">
-                      按服务商提供的 API 格式选择
-                    </span>
-                  </label>
-                  <label className="lqa-model-field lqa-model-field-wide">
-                    <span className="form-label">
-                      HTTPS 服务地址 <span className="lqa-required">*</span>
-                    </span>
-                    <input
-                      className="form-input"
-                      required
-                      type="url"
-                      pattern="https://.*"
-                      placeholder="https://provider.example/v1"
-                      value={newModel.endpoint}
-                      onChange={(e) =>
-                        setNewModel((m) => ({ ...m, endpoint: e.target.value }))
-                      }
-                    />
-                    <span className="lqa-field-hint">
-                      仅支持 HTTPS，请填写兼容的 API 基础地址
-                    </span>
-                  </label>
-                  <label className="lqa-model-field">
-                    <span className="form-label">
-                      模型标识 (Model ID){' '}
-                      <span className="lqa-required">*</span>
-                    </span>
-                    <input
-                      className="form-input"
-                      required
-                      maxLength={200}
-                      placeholder="例如：deepseek-chat"
-                      value={newModel.configuredModelId}
-                      onChange={(e) =>
-                        setNewModel((m) => ({
-                          ...m,
-                          configuredModelId: e.target.value,
-                        }))
-                      }
-                    />
-                    <span className="lqa-field-hint">
-                      填写服务商实际使用的模型 ID
-                    </span>
-                  </label>
-                  <label className="lqa-model-field">
-                    <span className="form-label">
-                      API Key{' '}
-                      <span className="lqa-field-optional">
-                        加密保存 · 不回显
-                      </span>
-                    </span>
-                    <input
-                      className="form-input"
-                      type="password"
-                      autoComplete="new-password"
-                      placeholder="输入模型服务商提供的 API Key"
-                      value={newModel.apiKey ?? ''}
-                      onChange={(e) =>
-                        setNewModel((m) => ({ ...m, apiKey: e.target.value }))
-                      }
-                    />
-                    <span className="lqa-field-hint">
-                      密钥不会在保存后显示于页面
-                    </span>
-                  </label>
-                </div>
-                <div className="lqa-model-form-note">
-                  <AppIcon name="shield" size={17} />
-                  <span>
-                    创建后需通过连通性与能力探测，才能授权给项目并参与正式运行。
-                  </span>
-                </div>
-                {createError && (
-                  <p className="lqa-models-alert" role="alert">
-                    {createError}
-                  </p>
-                )}
-                <div className="lqa-model-form-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setShowCreate(false)}
-                    disabled={creating}
-                  >
-                    取消
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={creating}
-                    data-testid="btn-create-model-submit"
-                  >
-                    <AppIcon name="check" size={17} />
-                    {creating ? '正在安全保存…' : '创建模型'}
-                  </button>
-                </div>
-              </form>
-            )}
-          </section>
-        )}
-
-        <section className="lqa-models-inventory" data-testid="model-inventory">
-          <div className="lqa-models-inventory-heading">
-            <h2>
-              已接入模型 <span>{models.length}</span>
-            </h2>
-            <p>查看模型状态、API 配置与能力探测结果</p>
-          </div>
-          <div className="lqa-models-list">
-            {models.length === 0 ? (
-              <div
-                className="lqa-models-empty"
-                data-testid="models-empty-state"
-              >
-                <div className="lqa-models-empty-visual">
-                  <AppIcon name="cpu" size={27} />
-                </div>
-                <h3>还没有接入 AI 模型</h3>
-                <p>
-                  添加模型并完成能力探测与项目授权后，就可以为真实站点执行自动化测试。离线演示不会代替真实模型。
-                </p>
-                {currentUser?.globalRole === 'admin' && !showCreate && (
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={() => setShowCreate(true)}
-                    data-testid="models-empty-add"
-                  >
-                    <AppIcon name="plus" size={17} /> 添加第一个模型
-                  </button>
-                )}
-              </div>
-            ) : (
-              models.map((m) => {
-                const probe = probeResults[m.id];
-                const isInternal = m.dataBoundary === 'internal';
-                return (
-                  <div
-                    key={m.id}
-                    className="card lqa-model-profile"
-                    data-testid={`model-card-${m.id}`}
-                  >
-                    <div className="lqa-model-profile-header">
-                      <div className="lqa-model-profile-heading">
-                        <span className="lqa-model-profile-icon">
-                          <AppIcon name="cpu" size={21} />
-                        </span>
-                        <h3>{m.name}</h3>
-                        <span
-                          className={`badge ${isInternal ? 'badge-success' : 'badge-warning'}`}
-                        >
-                          {isInternal ? '内网本地部署' : '外部云端商业服务'}
-                        </span>
-                        <span className="badge badge-neutral">
-                          适配器: {m.adapter}
-                        </span>
-                      </div>
-
-                      <div className="lqa-model-profile-actions">
-                        {probe && (
-                          <span
-                            className="badge"
-                            style={{
-                              backgroundColor:
-                                probe.status === 'ready'
-                                  ? 'var(--color-success-bg)'
-                                  : probe.status === 'degraded'
-                                    ? 'var(--color-warning-bg)'
-                                    : 'var(--color-danger-bg)',
-                              color:
-                                probe.status === 'ready'
-                                  ? 'var(--color-success-text)'
-                                  : probe.status === 'degraded'
-                                    ? 'var(--color-warning-text)'
-                                    : 'var(--color-danger-text)',
-                            }}
-                          >
-                            {probe.status === 'ready'
-                              ? '可用 (Ready)'
-                              : probe.status === 'degraded'
-                                ? '降级 (Degraded)'
-                                : '探测失败 (Disabled)'}
-                          </span>
-                        )}
-                        <button
-                          className="btn btn-secondary"
-                          onClick={() => handleProbe(m.id)}
-                          disabled={probingId === m.id}
-                          data-testid={`btn-probe-${m.id}`}
-                        >
-                          {probingId === m.id ? '正在探测…' : '连通性探测'}
-                        </button>
-                      </div>
-                    </div>
-
-                    {probeErrors[m.id] && (
-                      <div
-                        className="lqa-model-probe-error"
-                        role="alert"
-                        data-testid={`probe-error-${m.id}`}
-                      >
-                        <AppIcon name="shield" size={17} />
-                        <span>{probeErrors[m.id]}</span>
-                      </div>
-                    )}
-
-                    <div className="lqa-model-profile-details">
-                      <div>
-                        <span>模型 ID</span>
-                        <code>{m.configuredModelId}</code>
-                      </div>
-                      <div>
-                        <span>服务地址</span>
-                        <code>{m.endpoint}</code>
-                      </div>
-                      <div>
-                        <span>运行状态</span>
-                        <code>{m.status}</code>
-                      </div>
-                    </div>
-
-                    {/* Capabilities Badges */}
-                    <div className="lqa-model-profile-capabilities">
-                      <span
-                        className={`badge ${m.capabilities.structuredOutput ? 'badge-info' : 'badge-neutral'}`}
-                      >
-                        结构化输出 (JSON):{' '}
-                        {m.capabilities.structuredOutput ? '支持' : '不支持'}
-                      </span>
-                      <span
-                        className={`badge ${m.capabilities.nativeTools ? 'badge-info' : 'badge-neutral'}`}
-                      >
-                        原生工具调用 (Tool Call):{' '}
-                        {m.capabilities.nativeTools ? '支持' : '不支持'}
-                      </span>
-                      <span
-                        className={`badge ${m.capabilities.imageInput ? 'badge-info' : 'badge-neutral'}`}
-                      >
-                        视觉截图解析 (Vision):{' '}
-                        {m.capabilities.imageInput ? '支持' : '不支持'}
-                      </span>
-                    </div>
-
-                    {/* Data Notice */}
-                    {!isInternal ? (
-                      <div className="lqa-model-profile-notice is-external">
-                        <AppIcon name="shield" size={17} />
-                        <span>
-                          外部模型数据提示：Prompt、节点标签及页面截图可能经加密通道发送至外部服务，请确保脱敏策略已生效。
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="lqa-model-profile-notice">
-                        <AppIcon name="shield" size={17} />
-                        <span>
-                          内网模型提示：该端点标记为内部服务，仍需检查实际路由、代理、日志和部署策略。
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </section>
-      </main>
-    </div>
+              );
+            })
+          )}
+        </div>
+      </section>
+    </Page>
   );
 };

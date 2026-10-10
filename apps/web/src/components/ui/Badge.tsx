@@ -17,16 +17,16 @@ const statusMap: Record<string, { className: string; text: string }> = {
   unknown: { className: 'badge-neutral', text: '未知' },
 
   // Execution modes
-  regression: { className: 'badge-primary', text: '回归模式 (Regression)' },
-  smoke: { className: 'badge-info', text: '冒烟模式 (Smoke)' },
+  regression: { className: 'badge-primary', text: '回归模式' },
+  smoke: { className: 'badge-info', text: '冒烟模式' },
 
   // Finding confirmations
-  confirmed: { className: 'badge-danger', text: '已独立复现确认' },
+  confirmed: { className: 'badge-danger', text: '已复现确认' },
   suspected: { className: 'badge-warning', text: '疑似待复现' },
   unconfirmed: { className: 'badge-neutral', text: '无法复现' },
 
   // Run status
-  queued: { className: 'badge-info', text: '排队中 (Queued)' },
+  queued: { className: 'badge-info', text: '排队中' },
   running: { className: 'badge-info', text: '执行中' },
   awaiting_input: { className: 'badge-warning', text: '等待补充输入' },
   completed: { className: 'badge-success', text: '调度已完成' },
@@ -36,18 +36,18 @@ const statusMap: Record<string, { className: string; text: string }> = {
 
   // Completion
   complete: { className: 'badge-success', text: '完整执行' },
-  partial: { className: 'badge-warning', text: '部分执行 (Partial)' },
-  none: { className: 'badge-danger', text: '未执行 (None)' },
+  partial: { className: 'badge-warning', text: '部分执行' },
+  none: { className: 'badge-danger', text: '未执行' },
 
   // Role
   admin: { className: 'badge-primary', text: '平台管理员' },
-  owner: { className: 'badge-primary', text: '项目 Owner' },
-  operator: { className: 'badge-info', text: 'Operator' },
-  viewer: { className: 'badge-neutral', text: 'Viewer 只读' },
+  owner: { className: 'badge-primary', text: '项目负责人' },
+  operator: { className: 'badge-info', text: '操作员' },
+  viewer: { className: 'badge-neutral', text: '只读成员' },
 
   // Case Review Status
-  draft: { className: 'badge-warning', text: '草稿 (待审查)' },
-  approved: { className: 'badge-success', text: '已批准 (有效基线)' },
+  draft: { className: 'badge-warning', text: '草稿待审' },
+  approved: { className: 'badge-success', text: '已批准' },
   rejected: { className: 'badge-danger', text: '已拒绝' },
   active: { className: 'badge-success', text: '活跃' },
   archived: { className: 'badge-neutral', text: '已归档' },

@@ -3,7 +3,8 @@ import { useApp } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
 import type { Run } from '@localqa/contracts';
 import { RunStoreProvider, useRunStore } from '../state/RunStore.tsx';
-import { AppHeader } from '../components/layout/AppHeader.tsx';
+import { Page } from '../components/layout/Page.tsx';
+import { EmptyState } from '../components/ui/EmptyState.tsx';
 import { ReconnectBanner } from '../components/layout/ReconnectBanner.tsx';
 import { PhaseProgress } from '../components/workbench/PhaseProgress.tsx';
 import { InputRequestBar } from '../components/workbench/InputRequestBar.tsx';
@@ -18,6 +19,7 @@ export const WorkbenchPage: React.FC = () => {
   const [selectedRunId, setSelectedRunId] = useState<string>(
     routeParams.runId || '',
   );
+  const [runsLoaded, setRunsLoaded] = useState(false);
 
   // Load runs list
   useEffect(() => {
@@ -33,6 +35,8 @@ export const WorkbenchPage: React.FC = () => {
         }
       } catch (err) {
         console.warn('Failed to load runs:', err);
+      } finally {
+        setRunsLoaded(true);
       }
     }
     load();
@@ -51,32 +55,29 @@ export const WorkbenchPage: React.FC = () => {
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        overflow: 'hidden',
-      }}
-      data-testid="workbench-page"
-    >
-      <AppHeader />
-      <div style={{ flex: 1, padding: '16px 20px', overflow: 'hidden' }}>
-        {selectedRunId ? (
-          <RunStoreProvider runId={selectedRunId} key={selectedRunId}>
-            <WorkbenchContent
-              runs={runs}
-              activeRunId={selectedRunId}
-              onSelectRun={handleSelectRun}
-            />
-          </RunStoreProvider>
-        ) : (
-          <div style={{ padding: '40px', textAlign: 'center' }}>
-            <h3>正在加载工作台运行数据...</h3>
-          </div>
-        )}
-      </div>
-    </div>
+    <Page width="full" testId="workbench-page">
+      {selectedRunId ? (
+        <RunStoreProvider runId={selectedRunId} key={selectedRunId}>
+          <WorkbenchContent
+            runs={runs}
+            activeRunId={selectedRunId}
+            onSelectRun={handleSelectRun}
+          />
+        </RunStoreProvider>
+      ) : runsLoaded ? (
+        <EmptyState
+          icon="activity"
+          title="还没有运行记录"
+          description="在项目首页填写目标地址并发起冒烟测试后，运行过程会实时显示在这里。"
+          actionText="去发起测试"
+          onAction={() => setRoute('home')}
+        />
+      ) : (
+        <div className="lqa-session-loading is-inline">
+          正在加载工作台运行数据...
+        </div>
+      )}
+    </Page>
   );
 };
 

@@ -1,61 +1,4 @@
 /* Model administration: clear labels, generous form spacing, consistent theme. */
-.lqa-models-page {
-  background: var(--color-bg-base);
-}
-
-.lqa-models-content {
-  width: min(1120px, 100%);
-  padding-top: 38px;
-  padding-bottom: 90px;
-}
-
-.lqa-models-heading {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  margin: 0 0 26px;
-}
-
-.lqa-models-heading-icon {
-  flex: 0 0 64px;
-  width: 64px;
-  height: 64px;
-  display: grid;
-  place-items: center;
-  border-radius: 18px;
-  color: var(--color-primary);
-  background: var(--color-primary-subtle);
-  border: 1px solid var(--color-primary-border);
-}
-
-.lqa-models-heading-copy {
-  min-width: 0;
-}
-
-.lqa-models-heading h1 {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin: 5px 0 7px;
-  color: var(--color-text-main);
-  font-size: clamp(23px, 2.7vw, 30px);
-  font-weight: 770;
-  letter-spacing: -0.45px;
-  line-height: 1.45;
-}
-
-.lqa-models-heading-count {
-  padding: 4px 10px;
-  border-radius: 8px;
-  background: var(--color-bg-muted);
-  color: var(--color-text-muted);
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0;
-}
-
-.lqa-models-heading p,
 .lqa-models-section-heading p,
 .lqa-models-inventory-heading p {
   color: var(--color-text-muted);
@@ -63,34 +6,9 @@
   line-height: 1.85;
 }
 
-.lqa-models-info-strip {
-  display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  margin-bottom: 22px;
-  padding: 13px 18px;
-  border: 1px solid var(--color-info-border);
-  border-radius: 12px;
-  background: var(--color-info-bg);
-  color: var(--color-info-text);
-  font-size: 12px;
-  line-height: 1.8;
-}
-
-.lqa-models-info-strip svg {
-  flex: 0 0 auto;
-  margin-top: 2px;
-}
-
-.lqa-models-info-strip strong {
-  margin-right: 9px;
-  font-weight: 750;
-}
-
 .lqa-models-section {
-  margin-bottom: 22px;
-  padding: clamp(21px, 3vw, 32px);
-  border-radius: 18px;
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
 }
 
@@ -106,7 +24,7 @@
   place-items: center;
   flex: 0 0 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   color: var(--color-primary);
   background: var(--color-primary-subtle);
 }
@@ -133,7 +51,7 @@
   padding: 12px 16px;
   margin-bottom: 23px;
   border: 1px solid var(--color-border-subtle);
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   background: var(--color-bg-subtle);
   font-size: 13px;
 }
@@ -242,7 +160,7 @@
   height: 46px;
   padding: 0 14px;
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--color-bg-elevated);
   color: var(--color-text-main);
   font-size: 14px;
@@ -278,7 +196,7 @@
   padding: 12px 14px;
   background: var(--color-bg-subtle);
   color: var(--color-text-muted);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   font-size: 12px;
   line-height: 1.8;
 }
@@ -293,7 +211,7 @@
   padding: 12px 14px;
   margin: 12px 0;
   border: 1px solid var(--color-danger-border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--color-danger-bg);
   color: var(--color-danger-text);
   font-size: 13px;
@@ -311,13 +229,11 @@
 }
 
 .lqa-model-form-footer .btn {
-  min-width: 106px;
-  min-height: 44px;
-  padding: 10px 19px;
+  min-width: 100px;
 }
 
 .lqa-models-inventory {
-  margin-top: 32px;
+  margin-top: var(--space-3);
 }
 
 .lqa-models-inventory-heading {
@@ -345,7 +261,7 @@
   align-items: center;
   padding: 42px 30px;
   border: 1px dashed var(--color-border);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
   text-align: center;
 }
@@ -356,7 +272,7 @@
   width: 62px;
   height: 62px;
   margin-bottom: 19px;
-  border-radius: 19px;
+  border-radius: var(--radius-lg);
   background: var(--color-primary-subtle);
   color: var(--color-primary);
 }
@@ -381,7 +297,7 @@
 
 .lqa-model-profile {
   padding: 25px 28px;
-  border-radius: 17px;
+  border-radius: var(--radius-lg);
 }
 
 .lqa-model-profile-header,
@@ -413,7 +329,7 @@
   place-items: center;
   width: 40px;
   height: 40px;
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   background: var(--color-primary-subtle);
   color: var(--color-primary);
 }
@@ -424,7 +340,7 @@
   gap: 17px;
   margin: 22px 0;
   padding: 18px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--color-bg-subtle);
 }
 
@@ -460,7 +376,7 @@
   padding: 12px 14px;
   background: var(--color-bg-subtle);
   border: 1px solid var(--color-border-subtle);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   font-size: 12px;
   line-height: 1.75;
   color: var(--color-text-muted);
@@ -484,7 +400,7 @@
   padding: 13px 15px;
   margin-top: 18px;
   border: 1px solid var(--color-danger-border);
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   background: var(--color-danger-bg);
   color: var(--color-danger-text);
   font-size: 12px;
@@ -507,7 +423,7 @@
     flex-basis: 48px;
     width: 48px;
     height: 48px;
-    border-radius: 14px;
+    border-radius: var(--radius-lg);
   }
   .lqa-models-section {
     padding: 21px;
