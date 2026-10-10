@@ -28,13 +28,13 @@ LocalQA 是参考 Momentic 产品工作流的自研私有化 Web 测试平台，
 
 ```sh
 pnpm install --frozen-lockfile --ignore-scripts
-pnpm contracts:check
-pnpm build
-pnpm typecheck
+pnpm ci        # 契约与生成客户端同步、lint、格式、build、typecheck、纯 Node 单元测试
 pnpm --filter @localqa/web dev
 ```
 
-前端提供 Mock 开发模式；连接真实 API 还需要 PostgreSQL、迁移和受保护的运行配置。部署输入与隔离演练步骤见 [部署指南](deploy/README.md)，包内 README 提供各组件说明。`pnpm test:integration` 包含真实浏览器/数据库测试，应在具备相应资源且已授权的环境执行。
+`pnpm test` 先 build 再运行 `scripts/test-unit.mjs` 列出的纯 Node 测试（不需要数据库、浏览器或模型）。前端提供 Mock 开发模式；连接真实 API 的全栈开发环境见 [Docker 开发环境](deploy/README.dev.md)（macOS/Linux 首次执行 `deploy/dev-init.sh`）。生产部署输入与隔离演练步骤见 [部署指南](deploy/README.md)，包内 README 提供各组件说明。`pnpm test:integration` 包含真实浏览器/数据库测试，应在具备相应资源且已授权的环境执行。
+
+阶段验收脚本（T14–T38，多数需要真实 PostgreSQL、Chromium 或模型供应商）不再放在根 `package.json`，用 `pnpm acceptance --list` 查看、`pnpm acceptance <任务名>` 运行；任务名与历史报告中的 `pnpm test:tNN-*` 一致，见 [scripts/README.md](scripts/README.md)。
 
 只提交源码、锁文件、配置模板与必要验收材料。实际 `.env`、密钥、证书、依赖目录、构建输出和原始运行日志均应保留在仓库之外；`.env.example` 中的值仅为模板。
 

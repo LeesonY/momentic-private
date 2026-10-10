@@ -26,28 +26,29 @@ flowchart LR
 | --- | --- |
 | 语言和运行时 | TypeScript strict，Node 24 LTS，pnpm workspace |
 | 前端 | React 19 稳定发行版、Vite、路由、Radix 组件；状态来自 API/SSE |
-| API | Fastify 5 候选，Zod 4/JSON Schema，统一错误和权限；M0 验证 Node 兼容 |
+| API | Node 内置 `node:http` + 自有 Router（`apps/api/src/router.ts`），契约 JSON Schema 由 Ajv 校验，统一错误和权限；设计期候选 Fastify 5/Zod 4 未采用 |
 | 数据访问 | PostgreSQL 18、pg、显式 SQL migration 和 repository；SQL 映射不直接暴露给 UI |
 | 任务 | PostgreSQL jobs、条件更新、租约、心跳、fencing；NOTIFY + 轮询唤醒 |
 | 执行 | Playwright 基线 1.63.0 与对应 `v1.63.0-noble` 镜像，包/浏览器版本一致 |
-| 模型 | 自有 ModelPort，AI SDK 7 候选适配器；不同提供方参数在 adapter 内处理 |
+| 模型 | 自有 ModelPort，自研 OpenAI 兼容与 Anthropic 适配器（`packages/model-gateway/src`）；不同提供方参数在 adapter 内处理；设计期候选 AI SDK 7 未采用 |
 | 证据 | 截图、步骤事件、console/network、Playwright trace、rrweb；ArtifactStore 抽象 |
 
 确切 patch、镜像 digest、系统字体和模型兼容表由 M0 固定到 lockfile/部署清单。不能仅因为 Momentic 依赖某个包就直接采用其全部默认配置。
 
 ## 2. 代码边界与职责
 
-建议目录是开发目标，目前尚未创建运行代码：
+当前实际目录（相对设计期建议：编排器实现为 `packages/orchestrator`，另有命令行 `apps/cli`）：
 
 ```text
 apps/web                 页面、交互、生成的 API client、SSE 状态投影
 apps/api                 HTTP、RBAC、配置、运行命令、内部服务入口
-apps/orchestrator        阶段推进、配额、任务恢复、最终报告
 apps/worker              task runner、浏览器生命周期、取消和结果提交
+apps/cli                 CI/命令行入口：API Key 发起运行、等待并按报告给出退出码
 packages/contracts      从 docs/contracts 生成/映射的类型、验证器、错误码
 packages/domain         状态机、预算、oracle、去重、统计与策略
 packages/browser        Playwright adapter、snapshot、目标解析、记录器
 packages/agents         planner/explorer/executor/reproducer，版本化提示模板
+packages/orchestrator   阶段推进、配额、租约与任务恢复、认证执行、回归编译、最终报告
 packages/model-gateway  provider adapters、能力表、用量、超时、脱敏
 packages/storage        repository、migration、ArtifactStore、SecretVault
 packages/test-fixture   受控测试网站、种子数据、已知故障与审计查询
@@ -55,6 +56,8 @@ deploy                  Compose、镜像、代理、备份、运维说明
 ```
 
 UI 不直接连接模型、数据库、Worker 或裸证据目录。Worker 不直接解密全局密钥，也不读取其他项目数据。租约领取及权威状态写入由内部 API/协调服务执行；浏览器操作与模型输出不能绕过领域策略。
+
+当前实现偏差：Worker 仍直接持有数据库连接与 KEK，并使用进程内 Coordinator，尚未切换为内部 HTTP 身份边界（见 `deploy/README.md` 开头说明）；生产上线前须完成该隔离改造。
 
 ## 3. 运行状态、阶段和角色
 

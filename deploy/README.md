@@ -22,7 +22,7 @@ LocalQA 采用基于 Docker Compose 的多容器隔离架构，划分为前端�
          │                                   │
          ▼                                   ▼
 ┌──────────────────┐               ┌──────────────────┐
-│  web (SPA)       │               │  api (Fastify 5) │
+│  web (SPA)       │               │  api (node:http) │
 │  - React 19 UI   │               │  - REST / SSE    │
 └──────────────────┘               └─────────┬────────┘
                                              │
@@ -147,7 +147,7 @@ docker compose -f deploy/docker-compose.yml build api worker orchestrator web
 docker compose -f deploy/docker-compose.yml up -d postgres
 
 # 5. 在能够访问 backend 网络、包含仓库构建输出与 Node 依赖的应用镜像中运行
-# 显式 Migrations (001_core -> 002_invariants -> 003_access -> 004_hardening -> 005_project_default_model)
+# 显式 Migrations：按文件名顺序执行 packages/storage/migrations/ 下全部 SQL（当前 001_core … 024_empty_project_deletion），已执行的自动跳过
 # DATABASE_URL 必须指向 postgres:5432；宿主机默认不能访问内部 DB。
 docker compose -f deploy/docker-compose.yml run --rm --no-deps --entrypoint node api /app/deploy/scripts/migrate.mjs
 
