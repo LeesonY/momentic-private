@@ -1104,3 +1104,223 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
 }
+
+/* ---- Finding / case detail --------------------------------------------------------- */
+.lqa-finding-badges {
+  margin-top: calc(-1 * var(--space-2));
+}
+
+.lqa-compare {
+  align-items: stretch;
+}
+
+.lqa-compare-box {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+}
+
+.lqa-compare-box p {
+  margin-top: 6px;
+  font-size: var(--text-base);
+  line-height: 1.7;
+}
+
+.lqa-compare-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+.lqa-compare-box.is-expected {
+  border-color: var(--color-success-border);
+  background: var(--color-success-bg);
+}
+
+.lqa-compare-box.is-expected .lqa-compare-label {
+  color: var(--color-success-text);
+}
+
+.lqa-compare-box.is-actual {
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
+}
+
+.lqa-compare-box.is-actual .lqa-compare-label {
+  color: var(--color-danger-text);
+}
+
+.lqa-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+  counter-reset: lqa-step;
+}
+
+.lqa-steps > li {
+  position: relative;
+  padding-left: 34px;
+  font-size: var(--text-base);
+  line-height: 1.6;
+  counter-increment: lqa-step;
+}
+
+.lqa-steps > li::before {
+  content: counter(lqa-step);
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.lqa-verdict {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-left: 3px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+}
+
+.lqa-verdict p {
+  margin-top: 6px;
+  font-size: var(--text-md);
+  line-height: 1.7;
+}
+
+.lqa-verdict.is-success {
+  border-left-color: var(--color-success);
+}
+
+.lqa-verdict.is-warning {
+  border-left-color: var(--color-warning);
+}
+
+.lqa-verdict.is-danger {
+  border-left-color: var(--color-danger);
+}
+
+.lqa-step-seq {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+/* ---- Saved case detail --------------------------------------------------------------- */
+.lqa-version-toolbar {
+  margin-bottom: 0;
+}
+
+.lqa-version-tabs {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.lqa-version-tabs > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lqa-version-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-text-subtle);
+}
+
+.lqa-version-dot.is-approved {
+  background: var(--color-success);
+}
+
+.lqa-version-dot.is-draft {
+  background: var(--color-warning);
+}
+
+.lqa-version-dot.is-rejected {
+  background: var(--color-danger);
+}
+
+.lqa-version-meta {
+  grid-template-columns: max-content minmax(0, 1fr) max-content minmax(0, 1fr);
+}
+
+@media (max-width: 900px) {
+  .lqa-version-meta {
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+}
+
+.lqa-doc-grid {
+  align-items: start;
+}
+
+.lqa-replay-step {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+/* ---- Repair proposals ---------------------------------------------------------------- */
+.lqa-repair-error {
+  margin-bottom: var(--space-3);
+}
+
+.lqa-proposal {
+  gap: var(--space-2);
+}
+
+.lqa-diff {
+  max-height: 240px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--text-xs);
+}
+
+.lqa-proposal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.lqa-proposal-form .field {
+  margin-bottom: 0;
+}
+
+.lqa-verification {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--color-border-subtle);
+}
+
+.lqa-evidence-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+}
+
+.lqa-proposal-create {
+  margin-top: var(--space-4);
+}

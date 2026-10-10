@@ -4,6 +4,9 @@ import { defaultApiClient } from '../api/index.ts';
 import type { Finding } from '@localqa/contracts';
 import { Page } from '../components/layout/Page.tsx';
 import { StatusBadge } from '../components/ui/Badge.tsx';
+import { Section } from '../components/ui/Section.tsx';
+import { AppIcon } from '../components/ui/AppIcon.tsx';
+import { EmptyState } from '../components/ui/EmptyState.tsx';
 import { FindingEvidencePanel } from '../components/workbench/FindingEvidencePanel.tsx';
 import { TriageModal } from '../components/workbench/TriageModal.tsx';
 
@@ -31,183 +34,91 @@ export const FindingDetailPage: React.FC = () => {
     load();
   }, [findingId]);
 
+  const back = {
+    label: `返回运行工作台`,
+    onClick: () => setRoute('workbench', { runId }),
+    testId: 'btn-back-workbench',
+  };
+
   if (loading) {
     return (
-      <Page>
-        <p>正在加载缺陷详情...</p>
+      <Page back={back}>
+        <div className="lqa-session-loading is-inline">正在加载缺陷详情...</div>
       </Page>
     );
   }
 
   if (!finding) {
     return (
-      <Page>
-        <button
-          className="btn btn-secondary btn-sm"
-          onClick={() => setRoute('workbench', { runId })}
-        >
-          ← 返回运行工作台
-        </button>
-        <div style={{ marginTop: '20px' }}>未找到指定缺陷记录。</div>
+      <Page back={back}>
+        <EmptyState icon="bug" title="未找到指定的缺陷记录" />
       </Page>
     );
   }
 
   return (
-    <Page testId="finding-detail-page">
-      <div style={{ marginBottom: '16px' }}>
+    <Page
+      testId="finding-detail-page"
+      back={back}
+      eyebrow={
+        <>
+          <AppIcon name="bug" size={14} /> 缺陷 · <code>{finding.id}</code>
+        </>
+      }
+      title={finding.title}
+      actions={
         <button
-          className="btn btn-secondary btn-sm"
-          onClick={() => setRoute('workbench', { runId })}
-          data-testid="btn-back-workbench"
+          className="btn btn-primary"
+          onClick={() => setIsTriageOpen(true)}
+          data-testid="btn-open-triage"
         >
-          ← 返回运行工作台 ({runId})
+          <AppIcon name="flag" size={14} />
+          人工审查决议
         </button>
+      }
+    >
+      <div className="row row-wrap lqa-finding-badges">
+        <StatusBadge status={finding.status} />
+        <span className="badge badge-neutral">
+          {finding.kind === 'functional' ? '功能缺陷' : '静态缺陷'}
+        </span>
+        <span className="badge badge-info">
+          审查状态 {finding.triageDisposition}
+        </span>
+        <span className="subtle text-xs">所属运行 {runId}</span>
       </div>
 
-      {/* Finding Header Card */}
-      <div className="card" style={{ marginBottom: '20px' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '12px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span
-              style={{
-                fontSize: '0.85rem',
-                color: 'var(--color-text-muted)',
-              }}
-            >
-              缺陷编号: <code>{finding.id}</code>
-            </span>
-            <StatusBadge status={finding.status} />
-            <span className="badge badge-neutral">
-              类型: {finding.kind === 'functional' ? '功能缺陷' : '静态缺陷'}
-            </span>
-            <span className="badge badge-info">
-              审查状态: {finding.triageDisposition}
-            </span>
+      <div className="grid-2 lqa-compare">
+        <div className="lqa-compare-box is-expected">
+          <div className="lqa-compare-label">
+            <AppIcon name="check-circle" size={15} />
+            预期行为与依据
           </div>
-
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={() => setIsTriageOpen(true)}
-            data-testid="btn-open-triage"
-          >
-            发起人工审查决议 (Triage) ⚖️
-          </button>
+          <p>{finding.expected}</p>
         </div>
-
-        <h1
-          style={{
-            fontSize: '1.4rem',
-            fontWeight: 700,
-            color: 'var(--color-danger-text)',
-            marginBottom: '12px',
-          }}
-        >
-          {finding.title}
-        </h1>
-
-        {/* Expected vs Actual Comparison Grid */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '16px',
-            margin: '16px 0',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: 'var(--color-success-bg)',
-              border: '1px solid var(--color-success-border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '16px',
-            }}
-          >
-            <h4
-              style={{
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                color: 'var(--color-success-text)',
-                marginBottom: '6px',
-              }}
-            >
-              预期行为与依据 (Expected):
-            </h4>
-            <p
-              style={{
-                fontSize: '0.875rem',
-                color: 'var(--color-text-main)',
-                lineHeight: 1.5,
-              }}
-            >
-              {finding.expected}
-            </p>
+        <div className="lqa-compare-box is-actual">
+          <div className="lqa-compare-label">
+            <AppIcon name="x-circle" size={15} />
+            实际呈现
           </div>
-
-          <div
-            style={{
-              backgroundColor: 'var(--color-danger-bg)',
-              border: '1px solid var(--color-danger-border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '16px',
-            }}
-          >
-            <h4
-              style={{
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                color: 'var(--color-danger-text)',
-                marginBottom: '6px',
-              }}
-            >
-              实际呈现行为 (Actual):
-            </h4>
-            <p
-              style={{
-                fontSize: '0.875rem',
-                color: 'var(--color-text-main)',
-                lineHeight: 1.5,
-              }}
-            >
-              {finding.actual}
-            </p>
-          </div>
+          <p>{finding.actual}</p>
         </div>
       </div>
 
-      {/* Reproduction Steps */}
-      <div className="card" style={{ marginBottom: '20px' }}>
-        <div className="card-header">
-          <h3 className="card-title">必要复现步骤 (Reproduction Steps)</h3>
-          <span
-            style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}
-          >
-            独立 Reproducer 在全新干净上下文执行验证
-          </span>
-        </div>
-
-        <ol
-          style={{ paddingLeft: '24px', fontSize: '0.9rem', lineHeight: 1.8 }}
-          data-testid="repro-steps-list"
-        >
+      <Section
+        icon="list"
+        title="复现步骤"
+        description="由独立的 Reproducer 在全新、干净的浏览器上下文中验证。"
+      >
+        <ol className="lqa-steps" data-testid="repro-steps-list">
           {finding.reproSteps.map((step, idx) => (
-            <li key={idx} style={{ color: 'var(--color-text-main)' }}>
-              {step}
-            </li>
+            <li key={idx}>{step.replace(/^\s*\d+\s*[.、)）]\s*/, '')}</li>
           ))}
         </ol>
-      </div>
+      </Section>
 
       <FindingEvidencePanel finding={finding} />
 
-      {/* Triage Modal */}
       <TriageModal
         finding={finding}
         isOpen={isTriageOpen}

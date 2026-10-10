@@ -11,7 +11,7 @@ interface PageProps extends Omit<
   /** Buttons aligned with the title. */
   actions?: React.ReactNode;
   /** Optional "back to list" link above the title. */
-  back?: { label: string; onClick: () => void };
+  back?: { label: string; onClick: () => void; testId?: string };
   /** default: reading width; wide: tables and dashboards; full: workbench. */
   width?: 'default' | 'wide' | 'full';
   className?: string;
@@ -38,7 +38,12 @@ export const Page: React.FC<PageProps> = ({
     data-testid={testId}
   >
     {back && (
-      <button type="button" className="back-link" onClick={back.onClick}>
+      <button
+        type="button"
+        className="back-link"
+        onClick={back.onClick}
+        data-testid={back.testId}
+      >
         <AppIcon name="chevron-left" size={15} />
         {back.label}
       </button>
