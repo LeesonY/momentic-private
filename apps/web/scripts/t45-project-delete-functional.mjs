@@ -1,3 +1,4 @@
+/* global localStorage */
 // Real React app in Chromium with an isolated HTTP API fixture.
 // Does not modify the development Docker database.
 import assert from 'node:assert/strict';

@@ -5,7 +5,8 @@
 import { readFileSync } from 'node:fs';
 process.env.LOCALQA_T17_REAL_INTERACTIVE = '1';
 if (process.argv.includes('broken')) process.env.LOCALQA_T17_BROKEN = '1';
-if (process.argv.includes('deepseek')) process.env.LOCALQA_T17_PI_DEEPSEEK = '1';
+if (process.argv.includes('deepseek'))
+  process.env.LOCALQA_T17_PI_DEEPSEEK = '1';
 if (!process.stdin.isTTY) {
   const incoming = readFileSync(0, 'utf8').trim();
   if (incoming) {

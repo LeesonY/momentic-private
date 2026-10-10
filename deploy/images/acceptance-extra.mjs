@@ -468,6 +468,7 @@ export async function runAcceptanceExtras({
     );
     const readFrames = (cursor, count) =>
       new Promise((resolve, reject) => {
+        let settled = false;
         const req = https.request(
           {
             host: '127.0.0.1',
@@ -488,7 +489,6 @@ export async function runAcceptanceExtras({
               return;
             }
             let data = '';
-            let settled = false;
             res.on('data', (chunk) => {
               data += chunk.toString();
               const ids = [...data.matchAll(/^id: (\d+)$/gm)].map((m) =>
@@ -857,7 +857,6 @@ export async function runAcceptanceExtras({
         'dd if=/dev/zero of=/data/fill bs=1024 count=8192 2>/dev/null; df -k /data | tail -1',
       );
       diskFullRaw.fillResult = fill.stdout.trim();
-      const fillPct = Number((diskFullRaw.fillResult.match(/(\d+)%/) || [])[1]);
       const overflow = tmpfsRun(
         'dd if=/dev/zero of=/data/a bs=1024 count=9000',
       );

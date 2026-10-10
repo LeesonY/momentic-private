@@ -239,7 +239,7 @@ async function main() {
   if ((command === 'smoke' || command === 'run') && values.wait) {
     const runId = response.id;
     const deadline = Date.now() + (Number(values.timeout) || 600) * 1000;
-    do {
+    while (true) {
       if (interrupted) return 130;
       const run = await api(base, token, 'GET', `/api/v1/runs/${runId}`);
       if (done.has(run.status)) break;
@@ -248,7 +248,7 @@ async function main() {
         return 2;
       }
       await delay(2000, undefined, { signal: abort.signal });
-    } while (true);
+    }
     response = await api(base, token, 'GET', `/api/v1/runs/${runId}/report`);
     const exit = gate(response);
     console.log(

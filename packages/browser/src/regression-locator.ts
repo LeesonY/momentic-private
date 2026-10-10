@@ -129,7 +129,7 @@ export async function resolveCachedRegressionLocator(
     } finally {
       await handle.dispose();
     }
-  } catch (error) {
+  } catch {
     if (signal?.aborted) throw new RegressionLocatorError('CANCELLED');
     return null;
   }

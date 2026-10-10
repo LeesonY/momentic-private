@@ -13,7 +13,6 @@ import {
 import { fileURLToPath } from 'node:url';
 import https from 'node:https';
 import { setTimeout as delay } from 'node:timers/promises';
-import { resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { mkdtempSync } from 'node:fs';
 import { runAcceptanceExtras } from './acceptance-extra.mjs';
@@ -57,13 +56,6 @@ evidence.baseRunCategories = only
   : null;
 function shouldRun(name) {
   return !effectiveOnly || effectiveOnly.includes(name);
-}
-function gatedRecord(category, status, raw, reason = null, samples = null) {
-  if (!shouldRun(category)) {
-    recordSkipped(category, previous?.recordedAt ?? null);
-    return;
-  }
-  record(category, status, raw, reason, samples);
 }
 // Declared dependency closure: each target check names the checks whose
 // fixtures it needs (a running run, project/model bindings, etc.).
@@ -128,19 +120,6 @@ evidence.environment = {
 function record(category, status, raw, reason = null, samples = null) {
   evidence.categories[category] = { status, raw, reason, samples };
   console.log(`[${category}] ${status} ${reason || ''}`);
-}
-function recordSkipped(category, carriedFrom) {
-  const carried = previous?.categories?.[category];
-  evidence.categories[category] = {
-    status: carried?.status ?? '未验证',
-    raw: carried?.raw ?? { sampleCount: 0 },
-    reason: carried
-      ? `单点复验跳过；沿用 ${carriedFrom} 完整运行的结果。`
-      : '单点复验跳过且无历史结果，视为未验证。',
-    samples: carried?.samples ?? 0,
-    carriedFrom: carried ? carriedFrom : null,
-  };
-  console.log(`[${category}] 跳过(沿用 ${carriedFrom || '无历史'})`);
 }
 evidence.prerequisites = [];
 evidence.targetChecks = only ?? 'all';

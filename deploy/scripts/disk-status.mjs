@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readdir, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { join } from 'node:path';
 import pg from '../../packages/storage/node_modules/pg/lib/index.js';
 import { loadDatabaseUrl } from '../images/database-url.mjs';
 

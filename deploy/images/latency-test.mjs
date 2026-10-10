@@ -8,9 +8,7 @@ import { spawn } from 'node:child_process';
 // post a message while the page is open. The page's SSE/polling calls
 // recordMessageRendered(marker, createdAt); we read window.__messageTelemetryHistory.
 export async function measureEventToUi({
-  cmd,
   http,
-  sql,
   cookie,
   adminPassword,
   project,

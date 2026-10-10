@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import { parseContract } from '@localqa/contracts';
 import type {
   Schedule,
-  ScheduleCreate,
   SchedulePatch,
   ScheduleOccurrence,
   Run,

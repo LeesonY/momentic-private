@@ -39,7 +39,9 @@ function request(method, path, body = null, headers = {}) {
         let json = null;
         try {
           json = JSON.parse(data);
-        } catch (_) {}
+        } catch (_) {
+          // Non-JSON body: callers fall back to the raw string
+        }
         resolve({
           status: res.statusCode,
           headers: res.headers,

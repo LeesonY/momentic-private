@@ -37,7 +37,6 @@ const pgDataVolume = `localqa-t09-pgdata-${tag}`;
 const pgDataRestoredVolume = `localqa-t09-pgdata-res-${tag}`;
 const evidenceRestoredVolume = `localqa-t09-evidence-res-${tag}`;
 const artifactsDir = `${dir}/data`;
-const restoredArtifactsDir = `${dir}/restored-data`;
 mkdirSync(artifactsDir, { recursive: true, mode: 0o700 });
 
 const envFile = `${dir}/postgres.env`;
@@ -196,7 +195,7 @@ try {
     '/work',
   ];
 
-  const migrateRun = run(
+  run(
     'docker',
     [
       ...nodeNetworkArgs,
@@ -257,7 +256,7 @@ try {
 
   // 4. One-time Admin Bootstrap & Replay Rejection Test
   console.log('\n=== Step 4: Admin Bootstrap & Replay Rejection ===');
-  const bootstrapRun = run('docker', [
+  run('docker', [
     ...nodeNetworkArgs,
     '--env',
     `DATABASE_URL=postgresql://localqa:${pgPassword}@${postgres}:5432/localqa`,
@@ -458,7 +457,7 @@ try {
     })();
   `;
   writeFileSync(`${dir}/populate-test.js`, populateScript);
-  const popRes = run('docker', [
+  run('docker', [
     ...nodeNetworkArgs,
     '--env',
     `DATABASE_URL=postgresql://localqa:${pgPassword}@${postgres}:5432/localqa`,
@@ -466,7 +465,6 @@ try {
     'node',
     '/work/deploy/.evidence/populate-test.js',
   ]);
-  const popJson = JSON.parse(popRes.stdout.trim().split('\n').pop() || '{}');
 
   // 7. Execute Backup
   console.log('\n=== Step 7: Performing Backup (DB + Artifacts + KEK) ===');

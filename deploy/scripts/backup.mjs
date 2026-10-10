@@ -4,11 +4,10 @@ import {
   writeFile,
   copyFile,
   readdir,
-  stat,
   readFile,
 } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { resolve, dirname, join } from 'node:path';
+import { resolve, join } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import pg from '../../packages/storage/node_modules/pg/lib/index.js';
@@ -36,7 +35,6 @@ await mkdir(join(targetBackupDir, 'secrets'), { recursive: true, mode: 0o700 });
 
 // 1. Dump Database
 const dbDumpFile = join(targetBackupDir, 'database.sql');
-let dbDumpSha256 = null;
 
 // Try pg_dump first, or logical SQL tables dump fallback
 const dumpTarget = new URL(connectionString);
@@ -99,7 +97,7 @@ if (pgDumpCmd.status === 0 && existsSync(dbDumpFile)) {
 }
 
 const dbBytes = await readFile(dbDumpFile);
-dbDumpSha256 = createHash('sha256').update(dbBytes).digest('hex');
+const dbDumpSha256 = createHash('sha256').update(dbBytes).digest('hex');
 
 // 2. Backup Artifacts & Generate Artifacts Manifest
 const artifactsManifest = [];

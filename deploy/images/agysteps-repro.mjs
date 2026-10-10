@@ -1,6 +1,6 @@
 // Reproduce agy's exact steps in this stack for 5_event_to_ui_p95.
 import { spawnSync } from 'node:child_process';
-import { randomBytes, createHash } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,

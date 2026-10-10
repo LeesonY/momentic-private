@@ -188,7 +188,9 @@ async function sample(flow, mode, iteration) {
               : null,
           },
         ];
-    } catch {}
+    } catch {
+      // Not a JSON diagnostic line: skip it.
+    }
     return [];
   });
   const diagnosticReason =

@@ -16,7 +16,7 @@ test.describe('FIX-06: Frames & Multi-page Popups', () => {
     await expect(frameBtn).toHaveText('Frame Clicked!');
   });
 
-  test('locates target elements in newly spawned popup page window', async ({ page, context }) => {
+  test('locates target elements in newly spawned popup page window', async ({ page }) => {
     await page.goto('/fix-06-frames.html');
 
     // Listen for popup event while clicking open popup button

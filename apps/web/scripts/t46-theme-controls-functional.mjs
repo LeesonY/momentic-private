@@ -1,3 +1,4 @@
+/* global document, getComputedStyle, innerWidth, localStorage */
 // T46: test the real Chromium form/option styling at desktop and mobile sizes.
 // Requests are intercepted; real project data and model services are untouched.
 import assert from 'node:assert/strict';

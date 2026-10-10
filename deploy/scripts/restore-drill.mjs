@@ -1,20 +1,10 @@
 #!/usr/bin/env node
-import {
-  readFile,
-  writeFile,
-  copyFile,
-  readdir,
-  mkdir,
-} from 'node:fs/promises';
+import { readFile, copyFile, readdir, mkdir } from 'node:fs/promises';
 import { existsSync, chmodSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { createHash } from 'node:crypto';
 import pg from '../../packages/storage/node_modules/pg/lib/index.js';
-import {
-  Database,
-  SecretVault,
-  migrate,
-} from '../../packages/storage/dist/index.js';
+import { SecretVault, migrate } from '../../packages/storage/dist/index.js';
 import {
   LocalVolumeArtifactStore,
   ReportBuilder,

@@ -10,7 +10,7 @@ export interface CronSpec {
 }
 
 function field(src: string, min: number, max: number, sunday = false): Matcher {
-  if (!/^[\d*\/,\-]+$/.test(src)) throw new StorageError('VALIDATION_ERROR');
+  if (!/^[\d*/,-]+$/.test(src)) throw new StorageError('VALIDATION_ERROR');
   const values = new Set<number>();
   for (const part of src.split(',')) {
     const chunks = part.split('/');

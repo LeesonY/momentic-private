@@ -132,7 +132,7 @@ export async function withApprovedBrowserAuth(
 
   let allocated: AuthSessionBinding | undefined;
   let session: BrowserSessionImpl | undefined;
-  let outcome: AuthImportResult = denial;
+  let outcome: AuthImportResult;
   let cleanupFailed = false;
   let finalized = false;
   try {

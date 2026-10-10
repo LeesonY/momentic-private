@@ -13,7 +13,6 @@ import {
 import { fileURLToPath } from 'node:url';
 import https from 'node:https';
 import { setTimeout as delay } from 'node:timers/promises';
-import { resolve } from 'node:path';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const deploy = `${root}/deploy`;
