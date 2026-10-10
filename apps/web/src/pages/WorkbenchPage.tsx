@@ -5,6 +5,8 @@ import type { Run } from '@localqa/contracts';
 import { RunStoreProvider, useRunStore } from '../state/RunStore.tsx';
 import { Page } from '../components/layout/Page.tsx';
 import { EmptyState } from '../components/ui/EmptyState.tsx';
+import { Alert } from '../components/ui/Alert.tsx';
+import { AppIcon } from '../components/ui/AppIcon.tsx';
 import { ReconnectBanner } from '../components/layout/ReconnectBanner.tsx';
 import { PhaseProgress } from '../components/workbench/PhaseProgress.tsx';
 import { InputRequestBar } from '../components/workbench/InputRequestBar.tsx';
@@ -190,231 +192,170 @@ const WorkbenchContent: React.FC<{
   };
 
   if (!run) {
-    return <div style={{ padding: '20px' }}>加载运行中...</div>;
+    return <div className="lqa-session-loading is-inline">加载运行中...</div>;
   }
 
   const isCompleted = ['completed', 'cancelled', 'failed'].includes(run.status);
   const isPartial =
     run.completion === 'partial' || run.terminationReason === 'budget_limit';
+  const budget = run.effectiveConfig?.budget;
+  const budgetItems: {
+    label: string;
+    used: number;
+    limit: number;
+    unit?: string;
+  }[] = [
+    {
+      label: '执行时长',
+      used: run.budgetUsed.activeSeconds,
+      limit: budget?.maxActiveSeconds || 600,
+      unit: 's',
+    },
+    {
+      label: '动作步数',
+      used: run.budgetUsed.actions,
+      limit: budget?.maxActions || 120,
+    },
+    {
+      label: '模型调用',
+      used: run.budgetUsed.modelCalls,
+      limit: budget?.maxModelCalls || 100,
+    },
+    {
+      label: 'Token',
+      used: run.budgetUsed.totalTokens,
+      limit: budget?.maxTotalTokens || 300000,
+    },
+    {
+      label: '复现次数',
+      used: run.budgetUsed.reproductions,
+      limit: budget?.maxReproductions || 3,
+    },
+  ];
+  const regressionState: Record<string, string> = {
+    queued: '回归排队中，等待 Worker 领取',
+    running: '回归回放执行中',
+    completed: '回归已完成',
+    failed: '回归执行失败',
+    cancelled: '回归已取消',
+  };
 
   return (
     <div className="workbench-layout" data-testid="workbench-container">
-      {/* 1. LEFT PANEL: RUN HISTORY & FILTERS */}
       <RunHistoryList
         runs={runs}
         activeRunId={activeRunId}
         onSelectRun={onSelectRun}
       />
 
-      {/* 2. MIDDLE PANEL: REAL-TIME STAGE PROGRESS & WORKBENCH */}
       <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100%',
-          overflowY: 'auto',
-          paddingRight: '4px',
-        }}
+        className="workbench-column workbench-center"
         data-testid="workbench-center-panel"
       >
-        {/* SSE Reconnecting Banner if network disrupted */}
         <ReconnectBanner
           status={sseStatus}
           attempt={reconnectAttempt}
           onRetry={retrySse}
         />
 
-        {/* Partial Report Notice Banner */}
         {isPartial && (
           <ErrorCard
             type="partial_report"
-            message={`本次运行因触发预算阈值 (${run.terminationReason}) 提前完成收尾。未全部执行的用例与未探索的控件已列入覆盖缺口，不影响已有通过结论。`}
+            message={`本次运行因触发预算阈值（${run.terminationReason}）提前收尾。未执行的用例与未探索的控件已列入覆盖缺口，不影响已有的通过结论。`}
           />
         )}
 
-        {/* Queued Run Notice Banner */}
         {run.status === 'queued' && (
-          <div
-            className="card"
-            style={{
-              marginBottom: '16px',
-              padding: '12px 16px',
-              backgroundColor: 'var(--color-bg-subtle)',
-              borderLeft: '4px solid var(--color-info)',
-            }}
-            data-testid="queued-run-notice"
-          >
-            <div
-              style={{
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                color: 'var(--color-text-main)',
-              }}
-            >
-              🕒 运行排队中 (Queued)
-            </div>
-            <div
-              style={{
-                fontSize: '0.8rem',
-                color: 'var(--color-text-muted)',
-                marginTop: '2px',
-              }}
-            >
-              该运行处于任务排队队列中，等待 Worker
-              节点领取，尚未执行回放。通过结论及用例判定将在 Worker 真实执行后由
-              verdict 字段判定。
-            </div>
-          </div>
+          <Alert tone="info" title="运行排队中" testId="queued-run-notice">
+            等待 Worker 节点领取，尚未开始执行。用例结论会在 Worker
+            真实执行后给出。
+          </Alert>
         )}
 
-        {/* Run Top Header */}
-        <div className="card" style={{ marginBottom: '16px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '8px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
-                运行: <code>{run.id}</code>
+        <section className="card lqa-run-header">
+          <div className="lqa-run-title-row">
+            <div className="lqa-run-title">
+              <h2>
+                运行 <code title={run.id}>{run.id}</code>
               </h2>
-              <StatusBadge status={isPartial ? 'partial' : run.status} />
-              {run.executionMode === 'regression' ? (
+              <div className="row row-wrap">
+                <StatusBadge status={isPartial ? 'partial' : run.status} />
                 <span
-                  className="badge badge-primary"
+                  className={`badge ${run.executionMode === 'regression' ? 'badge-primary' : 'badge-info'}`}
                   data-testid="badge-execution-mode"
                 >
-                  回归模式 (Regression)
+                  {run.executionMode === 'regression' ? '回归模式' : '冒烟模式'}
                 </span>
-              ) : (
-                <span
-                  className="badge badge-info"
-                  data-testid="badge-execution-mode"
-                >
-                  冒烟模式 (Smoke)
+                <span className="badge badge-neutral">
+                  上下文 v{run.contextVersion}
                 </span>
-              )}
-              <span className="badge badge-neutral">
-                上下文版本: v{run.contextVersion}
-              </span>
+              </div>
             </div>
-
             {!isCompleted && (
               <button
-                className="btn btn-danger btn-sm"
+                className="btn btn-danger-outline btn-sm"
                 onClick={cancelRun}
                 data-testid="btn-cancel-run"
               >
-                停止运行 (Cancel)
+                <AppIcon name="stop" size={13} />
+                停止运行
               </button>
             )}
           </div>
 
-          {/* Regression Mode Banner */}
+          <a
+            className="lqa-run-target"
+            href={run.targetUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <AppIcon name="globe" size={14} />
+            <span className="truncate">{run.targetUrl}</span>
+            <AppIcon name="external-link" size={13} />
+          </a>
+
           {run.executionMode === 'regression' && (
             <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                backgroundColor: 'var(--color-primary-subtle)',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '0.8rem',
-                color: 'var(--color-text-main)',
-                marginBottom: '8px',
-              }}
+              className="lqa-run-banner"
               data-testid="workbench-regression-banner"
             >
-              <div>
-                <strong>
-                  {run.status === 'queued'
-                    ? '自动化回归排队等待中 (Worker 待调度):'
-                    : run.status === 'running'
-                      ? '自动化回归回放执行中:'
-                      : run.status === 'completed'
-                        ? '自动化回归已完成:'
-                        : run.status === 'failed'
-                          ? '自动化回归执行失败:'
-                          : run.status === 'cancelled'
-                            ? '自动化回归已取消:'
-                            : '自动化回归运行:'}{' '}
-                </strong>
-                关联用例均受已审查批准的冻结基线版本与用例库来源约束
-              </div>
-              <span
-                className="badge badge-primary"
-                style={{ fontSize: '0.7rem' }}
-              >
+              <span>
+                <strong>{regressionState[run.status] ?? '回归运行'}</strong>
+                ：关联用例都受经审查批准的冻结基线版本约束。
+              </span>
+              <span className="badge badge-primary">
                 {cases.length} 个回归用例
               </span>
             </div>
           )}
 
           <div
-            style={{
-              fontSize: '0.875rem',
-              color: 'var(--color-text-main)',
-              marginBottom: '8px',
-            }}
-          >
-            目标站点:{' '}
-            <a href={run.targetUrl} target="_blank" rel="noreferrer">
-              <strong>{run.targetUrl}</strong>
-            </a>
-          </div>
-
-          {/* Budget Consumption Bar */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-              gap: '10px',
-              backgroundColor: 'var(--color-bg-subtle)',
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.8rem',
-              marginTop: '8px',
-            }}
+            className="stat-grid lqa-budget-grid"
             data-testid="budget-metrics-bar"
           >
-            <div>
-              时间消耗: <strong>{run.budgetUsed.activeSeconds}s</strong> /{' '}
-              {run.effectiveConfig?.budget.maxActiveSeconds || 600}s
-            </div>
-            <div>
-              动作步数: <strong>{run.budgetUsed.actions}</strong> /{' '}
-              {run.effectiveConfig?.budget.maxActions || 120}
-            </div>
-            <div>
-              模型调用: <strong>{run.budgetUsed.modelCalls}</strong> /{' '}
-              {run.effectiveConfig?.budget.maxModelCalls || 100}
-            </div>
-            <div>
-              Token 消耗:{' '}
-              <strong>{run.budgetUsed.totalTokens.toLocaleString()}</strong> /{' '}
-              {(
-                run.effectiveConfig?.budget.maxTotalTokens || 300000
-              ).toLocaleString()}
-            </div>
-            <div>
-              复现次数: <strong>{run.budgetUsed.reproductions}</strong> /{' '}
-              {run.effectiveConfig?.budget.maxReproductions || 3}
-            </div>
+            {budgetItems.map((item) => (
+              <div className="stat" key={item.label}>
+                <div className="stat-label">{item.label}</div>
+                <div className="stat-value">
+                  {item.used.toLocaleString()}
+                  {item.unit}
+                  <small>
+                    {' '}
+                    / {item.limit.toLocaleString()}
+                    {item.unit}
+                  </small>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+        </section>
 
-        {/* Lifecycle Phase Progress */}
         <PhaseProgress
           currentPhase={run.phase}
           status={run.status}
           executionMode={run.executionMode}
         />
 
-        {/* Input Request Bar (when awaiting_input) */}
         {activeInputRequest && (
           <InputRequestBar
             request={activeInputRequest}
@@ -422,116 +363,52 @@ const WorkbenchContent: React.FC<{
           />
         )}
 
-        {/* User Scope Supplement Message Box & Messages List */}
-        <div
-          className="card"
-          style={{ marginBottom: '16px' }}
-          data-testid="run-messages-card"
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '10px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: 600 }}>
-                补充说明与交互消息 (Run Messages)
+        <section className="card" data-testid="run-messages-card">
+          <div className="card-header">
+            <div className="card-heading">
+              <h3 className="card-title">
+                <AppIcon name="send" size={16} />
+                补充说明
+                <span
+                  className="badge badge-neutral badge-sm"
+                  data-testid="run-messages-count"
+                >
+                  {messages.length}
+                </span>
               </h3>
-              <span
-                className="badge badge-neutral"
-                data-testid="run-messages-count"
-              >
-                {messages.length}
-              </span>
+              <p className="card-description">
+                运行过程中补充的业务预期与排除路径，每条消息都会推进上下文版本。
+              </p>
             </div>
-            <span
-              style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}
-            >
-              按时钟打点记录业务预期、排除路径与运行消息
-            </span>
           </div>
 
           {messages.length === 0 ? (
-            <div
-              style={{
-                padding: '12px 14px',
-                textAlign: 'center',
-                color: 'var(--color-text-muted)',
-                fontSize: '0.85rem',
-                backgroundColor: 'var(--color-bg-subtle)',
-                borderRadius: 'var(--radius-sm)',
-                marginBottom: isCompleted ? 0 : '10px',
-              }}
-              data-testid="no-messages-notice"
-            >
-              暂无运行补充消息。如需提供业务预期或排除路径，请在下方发送。
+            <div className="lqa-muted-box" data-testid="no-messages-notice">
+              暂无补充消息。需要提供业务预期或排除路径时，请在下方发送。
             </div>
           ) : (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                maxHeight: '220px',
-                overflowY: 'auto',
-                marginBottom: isCompleted ? 0 : '10px',
-              }}
-              data-testid="run-messages-list"
-            >
+            <div className="lqa-message-list" data-testid="run-messages-list">
               {messages.map((m) => (
                 <div
                   key={m.id}
-                  style={{
-                    padding: '8px 12px',
-                    backgroundColor: 'var(--color-bg-subtle)',
-                    border: '1px solid var(--color-border-subtle)',
-                    borderRadius: 'var(--radius-md)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px',
-                  }}
+                  className="lqa-message"
                   data-testid="run-message-item"
                   data-message-id={m.id}
                   data-redacted-text={m.redactedText}
                   data-context-version={m.contextVersion}
                   data-created-at={m.createdAt}
                 >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      fontSize: '0.75rem',
-                      color: 'var(--color-text-muted)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      <span
-                        className="badge badge-info"
-                        style={{ fontSize: '0.7rem' }}
-                      >
-                        v{m.contextVersion}
-                      </span>
-                      <span>操作员</span>
-                    </div>
-                    <span>{new Date(m.createdAt).toLocaleTimeString()}</span>
+                  <div className="lqa-message-meta">
+                    <span className="badge badge-info badge-sm">
+                      v{m.contextVersion}
+                    </span>
+                    <span>操作员</span>
+                    <span className="push">
+                      {new Date(m.createdAt).toLocaleTimeString()}
+                    </span>
                   </div>
                   <div
-                    style={{
-                      fontSize: '0.875rem',
-                      color: 'var(--color-text-main)',
-                      fontWeight: 500,
-                      wordBreak: 'break-word',
-                    }}
+                    className="lqa-message-text"
                     data-testid="run-message-text"
                   >
                     {m.redactedText}
@@ -544,101 +421,70 @@ const WorkbenchContent: React.FC<{
           {!isCompleted && (
             <form
               onSubmit={handleSendMessage}
-              style={{
-                display: 'flex',
-                gap: '10px',
-                alignItems: 'center',
-              }}
+              className="lqa-message-form"
               data-testid="send-message-box"
             >
               <input
                 type="text"
                 className="form-input"
-                style={{ flex: 1 }}
-                placeholder="在此输入补充说明、业务预期或排除路径（将推进上下文版本）..."
+                placeholder="输入补充说明、业务预期或排除路径…"
                 value={inputMsg}
                 onChange={(e) => setInputMsg(e.target.value)}
                 data-testid="input-run-message"
               />
               <button
                 type="submit"
-                className="btn btn-primary btn-sm"
+                className="btn btn-primary"
                 disabled={sendingMsg}
                 data-testid="btn-send-message"
               >
-                {sendingMsg ? '发送中...' : '发送补充说明'}
+                <AppIcon name="send" size={14} />
+                {sendingMsg ? '发送中...' : '发送'}
               </button>
             </form>
           )}
-        </div>
+        </section>
 
-        {/* Live Timeline & Execution Stream */}
-        <div
-          className="card"
-          style={{ flex: 1, overflowY: 'auto' }}
-          data-testid="timeline-card"
-        >
+        <section className="card" data-testid="timeline-card">
           <div className="card-header">
-            <h3 className="card-title">实时执行动态 (Timeline Events)</h3>
-            <span
-              style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}
-            >
-              已过滤模型隐藏推理，保证事实记录真实可见
-            </span>
+            <div className="card-heading">
+              <h3 className="card-title">
+                <AppIcon name="activity" size={16} />
+                执行动态
+              </h3>
+              <p className="card-description">
+                只展示真实发生的任务事实，模型的隐藏推理已过滤。
+              </p>
+            </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {tasks.map((task) => (
-              <div
-                key={task.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '12px',
-                  padding: '10px',
-                  borderLeft: '3px solid var(--color-primary)',
-                  backgroundColor: 'var(--color-bg-surface)',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: '0.75rem',
-                    color: 'var(--color-text-muted)',
-                    minWidth: '70px',
-                  }}
+          {tasks.length === 0 ? (
+            <div className="lqa-muted-box">暂无任务事件。</div>
+          ) : (
+            <ol className="lqa-timeline">
+              {tasks.map((task) => (
+                <li
+                  key={task.id}
+                  className={`lqa-timeline-item is-${task.status}`}
                 >
-                  耗时: {task.elapsedSeconds}s
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}
-                  >
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                      [{task.role.toUpperCase()}]
-                    </span>
-                    <StatusBadge status={task.status} size="sm" />
+                  <span className="lqa-timeline-dot" aria-hidden="true" />
+                  <div className="lqa-timeline-body">
+                    <div className="row row-wrap">
+                      <span className="lqa-timeline-role">{task.role}</span>
+                      <StatusBadge status={task.status} size="sm" />
+                      <span className="push subtle text-xs nowrap">
+                        {task.elapsedSeconds}s
+                      </span>
+                    </div>
+                    <p>{task.summary || '任务执行中...'}</p>
                   </div>
-                  <div
-                    style={{
-                      fontSize: '0.825rem',
-                      color: 'var(--color-text-main)',
-                      marginTop: '2px',
-                    }}
-                  >
-                    {task.summary || '任务执行中...'}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
       </div>
 
-      {/* 3. RIGHT PANEL: TASKS / CASES / FINDINGS / REPORT TABS */}
       <TaskCaseTabs
         cases={cases}
         findings={findings}

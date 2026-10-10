@@ -95,9 +95,9 @@ export const ReportExportPanel: React.FC<{ runId: string }> = ({ runId }) => {
   };
 
   return (
-    <section data-testid="report-export-panel" style={{ marginTop: 14 }}>
-      <h4 style={{ fontSize: '0.9rem', marginBottom: 8 }}>导出运行报告</h4>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+    <section className="panel stack stack-sm" data-testid="report-export-panel">
+      <div className="section-label lqa-flush-label">导出运行报告</div>
+      <div className="btn-group">
         {formats.map((format) => (
           <button
             key={format.value}
@@ -112,11 +112,8 @@ export const ReportExportPanel: React.FC<{ runId: string }> = ({ runId }) => {
         ))}
       </div>
       {record && (
-        <p
-          data-testid="export-record"
-          style={{ marginTop: 8, fontSize: '0.8rem' }}
-        >
-          格式：{record.format} · 状态：{record.status} · 导出 ID：
+        <p className="text-xs muted" data-testid="export-record">
+          格式 {record.format} · 状态 {record.status} · 导出 ID{' '}
           <code>{record.id}</code>
         </p>
       )}
@@ -124,7 +121,7 @@ export const ReportExportPanel: React.FC<{ runId: string }> = ({ runId }) => {
         (record.status === 'queued' || record.status === 'running') && (
           <button
             type="button"
-            className="btn btn-secondary btn-sm"
+            className="btn btn-ghost btn-sm"
             data-testid="btn-refresh-export"
             onClick={() => void refresh()}
             disabled={busy}
@@ -135,7 +132,7 @@ export const ReportExportPanel: React.FC<{ runId: string }> = ({ runId }) => {
       {record?.status === 'ready' && (
         <button
           type="button"
-          className="btn btn-secondary btn-sm"
+          className="btn btn-ghost btn-sm"
           data-testid="btn-retry-export-download"
           onClick={() => void retryDownload()}
           disabled={busy}
@@ -144,12 +141,20 @@ export const ReportExportPanel: React.FC<{ runId: string }> = ({ runId }) => {
         </button>
       )}
       {notice && (
-        <p role="status" data-testid="export-notice-message">
+        <p
+          className="text-sm text-success"
+          role="status"
+          data-testid="export-notice-message"
+        >
           {notice}
         </p>
       )}
       {error && (
-        <p role="alert" data-testid="export-error-message">
+        <p
+          className="text-sm text-danger"
+          role="alert"
+          data-testid="export-error-message"
+        >
           {error}
         </p>
       )}

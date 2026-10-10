@@ -9,9 +9,19 @@ import type {
 import { StatusBadge } from '../ui/Badge.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { ErrorCard } from '../ui/ErrorCard.tsx';
+import { AppIcon } from '../ui/AppIcon.tsx';
 import { ReportExportPanel } from './ReportExportPanel.tsx';
 import { useApp } from '../../state/AppContext.tsx';
 import { getRegressionProvenanceStatus } from '../../utils/provenance.ts';
+
+const cleanupLabels: Record<string, string> = {
+  not_required: '无需清理',
+  pending: '待清理',
+  running: '清理中',
+  succeeded: '已清理',
+  failed: '清理失败',
+  manual_required: '需人工清理',
+};
 
 interface TaskCaseTabsProps {
   cases: CaseRecord[];
@@ -37,91 +47,76 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
   >('cases');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { setRoute } = useApp();
+  const isRegressionRun =
+    report?.run.executionMode === 'regression' ||
+    run?.executionMode === 'regression';
+  const completeCases = cases.filter(
+    (c) => getRegressionProvenanceStatus(c.definition.regression).isComplete,
+  ).length;
+  const percent = (value: number | null, empty: string) =>
+    value !== null ? `${Math.round(value * 100)}%` : empty;
+
+  const tabs = [
+    { key: 'cases' as const, label: '用例', count: cases.length },
+    { key: 'findings' as const, label: '缺陷', count: findings.length },
+    { key: 'tasks' as const, label: '任务', count: tasks.length },
+    { key: 'report' as const, label: '报告', count: null },
+  ];
 
   return (
-    <div
-      className="card workbench-right-panel"
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        padding: '16px',
-        overflow: 'hidden',
-        width: isCollapsed ? '48px' : '420px',
-        transition: 'width 0.2s ease-in-out',
-      }}
+    <section
+      className={`card workbench-column workbench-right-panel ${isCollapsed ? 'is-collapsed' : ''}`}
       data-testid="workbench-tabs-panel"
     >
-      {/* Panel Header & Collapse Toggle */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '12px',
-        }}
-      >
+      <div className="lqa-tabs-header">
         {!isCollapsed && (
-          <div style={{ display: 'flex', gap: '4px', overflowX: 'auto' }}>
-            <button
-              className={`btn btn-sm ${activeTab === 'cases' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setActiveTab('cases')}
-              data-testid="tab-btn-cases"
-            >
-              用例 ({cases.length})
-            </button>
-            <button
-              className={`btn btn-sm ${activeTab === 'findings' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setActiveTab('findings')}
-              data-testid="tab-btn-findings"
-            >
-              缺陷 ({findings.length})
-            </button>
-            <button
-              className={`btn btn-sm ${activeTab === 'tasks' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setActiveTab('tasks')}
-              data-testid="tab-btn-tasks"
-            >
-              任务 ({tasks.length})
-            </button>
-            <button
-              className={`btn btn-sm ${activeTab === 'report' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setActiveTab('report')}
-              data-testid="tab-btn-report"
-            >
-              报告
-            </button>
+          <div className="tabs-list" role="tablist">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.key}
+                className={`tab-trigger ${activeTab === tab.key ? 'is-active' : ''}`}
+                onClick={() => setActiveTab(tab.key)}
+                data-testid={`tab-btn-${tab.key}`}
+              >
+                {tab.label}
+                {tab.count !== null && (
+                  <span className="tab-count">{tab.count}</span>
+                )}
+              </button>
+            ))}
           </div>
         )}
         <button
-          className="btn btn-secondary btn-sm"
-          style={{ padding: '4px 6px', fontSize: '0.8rem' }}
+          type="button"
+          className="lqa-icon-button"
           onClick={() => setIsCollapsed(!isCollapsed)}
           title={isCollapsed ? '展开面板' : '折叠面板'}
+          aria-label={isCollapsed ? '展开面板' : '折叠面板'}
           data-testid="btn-toggle-tabs-collapse"
         >
-          {isCollapsed ? '◀' : '▶'}
+          <AppIcon
+            name={isCollapsed ? 'chevron-left' : 'chevron-right'}
+            size={16}
+          />
         </button>
       </div>
 
       {isCollapsed ? null : (
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          {/* TAB 1: CASES */}
+        <div className="lqa-tabs-body">
           {activeTab === 'cases' && (
             <div data-testid="tab-content-cases">
               {cases.length === 0 ? (
                 <EmptyState
+                  compact
+                  icon="list"
                   title="暂无用例记录"
-                  description="冒烟规划中或此运行尚未生成用例。"
+                  description="冒烟规划进行中，或此运行尚未生成用例。"
                 />
               ) : (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                  }}
-                >
+                <div className="lqa-card-list">
                   {cases.map((c) => {
                     const isNotRun = c.outcome === 'not_run' || !c.verdict;
                     const verdictStatus = c.verdict ? c.verdict.status : null;
@@ -129,55 +124,30 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
                       !!c.definition.regression ||
                       run?.executionMode === 'regression';
                     const regression = c.definition.regression;
+                    const openDetail = () =>
+                      setRoute('case-detail', {
+                        caseId: c.definition.id,
+                        runId,
+                      });
 
                     return (
                       <div
                         key={c.definition.id}
-                        style={{
-                          padding: '12px',
-                          border: '1px solid var(--color-border-subtle)',
-                          borderRadius: 'var(--radius-md)',
-                          cursor: 'pointer',
-                          transition: 'background-color 0.15s',
+                        className="lqa-item-card is-clickable"
+                        role="button"
+                        tabIndex={0}
+                        onClick={openDetail}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') openDetail();
                         }}
-                        onClick={() =>
-                          setRoute('case-detail', {
-                            caseId: c.definition.id,
-                            runId,
-                          })
-                        }
                         data-testid={`case-item-${c.definition.id}`}
                       >
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            marginBottom: '6px',
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: '0.75rem',
-                              color: 'var(--color-text-subtle)',
-                            }}
-                          >
-                            {c.definition.id}
-                          </span>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                            }}
-                          >
+                        <div className="lqa-item-top">
+                          <span className="lqa-item-id">{c.definition.id}</span>
+                          <span className="row">
                             {isRegressionCase && (
                               <span
-                                className="badge badge-primary"
-                                style={{
-                                  fontSize: '0.68rem',
-                                  padding: '1px 5px',
-                                }}
+                                className="badge badge-primary badge-sm"
                                 data-testid={`badge-regression-case-${c.definition.id}`}
                               >
                                 回归用例
@@ -192,106 +162,58 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
                             ) : (
                               <StatusBadge status={verdictStatus!} size="sm" />
                             )}
-                          </div>
+                          </span>
                         </div>
-
-                        <div
-                          style={{
-                            fontSize: '0.875rem',
-                            fontWeight: 600,
-                            color: 'var(--color-text-main)',
-                            marginBottom: '4px',
-                          }}
-                        >
+                        <div className="lqa-item-title">
                           {c.definition.title}
                         </div>
+                        <p className="lqa-item-text">{c.definition.summary}</p>
 
-                        <p
-                          style={{
-                            fontSize: '0.8rem',
-                            color: 'var(--color-text-muted)',
-                            lineHeight: 1.4,
-                            marginBottom: '4px',
-                          }}
-                        >
-                          {c.definition.summary}
-                        </p>
-
-                        {/* Regression Provenance Metadata */}
                         {regression ? (
                           <div
-                            style={{
-                              display: 'flex',
-                              flexWrap: 'wrap',
-                              gap: '6px',
-                              alignItems: 'center',
-                              fontSize: '0.72rem',
-                              padding: '4px 8px',
-                              backgroundColor: 'var(--color-bg-subtle)',
-                              borderRadius: 'var(--radius-sm)',
-                              margin: '6px 0',
-                            }}
+                            className="lqa-provenance"
                             data-testid={`case-provenance-meta-${c.definition.id}`}
                           >
                             <span>
-                              源版本:{' '}
+                              源版本{' '}
                               {regression.sourceVersionId ? (
                                 <code>
-                                  {regression.sourceVersionId.slice(0, 8)}...
+                                  {regression.sourceVersionId.slice(0, 8)}
                                 </code>
                               ) : (
-                                <strong
-                                  style={{ color: 'var(--color-danger)' }}
-                                >
-                                  未验证
-                                </strong>
+                                <strong className="text-danger">未验证</strong>
                               )}
                             </span>
-                            <span>·</span>
                             <span>
-                              原SHA:{' '}
+                              原 SHA{' '}
                               {regression.sourceDocumentSha256 ? (
                                 <code>
                                   {regression.sourceDocumentSha256.slice(0, 8)}
-                                  ...
                                 </code>
                               ) : (
-                                <strong
-                                  style={{ color: 'var(--color-danger)' }}
-                                >
-                                  未验证
-                                </strong>
+                                <strong className="text-danger">未验证</strong>
                               )}
                             </span>
                             {regression.snapshotDocumentSha256 && (
-                              <>
-                                <span>·</span>
-                                <span>
-                                  快照SHA:{' '}
-                                  <code>
-                                    {regression.snapshotDocumentSha256.slice(
-                                      0,
-                                      8,
-                                    )}
-                                    ...
-                                  </code>
-                                </span>
-                              </>
+                              <span>
+                                快照 SHA{' '}
+                                <code>
+                                  {regression.snapshotDocumentSha256.slice(
+                                    0,
+                                    8,
+                                  )}
+                                </code>
+                              </span>
                             )}
-                            <span>·</span>
                             <span>
-                              模块: {regression.moduleSnapshots?.length ?? 0}
+                              模块 {regression.moduleSnapshots?.length ?? 0}
                             </span>
                             {(() => {
                               const provStatus =
                                 getRegressionProvenanceStatus(regression);
                               return (
                                 <span
-                                  className={`badge badge-${provStatus.badgeVariant}`}
-                                  style={{
-                                    fontSize: '0.65rem',
-                                    padding: '1px 5px',
-                                  }}
+                                  className={`badge badge-sm badge-${provStatus.badgeVariant}`}
                                   data-testid={
                                     provStatus.isComplete
                                       ? `badge-case-provenance-complete-${c.definition.id}`
@@ -305,41 +227,26 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
                           </div>
                         ) : isRegressionCase ? (
                           <div
-                            style={{
-                              padding: '4px 8px',
-                              backgroundColor: 'var(--color-warning-subtle)',
-                              color: 'var(--color-warning-text)',
-                              borderRadius: 'var(--radius-sm)',
-                              fontSize: '0.72rem',
-                              margin: '6px 0',
-                            }}
+                            className="lqa-provenance is-warning"
                             data-testid={`case-missing-regression-binding-${c.definition.id}`}
                           >
-                            ⚠️ 回归来源缺失: 未关联冻结基线版本与用例库来源
-                            (未验证)
+                            <AppIcon name="alert-triangle" size={12} />
+                            回归来源缺失：未关联冻结基线版本与用例库来源（未验证）
                           </div>
                         ) : null}
 
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'flex-end',
-                            marginTop: '6px',
-                          }}
-                        >
+                        <div className="lqa-item-footer">
                           <button
-                            className="btn btn-secondary btn-xs"
-                            style={{ fontSize: '0.72rem', padding: '2px 8px' }}
+                            type="button"
+                            className="btn btn-link text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setRoute('case-detail', {
-                                caseId: c.definition.id,
-                                runId,
-                              });
+                              openDetail();
                             }}
                             data-testid={`btn-case-detail-${c.definition.id}`}
                           >
-                            查看详情与保存到用例库 ↗
+                            查看详情 / 保存到用例库
+                            <AppIcon name="arrow-right" size={12} />
                           </button>
                         </div>
                       </div>
@@ -350,74 +257,41 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
             </div>
           )}
 
-          {/* TAB 2: FINDINGS */}
           {activeTab === 'findings' && (
             <div data-testid="tab-content-findings">
               {findings.length === 0 ? (
                 <EmptyState
-                  title="未发现任何缺陷"
-                  description="当前所有自动化检查均未触发失败判定。"
+                  compact
+                  title="未发现缺陷"
+                  description="当前所有自动化检查都没有触发失败判定。"
                   icon="check-circle"
                 />
               ) : (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                  }}
-                >
+                <div className="lqa-card-list">
                   {findings.map((f) => (
                     <div
                       key={f.id}
-                      style={{
-                        padding: '12px',
-                        border: '1px solid var(--color-danger-border)',
-                        backgroundColor: 'var(--color-danger-bg)',
-                        borderRadius: 'var(--radius-md)',
-                        cursor: 'pointer',
-                      }}
+                      className="lqa-item-card is-clickable is-danger"
+                      role="button"
+                      tabIndex={0}
                       onClick={() =>
                         setRoute('finding-detail', { findingId: f.id, runId })
                       }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter')
+                          setRoute('finding-detail', {
+                            findingId: f.id,
+                            runId,
+                          });
+                      }}
                       data-testid={`finding-item-${f.id}`}
                     >
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          marginBottom: '6px',
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: '0.75rem',
-                            color: 'var(--color-danger-text)',
-                          }}
-                        >
-                          {f.id}
-                        </span>
+                      <div className="lqa-item-top">
+                        <span className="lqa-item-id">{f.id}</span>
                         <StatusBadge status={f.status} size="sm" />
                       </div>
-                      <div
-                        style={{
-                          fontSize: '0.875rem',
-                          fontWeight: 600,
-                          color: 'var(--color-danger-text)',
-                          marginBottom: '4px',
-                        }}
-                      >
-                        {f.title}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: '0.8rem',
-                          color: 'var(--color-text-main)',
-                        }}
-                      >
-                        实际结果: {f.actual}
-                      </div>
+                      <div className="lqa-item-title">{f.title}</div>
+                      <p className="lqa-item-text">实际结果：{f.actual}</p>
                     </div>
                   ))}
                 </div>
@@ -425,50 +299,25 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
             </div>
           )}
 
-          {/* TAB 3: TASKS */}
           {activeTab === 'tasks' && (
             <div data-testid="tab-content-tasks">
               {tasks.length === 0 ? (
-                <EmptyState title="暂无任务队列" />
+                <EmptyState compact icon="list" title="暂无任务" />
               ) : (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                  }}
-                >
+                <div className="lqa-card-list">
                   {tasks.map((t) => (
                     <div
                       key={t.id}
-                      style={{
-                        padding: '12px',
-                        border: '1px solid var(--color-border-subtle)',
-                        borderRadius: 'var(--radius-md)',
-                      }}
+                      className="lqa-item-card"
                       data-testid={`task-item-${t.id}`}
                     >
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          marginBottom: '4px',
-                        }}
-                      >
-                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                          角色: {t.role.toUpperCase()}
-                        </span>
+                      <div className="lqa-item-top">
+                        <span className="lqa-timeline-role">{t.role}</span>
                         <StatusBadge status={t.status} size="sm" />
                       </div>
-                      <div
-                        style={{
-                          fontSize: '0.8rem',
-                          color: 'var(--color-text-muted)',
-                        }}
-                      >
+                      <p className="lqa-item-text">
                         {t.summary || '任务执行中...'}
-                      </div>
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -476,247 +325,133 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
             </div>
           )}
 
-          {/* TAB 4: REPORT */}
           {activeTab === 'report' && (
-            <div data-testid="tab-content-report">
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                data-testid="btn-refresh-report"
-                onClick={onRefreshReport}
-                disabled={!onRefreshReport}
-                style={{ marginBottom: 10 }}
-              >
-                刷新运行与报告
-              </button>
+            <div className="stack stack-sm" data-testid="tab-content-report">
+              <div className="row spread">
+                <span className="section-label lqa-flush-label">运行报告</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  data-testid="btn-refresh-report"
+                  onClick={onRefreshReport}
+                  disabled={!onRefreshReport}
+                >
+                  <AppIcon name="refresh" size={13} />
+                  刷新
+                </button>
+              </div>
               {!report ? (
                 <EmptyState
+                  compact
+                  icon="file-text"
                   title="报告暂不可用"
-                  description="运行可能尚未形成可用报告，或报告加载失败。可刷新重试；不要将缺失的报告视为通过。"
+                  description="运行可能尚未形成报告，或报告加载失败。可刷新重试；不要把缺失的报告当作通过。"
                 />
               ) : (
-                <div>
+                <>
                   {report.run.completion === 'partial' && (
                     <ErrorCard
                       type="partial_report"
-                      message="该报告为预算用尽或中途停止产生的 Partial 报告，仅代表已完成区间的有效结论。"
+                      message="该报告因预算用尽或中途停止而只覆盖部分范围，仅代表已完成部分的结论。"
                     />
                   )}
 
-                  {/* Execution Mode Card */}
                   <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '8px 12px',
-                      backgroundColor: 'var(--color-bg-subtle)',
-                      borderRadius: 'var(--radius-sm)',
-                      marginBottom: '10px',
-                      fontSize: '0.85rem',
-                    }}
+                    className="lqa-report-mode"
                     data-testid="report-execution-mode-card"
                   >
-                    <div>
-                      执行模式:{' '}
+                    <span>
+                      执行模式：
                       <strong>
-                        {report.run.executionMode === 'regression' ||
-                        run?.executionMode === 'regression'
-                          ? '自动化回归 (Regression)'
-                          : '冒烟探索 (Smoke)'}
+                        {isRegressionRun ? '自动化回归' : '冒烟探索'}
                       </strong>
-                    </div>
+                    </span>
                     <StatusBadge
-                      status={
-                        report.run.executionMode === 'regression' ||
-                        run?.executionMode === 'regression'
-                          ? 'regression'
-                          : 'smoke'
-                      }
+                      status={isRegressionRun ? 'regression' : 'smoke'}
                       size="sm"
                     />
                   </div>
 
-                  {/* Regression Audit Provenance (when regression mode) */}
-                  {(report.run.executionMode === 'regression' ||
-                    run?.executionMode === 'regression') && (
+                  {isRegressionRun && (
                     <div
-                      className="card"
-                      style={{
-                        marginBottom: '14px',
-                        backgroundColor: 'var(--color-bg-subtle)',
-                        borderLeft: '4px solid var(--color-primary)',
-                      }}
+                      className="panel"
                       data-testid="report-regression-audit-card"
                     >
-                      <h4
-                        style={{
-                          fontSize: '0.85rem',
-                          fontWeight: 600,
-                          marginBottom: '6px',
-                        }}
-                      >
-                        回归用例基线与来源说明审计 (Regression Baseline Audit)
-                      </h4>
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '4px',
-                          fontSize: '0.8rem',
-                          color: 'var(--color-text-main)',
-                        }}
-                      >
-                        <div>
-                          回归用例总数: <strong>{cases.length}</strong>
-                        </div>
-                        <div>
-                          来源信息完整用例:{' '}
-                          <strong style={{ color: 'var(--color-success)' }}>
-                            {
-                              cases.filter(
-                                (c) =>
-                                  getRegressionProvenanceStatus(
-                                    c.definition.regression,
-                                  ).isComplete,
-                              ).length
-                            }
-                          </strong>
-                        </div>
-                        {cases.some(
-                          (c) =>
-                            !getRegressionProvenanceStatus(
-                              c.definition.regression,
-                            ).isComplete,
-                        ) && (
-                          <div
-                            style={{ color: 'var(--color-danger)' }}
-                            data-testid="report-unverified-cases-count"
-                          >
-                            ⚠️ 包含未验证/来源信息不完整用例:{' '}
-                            <strong>
-                              {
-                                cases.filter(
-                                  (c) =>
-                                    !getRegressionProvenanceStatus(
-                                      c.definition.regression,
-                                    ).isComplete,
-                                ).length
-                              }
-                            </strong>
-                          </div>
+                      <div className="section-label">回归基线来源审计</div>
+                      <dl className="kv">
+                        <dt>回归用例</dt>
+                        <dd>{cases.length}</dd>
+                        <dt>来源信息完整</dt>
+                        <dd className="text-success strong">{completeCases}</dd>
+                        {completeCases < cases.length && (
+                          <>
+                            <dt>来源不完整</dt>
+                            <dd
+                              className="text-danger strong"
+                              data-testid="report-unverified-cases-count"
+                            >
+                              {cases.length - completeCases}
+                            </dd>
+                          </>
                         )}
-                        <div
-                          style={{
-                            fontSize: '0.72rem',
-                            color: 'var(--color-text-subtle)',
-                            marginTop: '6px',
-                          }}
-                        >
-                          *
-                          溯源审计仅反映基线元数据契约完整性，未验证状态独立于运行裁决
-                          (Verdict)，不影响既有用例判定。
-                        </div>
-                      </div>
+                      </dl>
+                      <p className="field-hint lqa-panel-note">
+                        来源审计只反映基线元数据是否完整；「未验证」与运行判定相互独立，不影响已有用例的结论。
+                      </p>
                     </div>
                   )}
 
-                  <div
-                    className="card"
-                    style={{
-                      marginBottom: '14px',
-                      backgroundColor: 'var(--color-bg-subtle)',
-                    }}
-                  >
-                    <h4
-                      style={{
-                        fontSize: '0.9rem',
-                        fontWeight: 600,
-                        marginBottom: '8px',
-                      }}
-                    >
-                      统计指标 (Metrics)
-                    </h4>
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr',
-                        gap: '8px',
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      <div>
-                        计划用例: <strong>{report.summary.planned}</strong>
+                  <div className="stat-grid lqa-report-stats">
+                    {[
+                      ['计划用例', report.summary.planned, ''],
+                      ['已尝试', report.summary.attempted, ''],
+                      ['已判定', report.summary.evaluated, ''],
+                      ['已通过', report.summary.passed, 'text-success'],
+                      ['发现缺陷', report.summary.issueFound, 'text-danger'],
+                      ['受阻', report.summary.blocked, 'text-warning'],
+                      ['不确定', report.summary.inconclusive, ''],
+                      ['未执行', report.summary.notRun, ''],
+                    ].map(([label, value, tone]) => (
+                      <div className="stat" key={label as string}>
+                        <div className="stat-label">{label}</div>
+                        <div className={`stat-value ${tone}`}>{value}</div>
                       </div>
-                      <div>
-                        已尝试: <strong>{report.summary.attempted}</strong>
-                      </div>
-                      <div>
-                        已判定: <strong>{report.summary.evaluated}</strong>
-                      </div>
-                      <div>
-                        已通过:{' '}
-                        <strong style={{ color: 'var(--color-success)' }}>
-                          {report.summary.passed}
-                        </strong>
-                      </div>
-                      <div>
-                        发现缺陷:{' '}
-                        <strong style={{ color: 'var(--color-danger)' }}>
-                          {report.summary.issueFound}
-                        </strong>
-                      </div>
-                      <div>
-                        受阻:{' '}
-                        <strong style={{ color: 'var(--color-warning)' }}>
-                          {report.summary.blocked}
-                        </strong>
-                      </div>
-                      <div>
-                        不确定: <strong>{report.summary.inconclusive}</strong>
-                      </div>
-                      <div>
-                        未执行: <strong>{report.summary.notRun}</strong>
+                    ))}
+                    <div className="stat">
+                      <div className="stat-label">通过率</div>
+                      <div className="stat-value">
+                        {percent(report.summary.passRate, '无判定')}
                       </div>
                     </div>
-                    <div
-                      style={{
-                        marginTop: '10px',
-                        paddingTop: '10px',
-                        borderTop: '1px solid var(--color-border-subtle)',
-                      }}
-                    >
-                      <div>
-                        通过率:{' '}
-                        <strong>
-                          {report.summary.passRate !== null
-                            ? `${Math.round(report.summary.passRate * 100)}%`
-                            : '无判定'}
-                        </strong>
-                      </div>
-                      <div>
-                        尝试率：
-                        {report.summary.attemptRate !== null
-                          ? `${Math.round(report.summary.attemptRate * 100)}%`
-                          : '暂无数据'}
+                    <div className="stat">
+                      <div className="stat-label">尝试率</div>
+                      <div className="stat-value">
+                        {percent(report.summary.attemptRate, '暂无')}
                       </div>
                     </div>
                   </div>
 
                   <div
+                    className="panel stack stack-sm"
                     data-testid="report-evidence-summary"
-                    style={{ fontSize: '0.8rem' }}
                   >
-                    <p>
-                      缺陷：{report.findings.length} · 复现：
-                      {report.reproductions.length} · 证据：
-                      {report.artifacts.length} · 清理状态：
-                      {report.cleanupStatus}
-                    </p>
+                    <dl className="kv">
+                      <dt>缺陷</dt>
+                      <dd>{report.findings.length}</dd>
+                      <dt>复现</dt>
+                      <dd>{report.reproductions.length}</dd>
+                      <dt>证据</dt>
+                      <dd>{report.artifacts.length}</dd>
+                      <dt>清理状态</dt>
+                      <dd title={report.cleanupStatus}>
+                        {cleanupLabels[report.cleanupStatus] ??
+                          report.cleanupStatus}
+                      </dd>
+                    </dl>
                     {report.coverageGaps.length > 0 && (
                       <div>
-                        <strong>覆盖缺口</strong>
-                        <ul>
+                        <div className="section-label">覆盖缺口</div>
+                        <ul className="lqa-bullets">
                           {report.coverageGaps.map((gap, i) => (
                             <li key={i}>{gap}</li>
                           ))}
@@ -725,8 +460,8 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
                     )}
                     {report.warnings.length > 0 && (
                       <div>
-                        <strong>运行警告</strong>
-                        <ul>
+                        <div className="section-label">运行警告</div>
+                        <ul className="lqa-bullets">
                           {report.warnings.map((warning, i) => (
                             <li key={i}>{warning}</li>
                           ))}
@@ -734,17 +469,16 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
                       </div>
                     )}
                   </div>
+
                   {report.findings.length > 0 && (
-                    <div
-                      data-testid="report-findings"
-                      style={{ fontSize: '0.8rem' }}
-                    >
-                      <strong>缺陷明细（查看证据）</strong>
-                      {report.findings.map((finding) => (
-                        <div key={finding.id} style={{ marginTop: 6 }}>
+                    <div data-testid="report-findings">
+                      <div className="section-label">缺陷明细</div>
+                      <div className="lqa-link-list">
+                        {report.findings.map((finding) => (
                           <button
+                            key={finding.id}
                             type="button"
-                            className="btn btn-secondary btn-sm"
+                            className="lqa-link-row"
                             data-testid={`report-finding-${finding.id}`}
                             onClick={() =>
                               setRoute('finding-detail', {
@@ -753,23 +487,29 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
                               })
                             }
                           >
-                            {finding.title} · {finding.status} · 证据{' '}
-                            {finding.evidenceRefs.length} 条
+                            <span className="truncate">{finding.title}</span>
+                            <span className="row nowrap">
+                              <span className="subtle text-xs">
+                                证据 {finding.evidenceRefs.length} 条
+                              </span>
+                              <StatusBadge status={finding.status} size="sm" />
+                            </span>
                           </button>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   )}
-                  <div
-                    data-testid="report-case-results"
-                    style={{ fontSize: '0.8rem', marginTop: 12 }}
-                  >
-                    <strong>报告用例判定（{report.cases.length}）</strong>
-                    {report.cases.map((item) => (
-                      <div key={item.definition.id} style={{ marginTop: 5 }}>
+
+                  <div data-testid="report-case-results">
+                    <div className="section-label">
+                      用例判定（{report.cases.length}）
+                    </div>
+                    <div className="lqa-link-list">
+                      {report.cases.map((item) => (
                         <button
+                          key={item.definition.id}
                           type="button"
-                          className="btn btn-secondary btn-sm"
+                          className="lqa-link-row"
                           data-testid={`report-case-${item.definition.id}`}
                           onClick={() =>
                             setRoute('case-detail', {
@@ -778,21 +518,32 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
                             })
                           }
                         >
-                          {item.definition.title} · {item.outcome} ·
-                          {item.verdict
-                            ? ` ${item.verdict.status}`
-                            : ' 未形成判定'}
+                          <span className="truncate">
+                            {item.definition.title}
+                          </span>
+                          {item.verdict ? (
+                            <StatusBadge
+                              status={item.verdict.status}
+                              size="sm"
+                            />
+                          ) : (
+                            <StatusBadge
+                              status={item.outcome}
+                              label="未形成判定"
+                              size="sm"
+                            />
+                          )}
                         </button>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                   <ReportExportPanel runId={runId} />
-                </div>
+                </>
               )}
             </div>
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 };

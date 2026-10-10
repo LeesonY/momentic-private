@@ -34,6 +34,11 @@ const statusMap: Record<string, { className: string; text: string }> = {
   failed: { className: 'badge-danger', text: '异常终止' },
   cancelling: { className: 'badge-warning', text: '正在取消' },
 
+  // Task status
+  waiting: { className: 'badge-warning', text: '等待中' },
+  succeeded: { className: 'badge-success', text: '已完成' },
+  interrupted: { className: 'badge-warning', text: '已中断' },
+
   // Completion
   complete: { className: 'badge-success', text: '完整执行' },
   partial: { className: 'badge-warning', text: '部分执行' },

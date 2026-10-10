@@ -25,119 +25,65 @@ export const RunHistoryList: React.FC<RunHistoryListProps> = ({
   });
 
   return (
-    <div
-      className="card"
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        padding: '16px',
-        overflow: 'hidden',
-      }}
+    <section
+      className="card workbench-column lqa-run-history"
       data-testid="run-history-panel"
     >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '12px',
-        }}
-      >
-        <h3 style={{ fontSize: '0.95rem', fontWeight: 600 }}>
-          运行历史 (Runs)
-        </h3>
+      <div className="lqa-run-history-header">
+        <h3 className="card-title">运行历史</h3>
         <select
-          className="form-select"
-          style={{ width: 'auto', padding: '2px 8px', fontSize: '0.75rem' }}
+          className="form-select lqa-compact-select"
+          aria-label="按状态筛选运行"
           value={filter}
           onChange={(e) =>
             setFilter(e.target.value as 'all' | 'running' | 'completed')
           }
           data-testid="run-history-filter"
         >
-          <option value="all">全部状态</option>
-          <option value="running">活跃中</option>
+          <option value="all">全部</option>
+          <option value="running">进行中</option>
           <option value="completed">已结束</option>
         </select>
       </div>
 
-      <div
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-        }}
-      >
+      <div className="lqa-run-history-list">
+        {filtered.length === 0 && (
+          <p className="muted text-sm lqa-run-history-empty">
+            没有符合条件的运行。
+          </p>
+        )}
         {filtered.map((r) => {
           const isSelected = r.id === activeRunId;
           return (
-            <div
+            <button
+              type="button"
               key={r.id}
-              style={{
-                padding: '10px 12px',
-                borderRadius: 'var(--radius-md)',
-                border: `1px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border-subtle)'}`,
-                backgroundColor: isSelected
-                  ? 'var(--color-primary-subtle)'
-                  : 'var(--color-bg-surface)',
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
+              className={`lqa-run-item ${isSelected ? 'is-active' : ''}`}
+              aria-current={isSelected ? 'true' : undefined}
               onClick={() => onSelectRun(r.id)}
               data-testid={`history-item-${r.id}`}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '4px',
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    color: 'var(--color-text-subtle)',
-                  }}
-                >
-                  {r.id.slice(0, 16)}...
+              <span className="lqa-run-item-top">
+                <span className="lqa-run-item-id" title={r.id}>
+                  {r.id}
                 </span>
                 <StatusBadge
                   status={r.completion === 'partial' ? 'partial' : r.status}
                   size="sm"
                 />
-              </div>
-              <div
-                style={{
-                  fontSize: '0.8rem',
-                  color: 'var(--color-text-main)',
-                  fontWeight: 500,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
+              </span>
+              <span className="lqa-run-item-url" title={r.targetUrl}>
                 {r.targetUrl}
-              </div>
-              <div
-                style={{
-                  fontSize: '0.75rem',
-                  color: 'var(--color-text-muted)',
-                  marginTop: '4px',
-                }}
-              >
+              </span>
+              <span className="lqa-run-item-meta">
                 {new Date(r.createdAt).toLocaleTimeString()}
                 {r.budgetUsed &&
-                  ` · ${r.budgetUsed.actions} 动作 / ${r.budgetUsed.modelCalls} 模型调用`}
-              </div>
-            </div>
+                  ` · ${r.budgetUsed.actions} 动作 · ${r.budgetUsed.modelCalls} 次模型调用`}
+              </span>
+            </button>
           );
         })}
       </div>
-    </div>
+    </section>
   );
 };

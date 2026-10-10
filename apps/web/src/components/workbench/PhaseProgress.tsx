@@ -110,6 +110,10 @@ export function computePhaseTimeline({
   });
 }
 
+// "1. 预检 (Preflight)" → "预检"
+const shortName = (name: string) =>
+  name.replace(/^\d+\.\s*/, '').replace(/\s*\(.*\)$/, '');
+
 export const PhaseProgress: React.FC<PhaseProgressProps> = ({
   currentPhase,
   status,
@@ -121,55 +125,45 @@ export const PhaseProgress: React.FC<PhaseProgressProps> = ({
     status,
     executionMode,
   });
+  const current = PHASES.find((p) => p.key === currentPhase.toLowerCase());
 
   return (
-    <div
-      className="card"
-      style={{ marginBottom: '16px', padding: '14px 18px' }}
-      data-testid="phase-progress-bar"
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '8px',
-        }}
-      >
-        <span
-          style={{
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            color: 'var(--color-text-muted)',
-          }}
-        >
-          运行生命周期阶段推进 (Phase Timeline)
-        </span>
-        <span style={{ fontSize: '0.8rem', color: 'var(--color-text-subtle)' }}>
-          当前阶段:{' '}
+    <section className="card lqa-phase-card" data-testid="phase-progress-bar">
+      <div className="lqa-phase-header">
+        <span className="card-title">运行阶段</span>
+        <span className="text-xs muted">
+          当前：
           <strong>
-            {isQueued ? 'QUEUED (排队等待Worker)' : currentPhase.toUpperCase()}
-          </strong>{' '}
-          ({status}
-          {executionMode === 'regression' ? ' · 回归模式' : ''})
+            {isQueued
+              ? '排队等待 Worker'
+              : current
+                ? shortName(current.name)
+                : currentPhase}
+          </strong>
+          {executionMode === 'regression' ? ' · 回归模式' : ''}
         </span>
       </div>
 
-      <div className="phase-bar">
-        {timeline.map((p) => {
-          return (
-            <div
-              key={p.key}
-              className={`phase-item ${p.stateClass}`.trim()}
-              data-testid={`phase-step-${p.key}`}
-              data-phase-completed={p.isCompleted}
-              data-phase-state={p.stateClass || 'pending'}
-            >
-              <span>{p.name}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+      <ol className="phase-bar">
+        {timeline.map((p, index) => (
+          <li
+            key={p.key}
+            className={`phase-item ${p.stateClass}`.trim()}
+            data-testid={`phase-step-${p.key}`}
+            data-phase-completed={p.isCompleted}
+            data-phase-state={p.stateClass || 'pending'}
+            title={p.name}
+          >
+            <span className="phase-index">
+              {p.stateClass === 'completed' ? '✓' : index + 1}
+            </span>
+            <span>{shortName(p.label)}</span>
+            {p.stateClass === 'skipped' && (
+              <span className="phase-note">跳过</span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 };
