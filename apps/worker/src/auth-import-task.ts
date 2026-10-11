@@ -16,7 +16,8 @@ type ImportTaskClient = Pick<
   | 'prepareAuthImport'
   | 'beginAuthImport'
   | 'recordAuthImport'
->;
+> &
+  Partial<Pick<RuntimeClient, 'authSession'>>;
 
 export interface AuthenticatedImportTask {
   client: ImportTaskClient;

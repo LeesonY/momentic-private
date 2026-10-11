@@ -25,7 +25,8 @@ type ImportClient = Pick<
   | 'prepareAuthImport'
   | 'beginAuthImport'
   | 'recordAuthImport'
->;
+> &
+  Partial<Pick<RuntimeClient, 'authSession'>>;
 
 export interface AuthImportOptions {
   client: ImportClient;
@@ -166,6 +167,10 @@ export async function runAuthImport(
     const binding = Object.freeze({ ...options.binding });
     const proof = Object.freeze({ ...options.proof });
     const client = options.client;
+    const renewal =
+      typeof client.authSession === 'function'
+        ? client.authSession.bind(client)
+        : undefined;
     const stateId = options.authStateId;
     const profileOrigins = Object.freeze([...options.profile.allowedOrigins]);
     const origins = Object.freeze([
@@ -210,30 +215,54 @@ export async function runAuthImport(
     ] as const) {
       if (typeof client[method] !== 'function') deny();
     }
-    const checkGrant = (candidate: AuthImportGrant): void => {
+    const checkGrant = async (candidate: AuthImportGrant): Promise<void> => {
+      // Heartbeat renewal may advance expiry while Chromium is starting.
+      // Confirm that advance through the trusted Runtime; identity stays fixed.
+      const candidateExpiry = Date.parse(candidate.expiresAt);
+      const activatedExpiry = Date.parse(binding.expiresAt);
       if (
         !candidate ||
         candidate.kind !== 'import_auth_state' ||
         !candidate.grantId ||
         candidate.authStateId !== stateId ||
-        TUPLE.some((key) => candidate[key] !== binding[key]) ||
+        TUPLE.some(
+          (key) => key !== 'expiresAt' && candidate[key] !== binding[key],
+        ) ||
+        !Number.isFinite(candidateExpiry) ||
+        candidateExpiry < activatedExpiry ||
+        candidateExpiry > activatedExpiry + 5 * 60 * 1000 ||
         !Number.isFinite(Date.parse(candidate.deadline)) ||
         Date.parse(candidate.deadline) <= Date.now() ||
-        Date.parse(candidate.deadline) > Date.parse(binding.expiresAt)
+        Date.parse(candidate.deadline) > candidateExpiry
       )
         deny();
+      if (candidate.expiresAt !== binding.expiresAt) {
+        if (!renewal) deny();
+        const live = await renewal(proof, binding.sessionId);
+        const liveExpiry = Date.parse(live.expiresAt);
+        if (
+          TUPLE.some(
+            (key) => key !== 'expiresAt' && live[key] !== binding[key],
+          ) ||
+          !Number.isFinite(liveExpiry) ||
+          liveExpiry <= Date.now() ||
+          liveExpiry < candidateExpiry ||
+          liveExpiry > activatedExpiry + 5 * 60 * 1000
+        )
+          deny();
+      }
     };
     grant = Object.freeze({
       ...(await client.grantAuthImport(proof, binding.sessionId)),
     });
-    checkGrant(grant);
+    await checkGrant(grant);
     if (signal.aborted) return result('cancelled', 'CANCELLED');
     const prepared = await client.prepareAuthImport(
       proof,
       binding.sessionId,
       grant.grantId,
     );
-    checkGrant(prepared.grant);
+    await checkGrant(prepared.grant);
     if (
       prepared.grant.grantId !== grant.grantId ||
       prepared.grant.deadline !== grant.deadline
@@ -249,6 +278,9 @@ export async function runAuthImport(
     });
     port = createPrivateAuthPort({
       binding,
+      ...(renewal
+        ? { trustedRenewal: () => renewal(proof, binding.sessionId) }
+        : {}),
       allowedOrigins: origins,
       primitives: {
         navigate: primitives.navigate.bind(primitives),

@@ -233,6 +233,80 @@ test('Malformed state is rejected before begin or any primitive', async () => {
   assert.equal(w.effects(), 0);
   assert.equal(w.log.includes('begin'), false);
 });
+
+test('Importer accepts heartbeat renewal only after confirming the live server binding', async () => {
+  const w = world();
+  const firstExpiry = new Date(
+    Date.parse(w.binding.expiresAt) + 1000,
+  ).toISOString();
+  const nextExpiry = new Date(
+    Date.parse(w.binding.expiresAt) + 2000,
+  ).toISOString();
+  const grant = w.options.client.grantAuthImport;
+  const prepare = w.options.client.prepareAuthImport;
+  w.options.client.grantAuthImport = async (...args) => ({
+    ...(await grant(...args)),
+    expiresAt: firstExpiry,
+  });
+  w.options.client.prepareAuthImport = async (...args) => {
+    const result = await prepare(...args);
+    return { ...result, grant: { ...result.grant, expiresAt: nextExpiry } };
+  };
+  let confirmations = 0;
+  w.options.client.authSession = async (proof, sessionId) => {
+    assert.equal(proof.taskId, w.proof.taskId);
+    assert.equal(sessionId, w.binding.sessionId);
+    confirmations++;
+    return { ...w.binding, expiresAt: nextExpiry };
+  };
+  assert.deepEqual(await w.run(), {
+    status: 'imported',
+    reasonCode: 'AUTH_IMPORTED',
+  });
+  assert.equal(w.effects(), 1);
+  assert.ok(confirmations >= 3);
+});
+
+test('Renewed grants cannot exceed live authority or substitute its identity', async () => {
+  for (const change of [
+    { contextId: randomUUID() },
+    { authEpoch: 2 },
+    { profileVersion: 2 },
+    { status: 'ended' },
+    { expiresAt: '2000-01-01T00:00:00.000Z' },
+    { expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString() },
+  ]) {
+    const w = world();
+    const expiresAt = new Date(
+      Date.parse(w.binding.expiresAt) + 1000,
+    ).toISOString();
+    const grant = w.options.client.grantAuthImport;
+    w.options.client.grantAuthImport = async (...args) => ({
+      ...(await grant(...args)),
+      expiresAt,
+    });
+    w.options.client.authSession = async () => ({
+      ...w.binding,
+      expiresAt,
+      ...change,
+    });
+    assert.equal((await w.run()).status, 'blocked');
+    assert.equal(w.effects(), 0);
+    assert.equal(w.log.includes('begin'), false);
+  }
+  const w = world();
+  const grant = w.options.client.grantAuthImport;
+  w.options.client.grantAuthImport = async (...args) => ({
+    ...(await grant(...args)),
+    expiresAt: new Date(Date.parse(w.binding.expiresAt) + 2000).toISOString(),
+  });
+  w.options.client.authSession = async () => ({
+    ...w.binding,
+    expiresAt: new Date(Date.parse(w.binding.expiresAt) + 1000).toISOString(),
+  });
+  assert.equal((await w.run()).status, 'blocked');
+  assert.equal(w.effects(), 0);
+});
 test('none policy has zero service/port interaction; revoked policy blocks', async () => {
   const w = world();
   w.options.profile.mode = 'none';

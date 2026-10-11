@@ -501,6 +501,16 @@ test(
         );
         return result;
       };
+      // Make the importer heartbeat race deterministic on fast machines too.
+      const importGrant = runtime.grantAuthImport.bind(runtime);
+      runtime.grantAuthImport = async (proof, sessionId) => {
+        const before = await runtime.authSession(proof, sessionId);
+        await delay(25);
+        await runtime.heartbeat(proof, 45);
+        const grant = await importGrant(proof, sessionId);
+        assert.ok(Date.parse(grant.expiresAt) > Date.parse(before.expiresAt));
+        return grant;
+      };
       const preflight = await runtime.claim();
       assert.equal(preflight.task.summary, 'preflight');
       await runtime.finish(
