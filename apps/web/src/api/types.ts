@@ -27,6 +27,7 @@ import type {
   ModelProfile,
   ModelProfileCreate,
   ModelProfilePatch,
+  ModelDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -133,6 +134,7 @@ export type {
   ModelProfile,
   ModelProfileCreate,
   ModelProfilePatch,
+  ModelDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -237,6 +239,7 @@ export type PublicOperationName =
   | 'createModel'
   | 'getModel'
   | 'updateModel'
+  | 'deleteModel'
   | 'probeModel'
   | 'listProjectModels'
   | 'grantProjectModel'
@@ -377,6 +380,7 @@ export interface ApiClient {
   createModel(input: ModelProfileCreate): Promise<ModelProfile>;
   getModel(modelProfileId: string): Promise<ModelProfile>;
   updateModel(modelProfileId: string, input: ModelProfilePatch): Promise<ModelProfile>;
+  deleteModel(modelProfileId: string, input: ModelDeleteConfirm): Promise<void>;
   probeModel(modelProfileId: string): Promise<ModelProbeResult>;
 
   // Runs & Execution

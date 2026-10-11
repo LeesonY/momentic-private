@@ -30,6 +30,7 @@ import type {
   ModelProfile,
   ModelProfileCreate,
   ModelProfilePatch,
+  ModelDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -261,6 +262,7 @@ async function computeCanonicalDocSha256(doc: unknown): Promise<string> {
 }
 
 export class MockApiClient implements ApiClient {
+  private models = [...mockModelProfiles];
   private runs: Run[] = [...mockRuns];
   private projects: Project[] = [{ ...mockProject }];
   private projectMembers: Member[] = mockMembers.map((member) => ({
@@ -538,21 +540,21 @@ export class MockApiClient implements ApiClient {
   }
 
   public async listModels(_query?: PaginationQuery): Promise<ModelProfilePage> {
-    return { items: mockModelProfiles, nextCursor: null };
+    return { items: this.models, nextCursor: null };
   }
 
   public async listProjectModels(
     _projectId: string,
     _query?: PaginationQuery,
   ): Promise<ModelProfilePage> {
-    return { items: mockModelProfiles, nextCursor: null };
+    return { items: this.models, nextCursor: null };
   }
 
   public async grantProjectModel(
     _projectId: string,
     input: { modelProfileId: string },
   ): Promise<ModelProfile> {
-    const model = mockModelProfiles.find((m) => m.id === input.modelProfileId);
+    const model = this.models.find((m) => m.id === input.modelProfileId);
     if (!model) throw new Error('MODEL_NOT_CONFIGURED');
     return model;
   }
@@ -576,7 +578,7 @@ export class MockApiClient implements ApiClient {
   }
 
   public async getModel(modelProfileId: string): Promise<ModelProfile> {
-    const found = mockModelProfiles.find((m) => m.id === modelProfileId);
+    const found = this.models.find((m) => m.id === modelProfileId);
     if (!found) throw new Error('模型配置未找到');
     return found;
   }
@@ -585,9 +587,21 @@ export class MockApiClient implements ApiClient {
     modelProfileId: string,
     input: ModelProfilePatch,
   ): Promise<ModelProfile> {
-    const found = mockModelProfiles.find((m) => m.id === modelProfileId);
+    const found = this.models.find((m) => m.id === modelProfileId);
     if (!found) throw new Error('模型配置未找到');
     return { ...found, ...input };
+  }
+
+  public async deleteModel(
+    modelProfileId: string,
+    input: ModelDeleteConfirm,
+  ): Promise<void> {
+    const current = await this.getModel(modelProfileId);
+    if (current.version !== input.expectedVersion)
+      throw new Error('模型配置已更新，请刷新后重试');
+    if (current.name !== input.confirmName)
+      throw new Error('输入的模型名称不匹配');
+    this.models = this.models.filter((model) => model.id !== modelProfileId);
   }
 
   public async probeModel(modelProfileId: string): Promise<ModelProbeResult> {

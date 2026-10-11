@@ -62,6 +62,7 @@ export type Contract =
   | MessageInput
   | ModelBinding
   | ModelCapabilities
+  | ModelDeleteConfirm
   | ModelGrantCreate
   | ModelMessage
   | ModelPart
@@ -1065,6 +1066,10 @@ export interface ModelCapabilities {
   nativeTools: boolean;
   imageInput: boolean;
 }
+export interface ModelDeleteConfirm {
+  expectedVersion: number;
+  confirmName: string;
+}
 export interface ModelGrantCreate {
   modelProfileId: string;
 }
@@ -1811,6 +1816,7 @@ export interface ContractTypes {
   MessageInput: MessageInput;
   ModelBinding: ModelBinding;
   ModelCapabilities: ModelCapabilities;
+  ModelDeleteConfirm: ModelDeleteConfirm;
   ModelGrantCreate: ModelGrantCreate;
   ModelMessage: ModelMessage;
   ModelPart: ModelPart;

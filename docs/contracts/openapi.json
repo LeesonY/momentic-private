@@ -1298,6 +1298,54 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "deleteModel",
+        "tags": [
+          "P0"
+        ],
+        "summary": "deleteModel",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "modelProfileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "deleteModel"
+          },
+          "default": {
+            "description": "Stable, redacted error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelDeleteConfirm"
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/model-profiles/{modelProfileId}/probe": {
@@ -9490,6 +9538,25 @@
         "additionalProperties": false
       },
       "ProjectDeleteConfirm": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "confirmName": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "confirmName"
+        ],
+        "additionalProperties": false
+      },
+      "ModelDeleteConfirm": {
         "type": "object",
         "properties": {
           "expectedVersion": {

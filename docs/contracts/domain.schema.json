@@ -3979,6 +3979,25 @@
       ],
       "additionalProperties": false
     },
+    "ModelDeleteConfirm": {
+      "type": "object",
+      "properties": {
+        "expectedVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "confirmName": {
+          "type": "string",
+          "maxLength": 120,
+          "minLength": 1
+        }
+      },
+      "required": [
+        "expectedVersion",
+        "confirmName"
+      ],
+      "additionalProperties": false
+    },
     "ModelProfilePatch": {
       "type": "object",
       "properties": {

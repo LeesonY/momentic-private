@@ -1,14 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type {
-  ModelProfile,
-  ModelProfileCreate,
-  ModelProbeResult,
-} from '@localqa/contracts';
+import type { ModelProfile } from '@localqa/contracts';
 import { defaultApiClient } from '../api/index.ts';
 import { useAppContext } from '../state/AppContext.tsx';
 import { Page } from '../components/layout/Page.tsx';
 import { Alert } from '../components/ui/Alert.tsx';
 import { AppIcon } from '../components/ui/AppIcon.tsx';
+import { Modal } from '../components/ui/Modal.tsx';
+import { EmptyState } from '../components/ui/EmptyState.tsx';
+import { CreateModelModal } from '../components/models/CreateModelModal.tsx';
+import { EditModelModal } from '../components/models/EditModelModal.tsx';
+import {
+  DEFAULT_OUTPUT_TOKENS,
+  adapterLabels,
+  statusMeta,
+} from '../components/models/modelForm.ts';
 
 const probeFailureHints: Record<string, string> = {
   MODEL_NOT_CONFIGURED:
@@ -25,19 +30,18 @@ const probeFailureHints: Record<string, string> = {
     '服务暂时不可用，可能是上游异常、网络连接或响应格式问题。',
 };
 
-/** Mirrors the gateway default and contract bounds for a per-call output cap. */
-const DEFAULT_OUTPUT_TOKENS = 4000;
-const MIN_OUTPUT_TOKENS = 256;
-const MAX_OUTPUT_TOKENS = 32000;
-const parseOutputTokens = (value: string): number | null => {
-  const n = Number(value.trim());
-  return Number.isInteger(n) && n >= MIN_OUTPUT_TOKENS && n <= MAX_OUTPUT_TOKENS
-    ? n
-    : null;
-};
+const capabilityLabels: Array<[keyof ModelProfile['capabilities'], string]> = [
+  ['structuredOutput', '结构化输出'],
+  ['nativeTools', '工具调用'],
+  ['imageInput', '截图识别'],
+];
+
+const shortEndpoint = (endpoint: string) =>
+  endpoint.replace(/^https:\/\//, '').replace(/\/$/, '');
 
 export const ModelsPage: React.FC = () => {
   const { currentUser, currentProject, replaceProject } = useAppContext();
+  const isAdmin = currentUser?.globalRole === 'admin';
   const activeProjectIdRef = useRef(currentProject?.id);
   activeProjectIdRef.current = currentProject?.id;
   const [models, setModels] = useState<ModelProfile[]>([]);
@@ -50,97 +54,21 @@ export const ModelsPage: React.FC = () => {
   const [projectModelsError, setProjectModelsError] = useState<string | null>(
     null,
   );
-  const [probeResults, setProbeResults] = useState<
-    Record<string, ModelProbeResult>
-  >({});
   const [probingId, setProbingId] = useState<string | null>(null);
   const [probeErrors, setProbeErrors] = useState<Record<string, string>>({});
+  const [probeNotes, setProbeNotes] = useState<Record<string, string>>({});
+  const [deleteTarget, setDeleteTarget] = useState<ModelProfile | null>(null);
+  const [deleteName, setDeleteName] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const [newOutputTokens, setNewOutputTokens] = useState('');
-  const [capDrafts, setCapDrafts] = useState<Record<string, string>>({});
-  const [capSaving, setCapSaving] = useState<string | null>(null);
-  const [capErrors, setCapErrors] = useState<Record<string, string>>({});
-  const [newModel, setNewModel] = useState<ModelProfileCreate>({
-    name: '',
-    endpoint: '',
-    configuredModelId: '',
-    adapter: 'anthropic_messages',
-    responseFormat: 'json_object',
-    dataBoundary: 'external',
-    apiKey: '',
-  });
+  const [editing, setEditing] = useState<ModelProfile | null>(null);
 
-  const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (creating || currentUser?.globalRole !== 'admin') return;
-    const outputTokens = newOutputTokens.trim()
-      ? parseOutputTokens(newOutputTokens)
-      : undefined;
-    if (outputTokens === null) {
-      setCreateError(
-        `单次输出上限需为 ${MIN_OUTPUT_TOKENS}–${MAX_OUTPUT_TOKENS} 的整数`,
-      );
-      return;
-    }
-    setCreating(true);
-    setCreateError(null);
-    try {
-      const created = await defaultApiClient.createModel({
-        ...newModel,
-        ...(outputTokens !== undefined
-          ? { maxOutputTokens: outputTokens }
-          : {}),
-        name: newModel.name.trim(),
-        endpoint: newModel.endpoint.trim(),
-        configuredModelId: newModel.configuredModelId.trim(),
-      });
-      setModels((old) => [...old, created]);
-      setNewModel({
-        name: '',
-        endpoint: '',
-        configuredModelId: '',
-        adapter: 'anthropic_messages',
-        responseFormat: 'json_object',
-        dataBoundary: 'external',
-        apiKey: '',
-      });
-      setNewOutputTokens('');
-      setShowCreate(false);
-    } catch (error) {
-      setCreateError(error instanceof Error ? error.message : '创建模型失败');
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleSaveCap = async (model: ModelProfile) => {
-    const value = parseOutputTokens(capDrafts[model.id] ?? '');
-    if (value === null) {
-      setCapErrors((old) => ({
-        ...old,
-        [model.id]: `需为 ${MIN_OUTPUT_TOKENS}–${MAX_OUTPUT_TOKENS} 的整数`,
-      }));
-      return;
-    }
-    setCapSaving(model.id);
-    setCapErrors((old) => ({ ...old, [model.id]: '' }));
-    try {
-      const updated = await defaultApiClient.updateModel(model.id, {
-        expectedVersion: model.version,
-        maxOutputTokens: value,
-      });
-      setModels((old) => old.map((m) => (m.id === updated.id ? updated : m)));
-      setCapDrafts((old) => ({ ...old, [model.id]: '' }));
-    } catch {
-      setCapErrors((old) => ({
-        ...old,
-        [model.id]: '保存失败，请刷新后重试',
-      }));
-    } finally {
-      setCapSaving(null);
-    }
+  const replaceModel = (updated: ModelProfile) => {
+    const swap = (list: ModelProfile[]) =>
+      list.map((m) => (m.id === updated.id ? updated : m));
+    setModels(swap);
+    setGrantedModels(swap);
   };
 
   useEffect(() => {
@@ -186,13 +114,7 @@ export const ModelsPage: React.FC = () => {
   }, [currentProject?.id, currentProject?.defaultModelProfileId]);
 
   const grantModel = async () => {
-    if (
-      !currentProject ||
-      !grantChoice ||
-      grantSaving ||
-      currentUser?.globalRole !== 'admin'
-    )
-      return;
+    if (!currentProject || !grantChoice || grantSaving || !isAdmin) return;
     setGrantSaving(true);
     setProjectModelsError(null);
     try {
@@ -218,8 +140,7 @@ export const ModelsPage: React.FC = () => {
   };
 
   const saveDefault = async () => {
-    if (!currentProject || defaultSaving || currentUser?.globalRole !== 'admin')
-      return;
+    if (!currentProject || defaultSaving || !isAdmin) return;
     if (defaultChoice && !grantedModels.some((m) => m.id === defaultChoice)) {
       setProjectModelsError('默认模型必须先获得本项目授权');
       return;
@@ -244,19 +165,24 @@ export const ModelsPage: React.FC = () => {
 
   const handleProbe = async (modelId: string) => {
     setProbingId(modelId);
-    setProbeErrors((previous) => {
+    const clear = (previous: Record<string, string>) => {
       const next = { ...previous };
       delete next[modelId];
       return next;
-    });
-    setProbeResults((previous) => {
-      const next = { ...previous };
-      delete next[modelId];
-      return next;
-    });
+    };
+    setProbeErrors(clear);
+    setProbeNotes(clear);
     try {
       const res = await defaultApiClient.probeModel(modelId);
-      setProbeResults((prev) => ({ ...prev, [modelId]: res }));
+      if (res.status === 'degraded' && res.notes.length > 0)
+        setProbeNotes((prev) => ({ ...prev, [modelId]: res.notes.join('；') }));
+      // A probe records status and capabilities as a new profile version;
+      // refetch so later edits send the current expectedVersion.
+      try {
+        replaceModel(await defaultApiClient.getModel(modelId));
+      } catch {
+        // The list still shows the previous version; a reload picks it up.
+      }
     } catch (error) {
       const code =
         error &&
@@ -270,556 +196,481 @@ export const ModelsPage: React.FC = () => {
         '能力探测未成功完成，请检查 API 响应和模型配置。';
       setProbeErrors((prev) => ({
         ...prev,
-        [modelId]: `探测失败（${code}）：${hint} 当前模型状态不会被自动改为禁用。`,
+        [modelId]: `探测失败（${code}）：${hint} 模型状态保持不变。`,
       }));
     } finally {
       setProbingId(null);
     }
   };
 
+  const closeDelete = () => {
+    if (deleting) return;
+    setDeleteTarget(null);
+    setDeleteName('');
+    setDeleteError(null);
+  };
+
+  const handleDelete = async () => {
+    if (
+      !deleteTarget ||
+      deleting ||
+      deleteName !== deleteTarget.name ||
+      currentUser?.globalRole !== 'admin'
+    )
+      return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await defaultApiClient.deleteModel(deleteTarget.id, {
+        expectedVersion: deleteTarget.version,
+        confirmName: deleteName,
+      });
+      setModels((previous) => previous.filter((m) => m.id !== deleteTarget.id));
+      setGrantedModels((previous) =>
+        previous.filter((m) => m.id !== deleteTarget.id),
+      );
+      setGrantChoice((previous) =>
+        previous === deleteTarget.id ? '' : previous,
+      );
+      setDefaultChoice((previous) =>
+        previous === deleteTarget.id ? '' : previous,
+      );
+      setDeleteTarget(null);
+      setDeleteName('');
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : '删除模型失败');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const defaultId = currentProject?.defaultModelProfileId ?? '';
+  const grantedIds = new Set(grantedModels.map((m) => m.id));
+  const grantable = models.filter(
+    (m) => !grantedIds.has(m.id) && m.status !== 'disabled',
+  );
+  const defaultModel = grantedModels.find((m) => m.id === defaultId);
+
   return (
     <Page
       className="lqa-models-page"
       testId="models-page"
-      title={
-        <>
-          模型管理
-          <span className="badge badge-neutral">{models.length} 个模型</span>
-        </>
+      title="模型管理"
+      description="接入模型、探测能力，再授权给项目使用。"
+      actions={
+        isAdmin && (
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setShowCreate(true)}
+            data-testid="btn-add-model"
+          >
+            <AppIcon name="plus" size={16} />
+            添加模型
+          </button>
+        )
       }
-      description="统一管理模型接入、能力探测与项目授权，为自动化测试提供可靠的推理能力。"
     >
-      <Alert tone="info" title="安全提示">
-        访问密钥只用于加密存储，不会在页面回显；外部模型可能接收脱敏后的测试页面信息。
-      </Alert>
-
       {currentProject && (
         <section
-          className="card lqa-models-section lqa-models-grants"
+          className="card lqa-models-project"
           data-testid="project-model-settings"
         >
-          <div className="lqa-models-section-heading">
-            <span className="lqa-models-section-icon">
-              <AppIcon name="shield" size={21} />
-            </span>
-            <div>
-              <h2>项目模型授权</h2>
-              <p>当前项目：{currentProject.name} · 仅授权模型可用于运行测试</p>
+          <div className="card-header">
+            <div className="card-heading">
+              <h2 className="card-title">
+                <AppIcon name="folder" size={17} />
+                {currentProject.name}
+              </h2>
+              <p className="card-description">
+                只有授权给本项目的模型才能用于运行测试
+              </p>
             </div>
           </div>
           {projectModelsError && (
-            <p
+            <Alert
+              tone="danger"
               role="alert"
-              className="lqa-models-alert"
-              data-testid="project-model-error"
+              className="lqa-models-project-error"
+              testId="project-model-error"
             >
               {projectModelsError}
-            </p>
+            </Alert>
           )}
           {projectModelsLoading ? (
-            <p>正在读取项目模型…</p>
+            <p className="lqa-models-muted">正在读取项目模型…</p>
           ) : (
-            <>
-              <div
-                className="lqa-models-grants-summary"
-                data-testid="project-grants-summary"
-              >
-                <span className="lqa-models-summary-label">已授权模型</span>
-                <span
-                  className={
-                    grantedModels.length
-                      ? 'lqa-models-summary-names'
-                      : 'lqa-models-summary-empty'
-                  }
+            <div className="lqa-models-project-grid">
+              <div className="lqa-models-project-field">
+                <span className="lqa-models-project-label">已授权</span>
+                <div
+                  className="lqa-models-chips"
+                  data-testid="project-grants-summary"
                 >
-                  {grantedModels.length > 0
-                    ? grantedModels.map((m) => m.name).join('、')
-                    : '暂无，请先添加并授权模型'}
-                </span>
-              </div>
-              {currentUser?.globalRole === 'admin' && (
-                <div className="lqa-models-control-row">
-                  <label className="form-label" htmlFor="grant-model-select">
-                    授权新模型
-                  </label>
-                  <select
-                    id="grant-model-select"
-                    className="form-select"
-                    data-testid="grant-model-select"
-                    value={grantChoice}
-                    disabled={grantSaving}
-                    onChange={(e) => setGrantChoice(e.target.value)}
-                  >
-                    <option value="">选择全局已有模型</option>
-                    {models
-                      .filter(
-                        (m) =>
-                          !grantedModels.some((g) => g.id === m.id) &&
-                          m.status !== 'disabled',
-                      )
-                      .map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name}（{m.status}）
-                        </option>
-                      ))}
-                  </select>
-                  <button
-                    className="btn btn-secondary"
-                    type="button"
-                    onClick={() => void grantModel()}
-                    disabled={!grantChoice || grantSaving}
-                    data-testid="btn-grant-model"
-                  >
-                    {grantSaving ? '授权中…' : '授权给当前项目'}
-                  </button>
-                </div>
-              )}
-              <div className="lqa-models-control-row">
-                <label className="form-label" htmlFor="default-model-select">
-                  默认模型
-                </label>
-                <select
-                  id="default-model-select"
-                  className="form-select"
-                  value={defaultChoice}
-                  data-testid="default-model-select"
-                  disabled={
-                    currentUser?.globalRole !== 'admin' || defaultSaving
-                  }
-                  onChange={(e) => setDefaultChoice(e.target.value)}
-                >
-                  <option value="">不指定（按授权模型选择）</option>
-                  {grantedModels
-                    .filter((m) => m.status !== 'disabled')
-                    .map((m) => (
-                      <option key={m.id} value={m.id}>
+                  {grantedModels.length === 0 ? (
+                    <span className="lqa-models-muted">
+                      暂无，授权后才能运行测试
+                    </span>
+                  ) : (
+                    grantedModels.map((m) => (
+                      <span key={m.id} className="lqa-models-chip">
                         {m.name}
-                      </option>
-                    ))}
-                </select>
-                {currentUser?.globalRole === 'admin' && (
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    data-testid="btn-save-default-model"
-                    disabled={
-                      defaultSaving ||
-                      defaultChoice ===
-                        (currentProject.defaultModelProfileId ?? '')
-                    }
-                    onClick={() => void saveDefault()}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="lqa-models-project-field">
+                {isAdmin ? (
+                  <label
+                    className="lqa-models-project-label"
+                    htmlFor="default-model-select"
                   >
-                    {defaultSaving ? '保存中…' : '保存默认模型'}
-                  </button>
+                    默认模型
+                  </label>
+                ) : (
+                  <span className="lqa-models-project-label">默认模型</span>
+                )}
+                {isAdmin ? (
+                  <div className="lqa-models-inline">
+                    <select
+                      id="default-model-select"
+                      className="form-select"
+                      value={defaultChoice}
+                      data-testid="default-model-select"
+                      disabled={defaultSaving}
+                      onChange={(e) => setDefaultChoice(e.target.value)}
+                    >
+                      <option value="">不指定（按授权模型选择）</option>
+                      {grantedModels
+                        .filter((m) => m.status !== 'disabled')
+                        .map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name}
+                          </option>
+                        ))}
+                    </select>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      data-testid="btn-save-default-model"
+                      disabled={defaultSaving || defaultChoice === defaultId}
+                      onClick={() => void saveDefault()}
+                    >
+                      {defaultSaving ? '保存中…' : '保存'}
+                    </button>
+                  </div>
+                ) : (
+                  <span>
+                    {defaultModel?.name ?? '不指定（按授权模型选择）'}
+                  </span>
                 )}
               </div>
-            </>
-          )}
-        </section>
-      )}
-      {currentUser?.globalRole === 'admin' && (
-        <section
-          className="card lqa-models-section lqa-models-create-section"
-          data-testid="model-create-section"
-        >
-          <div className="lqa-models-section-heading lqa-models-create-heading">
-            <span className="lqa-models-section-icon">
-              <AppIcon name="plus" size={21} />
-            </span>
-            <div>
-              <h2>接入新模型</h2>
-              <p>添加模型服务的基础配置，完成能力探测后即可授权给项目。</p>
-            </div>
-            <button
-              type="button"
-              className={
-                showCreate
-                  ? 'btn btn-secondary lqa-models-create-toggle'
-                  : 'btn btn-primary lqa-models-create-toggle'
-              }
-              onClick={() => setShowCreate((open) => !open)}
-              aria-expanded={showCreate}
-              data-testid="btn-toggle-create-model"
-            >
-              <AppIcon name={showCreate ? 'close' : 'plus'} size={17} />
-              {showCreate ? '收起配置' : '添加模型'}
-            </button>
-          </div>
-          {showCreate && (
-            <form
-              className="lqa-model-create-form"
-              onSubmit={(e) => void handleCreate(e)}
-              data-testid="form-create-model"
-            >
-              <div className="lqa-model-form-grid">
-                <label className="lqa-model-field">
-                  <span className="form-label">
-                    配置名称 <span className="lqa-required">*</span>
-                  </span>
-                  <input
-                    className="form-input"
-                    required
-                    maxLength={120}
-                    placeholder="例如：DeepSeek V3 / Claude Sonnet"
-                    value={newModel.name}
-                    onChange={(e) =>
-                      setNewModel((m) => ({ ...m, name: e.target.value }))
-                    }
-                  />
-                  <span className="lqa-field-hint">
-                    用于在平台中识别此模型配置
-                  </span>
-                </label>
-                <label className="lqa-model-field">
-                  <span className="form-label">
-                    接口协议 <span className="lqa-required">*</span>
-                  </span>
-                  <select
-                    className="form-select"
-                    value={newModel.adapter}
-                    onChange={(e) =>
-                      setNewModel((m) => ({
-                        ...m,
-                        adapter: e.target
-                          .value as ModelProfileCreate['adapter'],
-                        responseFormat:
-                          e.target.value === 'anthropic_messages'
-                            ? 'json_object'
-                            : 'json_schema',
-                      }))
-                    }
+
+              {isAdmin && grantable.length > 0 && (
+                <div className="lqa-models-project-field">
+                  <label
+                    className="lqa-models-project-label"
+                    htmlFor="grant-model-select"
                   >
-                    <option value="anthropic_messages">
-                      Anthropic Messages
-                    </option>
-                    <option value="openai_compatible">
-                      OpenAI Chat Completions
-                    </option>
-                  </select>
-                  <span className="lqa-field-hint">
-                    按服务商提供的 API 格式选择
-                  </span>
-                </label>
-                <label className="lqa-model-field lqa-model-field-wide">
-                  <span className="form-label">
-                    HTTPS 服务地址 <span className="lqa-required">*</span>
-                  </span>
-                  <input
-                    className="form-input"
-                    required
-                    type="url"
-                    pattern="https://.*"
-                    placeholder="https://provider.example/v1"
-                    value={newModel.endpoint}
-                    onChange={(e) =>
-                      setNewModel((m) => ({ ...m, endpoint: e.target.value }))
-                    }
-                  />
-                  <span className="lqa-field-hint">
-                    仅支持 HTTPS，请填写兼容的 API 基础地址
-                  </span>
-                </label>
-                <label className="lqa-model-field">
-                  <span className="form-label">
-                    模型标识 (Model ID) <span className="lqa-required">*</span>
-                  </span>
-                  <input
-                    className="form-input"
-                    required
-                    maxLength={200}
-                    placeholder="例如：deepseek-chat"
-                    value={newModel.configuredModelId}
-                    onChange={(e) =>
-                      setNewModel((m) => ({
-                        ...m,
-                        configuredModelId: e.target.value,
-                      }))
-                    }
-                  />
-                  <span className="lqa-field-hint">
-                    填写服务商实际使用的模型 ID
-                  </span>
-                </label>
-                <label className="lqa-model-field">
-                  <span className="form-label">
-                    API Key{' '}
-                    <span className="lqa-field-optional">
-                      加密保存 · 不回显
-                    </span>
-                  </span>
-                  <input
-                    className="form-input"
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder="输入模型服务商提供的 API Key"
-                    value={newModel.apiKey ?? ''}
-                    onChange={(e) =>
-                      setNewModel((m) => ({ ...m, apiKey: e.target.value }))
-                    }
-                  />
-                  <span className="lqa-field-hint">
-                    密钥不会在保存后显示于页面
-                  </span>
-                </label>
-                <label className="lqa-model-field">
-                  <span className="form-label">
-                    单次输出上限 (token){' '}
-                    <span className="lqa-field-optional">可选</span>
-                  </span>
-                  <input
-                    className="form-input"
-                    type="number"
-                    min={MIN_OUTPUT_TOKENS}
-                    max={MAX_OUTPUT_TOKENS}
-                    step={1}
-                    placeholder={`默认 ${DEFAULT_OUTPUT_TOKENS}`}
-                    value={newOutputTokens}
-                    data-testid="model-max-output-tokens"
-                    onChange={(e) => setNewOutputTokens(e.target.value)}
-                  />
-                  <span className="lqa-field-hint">
-                    每次模型调用的输出上限；先思考再作答的模型需要更大的值
-                  </span>
-                </label>
-              </div>
-              <div className="lqa-model-form-note">
-                <AppIcon name="shield" size={17} />
-                <span>
-                  创建后需通过连通性与能力探测，才能授权给项目并参与正式运行。
-                </span>
-              </div>
-              {createError && (
-                <p className="lqa-models-alert" role="alert">
-                  {createError}
-                </p>
+                    授权模型
+                  </label>
+                  <div className="lqa-models-inline">
+                    <select
+                      id="grant-model-select"
+                      className="form-select"
+                      data-testid="grant-model-select"
+                      value={grantChoice}
+                      disabled={grantSaving}
+                      onChange={(e) => setGrantChoice(e.target.value)}
+                    >
+                      <option value="">选择要授权的模型</option>
+                      {grantable.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name}（{statusMeta[m.status].label}）
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="btn btn-secondary"
+                      type="button"
+                      onClick={() => void grantModel()}
+                      disabled={!grantChoice || grantSaving}
+                      data-testid="btn-grant-model"
+                    >
+                      {grantSaving ? '授权中…' : '授权'}
+                    </button>
+                  </div>
+                </div>
               )}
-              <div className="lqa-model-form-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowCreate(false)}
-                  disabled={creating}
-                >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={creating}
-                  data-testid="btn-create-model-submit"
-                >
-                  <AppIcon name="check" size={17} />
-                  {creating ? '正在安全保存…' : '创建模型'}
-                </button>
-              </div>
-            </form>
+            </div>
           )}
         </section>
       )}
 
-      <section className="lqa-models-inventory" data-testid="model-inventory">
-        <div className="lqa-models-inventory-heading">
-          <h2>
-            已接入模型 <span>{models.length}</span>
-          </h2>
-          <p>查看模型状态、API 配置与能力探测结果</p>
+      <section
+        className="card card-flush lqa-models-inventory"
+        data-testid="model-inventory"
+      >
+        <div className="card-header">
+          <div className="card-heading">
+            <h2 className="card-title">
+              全部模型
+              <span className="badge badge-neutral badge-sm">
+                {models.length}
+              </span>
+            </h2>
+            <p className="card-description">平台级配置，所有项目共用</p>
+          </div>
         </div>
-        <div className="lqa-models-list">
-          {models.length === 0 ? (
-            <div className="lqa-models-empty" data-testid="models-empty-state">
-              <div className="lqa-models-empty-visual">
-                <AppIcon name="cpu" size={27} />
-              </div>
-              <h3>还没有接入 AI 模型</h3>
-              <p>
-                添加模型并完成能力探测与项目授权后，就可以为真实站点执行自动化测试。离线演示不会代替真实模型。
-              </p>
-              {currentUser?.globalRole === 'admin' && !showCreate && (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => setShowCreate(true)}
-                  data-testid="models-empty-add"
-                >
-                  <AppIcon name="plus" size={17} /> 添加第一个模型
-                </button>
-              )}
-            </div>
-          ) : (
-            models.map((m) => {
-              const probe = probeResults[m.id];
-              const isInternal = m.dataBoundary === 'internal';
+        {models.length === 0 ? (
+          <div className="lqa-models-empty" data-testid="models-empty-state">
+            <EmptyState
+              compact
+              icon="cpu"
+              title="还没有接入模型"
+              description="添加模型并完成探测和项目授权后，才能对真实站点运行测试。"
+            />
+            {isAdmin && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setShowCreate(true)}
+                data-testid="models-empty-add"
+              >
+                <AppIcon name="plus" size={16} /> 添加第一个模型
+              </button>
+            )}
+          </div>
+        ) : (
+          <ul className="lqa-models-list">
+            {models.map((m) => {
+              const status = statusMeta[m.status];
+              const isExternal = m.dataBoundary === 'external';
+              const probed = m.status === 'ready' || m.status === 'degraded';
               return (
-                <div
+                <li
                   key={m.id}
-                  className="card lqa-model-profile"
+                  className="lqa-model-row"
                   data-testid={`model-card-${m.id}`}
                 >
-                  <div className="lqa-model-profile-header">
-                    <div className="lqa-model-profile-heading">
-                      <span className="lqa-model-profile-icon">
-                        <AppIcon name="cpu" size={21} />
-                      </span>
-                      <h3>{m.name}</h3>
+                  <div className="lqa-model-main">
+                    <div className="lqa-model-title">
+                      <span className="cell-title">{m.name}</span>
                       <span
-                        className={`badge ${isInternal ? 'badge-success' : 'badge-warning'}`}
+                        className={`badge badge-sm ${isExternal ? 'badge-warning' : 'badge-success'}`}
+                        title={
+                          isExternal
+                            ? '外部服务：脱敏后的页面内容和截图会发送给该服务'
+                            : '标记为内网服务：仍需确认实际路由、代理和日志策略'
+                        }
                       >
-                        {isInternal ? '内网本地部署' : '外部云端商业服务'}
+                        {isExternal ? '外部服务' : '内网'}
                       </span>
-                      <span className="badge badge-neutral">
-                        适配器: {m.adapter}
-                      </span>
-                    </div>
-
-                    <div className="lqa-model-profile-actions">
-                      {probe && (
-                        <span
-                          className="badge"
-                          style={{
-                            backgroundColor:
-                              probe.status === 'ready'
-                                ? 'var(--color-success-bg)'
-                                : probe.status === 'degraded'
-                                  ? 'var(--color-warning-bg)'
-                                  : 'var(--color-danger-bg)',
-                            color:
-                              probe.status === 'ready'
-                                ? 'var(--color-success-text)'
-                                : probe.status === 'degraded'
-                                  ? 'var(--color-warning-text)'
-                                  : 'var(--color-danger-text)',
-                          }}
-                        >
-                          {probe.status === 'ready'
-                            ? '可用 (Ready)'
-                            : probe.status === 'degraded'
-                              ? '降级 (Degraded)'
-                              : '探测失败 (Disabled)'}
+                      {m.id === defaultId ? (
+                        <span className="badge badge-primary badge-sm">
+                          本项目默认
                         </span>
-                      )}
-                      <button
-                        className="btn btn-secondary"
-                        onClick={() => handleProbe(m.id)}
-                        disabled={probingId === m.id}
-                        data-testid={`btn-probe-${m.id}`}
-                      >
-                        {probingId === m.id ? '正在探测…' : '连通性探测'}
-                      </button>
+                      ) : grantedIds.has(m.id) ? (
+                        <span className="badge badge-neutral badge-sm">
+                          本项目已授权
+                        </span>
+                      ) : null}
                     </div>
+                    <div className="lqa-model-meta">
+                      <code>{m.configuredModelId}</code>
+                      <span aria-hidden="true">·</span>
+                      <span title={m.endpoint}>
+                        {shortEndpoint(m.endpoint)}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span>{adapterLabels[m.adapter]}</span>
+                    </div>
+                    <div className="lqa-model-meta">
+                      {probed ? (
+                        <span className="lqa-model-caps">
+                          {capabilityLabels.map(([key, label]) => (
+                            <span
+                              key={key}
+                              className={
+                                m.capabilities[key] ? 'is-on' : 'is-off'
+                              }
+                            >
+                              <AppIcon
+                                name={m.capabilities[key] ? 'check' : 'close'}
+                                size={12}
+                              />
+                              {label}
+                            </span>
+                          ))}
+                        </span>
+                      ) : (
+                        <span>能力待探测</span>
+                      )}
+                      <span aria-hidden="true">·</span>
+                      <span data-testid={`model-output-cap-${m.id}`}>
+                        输出上限{' '}
+                        {m.maxOutputTokens ??
+                          `${DEFAULT_OUTPUT_TOKENS}（默认）`}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="lqa-model-side">
+                    <span className={`badge badge-dot ${status.className}`}>
+                      {probingId === m.id ? '探测中…' : status.label}
+                    </span>
+                    {isAdmin && (
+                      <div className="lqa-model-actions">
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => void handleProbe(m.id)}
+                          disabled={
+                            probingId !== null ||
+                            deleteTarget !== null ||
+                            m.status === 'disabled'
+                          }
+                          data-testid={`btn-probe-${m.id}`}
+                        >
+                          <AppIcon name="activity" size={14} />
+                          探测
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm btn-icon"
+                          disabled={probingId !== null || deleteTarget !== null}
+                          onClick={() => setEditing(m)}
+                          aria-label={`编辑 ${m.name}`}
+                          title="编辑"
+                          data-testid={`btn-edit-model-${m.id}`}
+                        >
+                          <AppIcon name="edit" size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-danger-outline btn-sm"
+                          disabled={
+                            probingId !== null ||
+                            deleting ||
+                            grantSaving ||
+                            defaultSaving
+                          }
+                          onClick={() => {
+                            setDeleteTarget(m);
+                            setDeleteName('');
+                            setDeleteError(null);
+                          }}
+                          data-testid={`btn-delete-model-${m.id}`}
+                        >
+                          删除
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {probeErrors[m.id] && (
-                    <div
-                      className="lqa-model-probe-error"
+                    <Alert
+                      tone="danger"
                       role="alert"
-                      data-testid={`probe-error-${m.id}`}
+                      className="lqa-model-row-note"
+                      testId={`probe-error-${m.id}`}
                     >
-                      <AppIcon name="shield" size={17} />
-                      <span>{probeErrors[m.id]}</span>
-                    </div>
+                      {probeErrors[m.id]}
+                    </Alert>
                   )}
-
-                  <div className="lqa-model-profile-details">
-                    <div>
-                      <span>模型 ID</span>
-                      <code>{m.configuredModelId}</code>
-                    </div>
-                    <div>
-                      <span>服务地址</span>
-                      <code>{m.endpoint}</code>
-                    </div>
-                    <div>
-                      <span>运行状态</span>
-                      <code>{m.status}</code>
-                    </div>
-                    <div>
-                      <span>单次输出上限</span>
-                      <code data-testid={`model-output-cap-${m.id}`}>
-                        {m.maxOutputTokens ??
-                          `${DEFAULT_OUTPUT_TOKENS}（默认）`}
-                      </code>
-                      {currentUser?.globalRole === 'admin' && (
-                        <div className="lqa-model-cap-edit">
-                          <input
-                            className="form-input"
-                            type="number"
-                            min={MIN_OUTPUT_TOKENS}
-                            max={MAX_OUTPUT_TOKENS}
-                            step={1}
-                            aria-label="新的单次输出上限"
-                            placeholder="修改"
-                            value={capDrafts[m.id] ?? ''}
-                            onChange={(e) =>
-                              setCapDrafts((old) => ({
-                                ...old,
-                                [m.id]: e.target.value,
-                              }))
-                            }
-                          />
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-sm"
-                            disabled={
-                              capSaving === m.id || !(capDrafts[m.id] ?? '')
-                            }
-                            onClick={() => void handleSaveCap(m)}
-                          >
-                            {capSaving === m.id ? '保存中…' : '保存'}
-                          </button>
-                        </div>
-                      )}
-                      {capErrors[m.id] && (
-                        <span className="lqa-model-cap-error" role="alert">
-                          {capErrors[m.id]}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Capabilities Badges */}
-                  <div className="lqa-model-profile-capabilities">
-                    <span
-                      className={`badge ${m.capabilities.structuredOutput ? 'badge-info' : 'badge-neutral'}`}
-                    >
-                      结构化输出 (JSON):{' '}
-                      {m.capabilities.structuredOutput ? '支持' : '不支持'}
-                    </span>
-                    <span
-                      className={`badge ${m.capabilities.nativeTools ? 'badge-info' : 'badge-neutral'}`}
-                    >
-                      原生工具调用 (Tool Call):{' '}
-                      {m.capabilities.nativeTools ? '支持' : '不支持'}
-                    </span>
-                    <span
-                      className={`badge ${m.capabilities.imageInput ? 'badge-info' : 'badge-neutral'}`}
-                    >
-                      视觉截图解析 (Vision):{' '}
-                      {m.capabilities.imageInput ? '支持' : '不支持'}
-                    </span>
-                  </div>
-
-                  {/* Data Notice */}
-                  {!isInternal ? (
-                    <div className="lqa-model-profile-notice is-external">
-                      <AppIcon name="shield" size={17} />
-                      <span>
-                        外部模型数据提示：Prompt、节点标签及页面截图可能经加密通道发送至外部服务，请确保脱敏策略已生效。
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="lqa-model-profile-notice">
-                      <AppIcon name="shield" size={17} />
-                      <span>
-                        内网模型提示：该端点标记为内部服务，仍需检查实际路由、代理、日志和部署策略。
-                      </span>
-                    </div>
+                  {probeNotes[m.id] && (
+                    <Alert tone="warning" className="lqa-model-row-note">
+                      {probeNotes[m.id]}
+                    </Alert>
                   )}
-                </div>
+                </li>
               );
-            })
-          )}
-        </div>
+            })}
+          </ul>
+        )}
       </section>
+
+      <p className="lqa-models-footnote">
+        <AppIcon name="lock" size={14} />
+        API Key
+        加密保存，保存后不再显示。标为「外部服务」的模型会收到脱敏后的页面内容和截图。
+      </p>
+
+      {showCreate && (
+        <CreateModelModal
+          onClose={() => setShowCreate(false)}
+          onCreated={(created) => {
+            setModels((old) => [...old, created]);
+            setShowCreate(false);
+          }}
+        />
+      )}
+      {editing && (
+        <EditModelModal
+          model={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(updated) => {
+            replaceModel(updated);
+            setEditing(null);
+          }}
+        />
+      )}
+      {deleteTarget && (
+        <Modal
+          title="删除模型"
+          onClose={closeDelete}
+          closeOnOverlay={!deleting}
+          testId="model-delete-dialog"
+          footer={
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={deleting}
+                onClick={closeDelete}
+                data-testid="model-delete-cancel"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={deleting || deleteName !== deleteTarget.name}
+                onClick={() => void handleDelete()}
+                data-testid="model-delete-confirm"
+              >
+                {deleting ? '正在删除…' : '确认删除'}
+              </button>
+            </>
+          }
+        >
+          <p>
+            删除「{deleteTarget.name}
+            」后，该模型将从模型列表和新任务的可选项中移除，历史测试记录保留。此操作无法撤销。
+          </p>
+          <p>
+            若该模型仍是项目默认模型，或被未结束的任务、启用的定时计划引用，请先解除引用。
+          </p>
+          <label className="lqa-model-field">
+            <span>输入模型名称「{deleteTarget.name}」以确认</span>
+            <input
+              className="form-input"
+              value={deleteName}
+              disabled={deleting}
+              autoFocus
+              onChange={(event) => setDeleteName(event.target.value)}
+              data-testid="model-delete-name"
+            />
+          </label>
+          {deleteError && (
+            <Alert tone="danger" title="删除失败" testId="model-delete-error">
+              {deleteError}
+            </Alert>
+          )}
+        </Modal>
+      )}
     </Page>
   );
 };

@@ -250,7 +250,7 @@ export async function startTrustedRegressionRun(
       if (!profileId) {
         const grantRow = (
           await client.query<{ profile_id: string }>(
-            'SELECT profile_id FROM model_profile_grants WHERE project_id = $1 LIMIT 1',
+            'SELECT profile_id FROM model_profile_grants g JOIN model_profiles p ON p.id=g.profile_id WHERE g.project_id = $1 AND p.deleted_at IS NULL ORDER BY profile_id LIMIT 1',
             [input.projectId],
           )
         ).rows[0];
@@ -262,7 +262,7 @@ export async function startTrustedRegressionRun(
           `SELECT p.version, v.document->>'status' AS status
              FROM model_profiles p
              JOIN model_profile_versions v ON v.profile_id=p.id AND v.version=p.version
-             WHERE p.id = $1`,
+             WHERE p.id = $1 AND p.deleted_at IS NULL`,
           [profileId],
         )
       ).rows[0];

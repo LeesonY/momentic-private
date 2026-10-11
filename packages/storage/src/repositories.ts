@@ -18,6 +18,7 @@ import type {
   ModelProfile,
   ModelProfileCreate,
   ModelProfilePatch,
+  ModelDeleteConfirm,
   Run,
   Task,
   CaseDefinition,
@@ -929,7 +930,7 @@ export class ModelRepository {
     return this.db.actor(actor, async (client) => {
       const row = (
         await client.query<{ document: unknown }>(
-          'SELECT v.document FROM model_profiles p JOIN model_profile_versions v ON v.profile_id=p.id AND v.version=p.version WHERE p.id=$1',
+          'SELECT v.document FROM model_profiles p JOIN model_profile_versions v ON v.profile_id=p.id AND v.version=p.version WHERE p.id=$1 AND p.deleted_at IS NULL',
           [id],
         )
       ).rows[0];
@@ -952,6 +953,76 @@ export class ModelRepository {
       await audit(client, 'model.granted', profileId, projectId);
     });
   }
+  async delete(
+    actor: Actor,
+    id: string,
+    input: ModelDeleteConfirm,
+  ): Promise<void> {
+    const data = parseContract('ModelDeleteConfirm', input);
+    await this.db.actor(actor, async (client) => {
+      await requireAdmin(client);
+      const row = (
+        await client.query<{ document: unknown; credential_id: string | null }>(
+          `SELECT v.document,v.credential_id FROM model_profiles p
+           JOIN model_profile_versions v ON v.profile_id=p.id AND v.version=p.version
+           WHERE p.id=$1 AND p.deleted_at IS NULL FOR UPDATE OF p`,
+          [id],
+        )
+      ).rows[0];
+      if (!row) throw new StorageError('NOT_FOUND');
+      const current = parseContract('ModelProfile', row.document);
+      if (current.version !== data.expectedVersion)
+        throw new StorageError(
+          'VERSION_CONFLICT',
+          '模型配置已更新，请刷新后重试',
+        );
+      if (current.name !== data.confirmName)
+        throw new StorageError('VALIDATION_ERROR', '输入的模型名称不匹配');
+      const inUse = (
+        await client.query<{ reason: string }>(
+          `SELECT 'default' AS reason FROM projects WHERE default_model_profile_id=$1
+           UNION ALL
+           SELECT 'run' FROM run_model_bindings b
+           JOIN runs r ON r.id=b.run_id AND r.project_id=b.project_id
+           WHERE b.profile_id=$1 AND r.status NOT IN ('completed','cancelled','failed')
+           UNION ALL
+           SELECT 'schedule' FROM schedules s JOIN projects p ON p.id=s.project_id
+           WHERE s.enabled AND (s.run_template->>'modelProfileId'=$1::text
+             OR (s.run_template->>'modelProfileId' IS NULL
+               AND p.default_model_profile_id IS NULL AND $1=(
+                 SELECT g.profile_id FROM model_profile_grants g
+                 JOIN model_profiles m ON m.id=g.profile_id
+                 WHERE g.project_id=s.project_id AND m.deleted_at IS NULL
+                 ORDER BY g.profile_id LIMIT 1)))
+           LIMIT 1`,
+          [id],
+        )
+      ).rows[0];
+      if (inUse)
+        throw new StorageError(
+          'MODEL_NOT_CONFIGURED',
+          inUse.reason === 'default'
+            ? '该模型仍是项目默认模型，请先在对应项目中更换或清除默认模型'
+            : inUse.reason === 'run'
+              ? '该模型仍有未结束的测试任务，请结束任务后再删除'
+              : '该模型仍被启用的定时计划引用，请先调整或停用计划',
+        );
+      const deleted = parseContract('ModelProfile', {
+        ...current,
+        status: 'disabled',
+        version: current.version + 1,
+      });
+      await client.query(
+        'UPDATE model_profiles SET deleted_at=clock_timestamp(),version=version+1 WHERE id=$1',
+        [id],
+      );
+      await client.query(
+        'INSERT INTO model_profile_versions(profile_id,version,document,credential_id) VALUES($1,$2,$3,$4)',
+        [id, deleted.version, deleted, row.credential_id],
+      );
+      await audit(client, 'model.deleted', id, null, deleted.version);
+    });
+  }
   async update(
     actor: Actor,
     id: string,
@@ -967,7 +1038,7 @@ export class ModelRepository {
           document: ModelProfile;
           credential_id: string | null;
         }>(
-          'SELECT v.document,v.credential_id FROM model_profiles p JOIN model_profile_versions v ON v.profile_id=p.id AND v.version=p.version WHERE p.id=$1',
+          'SELECT v.document,v.credential_id FROM model_profiles p JOIN model_profile_versions v ON v.profile_id=p.id AND v.version=p.version WHERE p.id=$1 AND p.deleted_at IS NULL',
           [id],
         )
       ).rows[0];
@@ -997,7 +1068,7 @@ export class ModelRepository {
       if (
         !(
           await client.query(
-            'UPDATE model_profiles SET version=version+1 WHERE id=$1 AND version=$2',
+            'UPDATE model_profiles SET version=version+1 WHERE id=$1 AND version=$2 AND deleted_at IS NULL',
             [id, expectedVersion],
           )
         ).rowCount
@@ -1120,7 +1191,7 @@ export class ModelRepository {
            FROM model_profiles p
            JOIN model_profile_versions v
              ON v.profile_id = p.id AND v.version = p.version
-           WHERE p.id = $1
+           WHERE p.id = $1 AND p.deleted_at IS NULL
            FOR UPDATE OF p`,
           [profileId],
         )
@@ -1139,7 +1210,7 @@ export class ModelRepository {
       if (
         !(
           await client.query(
-            'UPDATE model_profiles SET version=version+1 WHERE id=$1 AND version=$2',
+            'UPDATE model_profiles SET version=version+1 WHERE id=$1 AND version=$2 AND deleted_at IS NULL',
             [profileId, expectedVersion],
           )
         ).rowCount
