@@ -12,6 +12,7 @@ import type {
   Task,
   Finding,
   Report,
+  SessionReport,
   InputRequest,
   InputResponse,
   RunEvent,
@@ -32,6 +33,7 @@ interface RunState {
   tasks: Task[];
   findings: Finding[];
   report: Report | null;
+  session: SessionReport | null;
   activeInputRequest: InputRequest | null;
   messages: RunMessage[];
   sseStatus: SseConnectionStatus;
@@ -65,6 +67,7 @@ export function RunStoreProvider({
   const [tasks, setTasks] = useState<Task[]>([]);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [report, setReport] = useState<Report | null>(null);
+  const [session, setSession] = useState<SessionReport | null>(null);
   const [activeInputRequest, setActiveInputRequest] =
     useState<InputRequest | null>(null);
   const [messages, setMessages] = useState<RunMessage[]>([]);
@@ -106,6 +109,7 @@ export function RunStoreProvider({
       setTasks(taskRes.items);
       setFindings(findRes.items);
       setReport(repData);
+      setSession(repData?.session ?? null);
       setMessages(msgs);
 
       for (const m of msgs) {
@@ -161,120 +165,126 @@ export function RunStoreProvider({
   }, [runId]);
 
   // 2. Event projection handler
-  const handleEvent = useCallback((event: RunEvent) => {
-    switch (event.type) {
-      case 'run.updated': {
-        const payload = event.payload as unknown as Partial<Run>;
-        setRun((prev) => (prev ? { ...prev, ...payload } : (payload as Run)));
-        fetchRunMessages('/api/v1', runId)
-          .then((newMsgs) => {
-            setMessages(newMsgs);
-            for (const m of newMsgs) {
-              recordMessageRendered(m.redactedText, m.createdAt);
-            }
-          })
-          .catch(() => {});
-        break;
-      }
-      case 'phase.changed': {
-        const { phase } = event.payload as unknown as { phase: Run['phase'] };
-        setRun((prev) => (prev ? { ...prev, phase } : null));
-        break;
-      }
-      case 'budget.updated': {
-        const payload = event.payload as unknown as
-          { used?: BudgetUsed } | BudgetUsed;
-        const budgetUsed =
-          payload && 'used' in payload && payload.used
-            ? payload.used
-            : (payload as BudgetUsed);
-        setRun((prev) => (prev ? { ...prev, budgetUsed } : null));
-        break;
-      }
-      case 'case.created': {
-        const payload = event.payload as unknown as
-          CaseRecord | CaseRecord['definition'];
-        const caseRecord: CaseRecord =
-          'definition' in payload
-            ? payload
-            : { definition: payload, outcome: 'not_run', verdict: null };
-        setCases((prev) => {
-          if (prev.some((c) => c.definition.id === caseRecord.definition.id))
-            return prev;
-          return [...prev, caseRecord];
-        });
-        break;
-      }
-      case 'case.result': {
-        const updatedCase = event.payload as unknown as CaseRecord;
-        setCases((prev) =>
-          prev.map((c) =>
-            c.definition.id === updatedCase.definition.id ? updatedCase : c,
-          ),
-        );
-        break;
-      }
-      case 'finding.updated': {
-        const updatedFinding = event.payload as unknown as Finding;
-        setFindings((prev) => {
-          const idx = prev.findIndex((f) => f.id === updatedFinding.id);
-          if (idx >= 0) {
-            const next = [...prev];
-            next[idx] = updatedFinding;
-            return next;
-          }
-          return [...prev, updatedFinding];
-        });
-        break;
-      }
-      case 'task.updated': {
-        const updatedTask = event.payload as unknown as Task;
-        setTasks((prev) => {
-          const idx = prev.findIndex((t) => t.id === updatedTask.id);
-          if (idx >= 0) {
-            const next = [...prev];
-            next[idx] = updatedTask;
-            return next;
-          }
-          return [...prev, updatedTask];
-        });
-        break;
-      }
-      case 'input.requested': {
-        const request = event.payload as unknown as InputRequest;
-        setActiveInputRequest(request);
-        // A private OTP challenge deliberately keeps the same leased Worker
-        // and browser session active. It is NOT the ordinary job-requeue
-        // clarification flow and must not project a false awaiting_input run.
-        if (request.kind !== 'one_time_code')
-          setRun((prev) =>
-            prev ? { ...prev, status: 'awaiting_input' } : null,
-          );
-        break;
-      }
-      case 'input.resolved': {
-        setActiveInputRequest(null);
-        setRun((prev) => (prev ? { ...prev, status: 'running' } : null));
-        break;
-      }
-      case 'report.ready': {
-        setReport(event.payload as unknown as Report);
-        break;
-      }
-      case 'run.finished': {
-        setRun((prev) =>
-          prev
-            ? {
-                ...prev,
-                status: 'completed',
-                updatedAt: new Date().toISOString(),
+  const handleEvent = useCallback(
+    (event: RunEvent) => {
+      switch (event.type) {
+        case 'run.updated': {
+          const payload = event.payload as unknown as Partial<Run>;
+          setRun((prev) => (prev ? { ...prev, ...payload } : (payload as Run)));
+          fetchRunMessages('/api/v1', runId)
+            .then((newMsgs) => {
+              setMessages(newMsgs);
+              for (const m of newMsgs) {
+                recordMessageRendered(m.redactedText, m.createdAt);
               }
-            : null,
-        );
-        break;
+            })
+            .catch(() => {});
+          break;
+        }
+        case 'phase.changed': {
+          const { phase } = event.payload as unknown as { phase: Run['phase'] };
+          setRun((prev) => (prev ? { ...prev, phase } : null));
+          break;
+        }
+        case 'budget.updated': {
+          const payload = event.payload as unknown as
+            { used?: BudgetUsed } | BudgetUsed;
+          const budgetUsed =
+            payload && 'used' in payload && payload.used
+              ? payload.used
+              : (payload as BudgetUsed);
+          setRun((prev) => (prev ? { ...prev, budgetUsed } : null));
+          break;
+        }
+        case 'case.created': {
+          const payload = event.payload as unknown as
+            CaseRecord | CaseRecord['definition'];
+          const caseRecord: CaseRecord =
+            'definition' in payload
+              ? payload
+              : { definition: payload, outcome: 'not_run', verdict: null };
+          setCases((prev) => {
+            if (prev.some((c) => c.definition.id === caseRecord.definition.id))
+              return prev;
+            return [...prev, caseRecord];
+          });
+          break;
+        }
+        case 'case.result': {
+          const updatedCase = event.payload as unknown as CaseRecord;
+          setCases((prev) =>
+            prev.map((c) =>
+              c.definition.id === updatedCase.definition.id ? updatedCase : c,
+            ),
+          );
+          break;
+        }
+        case 'finding.updated': {
+          const updatedFinding = event.payload as unknown as Finding;
+          setFindings((prev) => {
+            const idx = prev.findIndex((f) => f.id === updatedFinding.id);
+            if (idx >= 0) {
+              const next = [...prev];
+              next[idx] = updatedFinding;
+              return next;
+            }
+            return [...prev, updatedFinding];
+          });
+          break;
+        }
+        case 'task.updated': {
+          const updatedTask = event.payload as unknown as Task;
+          setTasks((prev) => {
+            const idx = prev.findIndex((t) => t.id === updatedTask.id);
+            if (idx >= 0) {
+              const next = [...prev];
+              next[idx] = updatedTask;
+              return next;
+            }
+            return [...prev, updatedTask];
+          });
+          break;
+        }
+        case 'input.requested': {
+          const request = event.payload as unknown as InputRequest;
+          setActiveInputRequest(request);
+          // A private OTP challenge deliberately keeps the same leased Worker
+          // and browser session active. It is NOT the ordinary job-requeue
+          // clarification flow and must not project a false awaiting_input run.
+          if (request.kind !== 'one_time_code')
+            setRun((prev) =>
+              prev ? { ...prev, status: 'awaiting_input' } : null,
+            );
+          break;
+        }
+        case 'input.resolved': {
+          setActiveInputRequest(null);
+          setRun((prev) => (prev ? { ...prev, status: 'running' } : null));
+          break;
+        }
+        case 'session.updated': {
+          setSession(event.payload as unknown as SessionReport);
+          break;
+        }
+        case 'report.ready': {
+          defaultApiClient
+            .getReport(runId)
+            .then((report) => {
+              if (runIdRef.current !== runId) return;
+              setReport(report);
+              setSession(report.session ?? null);
+            })
+            .catch(() => {});
+          break;
+        }
+        case 'run.finished': {
+          setRun(event.payload as unknown as Run);
+          break;
+        }
       }
-    }
-  }, []);
+    },
+    [runId],
+  );
 
   // 3. Connect SSE Client
   useEffect(() => {
@@ -403,6 +413,7 @@ export function RunStoreProvider({
         tasks,
         findings,
         report,
+        session,
         activeInputRequest,
         messages,
         sseStatus,

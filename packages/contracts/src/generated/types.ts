@@ -134,6 +134,13 @@ export type Contract =
   | SchedulePage
   | SchedulePatch
   | ScheduleRunTemplate
+  | SessionCase
+  | SessionConclusion
+  | SessionCriterion
+  | SessionDecision
+  | SessionLocator
+  | SessionReport
+  | SessionRound
   | SnapshotNode
   | Step
   | StepPage
@@ -434,7 +441,8 @@ export type RunEvent = {
     | "input.resolved"
     | "artifact.updated"
     | "report.ready"
-    | "run.finished";
+    | "run.finished"
+    | "session.updated";
   at: string;
   payload: {
     [k: string]: JsonValue | undefined;
@@ -665,6 +673,7 @@ export interface SnapshotNode {
   enabled: boolean;
   bounds: Bounds;
   inputType?: string;
+  sensitive?: boolean;
 }
 export interface NetworkEntry {
   url: string;
@@ -1375,6 +1384,7 @@ export interface Report {
    * @maxItems 1000
    */
   warnings: string[];
+  session?: SessionReport;
 }
 export interface Run {
   id: string;
@@ -1452,6 +1462,47 @@ export interface Reproduction {
    */
   evidenceRefs: string[];
   createdAt: string;
+}
+export interface SessionReport {
+  objective: string;
+  round: number;
+  status: "planning" | "working" | "reviewing" | "finalizing" | "complete";
+  plan: string;
+  /**
+   * @minItems 0
+   * @maxItems 30
+   */
+  caseIds: string[];
+  /**
+   * @minItems 0
+   * @maxItems 30
+   */
+  exploredUrls: string[];
+  /**
+   * @minItems 0
+   * @maxItems 100
+   */
+  coverageGaps: string[];
+  summary: string;
+  /**
+   * @minItems 0
+   * @maxItems 6
+   */
+  history: SessionRound[];
+}
+export interface SessionRound {
+  round: number;
+  reason: string;
+  /**
+   * @minItems 0
+   * @maxItems 30
+   */
+  caseIds: string[];
+  /**
+   * @minItems 0
+   * @maxItems 30
+   */
+  exploreTargets: string[];
 }
 export interface ReviewCommit {
   expectedVersion: number;
@@ -1651,6 +1702,76 @@ export interface SchedulePatch {
   overlapPolicy?: "skip" | "queue";
   missedPolicy?: "skip" | "catchup_one";
   enabled?: boolean;
+}
+export interface SessionCase {
+  title: string;
+  summary: string;
+  /**
+   * @minItems 0
+   * @maxItems 20
+   */
+  preconditions: string[];
+  /**
+   * @minItems 1
+   * @maxItems 30
+   */
+  outline: [string, ...string[]];
+  /**
+   * @minItems 1
+   * @maxItems 3
+   */
+  criteria: [SessionCriterion, ...SessionCriterion[]];
+  entryUrl: string;
+}
+export interface SessionCriterion {
+  id: string;
+  kind: "element_visible" | "text_equals" | "url_matches" | "http_status" | "semantic" | "visual";
+  description: string;
+  sourceKind: "generic_smoke" | "user_spec" | "project_knowledge" | "saved_case" | "inferred";
+  sourceRef: string;
+  locator: SessionLocator | null;
+  expectedValue: string | null;
+  sourceQuote: string;
+}
+export interface SessionLocator {
+  by: "role" | "label" | "test_id" | "text" | "css";
+  value: string;
+  name: string | null;
+}
+export interface SessionConclusion {
+  overview: string;
+  /**
+   * @minItems 0
+   * @maxItems 30
+   */
+  caseComments: {
+    caseId: string;
+    comment: string;
+  }[];
+  /**
+   * @minItems 0
+   * @maxItems 20
+   */
+  coverageGaps: string[];
+}
+export interface SessionDecision {
+  action: "dispatch" | "finish";
+  rationale: string;
+  /**
+   * @minItems 0
+   * @maxItems 2
+   */
+  exploreTargets: string[];
+  /**
+   * @minItems 0
+   * @maxItems 4
+   */
+  cases: SessionCase[];
+  /**
+   * @minItems 0
+   * @maxItems 20
+   */
+  coverageGaps: string[];
 }
 export interface Step {
   id: string;
@@ -1888,6 +2009,13 @@ export interface ContractTypes {
   SchedulePage: SchedulePage;
   SchedulePatch: SchedulePatch;
   ScheduleRunTemplate: ScheduleRunTemplate;
+  SessionCase: SessionCase;
+  SessionConclusion: SessionConclusion;
+  SessionCriterion: SessionCriterion;
+  SessionDecision: SessionDecision;
+  SessionLocator: SessionLocator;
+  SessionReport: SessionReport;
+  SessionRound: SessionRound;
   SnapshotNode: SnapshotNode;
   Step: Step;
   StepPage: StepPage;

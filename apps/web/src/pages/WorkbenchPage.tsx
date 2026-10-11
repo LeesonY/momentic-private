@@ -94,6 +94,7 @@ const WorkbenchContent: React.FC<{
     tasks,
     findings,
     report,
+    session,
     activeInputRequest,
     messages,
     sseStatus,
@@ -243,7 +244,7 @@ const WorkbenchContent: React.FC<{
   return (
     <div className="workbench-layout" data-testid="workbench-container">
       <RunHistoryList
-        runs={runs}
+        runs={runs.map((item) => (item.id === run?.id ? run : item))}
         activeRunId={activeRunId}
         onSelectRun={onSelectRun}
       />
@@ -284,7 +285,11 @@ const WorkbenchContent: React.FC<{
                   className={`badge ${run.executionMode === 'regression' ? 'badge-primary' : 'badge-info'}`}
                   data-testid="badge-execution-mode"
                 >
-                  {run.executionMode === 'regression' ? '回归模式' : '冒烟模式'}
+                  {run.executionMode === 'regression'
+                    ? '回归模式'
+                    : session
+                      ? 'AI 探索测试'
+                      : '冒烟模式'}
                 </span>
                 <span className="badge badge-neutral">
                   上下文 v{run.contextVersion}
@@ -470,7 +475,15 @@ const WorkbenchContent: React.FC<{
                   <span className="lqa-timeline-dot" aria-hidden="true" />
                   <div className="lqa-timeline-body">
                     <div className="row row-wrap">
-                      <span className="lqa-timeline-role">{task.role}</span>
+                      <span className="lqa-timeline-role">
+                        {{
+                          coordinator: '主 AI',
+                          explorer: '探索 AI',
+                          executor: '执行 AI',
+                          reproducer: '复现 AI',
+                          finalizer: '总结 AI',
+                        }[task.role] ?? task.role}
+                      </span>
                       <StatusBadge status={task.status} size="sm" />
                       <span className="push subtle text-xs nowrap">
                         {task.elapsedSeconds}s
@@ -490,6 +503,7 @@ const WorkbenchContent: React.FC<{
         findings={findings}
         tasks={tasks}
         report={report}
+        session={session}
         runId={activeRunId}
         run={run}
         onRefreshReport={() => void reload()}

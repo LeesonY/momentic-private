@@ -86,6 +86,14 @@ D["Reproduction"] = obj({"id": UUID, "findingId": UUID, "taskId": UUID, "outcome
 D["Summary"] = obj({**{k: integer() for k in ["planned", "passed", "issueFound", "blocked", "inconclusive", "notRun", "attempted", "evaluated"]}, "passRate": nullable({"type": "number", "minimum": 0, "maximum": 1}), "attemptRate": nullable({"type": "number", "minimum": 0, "maximum": 1})})
 D["ModelUsage"] = obj({"profileId": UUID, "configuredModelId": text(200), "reportedModelId": nullable(text(200)), "requests": integer(), "inputTokens": nullable(integer()), "outputTokens": nullable(integer()), "usageSource": enum("reported", "estimated", "mixed", "unknown")})
 D["Report"] = obj({"schemaVersion": {"const": 1}, "example": BOOL, "generatedAt": DATE, "run": ref("Run"), "summary": ref("Summary"), "cases": arr(ref("CaseRecord"), 1000), "findings": arr(ref("Finding"), 1000), "reproductions": arr(ref("Reproduction"), 1000), "artifacts": arr(ref("Artifact"), 5000), "modelUsage": arr(ref("ModelUsage"), 100), "coverageGaps": arr(text(2000), 1000), "cleanupStatus": enum("not_required", "pending", "running", "succeeded", "failed", "manual_required"), "warnings": arr(text(2000), 1000)})
+D["SessionLocator"] = obj({"by": D["Locator"]["properties"]["by"], "value": text(500, minLength=1), "name": nullable(text(500))})
+D["SessionCriterion"] = obj({**copy.deepcopy(D["Criterion"]["properties"]), "locator": nullable(ref("SessionLocator")), "expectedValue": nullable(text(2000)), "sourceQuote": text(1000)})
+D["SessionCase"] = obj({**copy.deepcopy(D["CandidateCase"]["properties"]), "entryUrl": URI, "criteria": arr(ref("SessionCriterion"), 3, 1)})
+D["SessionDecision"] = obj({"action": enum("dispatch", "finish"), "rationale": text(2000, minLength=1), "exploreTargets": arr(URI, 2), "cases": arr(ref("SessionCase"), 4), "coverageGaps": arr(text(1000), 20)})
+D["SessionConclusion"] = obj({"overview": text(4000, minLength=1), "caseComments": arr(obj({"caseId": UUID, "comment": text(1000)}), 30), "coverageGaps": arr(text(1000), 20)})
+D["SessionRound"] = obj({"round": integer(1, 6), "reason": text(2000), "caseIds": arr(UUID, 30), "exploreTargets": arr(URI, 30)})
+D["SessionReport"] = obj({"objective": text(4000), "round": integer(0, 6), "status": enum("planning", "working", "reviewing", "finalizing", "complete"), "plan": text(2000), "caseIds": arr(UUID, 30), "exploredUrls": arr(URI, 30), "coverageGaps": arr(text(2000), 100), "summary": text(4000), "history": arr(ref("SessionRound"), 6)})
+D["Report"]["properties"]["session"] = ref("SessionReport")
 D["InputRequest"] = obj({"id": UUID, "runId": UUID, "kind": enum("auth_profile", "one_time_code", "clarification", "scope_extension", "write_action"), "status": enum("pending", "resolved", "rejected", "expired"), "prompt": text(2000), "expiresAt": DATE, "version": VER})
 D["InputResponse"] = obj({"expectedVersion": VER, "decision": enum("provide", "approve", "reject"), "authProfileId": UUID, "text": text(4000), "oneTimeCode": text(32, minLength=4, writeOnly=True), "allowedOrigins": arr(URI, 30)}, ["expectedVersion", "decision"])
 D["MessageInput"] = obj({"text": text(4000, minLength=1), "expectedContextVersion": VER})
@@ -96,6 +104,7 @@ D["TriageCommit"] = obj({**copy.deepcopy(D["TriageInput"]["properties"]), "confi
 D["ExportInput"] = obj({"format": enum("json", "markdown", "zip"), "includeArtifacts": BOOL, "requireTerminal": BOOL}, ["format"])
 D["Export"] = obj({"id": UUID, "runId": UUID, "status": enum("queued", "running", "ready", "failed"), "format": enum("json", "markdown", "zip"), "artifactId": nullable(UUID), "snapshotAt": DATE, "error": nullable(text(1000))})
 EVENTS = ["run.updated", "phase.changed", "task.updated", "case.created", "case.result", "finding.updated", "step.recorded", "budget.updated", "input.requested", "input.resolved", "artifact.updated", "report.ready", "run.finished"]
+EVENTS.append("session.updated")
 D["RunEvent"] = obj({"schemaVersion": {"const": 1}, "id": text(30, pattern="^[1-9][0-9]*$"), "runId": UUID, "seq": VER, "type": enum(*EVENTS), "at": DATE, "payload": {"type": "object", "additionalProperties": ref("JsonValue")}})
 D["NodeTarget"] = obj({"snapshotId": UUID, "pageId": UUID, "frameId": text(120), "nodeId": text(120)}, ["snapshotId", "pageId", "nodeId"])
 D["WorkerClaim"] = obj({"workerId": text(120, minLength=1), "capabilities": arr(enum("chromium", "images", "recording"), 10, 1)})
@@ -141,6 +150,7 @@ D["CaseAttempt"] = obj({"id": UUID, "caseId": UUID, "taskId": UUID, "attemptNumb
 D["Bounds"] = obj({"left": {"type": "number"}, "top": {"type": "number"}, "width": {"type": "number", "minimum": 0}, "height": {"type": "number", "minimum": 0}})
 D["SnapshotNode"] = obj({"nodeId": text(120, minLength=1), "frameId": text(120), "role": text(120), "name": text(1000), "text": text(2000), "visible": BOOL, "enabled": BOOL, "bounds": ref("Bounds")})
 D["SnapshotNode"]["properties"]["inputType"] = text(40)
+D["SnapshotNode"]["properties"]["sensitive"] = BOOL
 D["NetworkEntry"] = obj({"url": text(8192), "method": text(20), "status": nullable(integer(100, 599)), "resourceType": text(40), "summary": text(1000)})
 D["NetworkEntries"] = arr(ref("NetworkEntry"), 100)
 D["BrowserSnapshot"] = obj({"snapshotId": UUID, "pageId": UUID, "frameIds": arr(text(120), 100), "displayUrl": text(8192), "title": text(500), "responseStatus": nullable(integer(100, 599)), "capturedAt": DATE, "stateVersion": VER, "viewport": obj({"width": integer(100, 10000), "height": integer(100, 10000)}), "nodes": arr(ref("SnapshotNode"), 1000), "screenshotRef": nullable(UUID), "networkSummary": ref("NetworkEntries"), "consoleSummary": arr(text(1000), 50), "truncated": BOOL, "redacted": BOOL})
@@ -160,6 +170,7 @@ D["AuthProfile"]["required"].extend(["status", "formConfig"])
 for auth_name in ("AuthProfile", "AuthProfileCreate", "AuthProfilePatch"):
     D[auth_name]["properties"]["storageCriterion"] = ref("Criterion")
 event_payloads = {
+    "session.updated": ref("SessionReport"),
     "run.updated": ref("Run"), "phase.changed": obj({"phase": enum(*PHASE), "contextVersion": VER}),
     "task.updated": ref("Task"), "case.created": ref("CaseDefinition"), "case.result": ref("CaseRecord"),
     "finding.updated": ref("Finding"), "step.recorded": ref("Step"),

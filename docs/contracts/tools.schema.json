@@ -835,6 +835,9 @@
         "inputType": {
           "type": "string",
           "maxLength": 40
+        },
+        "sensitive": {
+          "type": "boolean"
         }
       },
       "required": [

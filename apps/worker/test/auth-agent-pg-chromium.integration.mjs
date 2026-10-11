@@ -7,6 +7,7 @@
 // Database: LOCALQA_TEST_DATABASE_URL (an empty, disposable database), or a
 // throwaway postgres:18-alpine container started through the Docker CLI.
 import assert from 'node:assert/strict';
+import { scriptedSessionResponse } from './fixtures/session-wire.mjs';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
@@ -90,6 +91,8 @@ function scriptedTransport(log, trace) {
     const text = String(init?.body ?? '');
     log.push(text);
     const request = JSON.parse(text);
+    const session = scriptedSessionResponse(request);
+    if (session) return reply(session);
     const all = request.messages.flatMap(texts);
     if (!all.some((part) => part.includes('role=auth_agent')))
       return reply({ done: true, toolCalls: [] });

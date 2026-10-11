@@ -305,12 +305,18 @@ export const ProjectHomePage: React.FC = () => {
             />
           </Field>
 
-          <Field label="测试说明" optional htmlFor="input-run-description">
-            <input
+          <Field
+            label="测试说明"
+            optional
+            htmlFor="input-run-description"
+            hint="主 AI 将据此规划用例、派工和补测。请写明预期结果和禁止操作，登录凭据放在环境与认证中。"
+          >
+            <textarea
               id="input-run-description"
-              type="text"
+              rows={3}
+              maxLength={4000}
               className="form-input"
-              placeholder="例如：验证 v2.4 优惠券满减与导航页面交互"
+              placeholder="例如：点击查看明细后应显示订单明细；检查列表筛选和分页；不要创建或删除数据。"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               data-testid="input-run-description"

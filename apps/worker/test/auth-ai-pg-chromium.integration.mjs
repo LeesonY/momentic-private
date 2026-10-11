@@ -1,6 +1,7 @@
 // Docker development verification: disposable database, owned web fixture,
 // real Chromium and private auth ledger. Real provider is opt-in explicitly.
 import assert from 'node:assert/strict';
+import { scriptedSessionResponse } from './fixtures/session-wire.mjs';
 import { test } from 'node:test';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
@@ -229,6 +230,8 @@ test(
             (part) => part.type === 'text' && part.text.startsWith('{"url":'),
           );
         let data = { done: true, toolCalls: [] };
+        const sessionResponse = scriptedSessionResponse(body);
+        if (sessionResponse) data = sessionResponse;
         if (observation) {
           const { nodes } = JSON.parse(observation.text);
           let selected;
