@@ -355,27 +355,29 @@ test(
         'assertion',
         'reproducer',
       ];
+      const runInput = {
+        projectId: project.id,
+        targetUrl: `${origin}/dashboard`,
+        authProfileId: profile.id,
+      };
+      const runConfig = {
+        allowedOrigins: [origin],
+        actionPolicy: 'non_submitting',
+        budget: DEFAULT_LIMITS,
+        environmentVersion: null,
+        authProfileVersion: profile.version,
+        knowledgeVersionIds: [],
+        models: Object.fromEntries(
+          roles.map((role) => [
+            role,
+            { profileId: model.id, version: probed.version },
+          ]),
+        ),
+      };
       const run = await coordinator.start(
         actor,
-        {
-          projectId: project.id,
-          targetUrl: `${origin}/dashboard`,
-          authProfileId: profile.id,
-        },
-        {
-          allowedOrigins: [origin],
-          actionPolicy: 'non_submitting',
-          budget: DEFAULT_LIMITS,
-          environmentVersion: null,
-          authProfileVersion: profile.version,
-          knowledgeVersionIds: [],
-          models: Object.fromEntries(
-            roles.map((role) => [
-              role,
-              { profileId: model.id, version: probed.version },
-            ]),
-          ),
-        },
+        runInput,
+        runConfig,
         randomUUID(),
       );
       const runtime = new RuntimeClient(
@@ -386,7 +388,6 @@ test(
       );
       // Diagnostics: auth service calls and their constant error codes only.
       const authCalls = [];
-      let lastBinding = null;
       for (const name of Object.getOwnPropertyNames(
         Object.getPrototypeOf(runtime),
       ).filter((key) => /auth/i.test(key))) {
@@ -395,19 +396,6 @@ test(
           try {
             const value = await original(...args);
             authCalls.push(name);
-            if (name === 'activateAuthSession') lastBinding = value;
-            if (name === 'grantAuthImport' && lastBinding)
-              authCalls.push(
-                `grantCheck:${JSON.stringify({
-                  kind: value.kind,
-                  mismatched: Object.keys(lastBinding).filter(
-                    (key) => value[key] !== lastBinding[key],
-                  ),
-                  deadline: value.deadline,
-                  expiresAt: lastBinding.expiresAt,
-                  now: new Date().toISOString(),
-                })}`,
-              );
             return value;
           } catch (error) {
             authCalls.push(`${name}!${error?.code ?? error?.name}`);
@@ -568,8 +556,74 @@ test(
         assert.ok(!request.includes(password), 'password reached the model');
       for (const request of signIn)
         assert.ok(!request.includes(account), 'a value reached sign-in');
+
+      // Regression: a finished run releases its exclusive credential lock, so
+      // the next run on the same profile can sign in again.
+      await coordinator.cancel(actor, project.id, run.id);
+      let finished = null;
+      for (let i = 0; i < 50 && !finished; i++) {
+        await coordinator.tick(project.id);
+        const status = await db.actor(
+          actor,
+          async (client) =>
+            (
+              await client.query('SELECT status FROM runs WHERE id=$1', [
+                run.id,
+              ])
+            ).rows[0].status,
+        );
+        if (['completed', 'cancelled', 'failed'].includes(status))
+          finished = status;
+        else await delay(100);
+      }
+      assert.ok(finished, 'first run must finish');
+      const second = await coordinator.start(
+        actor,
+        runInput,
+        runConfig,
+        randomUUID(),
+      );
+      const secondPreflight = await runtime.claim();
+      assert.equal(secondPreflight?.task.summary, 'preflight');
+      await runtime.finish(
+        {
+          taskId: secondPreflight.task.id,
+          leaseToken: secondPreflight.leaseToken,
+          fencingToken: secondPreflight.fencingToken,
+          contextVersion: secondPreflight.contextVersion,
+        },
+        { stage: 'preflight', checked: true },
+      );
+      await coordinator.tick(project.id);
+      assert.equal(await worker.once(), true, 'second auth job must run');
+      const reuse = await db.actor(actor, async (client) => ({
+        auth: (
+          await client.query(
+            "SELECT status FROM jobs WHERE project_id=$1 AND run_id=$2 AND document->>'summary'='auth'",
+            [project.id, second.id],
+          )
+        ).rows[0]?.status,
+        locks: (
+          await client.query(
+            'SELECT run_id,status,release_reason FROM auth_profile_run_locks WHERE project_id=$1 ORDER BY held_at',
+            [project.id],
+          )
+        ).rows,
+      }));
+      assert.equal(reuse.auth, 'succeeded', 'same credential signs in again');
+      assert.deepEqual(
+        reuse.locks.map((lock) => [
+          lock.run_id === run.id ? 'first' : 'second',
+          lock.status,
+          lock.release_reason,
+        ]),
+        [
+          ['first', 'released', 'run_finished'],
+          ['second', 'held', null],
+        ],
+      );
       console.log(
-        `Real PG 18 + Chromium: agent sign-in ${auth.slots.length} private actions, ${auth.calls} model calls, gate=${AGENT_LOGIN_CRITERION.id}, explore imported state (dashboard views=${dashboardWithSession})`,
+        `Real PG 18 + Chromium: agent sign-in ${auth.slots.length} private actions, ${auth.calls} model calls, gate=${AGENT_LOGIN_CRITERION.id}, explore imported state (dashboard views=${dashboardWithSession}); second run re-signed in after the first released its lock`,
       );
     } finally {
       await browser?.close();
