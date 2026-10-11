@@ -334,7 +334,11 @@ export class AuthActionsManager {
     ) {
       throw new StorageError('VALIDATION_ERROR');
     }
-    if (request.slot === 'otp' && !profile.formConfig?.otpTarget) {
+    if (
+      request.slot === 'otp' &&
+      !profile.formConfig?.otpTarget &&
+      profile.formConfig?.detectionMode !== 'ai'
+    ) {
       throw new StorageError('VALIDATION_ERROR');
     }
 

@@ -45,6 +45,7 @@ async function fixture(count = 1, nodeCount = 1) {
   for (const name of [
     'getByRole',
     'getByLabel',
+    'getByPlaceholder',
     'getByTestId',
     'getByText',
     'locator',

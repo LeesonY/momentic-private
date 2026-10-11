@@ -28,6 +28,7 @@ const files = [
   'packages/model-gateway/test/t30-structured-diagnostics.test.mjs',
   'packages/report/test/unit.test.mjs',
   'packages/orchestrator/test/boundary.test.mjs',
+  'packages/orchestrator/test/auth-ai.test.mjs',
   'packages/orchestrator/test/g3c-bound-model.test.mjs',
   'packages/orchestrator/test/g3d-process-model.test.mjs',
   'packages/orchestrator/test/regression-compiler.test.mjs',

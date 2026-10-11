@@ -55,6 +55,9 @@ export const EnvironmentsPage: React.FC = () => {
   const [authOrigins, setAuthOrigins] = useState('');
   const [authEnvironmentId, setAuthEnvironmentId] = useState('');
   const [authLoginUrl, setAuthLoginUrl] = useState('');
+  const [authDetectionMode, setAuthDetectionMode] = useState<'ai' | 'manual'>(
+    'ai',
+  );
   const [authUsernameCss, setAuthUsernameCss] = useState(
     'input[name="username"]',
   );
@@ -68,6 +71,33 @@ export const EnvironmentsPage: React.FC = () => {
   const [authSuccessTestId, setAuthSuccessTestId] = useState('');
   const [authError, setAuthError] = useState('');
   const [addingAuth, setAddingAuth] = useState(false);
+  const [switchingAuthId, setSwitchingAuthId] = useState<string | null>(null);
+  const [authUpdateError, setAuthUpdateError] = useState('');
+
+  const enableAiRecognition = async (profile: AuthProfile) => {
+    if (
+      !canConfigure ||
+      switchingAuthId ||
+      profile.mode !== 'form' ||
+      !profile.formConfig
+    )
+      return;
+    setSwitchingAuthId(profile.id);
+    setAuthUpdateError('');
+    try {
+      const updated = await defaultApiClient.updateAuthProfile(profile.id, {
+        expectedVersion: profile.version,
+        formConfig: { ...profile.formConfig, detectionMode: 'ai' },
+      });
+      setAuthProfiles((old) =>
+        old.map((item) => (item.id === updated.id ? updated : item)),
+      );
+    } catch {
+      setAuthUpdateError('切换失败，请刷新版本后重试。现有凭据未重新填写。');
+    } finally {
+      setSwitchingAuthId(null);
+    }
+  };
 
   useEffect(() => {
     setEnvironments([]);
@@ -77,6 +107,7 @@ export const EnvironmentsPage: React.FC = () => {
     setSecretVal('');
     setAuthUsername('');
     setAuthError('');
+    setAuthUpdateError('');
     setEnvError('');
     setEditingEnvId(null);
     setEditError('');
@@ -216,8 +247,7 @@ export const EnvironmentsPage: React.FC = () => {
 
   const handleCreateAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!authName.trim() || !currentProject || !canConfigure || addingAuth)
-      return;
+    if (!currentProject || !canConfigure || addingAuth) return;
     setAddingAuth(true);
     setAuthError('');
     try {
@@ -243,7 +273,12 @@ export const EnvironmentsPage: React.FC = () => {
             throw new Error('INVALID_AUTH_ORIGIN');
           return url.origin;
         });
-      if (!origins.length || (authMode !== 'none' && !authSuccessTestId.trim()))
+      if (
+        !origins.length ||
+        ((authMode === 'storage_state' ||
+          (authMode === 'form' && authDetectionMode === 'manual')) &&
+          !authSuccessTestId.trim())
+      )
         throw new Error('MISSING_AUTH_CONFIGURATION');
       if (
         !authEnvironmentId ||
@@ -259,7 +294,8 @@ export const EnvironmentsPage: React.FC = () => {
         locator: { by: authSuccessBy, value: authSuccessTestId.trim() },
       };
       const config: AuthProfileCreate = {
-        name: authName.trim(),
+        name:
+          authName.trim() || `${selectedEnvironment.name} 登录`.slice(0, 120),
         mode: authMode,
         environmentId: authEnvironmentId,
         allowedOrigins: [origins[0]!, ...new Set(origins.slice(1))],
@@ -268,19 +304,24 @@ export const EnvironmentsPage: React.FC = () => {
           ? {
               formConfig: {
                 loginUrl: authLoginUrl.trim(),
-                usernameTarget: {
-                  by: 'css' as const,
-                  value: authUsernameCss.trim(),
-                },
-                passwordTarget: {
-                  by: 'css' as const,
-                  value: authPasswordCss.trim(),
-                },
-                submitTarget: {
-                  by: 'css' as const,
-                  value: authSubmitCss.trim(),
-                },
-                successCriterion,
+                detectionMode: authDetectionMode,
+                ...(authDetectionMode === 'manual'
+                  ? {
+                      usernameTarget: {
+                        by: 'css' as const,
+                        value: authUsernameCss.trim(),
+                      },
+                      passwordTarget: {
+                        by: 'css' as const,
+                        value: authPasswordCss.trim(),
+                      },
+                      submitTarget: {
+                        by: 'css' as const,
+                        value: authSubmitCss.trim(),
+                      },
+                      successCriterion,
+                    }
+                  : {}),
               },
               secretInput: { username: authUsername, password: secretVal },
             }
@@ -296,9 +337,10 @@ export const EnvironmentsPage: React.FC = () => {
         (authMode === 'form' &&
           (!authUsername ||
             !authLoginUrl.trim() ||
-            !authUsernameCss.trim() ||
-            !authPasswordCss.trim() ||
-            !authSubmitCss.trim()))
+            (authDetectionMode === 'manual' &&
+              (!authUsernameCss.trim() ||
+                !authPasswordCss.trim() ||
+                !authSubmitCss.trim()))))
       )
         throw new Error('MISSING_AUTH_MATERIAL');
       const created = await defaultApiClient.createAuthProfile(
@@ -310,11 +352,31 @@ export const EnvironmentsPage: React.FC = () => {
       setSecretVal('');
       setAuthUsername('');
       setAuthSuccessTestId('');
+      // The first credential becomes the environment default, so starting a
+      // test in this environment actually uses the newly saved login.
+      if (authMode !== 'none' && !selectedEnvironment.defaultAuthProfileId) {
+        try {
+          const updated = await defaultApiClient.updateEnvironment(
+            selectedEnvironment.id,
+            {
+              expectedVersion: selectedEnvironment.version,
+              defaultAuthProfileId: created.id,
+            },
+          );
+          setEnvironments((old) =>
+            old.map((env) => (env.id === updated.id ? updated : env)),
+          );
+        } catch {
+          setAuthError(
+            '凭据已保存，设为环境默认登录失败。请在环境设置中选择该凭据。',
+          );
+        }
+      }
     } catch {
       // Never echo request bodies or server diagnostics: these fields contain
       // passwords and storage-state JSON.
       setAuthError(
-        '保存失败。请检查环境、Origins、凭据、定位器与成功判定配置。',
+        '保存失败。请检查所选环境、登录地址、账号密码与允许访问的域名。',
       );
     } finally {
       setAddingAuth(false);
@@ -632,6 +694,7 @@ export const EnvironmentsPage: React.FC = () => {
                       <th>认证方式</th>
                       <th>密钥</th>
                       <th>版本</th>
+                      <th>登录识别</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -644,7 +707,9 @@ export const EnvironmentsPage: React.FC = () => {
                         <td>
                           <span className="badge badge-info" title={ap.mode}>
                             {ap.mode === 'form'
-                              ? '表单登录'
+                              ? ap.formConfig?.detectionMode === 'ai'
+                                ? 'AI 自动登录'
+                                : '表单登录'
                               : ap.mode === 'storage_state'
                                 ? '复用登录会话'
                                 : ap.mode === 'none'
@@ -660,11 +725,41 @@ export const EnvironmentsPage: React.FC = () => {
                           </span>
                         </td>
                         <td className="muted">v{ap.version}</td>
+                        <td>
+                          {ap.mode === 'form' &&
+                          ap.formConfig?.detectionMode === 'ai' ? (
+                            <span className="badge badge-success">
+                              AI 自动识别
+                            </span>
+                          ) : ap.mode === 'form' &&
+                            ap.formConfig &&
+                            ap.status === 'active' &&
+                            canConfigure ? (
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-small"
+                              data-testid={`auth-enable-ai-${ap.id}`}
+                              disabled={Boolean(switchingAuthId)}
+                              onClick={() => void enableAiRecognition(ap)}
+                            >
+                              {switchingAuthId === ap.id
+                                ? '切换中…'
+                                : '改用 AI 识别'}
+                            </button>
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+            )}
+            {authUpdateError && (
+              <Alert tone="danger" role="alert">
+                {authUpdateError}
+              </Alert>
             )}
           </Section>
         </div>
@@ -816,7 +911,11 @@ export const EnvironmentsPage: React.FC = () => {
             {canCreateAuth && (
               <Section icon="plus" title="添加认证凭据">
                 <form onSubmit={handleCreateAuth}>
-                  <Field label="凭据名称" required htmlFor="auth-profile-name">
+                  <Field
+                    label="凭据名称（可选）"
+                    hint="留空时自动使用环境名称"
+                    htmlFor="auth-profile-name"
+                  >
                     <input
                       id="auth-profile-name"
                       type="text"
@@ -825,7 +924,7 @@ export const EnvironmentsPage: React.FC = () => {
                       placeholder="例如：财务管理员测试账号"
                       value={authName}
                       onChange={(e) => setAuthName(e.target.value)}
-                      required
+                      maxLength={120}
                     />
                   </Field>
                   <div className="grid-2">
@@ -842,7 +941,9 @@ export const EnvironmentsPage: React.FC = () => {
                         }
                       >
                         <option value="none">不使用认证</option>
-                        <option value="form">表单登录</option>
+                        <option value="form">
+                          账号密码登录（AI 自动识别）
+                        </option>
                         <option value="storage_state">
                           复用登录会话（storageState）
                         </option>
@@ -938,29 +1039,77 @@ export const EnvironmentsPage: React.FC = () => {
                           />
                         </Field>
                       </div>
-                      <div className="section-label">登录表单定位器（CSS）</div>
-                      <div className="lqa-locator-grid">
-                        {[
-                          ['用户名输入框', authUsernameCss, setAuthUsernameCss],
-                          ['密码输入框', authPasswordCss, setAuthPasswordCss],
-                          ['提交按钮', authSubmitCss, setAuthSubmitCss],
-                        ].map(([label, value, setter]) => (
-                          <Field label={label as string} key={label as string}>
-                            <input
-                              className="form-input is-mono"
-                              value={value as string}
-                              onChange={(e) =>
-                                (
-                                  setter as React.Dispatch<
-                                    React.SetStateAction<string>
-                                  >
-                                )(e.target.value)
-                              }
-                              required
-                            />
-                          </Field>
-                        ))}
-                      </div>
+                      {authDetectionMode === 'ai' && (
+                        <p
+                          className="field-hint lqa-form-note"
+                          data-testid="auth-ai-guidance"
+                        >
+                          AI
+                          自动识别登录表单与登录成功标识；遇到验证码时会提示补充。保存后可在该环境开始测试。
+                        </p>
+                      )}
+                      <details>
+                        <summary>高级设置（可选）</summary>
+                        <Field
+                          label="表单识别方式"
+                          htmlFor="auth-detection-mode"
+                        >
+                          <select
+                            id="auth-detection-mode"
+                            data-testid="auth-detection-mode"
+                            className="form-select"
+                            value={authDetectionMode}
+                            onChange={(e) =>
+                              setAuthDetectionMode(
+                                e.target.value as 'ai' | 'manual',
+                              )
+                            }
+                          >
+                            <option value="ai">AI 自动识别</option>
+                            <option value="manual">使用固定定位配置</option>
+                          </select>
+                        </Field>
+                        {authDetectionMode === 'manual' && (
+                          <>
+                            <div className="section-label">
+                              登录表单定位器（CSS）
+                            </div>
+                            <div className="lqa-locator-grid">
+                              {[
+                                [
+                                  '用户名输入框',
+                                  authUsernameCss,
+                                  setAuthUsernameCss,
+                                ],
+                                [
+                                  '密码输入框',
+                                  authPasswordCss,
+                                  setAuthPasswordCss,
+                                ],
+                                ['提交按钮', authSubmitCss, setAuthSubmitCss],
+                              ].map(([label, value, setter]) => (
+                                <Field
+                                  label={label as string}
+                                  key={label as string}
+                                >
+                                  <input
+                                    className="form-input is-mono"
+                                    value={value as string}
+                                    onChange={(e) =>
+                                      (
+                                        setter as React.Dispatch<
+                                          React.SetStateAction<string>
+                                        >
+                                      )(e.target.value)
+                                    }
+                                    required
+                                  />
+                                </Field>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </details>
                     </>
                   ) : authMode === 'storage_state' ? (
                     <Field
@@ -985,7 +1134,9 @@ export const EnvironmentsPage: React.FC = () => {
                     </p>
                   )}
 
-                  {authMode !== 'none' && (
+                  {(authMode === 'storage_state' ||
+                    (authMode === 'form' &&
+                      authDetectionMode === 'manual')) && (
                     <Field
                       label="登录成功标识"
                       required

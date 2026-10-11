@@ -10,6 +10,7 @@ import type { RuntimeClient } from '@localqa/orchestrator';
 import type { LeaseProof } from '@localqa/storage';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createAuthAdapters } from './auth-adapters.js';
+import { createAiAuthAdapters } from './auth-ai-adapters.js';
 import { runAuthFlow } from './auth-flow.js';
 import type { AuthFlowOutcome } from './auth-flow.js';
 import { createAuthRuntimeBridge } from './auth-runtime.js';
@@ -65,8 +66,8 @@ export async function initializeBrowserAuthentication(
   if (signal.aborted)
     return { ...blocked, status: 'cancelled', reasonCode: 'CANCELLED' };
   const { profile, runtime, proof } = options;
-  // Both modes require a frozen success criterion. Importing a storage state
-  // without verifying the authenticated page must never grant auth authority.
+  // Manual forms and imported state require a frozen success criterion.
+  // AI forms establish it from server-validated login-page observations.
   const criterion =
     profile.mode === 'form'
       ? profile.formConfig?.successCriterion
@@ -76,7 +77,7 @@ export async function initializeBrowserAuthentication(
   if (
     !['form', 'storage_state'].includes(profile.mode) ||
     profile.status !== 'active' ||
-    !criterion ||
+    (!criterion && profile.formConfig?.detectionMode !== 'ai') ||
     profile.projectId !== options.projectId
   )
     return blocked;
@@ -167,14 +168,23 @@ export async function initializeBrowserAuthentication(
         profile.allowedOrigins,
       ),
     });
-    const adapters = createAuthAdapters({
-      session,
-      binding: active,
-      criterion,
-      // The exact observed snapshot is registered in the server-side auth
-      // ledger; its immutable ID is the supporting evidence for this oracle.
-      ownedEvidence: (snapshot) => [snapshot.snapshotId],
-    });
+    const adapters =
+      profile.mode === 'form' && profile.formConfig?.detectionMode === 'ai'
+        ? createAiAuthAdapters({
+            session,
+            port,
+            runtime,
+            proof,
+            sessionId: active.sessionId,
+          })
+        : createAuthAdapters({
+            session,
+            binding: active,
+            criterion: criterion!,
+            // The exact observed snapshot is registered in the server-side auth
+            // ledger; its immutable ID is the supporting evidence for this oracle.
+            ownedEvidence: (snapshot) => [snapshot.snapshotId],
+          });
     const outcome = await runAuthFlow(
       {
         profile,

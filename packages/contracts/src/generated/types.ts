@@ -300,6 +300,15 @@ export type JsonValue =
       [k: string]: JsonValue | undefined;
     };
 export type ApiKeyScope = "runs:create" | "runs:read" | "reports:read" | "runs:cancel";
+export type FormConfig = {
+  loginUrl: string;
+  detectionMode?: "ai" | "manual";
+  usernameTarget?: Locator;
+  passwordTarget?: Locator;
+  submitTarget?: Locator;
+  successCriterion?: Criterion;
+  otpTarget?: Locator;
+};
 export type AuthProfileCreate = {
   environmentId?: string | null;
   name: string;
@@ -564,14 +573,6 @@ export interface AuthProfile {
   formConfig: FormConfig | null;
   storageCriterion?: Criterion;
 }
-export interface FormConfig {
-  loginUrl: string;
-  usernameTarget: Locator;
-  passwordTarget: Locator;
-  submitTarget: Locator;
-  successCriterion: Criterion;
-  otpTarget?: Locator;
-}
 export interface AuthProfilePage {
   /**
    * @minItems 0
@@ -643,6 +644,7 @@ export interface SnapshotNode {
   visible: boolean;
   enabled: boolean;
   bounds: Bounds;
+  inputType?: string;
 }
 export interface NetworkEntry {
   url: string;

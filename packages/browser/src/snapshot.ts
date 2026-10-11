@@ -291,6 +291,7 @@ async function extractNodesFromFrame(
       enabled: boolean;
       bounds: { left: number; top: number; width: number; height: number };
       isSensitive: boolean;
+      inputType?: string;
     }> = [];
 
     let counter = 0;
@@ -329,6 +330,14 @@ async function extractNodesFromFrame(
       const testId =
         el.getAttribute('data-testid') || el.getAttribute('data-test') || '';
       const ariaLabel = el.getAttribute('aria-label') || '';
+      const fieldLabels =
+        el instanceof HTMLInputElement
+          ? Array.from(el.labels ?? [])
+              .map((label) => label.textContent ?? '')
+              .join(' ')
+              .trim()
+          : '';
+      const fieldName = el instanceof HTMLInputElement ? el.name : '';
       const placeholder = (el as HTMLInputElement).placeholder || '';
       const titleAttr = el.getAttribute('title') || '';
 
@@ -340,7 +349,13 @@ async function extractNodesFromFrame(
         text = '[redacted]';
       }
 
-      let name = testId || ariaLabel || titleAttr || placeholder;
+      let name =
+        testId ||
+        ariaLabel ||
+        fieldLabels ||
+        titleAttr ||
+        placeholder ||
+        fieldName;
       if (!name && text) {
         name = text.slice(0, 100);
       }
@@ -355,6 +370,11 @@ async function extractNodesFromFrame(
         nodeId: nodeId.slice(0, 120),
         frameId: fId,
         role: role.slice(0, 120),
+        ...(inputType
+          ? { inputType }
+          : el instanceof HTMLButtonElement
+            ? { inputType: el.type }
+            : {}),
         name: name.slice(0, 1000),
         text: text.slice(0, 2000),
         visible: isVisible,
@@ -383,6 +403,7 @@ async function extractNodesFromFrame(
       nodeId: rn.nodeId,
       frameId: rn.frameId,
       role: rn.role,
+      ...(rn.inputType ? { inputType: rn.inputType } : {}),
       name: sanitizeText(rn.name),
       text: sanitizeText(rn.text),
       visible: rn.visible,

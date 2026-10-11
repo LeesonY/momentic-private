@@ -967,6 +967,13 @@
             "maxLength": 8192,
             "pattern": "^https?://"
           },
+          "detectionMode": {
+            "type": "string",
+            "enum": [
+              "ai",
+              "manual"
+            ]
+          },
           "usernameTarget": {
             "$ref": "#/$defs/Locator"
           },
@@ -984,13 +991,32 @@
           }
         },
         "required": [
-          "loginUrl",
-          "usernameTarget",
-          "passwordTarget",
-          "submitTarget",
-          "successCriterion"
+          "loginUrl"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "detectionMode": {
+                  "const": "ai"
+                }
+              },
+              "required": [
+                "detectionMode"
+              ]
+            },
+            "then": {},
+            "else": {
+              "required": [
+                "usernameTarget",
+                "passwordTarget",
+                "submitTarget",
+                "successCriterion"
+              ]
+            }
+          }
+        ]
       },
       "AuthProfileCreate": {
         "type": "object",
@@ -4180,6 +4206,10 @@
           },
           "bounds": {
             "$ref": "#/$defs/Bounds"
+          },
+          "inputType": {
+            "type": "string",
+            "maxLength": 40
           }
         },
         "required": [
@@ -16157,6 +16187,13 @@
               "maxLength": 8192,
               "pattern": "^https?://"
             },
+            "detectionMode": {
+              "type": "string",
+              "enum": [
+                "ai",
+                "manual"
+              ]
+            },
             "usernameTarget": {
               "$ref": "#/components/schemas/Locator"
             },
@@ -16174,13 +16211,32 @@
             }
           },
           "required": [
-            "loginUrl",
-            "usernameTarget",
-            "passwordTarget",
-            "submitTarget",
-            "successCriterion"
+            "loginUrl"
           ],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "detectionMode": {
+                    "const": "ai"
+                  }
+                },
+                "required": [
+                  "detectionMode"
+                ]
+              },
+              "then": {},
+              "else": {
+                "required": [
+                  "usernameTarget",
+                  "passwordTarget",
+                  "submitTarget",
+                  "successCriterion"
+                ]
+              }
+            }
+          ]
         },
         "AuthProfileCreate": {
           "type": "object",
@@ -19370,6 +19426,10 @@
             },
             "bounds": {
               "$ref": "#/components/schemas/Bounds"
+            },
+            "inputType": {
+              "type": "string",
+              "maxLength": 40
             }
           },
           "required": [
@@ -25758,6 +25818,10 @@
           },
           "bounds": {
             "$ref": "#/$defs/Bounds"
+          },
+          "inputType": {
+            "type": "string",
+            "maxLength": 40
           }
         },
         "required": [

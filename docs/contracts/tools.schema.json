@@ -831,6 +831,10 @@
         },
         "bounds": {
           "$ref": "#/$defs/Bounds"
+        },
+        "inputType": {
+          "type": "string",
+          "maxLength": 40
         }
       },
       "required": [

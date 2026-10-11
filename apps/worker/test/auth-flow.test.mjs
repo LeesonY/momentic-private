@@ -514,6 +514,141 @@ test('form flow runs the fixed order once through the fake runtime', async () =>
   await assertClosed(port);
 });
 
+function aiAdapters({ twoStep = false, withOtp = false, success = true } = {}) {
+  let passwordLookups = 0;
+  return {
+    adapters: {
+      async identify(_snapshot, slot) {
+        if (slot === 'otp' && !withOtp) return null;
+        if (slot === 'password' && twoStep && passwordLookups++ === 0)
+          return null;
+        const observed = snapshot(`AI ${slot}`);
+        const nodeId = `ai-${slot}`;
+        observed.nodes = [
+          {
+            ...observed.nodes[0],
+            nodeId,
+            role:
+              slot === 'submit'
+                ? 'button'
+                : slot === 'password'
+                  ? 'password'
+                  : 'text',
+            name: slot,
+            text: slot,
+          },
+        ];
+        return {
+          snapshot: observed,
+          target: {
+            snapshotId: observed.snapshotId,
+            pageId: observed.pageId,
+            frameId: 'main',
+            nodeId,
+          },
+        };
+      },
+      async evaluateAiSuccess() {
+        const observed = snapshot('AI authenticated');
+        return {
+          snapshot: observed,
+          result: {
+            criterionId: 'login_success',
+            result: success ? 'passed' : 'unknown',
+            reason: 'synthetic AI success witness',
+            evidenceRefs: success ? [observed.snapshotId] : [],
+          },
+        };
+      },
+      async locate() {
+        throw new Error('manual locator must not be used');
+      },
+      async evaluate() {
+        throw new Error('manual criterion must not be used');
+      },
+    },
+  };
+}
+
+for (const [name, config, expected] of [
+  [
+    'ordinary',
+    {},
+    [
+      'navigate_auth:login_url',
+      'fill_credential:username',
+      'fill_credential:password',
+      'submit_auth:submit',
+    ],
+  ],
+  [
+    'two-step',
+    { twoStep: true },
+    [
+      'navigate_auth:login_url',
+      'fill_credential:username',
+      'submit_auth:submit',
+      'fill_credential:password',
+      'submit_auth:submit',
+    ],
+  ],
+  [
+    'OTP',
+    { withOtp: true },
+    [
+      'navigate_auth:login_url',
+      'fill_credential:username',
+      'fill_credential:password',
+      'submit_auth:submit',
+      'fill_credential:otp',
+      'submit_auth:submit',
+    ],
+  ],
+]) {
+  test(`AI ${name} login uses private credentials with no configured selectors`, async () => {
+    const { port, browser } = newPort();
+    const built = options({
+      port,
+      profile: formProfile({
+        formConfig: { loginUrl: profileLoginUrl, detectionMode: 'ai' },
+      }),
+      adapter: aiAdapters(config),
+    });
+    const outcome = await runAuthFlow(
+      built.value,
+      new AbortController().signal,
+    );
+    assert.equal(outcome.status, 'succeeded');
+    assert.deepEqual(
+      outcome.steps.map((step) => `${step.action}:${step.slot}`),
+      expected,
+    );
+    assert.ok(
+      browser.calls.some(
+        (call) => call.kind === 'fill' && call.value === secret,
+      ),
+    );
+    assert.ok(!JSON.stringify(outcome).includes(secret));
+    assert.ok(!JSON.stringify(outcome).includes(user));
+    assert.equal(built.runtime.log.captures.length, 1);
+  });
+}
+
+test('AI login cannot capture a session without confirmed success evidence', async () => {
+  const { port } = newPort();
+  const built = options({
+    port,
+    profile: formProfile({
+      formConfig: { loginUrl: profileLoginUrl, detectionMode: 'ai' },
+    }),
+    adapter: aiAdapters({ success: false }),
+  });
+  const outcome = await runAuthFlow(built.value, new AbortController().signal);
+  assert.equal(outcome.status, 'blocked');
+  assert.equal(built.runtime.log.captures.length, 0);
+  assert.equal(built.runtime.log.finishes.length, 0);
+});
+
 test('one OTP at most, and never a second wait after a criterion failure', async () => {
   const withoutOtp = formProfile();
   withoutOtp.formConfig = { ...withoutOtp.formConfig };

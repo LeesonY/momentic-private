@@ -565,6 +565,72 @@ export class BoundModel {
     return this.finish(proof, budgetDenied, record);
   }
 
+  /** Auth recognition is a read-only schema call, with no model tools. */
+  async callAuthRecognition(
+    proof: LeaseProof,
+    payload: DecisionPayload,
+    signal?: AbortSignal,
+  ): Promise<CallRecord> {
+    await this.coordinator.tx(async (client) => {
+      const { job } = await this.coordinator.validateLease(
+        client,
+        this.scope,
+        proof,
+      );
+      if (job.document.summary !== 'auth' || job.role !== 'executor')
+        throw new StorageError('POLICY_DENIED');
+    });
+    if (
+      payload.purpose !== 'decide' ||
+      payload.messages.some((message) =>
+        message.content.some((part) => part.type !== 'text'),
+      )
+    )
+      throw new StorageError('VALIDATION_ERROR');
+    const bound = await this.loadFrozen(
+      proof,
+      'decide',
+      'executor',
+      undefined,
+      undefined,
+      payload.messages,
+    );
+    if (
+      !validateContract('ModelRequest', {
+        ...payload,
+        taskId: proof.taskId,
+        profileId: bound.profile.id,
+        contextVersion: proof.contextVersion,
+      }).success
+    )
+      throw new StorageError('VALIDATION_ERROR');
+    const budgetDenied = { current: false };
+    const gateway = createGateway({
+      profiles: [bound.profile],
+      decryptKey: this.options.decryptKey,
+      adapter: this.budgetAdapter(
+        proof,
+        'executor',
+        bound.profile,
+        budgetDenied,
+        signal,
+      ),
+    });
+    const record = await gateway.generateDecision({
+      ...payload,
+      taskId: proof.taskId,
+      profileId: bound.profile.id,
+      contextVersion: proof.contextVersion,
+      role: 'executor',
+      promptVersion: 'auth.ai.1',
+      approvedImageIds: [],
+      toolSchemas: [],
+      timeoutMs: 30000,
+      maxInputTokens: 12000,
+    });
+    return this.finish(proof, budgetDenied, record);
+  }
+
   async complete(
     proof: LeaseProof,
     request: ModelRequest,

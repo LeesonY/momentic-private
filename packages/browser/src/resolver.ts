@@ -155,6 +155,9 @@ export async function resolveTarget(
   if (
     node.name &&
     (node.role === 'textbox' ||
+      ['text', 'email', 'tel', 'url', 'search', 'number', 'password'].includes(
+        node.role,
+      ) ||
       node.role === 'checkbox' ||
       node.role === 'combobox')
   ) {
@@ -166,6 +169,49 @@ export async function resolveTarget(
     } catch {
       // Ignore
     }
+  }
+
+  // Native input types are snapshot roles too. They may have a label,
+  // placeholder, or name without any data-testid/ARIA role configured.
+  if (
+    node.name &&
+    [
+      'textbox',
+      'text',
+      'email',
+      'tel',
+      'url',
+      'search',
+      'number',
+      'password',
+    ].includes(node.role)
+  ) {
+    candidateLocators.push({
+      strategy: 'placeholder',
+      locator: frame.getByPlaceholder(node.name, { exact: true }),
+    });
+    candidateLocators.push({
+      strategy: 'input_name',
+      locator: frame.locator(`input[name=${JSON.stringify(node.name)}]`),
+    });
+    if (node.role === 'password')
+      candidateLocators.push({
+        strategy: 'unique_password',
+        locator: frame.locator('input[type="password"]:visible'),
+      });
+  }
+  if (
+    node.inputType &&
+    ['text', 'email', 'tel', 'password'].includes(node.inputType)
+  ) {
+    const selector =
+      node.inputType === 'text'
+        ? 'input:not([type]):visible, input[type="text"]:visible'
+        : `input[type=${JSON.stringify(node.inputType)}]:visible`;
+    candidateLocators.push({
+      strategy: 'unique_input_type',
+      locator: frame.locator(selector),
+    });
   }
 
   // Priority 4: unique text structure

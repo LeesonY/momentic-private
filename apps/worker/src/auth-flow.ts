@@ -53,8 +53,8 @@ export interface AuthCaptureReceipt {
 /**
  * Trusted Worker-facing Runtime. Every method is a private service boundary:
  * the adapter never defaults to allowed and the model never sees these calls.
- * The real Coordinator capture CAS, OTP ticket, and Worker wiring are NOT part
- * of this batch; tests must inject an explicitly labeled Fake Runtime.
+ * Production wiring supplies server-owned permits, OTP tickets and capture
+ * gates; pure flow tests inject an explicitly labeled Fake Runtime.
  */
 export interface AuthFlowRuntime {
   /** Local-memory credential material for this proof/profile. */
@@ -99,10 +99,19 @@ export interface AuthFreshObservation {
 }
 
 /**
- * Trusted, non-model adapters. Both read the current snapshot only and return
- * a target bound to it; neither produces ToolCalls or free-form text.
+ * Trusted adapters return targets bound to observations. AI identification
+ * calls the server's frozen model; action permits remain in the private flow.
  */
 export interface AuthFlowAdapters {
+  identify?(
+    snapshot: BrowserSnapshot,
+    slot: 'username' | 'password' | 'submit' | 'otp',
+    signal: AbortSignal,
+  ): Promise<AuthFreshObservation | null>;
+  evaluateAiSuccess?(
+    snapshot: BrowserSnapshot,
+    signal: AbortSignal,
+  ): Promise<{ snapshot: BrowserSnapshot; result: CriterionResult }>;
   locate(
     snapshot: BrowserSnapshot,
     locator: Locator,
@@ -237,14 +246,13 @@ function isCanonicalStorageState(value: JsonValue | undefined): boolean {
 }
 
 /**
- * Fixed authentication adapter over the private port. Order is frozen:
- * material -> navigate_auth -> username -> password -> submit -> (one OTP only
- * when the profile configures a resolvable otpTarget) -> second submit ->
- * successCriterion -> capture grant -> export -> capture -> finish.
+ * Authentication over the private port: navigate, identify and fill fields,
+ * submit, optionally complete one OTP, verify success, capture and finish.
+ * AI forms can advance once from an account page to a separate password page.
  *
  * Failures stop the flow: no loop, no second OTP request, no fabricated pass.
- * The outcome and every error carry constant codes only. Without a configured,
- * supported success criterion this adapter reports blocked, never succeeded.
+ * The outcome and every error carry constant codes only. Manual forms use a
+ * configured success criterion; AI forms need server-validated success evidence.
  * The real OTP and capture-ticket services are supplied by the trusted
  * adapters, not by the model or this pure flow.
  *
@@ -254,8 +262,8 @@ function isCanonicalStorageState(value: JsonValue | undefined): boolean {
  *   LeaseRepository.resolveAuth returns (a JSON string, or a plain approved
  *   object). No other key is accepted, nothing is parsed or normalized here,
  *   and the private port's approved-state validator decides validity.
- * - Targets and criteria come from the frozen profile (storage_state takes the
- *   frozen `criterion` option) and are resolved against the current snapshot;
+ * - Targets and criteria come from the frozen profile or trusted AI recognition
+ *   (storage_state takes the frozen `criterion` option), using a current snapshot;
  *   a target outside that snapshot, a missing resolver, or a criterion that is
  *   absent or not evaluated is blocked. Criteria that need a model or an image
  *   (semantic/visual) are only as supported as the injected evaluator: they
@@ -616,6 +624,23 @@ export async function runAuthFlow(
   async function formFlow(): Promise<string> {
     const form = options.profile.formConfig;
     if (!form) throw new Stop('blocked', 'FORM_CONFIG_MISSING');
+    const ai = form.detectionMode === 'ai';
+    const field = async (
+      snapshot: BrowserSnapshot,
+      slot: 'username' | 'password' | 'submit' | 'otp',
+      locator: Locator | undefined,
+      optional = false,
+    ): Promise<NodeTarget | null> => {
+      if (!ai)
+        return optional
+          ? locateOrNull(snapshot, locator)
+          : locate(snapshot, locator);
+      if (!adapters.identify) throw new Stop('blocked', 'RESOLVER_UNAVAILABLE');
+      const observed = await adapters.identify(snapshot, slot, signal);
+      if (observed) return registerFresh(observed);
+      if (optional) return null;
+      throw new Stop('blocked', 'TARGET_NOT_RESOLVED');
+    };
     const value = await material();
     const username = value.material?.username;
     const password = value.material?.password;
@@ -639,15 +664,40 @@ export async function runAuthFlow(
         'fill_credential',
         'username',
         { kind: 'fill', secret: username },
-        await locate(landed, form.usernameTarget),
+        (await field(landed, 'username', form.usernameTarget))!,
       ),
     );
+    let passwordPage = filledUser;
+    let passwordTarget = await field(
+      passwordPage,
+      'password',
+      form.passwordTarget,
+      ai,
+    );
+    if (!passwordTarget && ai) {
+      // Ordinary two-step login: account -> Next -> password. This stays
+      // inside the private auth permit path and never executes model tools.
+      passwordPage = requireSnapshot(
+        await perform(
+          'submit_auth',
+          'submit',
+          { kind: 'submit' },
+          (await field(passwordPage, 'submit', form.submitTarget))!,
+        ),
+      );
+      passwordTarget = await field(
+        passwordPage,
+        'password',
+        form.passwordTarget,
+      );
+    }
+    if (!passwordTarget) throw new Stop('blocked', 'TARGET_NOT_RESOLVED');
     const filledPassword = requireSnapshot(
       await perform(
         'fill_credential',
         'password',
         { kind: 'fill', secret: password },
-        await locate(filledUser, form.passwordTarget),
+        passwordTarget,
       ),
     );
     let current = requireSnapshot(
@@ -655,14 +705,14 @@ export async function runAuthFlow(
         'submit_auth',
         'submit',
         { kind: 'submit' },
-        await locate(filledPassword, form.submitTarget),
+        (await field(filledPassword, 'submit', form.submitTarget))!,
       ),
     );
     // At most one OTP wait, and only when the profile configures an otpTarget
     // that resolves in the current snapshot. A later criterion failure never
     // returns here.
-    if (form.otpTarget) {
-      const otpTarget = await locateOrNull(current, form.otpTarget);
+    if (form.otpTarget || ai) {
+      const otpTarget = await field(current, 'otp', form.otpTarget, true);
       if (otpTarget) {
         check();
         let otp: AuthOtpMaterial;
@@ -688,12 +738,30 @@ export async function runAuthFlow(
             'submit_auth',
             'submit',
             { kind: 'submit' },
-            await locate(filledOtp, form.submitTarget),
+            (await field(filledOtp, 'submit', form.submitTarget))!,
           ),
         );
       }
     }
-    await criterion(current, form.successCriterion);
+    if (ai) {
+      if (!adapters.evaluateAiSuccess)
+        throw new Stop('blocked', 'CRITERION_UNSUPPORTED');
+      const observed = await adapters.evaluateAiSuccess(current, signal);
+      check();
+      const clean = requirePort().redactObservation(observed.snapshot);
+      if (
+        clean.pageId !== current.pageId ||
+        observed.result.criterionId !== 'login_success' ||
+        observed.result.result !== 'passed' ||
+        observed.result.evidenceRefs.length === 0 ||
+        !observed.result.evidenceRefs.every((ref) => ref === clean.snapshotId)
+      )
+        throw new Stop('blocked', 'CRITERION_FAILED');
+      await runtime.recordAuthObservation(clean);
+      await runtime.recordAuthCriterion(clean, observed.result);
+    } else {
+      await criterion(current, form.successCriterion);
+    }
     return captureAndFinish();
   }
 

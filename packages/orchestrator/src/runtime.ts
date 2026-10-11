@@ -23,6 +23,12 @@ import {
   type AgentRoleName,
 } from './model.js';
 import { ArtifactStore } from './artifacts.js';
+import {
+  authRecognitionPayload,
+  type AuthRecognitionResult,
+  type AuthRecognitionSlot,
+} from './auth-ai.js';
+import { isErrorCode } from '@localqa/contracts';
 
 /** In-process internal service client. T06 must replace/bind it at verified service
  * identity boundary, never from an HTTP body/user cookie/model. Worker sees no DB/KEK. */
@@ -331,6 +337,51 @@ export class RuntimeClient {
       proof,
       sessionId,
       snapshot,
+    );
+  }
+  async recognizeAuth(
+    proof: LeaseProof,
+    sessionId: string,
+    snapshotId: string,
+    slot: AuthRecognitionSlot,
+    signal?: AbortSignal,
+  ): Promise<AuthRecognitionResult> {
+    if (!['username', 'password', 'submit', 'otp', 'success'].includes(slot))
+      throw new StorageError('VALIDATION_ERROR');
+    const context = await this.#coordinator.tx((client) =>
+      this.#coordinator.authStateService.authRecognitionContext(
+        client,
+        this.#scope,
+        proof,
+        sessionId,
+        snapshotId,
+      ),
+    );
+    const record = await this.#model.callAuthRecognition(
+      proof,
+      authRecognitionPayload(context.snapshot, slot, context.sensitiveValues),
+      signal,
+    );
+    if (
+      !['ok', 'repaired'].includes(record.requestResult) ||
+      record.errorCode ||
+      !record.data
+    )
+      throw new StorageError(
+        record.errorCode && isErrorCode(record.errorCode)
+          ? record.errorCode
+          : 'SERVICE_UNAVAILABLE',
+      );
+    return this.#coordinator.tx((client) =>
+      this.#coordinator.authStateService.recordAuthRecognition(
+        client,
+        this.#scope,
+        proof,
+        sessionId,
+        snapshotId,
+        slot,
+        record.data,
+      ),
     );
   }
   grantAuth(

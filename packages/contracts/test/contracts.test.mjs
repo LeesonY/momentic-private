@@ -75,11 +75,14 @@ function sample(schema) {
       ]),
     );
     for (const condition of schema.allOf ?? []) {
-      if (
-        condition.if &&
-        oracle.compile({ ...condition.if, $defs: domain.$defs })(data)
-      ) {
-        const then = condition.then;
+      if (condition.if) {
+        const then = oracle.compile({
+          ...condition.if,
+          $defs: domain.$defs,
+        })(data)
+          ? condition.then
+          : condition.else;
+        if (!then) continue;
         for (const key of then.required ?? [])
           if (!(key in data))
             data[key] = sample(

@@ -1019,8 +1019,8 @@ export class Worker {
           approvedLoginPage = new URL(profile.formConfig.loginUrl);
           const { usernameTarget, passwordTarget } = profile.formConfig;
           if (
-            usernameTarget.by === 'test_id' &&
-            passwordTarget.by === 'test_id' &&
+            usernameTarget?.by === 'test_id' &&
+            passwordTarget?.by === 'test_id' &&
             usernameTarget.value !== passwordTarget.value
           )
             approvedLoginTestIds = [usernameTarget.value, passwordTarget.value];

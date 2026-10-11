@@ -6,6 +6,7 @@ import type {
   BrowserSnapshot,
   CriterionResult,
   CredentialMaterial,
+  Criterion,
 } from '@localqa/contracts';
 import { evaluateTechnical } from '@localqa/domain';
 import {
@@ -22,6 +23,11 @@ import {
   type AuthExportGrant,
 } from '@localqa/browser';
 import type { Coordinator } from './core.js';
+import {
+  validateAuthRecognition,
+  type AuthRecognitionResult,
+  type AuthRecognitionSlot,
+} from './auth-ai.js';
 
 export interface AuthStateRef {
   authStateId: string;
@@ -52,6 +58,8 @@ interface SessionRow {
   purpose: 'initializer' | 'importer';
   status: string;
   expires_at: Date;
+  ai_success_criterion: unknown;
+  ai_success_snapshot_id: string | null;
 }
 interface Authority extends Awaited<ReturnType<Coordinator['validateLease']>> {
   session: SessionRow;
@@ -138,6 +146,123 @@ function stateRef(row: StateRow): AuthStateRef {
  * no method repairs a caller's old proof from current database values. */
 export class AuthStateService {
   constructor(private readonly coordinator: Coordinator) {}
+
+  private successCriterion(auth: Authority): Criterion | null {
+    if (auth.profile.mode === 'storage_state')
+      return auth.profile.storageCriterion ?? null;
+    if (auth.profile.mode !== 'form') return null;
+    if (auth.profile.formConfig?.detectionMode !== 'ai')
+      return auth.profile.formConfig?.successCriterion ?? null;
+    if (
+      !auth.session.ai_success_snapshot_id ||
+      !auth.session.ai_success_criterion
+    )
+      return null;
+    return parseContract('Criterion', auth.session.ai_success_criterion);
+  }
+
+  async authRecognitionContext(
+    client: PoolClient,
+    scope: WorkerScope,
+    proof: LeaseProof,
+    sessionId: string,
+    snapshotId: string,
+  ) {
+    const auth = await this.authority(client, scope, proof, sessionId);
+    this.initializing(auth);
+    if (
+      auth.profile.mode !== 'form' ||
+      auth.profile.formConfig?.detectionMode !== 'ai'
+    )
+      throw new StorageError('POLICY_DENIED');
+    const current = await this.current(client, auth);
+    if (current.snapshot.snapshotId !== snapshotId)
+      throw new StorageError('VERSION_CONFLICT');
+    const before = (
+      await client.query<{ document: unknown }>(
+        'SELECT document FROM page_snapshots WHERE project_id=$1 AND task_id=$2 AND auth_session_id=$3 ORDER BY created_at,id LIMIT 1',
+        [scope.projectId, proof.taskId, sessionId],
+      )
+    ).rows[0];
+    const material = await this.authMaterial(client, scope, proof, sessionId);
+    const sensitiveValues = ['username', 'password']
+      .map((key) => material.material[key])
+      .filter(
+        (value): value is string =>
+          typeof value === 'string' && value.length > 0,
+      );
+    await this.live(client, proof, auth);
+    return {
+      snapshot: current.snapshot,
+      before: before
+        ? parseContract('BrowserSnapshot', before.document)
+        : undefined,
+      sensitiveValues,
+    };
+  }
+
+  async recordAuthRecognition(
+    client: PoolClient,
+    scope: WorkerScope,
+    proof: LeaseProof,
+    sessionId: string,
+    snapshotId: string,
+    slot: AuthRecognitionSlot,
+    answer: unknown,
+  ): Promise<AuthRecognitionResult> {
+    const context = await this.authRecognitionContext(
+      client,
+      scope,
+      proof,
+      sessionId,
+      snapshotId,
+    );
+    const selected = validateAuthRecognition(
+      context.snapshot,
+      slot,
+      answer,
+      context.before,
+    );
+    if (slot !== 'success') return { target: selected.target };
+    if (!selected.criterion)
+      return {
+        target: null,
+        success: {
+          criterionId: 'login_success',
+          result: 'unknown',
+          reason: '登录后的页面标识尚未确认',
+          evidenceRefs: [],
+        },
+      };
+    const actions = (
+      await client.query<{
+        tool_call: { name: string; args: { slot?: string } };
+      }>(
+        "SELECT tool_call FROM action_intents WHERE project_id=$1 AND task_id=$2 AND auth_session_id=$3 AND outcome='succeeded' AND execution_state='completed'",
+        [scope.projectId, proof.taskId, sessionId],
+      )
+    ).rows.map((row) => `${row.tool_call.name}:${row.tool_call.args.slot}`);
+    if (
+      ![
+        'fill_credential:username',
+        'fill_credential:password',
+        'submit_auth:submit',
+      ].every((action) => actions.includes(action))
+    )
+      throw new StorageError('POLICY_DENIED');
+    const result = evaluateTechnical(
+      { criteria: [selected.criterion] },
+      context.snapshot,
+      context.snapshot.responseStatus,
+      [snapshotId],
+    )[0];
+    if (result?.result !== 'passed') throw new StorageError('AUTH_FAILED');
+    await client.query(
+      "UPDATE auth_execution_sessions SET ai_success_criterion=$2,ai_success_snapshot_id=$3 WHERE id=$1 AND status='active'",
+      [sessionId, selected.criterion, snapshotId],
+    );
+    return { target: selected.target, success: result };
+  }
 
   private async authority(
     client: PoolClient,
@@ -326,12 +451,7 @@ export class AuthStateService {
       )
     ).rows[0];
     if (!gate) throw new StorageError('NOT_FOUND');
-    const criterion =
-      auth.profile.mode === 'form'
-        ? auth.profile.formConfig?.successCriterion
-        : auth.profile.mode === 'storage_state'
-          ? auth.profile.storageCriterion
-          : null;
+    const criterion = this.successCriterion(auth);
     if (
       !criterion ||
       gate.auth_epoch !== auth.session.auth_epoch ||
@@ -582,12 +702,7 @@ export class AuthStateService {
   ): Promise<{ gateId: string }> {
     const auth = await this.authority(client, scope, proof, sessionId);
     this.initializing(auth);
-    const criterion =
-      auth.profile.mode === 'form'
-        ? auth.profile.formConfig?.successCriterion
-        : auth.profile.mode === 'storage_state'
-          ? auth.profile.storageCriterion
-          : null;
+    const criterion = this.successCriterion(auth);
     if (!criterion) throw new StorageError('POLICY_DENIED');
     let result: CriterionResult;
     try {

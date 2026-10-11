@@ -7,5 +7,6 @@ export * from './regression-plan.js';
 export * from './artifacts.js';
 export * from './auth-execution.js';
 export * from './auth-actions.js';
+export * from './auth-ai.js';
 export * from './auth-state-service.js';
 export * from './auth-import-service.js';
