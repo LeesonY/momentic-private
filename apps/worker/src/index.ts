@@ -128,6 +128,7 @@ export class Worker {
         const supportedAuth =
           profile !== null &&
           (profile.mode === 'form' ||
+            (profile.mode === 'agent' && !!profile.agentConfig) ||
             (profile.mode === 'storage_state' && !!profile.storageCriterion));
         if (
           supportedAuth ||
@@ -1024,6 +1025,8 @@ export class Worker {
             usernameTarget.value !== passwordTarget.value
           )
             approvedLoginTestIds = [usernameTarget.value, passwordTarget.value];
+        } else if (profile.mode === 'agent' && profile.agentConfig?.loginUrl) {
+          approvedLoginPage = new URL(profile.agentConfig.loginUrl);
         }
         const outcome = await withApprovedBrowserAuth(
           {

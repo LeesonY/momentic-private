@@ -94,9 +94,12 @@ export class AuthOtpService {
         !authority.activated_at ||
         authority.activated_at.getTime() + 5 * 60 * 1000 <=
           Date.now() + ttlMs + 20000 ||
-        frozen?.mode !== 'form' ||
-        (!frozen.formConfig?.otpTarget &&
-          frozen.formConfig?.detectionMode !== 'ai')
+        !(
+          frozen?.mode === 'agent' ||
+          (frozen?.mode === 'form' &&
+            (frozen.formConfig?.otpTarget ||
+              frozen.formConfig?.detectionMode === 'ai'))
+        )
       )
         throw new StorageError('AUTH_FAILED');
       const expiresAt = new Date(Date.now() + ttlMs).toISOString();

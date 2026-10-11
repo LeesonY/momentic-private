@@ -453,6 +453,23 @@ async function bump(
 }
 function validateAuth(data: AuthProfileCreate): void {
   const origins = data.allowedOrigins.map((origin) => new URL(origin).origin);
+  if (data.mode !== 'agent' && data.agentConfig)
+    throw new StorageError('VALIDATION_ERROR');
+  if (data.mode === 'agent') {
+    // Every declared variable has exactly one write-only value; no extras.
+    const config = data.agentConfig;
+    if (!config) throw new StorageError('VALIDATION_ERROR');
+    const names = config.variables.map((variable) => variable.name);
+    const values = data.secretInput ?? {};
+    if (
+      new Set(names).size !== names.length ||
+      Object.keys(values).some((key) => !names.includes(key)) ||
+      names.some((name) => !values[name])
+    )
+      throw new StorageError('VALIDATION_ERROR');
+    if (config.loginUrl && !origins.includes(new URL(config.loginUrl).origin))
+      throw new StorageError('TARGET_NOT_ALLOWED');
+  }
   if (
     data.mode === 'form' &&
     data.formConfig &&
@@ -636,6 +653,7 @@ export class ConfigurationRepository {
         version: 1,
         status: 'active',
         formConfig: data.formConfig ?? null,
+        ...(data.agentConfig ? { agentConfig: data.agentConfig } : {}),
         ...(data.storageCriterion
           ? { storageCriterion: data.storageCriterion }
           : {}),
@@ -688,6 +706,27 @@ export class ConfigurationRepository {
         !(patch.storageCriterion ?? old.storageCriterion)
       )
         throw new StorageError('VALIDATION_ERROR');
+      if (patch.agentConfig && old.mode !== 'agent')
+        throw new StorageError('VALIDATION_ERROR');
+      if (patch.agentConfig && !secretInput) {
+        // Without new values the stored secret must still cover every name.
+        const before = (old.agentConfig?.variables ?? [])
+          .map((variable) => variable.name)
+          .sort();
+        const after = patch.agentConfig.variables
+          .map((variable) => variable.name)
+          .sort();
+        if (JSON.stringify(before) !== JSON.stringify(after))
+          throw new StorageError('VALIDATION_ERROR');
+        const loginUrl = patch.agentConfig.loginUrl;
+        if (
+          loginUrl &&
+          !old.allowedOrigins.some(
+            (origin) => new URL(origin).origin === new URL(loginUrl).origin,
+          )
+        )
+          throw new StorageError('TARGET_NOT_ALLOWED');
+      }
       if (secretInput)
         validateAuth(
           parseContract('AuthProfileCreate', {
@@ -703,6 +742,9 @@ export class ConfigurationRepository {
               : {}),
             ...((patch.formConfig ?? old.formConfig)
               ? { formConfig: patch.formConfig ?? old.formConfig! }
+              : {}),
+            ...((patch.agentConfig ?? old.agentConfig)
+              ? { agentConfig: patch.agentConfig ?? old.agentConfig! }
               : {}),
           }),
         );

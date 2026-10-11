@@ -3,6 +3,7 @@ import type {
   Environment,
   AuthProfile,
   AuthProfileCreate,
+  AuthVariable,
   Criterion,
 } from '@localqa/contracts';
 import { useAppContext } from '../state/AppContext.tsx';
@@ -14,6 +15,37 @@ import { Alert } from '../components/ui/Alert.tsx';
 import { EmptyState } from '../components/ui/EmptyState.tsx';
 import { AppIcon } from '../components/ui/AppIcon.tsx';
 import { validatedEnvironmentInput } from './environmentInput.ts';
+
+type AuthModeChoice = AuthProfile['mode'];
+
+interface AgentVariableDraft {
+  name: string;
+  value: string;
+  sensitive: boolean;
+  note: string;
+}
+
+const VARIABLE_NAME = /^[A-Z][A-Z0-9_]{0,63}$/;
+const DEFAULT_AGENT_INSTRUCTIONS =
+  '打开登录页，用户名填 QA_USERNAME，密码填 QA_PASSWORD，然后点击登录。';
+const defaultAgentVariables = (): AgentVariableDraft[] => [
+  { name: 'QA_USERNAME', value: '', sensitive: false, note: '登录账号' },
+  { name: 'QA_PASSWORD', value: '', sensitive: true, note: '登录密码' },
+];
+/** Two AI paths: agent sign-in follows instructions; AI forms fill a fixed
+ * account/password sequence with AI-recognized fields. */
+const authModeLabel = (profile: AuthProfile): string =>
+  profile.mode === 'agent'
+    ? 'AI 登录（按说明）'
+    : profile.mode === 'form'
+      ? profile.formConfig?.detectionMode === 'ai'
+        ? '账号密码（AI 识别）'
+        : '表单登录'
+      : profile.mode === 'storage_state'
+        ? '复用登录会话'
+        : profile.mode === 'none'
+          ? '匿名访问'
+          : profile.mode;
 
 export const EnvironmentsPage: React.FC = () => {
   const { currentProject, currentUser } = useAppContext();
@@ -47,8 +79,13 @@ export const EnvironmentsPage: React.FC = () => {
 
   // Form states for creating auth profile
   const [authName, setAuthName] = useState('');
-  const [authMode, setAuthMode] = useState<'none' | 'form' | 'storage_state'>(
-    'form',
+  const [authMode, setAuthMode] = useState<AuthModeChoice>('agent');
+  const [agentLoginUrl, setAgentLoginUrl] = useState('');
+  const [agentInstructions, setAgentInstructions] = useState(
+    DEFAULT_AGENT_INSTRUCTIONS,
+  );
+  const [agentVariables, setAgentVariables] = useState<AgentVariableDraft[]>(
+    defaultAgentVariables,
   );
   const [secretVal, setSecretVal] = useState('');
   const [authUsername, setAuthUsername] = useState('');
@@ -106,6 +143,7 @@ export const EnvironmentsPage: React.FC = () => {
     setAuthOrigins('');
     setSecretVal('');
     setAuthUsername('');
+    setAgentVariables(defaultAgentVariables());
     setAuthError('');
     setAuthUpdateError('');
     setEnvError('');
@@ -245,6 +283,53 @@ export const EnvironmentsPage: React.FC = () => {
     }
   };
 
+  /** Agent sign-in input: names and notes in agentConfig, values write-only. */
+  const agentProfileInput = (): Pick<
+    AuthProfileCreate,
+    'agentConfig' | 'secretInput'
+  > => {
+    const variables = agentVariables.map((variable) => ({
+      ...variable,
+      name: variable.name.trim(),
+      note: variable.note.trim(),
+    }));
+    const names = variables.map((variable) => variable.name);
+    if (
+      !agentInstructions.trim() ||
+      variables.length === 0 ||
+      new Set(names).size !== names.length ||
+      variables.some(
+        (variable) => !VARIABLE_NAME.test(variable.name) || !variable.value,
+      )
+    )
+      throw new Error('MISSING_AUTH_MATERIAL');
+    const declared = variables.map((variable): AuthVariable => ({
+      name: variable.name,
+      sensitive: variable.sensitive,
+      ...(variable.note ? { note: variable.note } : {}),
+    })) as [AuthVariable, ...AuthVariable[]];
+    return {
+      agentConfig: {
+        ...(agentLoginUrl.trim() ? { loginUrl: agentLoginUrl.trim() } : {}),
+        instructions: agentInstructions.trim(),
+        variables: declared,
+      },
+      secretInput: Object.fromEntries(
+        variables.map((variable) => [variable.name, variable.value]),
+      ),
+    };
+  };
+
+  const updateAgentVariable = (
+    index: number,
+    change: Partial<AgentVariableDraft>,
+  ) =>
+    setAgentVariables((old) =>
+      old.map((variable, i) =>
+        i === index ? { ...variable, ...change } : variable,
+      ),
+    );
+
   const handleCreateAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentProject || !canConfigure || addingAuth) return;
@@ -273,12 +358,11 @@ export const EnvironmentsPage: React.FC = () => {
             throw new Error('INVALID_AUTH_ORIGIN');
           return url.origin;
         });
-      if (
-        !origins.length ||
-        ((authMode === 'storage_state' ||
-          (authMode === 'form' && authDetectionMode === 'manual')) &&
-          !authSuccessTestId.trim())
-      )
+      // Agent sign-in and AI-recognized forms find success themselves.
+      const needsSuccessMarker =
+        authMode === 'storage_state' ||
+        (authMode === 'form' && authDetectionMode === 'manual');
+      if (!origins.length || (needsSuccessMarker && !authSuccessTestId.trim()))
         throw new Error('MISSING_AUTH_CONFIGURATION');
       if (
         !authEnvironmentId ||
@@ -330,10 +414,12 @@ export const EnvironmentsPage: React.FC = () => {
                 storageCriterion: successCriterion,
                 secretInput: { storageState: secretVal },
               }
-            : {}),
+            : authMode === 'agent'
+              ? agentProfileInput()
+              : {}),
       };
       if (
-        (authMode !== 'none' && !secretVal) ||
+        ((authMode === 'form' || authMode === 'storage_state') && !secretVal) ||
         (authMode === 'form' &&
           (!authUsername ||
             !authLoginUrl.trim() ||
@@ -352,6 +438,7 @@ export const EnvironmentsPage: React.FC = () => {
       setSecretVal('');
       setAuthUsername('');
       setAuthSuccessTestId('');
+      setAgentVariables(defaultAgentVariables());
       // The first credential becomes the environment default, so starting a
       // test in this environment actually uses the newly saved login.
       if (authMode !== 'none' && !selectedEnvironment.defaultAuthProfileId) {
@@ -376,7 +463,9 @@ export const EnvironmentsPage: React.FC = () => {
       // Never echo request bodies or server diagnostics: these fields contain
       // passwords and storage-state JSON.
       setAuthError(
-        '保存失败。请检查所选环境、登录地址、账号密码与允许访问的域名。',
+        authMode === 'agent'
+          ? '保存失败。请检查环境、允许访问的域名、登录说明和变量：变量名用大写字母开头，只含大写字母、数字和下划线，不能重复，值不能为空。'
+          : '保存失败。请检查所选环境、登录地址、账号密码与允许访问的域名。',
       );
     } finally {
       setAddingAuth(false);
@@ -706,15 +795,7 @@ export const EnvironmentsPage: React.FC = () => {
                         </td>
                         <td>
                           <span className="badge badge-info" title={ap.mode}>
-                            {ap.mode === 'form'
-                              ? ap.formConfig?.detectionMode === 'ai'
-                                ? 'AI 自动登录'
-                                : '表单登录'
-                              : ap.mode === 'storage_state'
-                                ? '复用登录会话'
-                                : ap.mode === 'none'
-                                  ? '匿名访问'
-                                  : ap.mode}
+                            {authModeLabel(ap)}
                           </span>
                         </td>
                         <td>
@@ -726,8 +807,12 @@ export const EnvironmentsPage: React.FC = () => {
                         </td>
                         <td className="muted">v{ap.version}</td>
                         <td>
-                          {ap.mode === 'form' &&
-                          ap.formConfig?.detectionMode === 'ai' ? (
+                          {ap.mode === 'agent' ? (
+                            <span className="badge badge-success">
+                              AI 按说明操作
+                            </span>
+                          ) : ap.mode === 'form' &&
+                            ap.formConfig?.detectionMode === 'ai' ? (
                             <span className="badge badge-success">
                               AI 自动识别
                             </span>
@@ -935,18 +1020,19 @@ export const EnvironmentsPage: React.FC = () => {
                         data-testid="auth-profile-mode"
                         value={authMode}
                         onChange={(e) =>
-                          setAuthMode(
-                            e.target.value as 'none' | 'form' | 'storage_state',
-                          )
+                          setAuthMode(e.target.value as AuthModeChoice)
                         }
                       >
-                        <option value="none">不使用认证</option>
+                        <option value="agent">
+                          AI 登录（按登录说明操作，推荐）
+                        </option>
                         <option value="form">
                           账号密码登录（AI 自动识别）
                         </option>
                         <option value="storage_state">
                           复用登录会话（storageState）
                         </option>
+                        <option value="none">不使用认证</option>
                       </select>
                     </Field>
                     <Field label="关联环境" htmlFor="auth-profile-environment">
@@ -992,7 +1078,143 @@ export const EnvironmentsPage: React.FC = () => {
                     />
                   </Field>
 
-                  {authMode === 'form' ? (
+                  {authMode === 'agent' ? (
+                    <>
+                      <p className="field-hint lqa-form-note">
+                        AI 按登录说明自己完成登录，和 Momentic Mo
+                        的用法一致。模型只看到变量名和备注，看不到变量值；敏感变量的值在截图、页面快照和日志里打码。
+                      </p>
+                      <Field
+                        label="登录页 URL"
+                        hint="可选。不填时从运行的目标地址开始。"
+                        htmlFor="agent-login-url"
+                      >
+                        <input
+                          id="agent-login-url"
+                          className="form-input"
+                          type="url"
+                          data-testid="agent-login-url"
+                          value={agentLoginUrl}
+                          onChange={(e) => setAgentLoginUrl(e.target.value)}
+                          placeholder="https://app.example.com/login"
+                        />
+                      </Field>
+                      <div className="section-label">变量</div>
+                      {agentVariables.map((variable, index) => (
+                        <div
+                          className="lqa-agent-variable"
+                          key={index}
+                          data-testid={`agent-variable-${index}`}
+                        >
+                          <input
+                            className="form-input is-mono"
+                            aria-label="变量名"
+                            value={variable.name}
+                            onChange={(e) =>
+                              updateAgentVariable(index, {
+                                name: e.target.value.toUpperCase(),
+                              })
+                            }
+                            placeholder="QA_PASSWORD"
+                            required
+                          />
+                          <input
+                            className="form-input"
+                            aria-label={`${variable.name || '变量'} 的值`}
+                            type={variable.sensitive ? 'password' : 'text'}
+                            autoComplete={
+                              variable.sensitive ? 'new-password' : 'off'
+                            }
+                            value={variable.value}
+                            onChange={(e) =>
+                              updateAgentVariable(index, {
+                                value: e.target.value,
+                              })
+                            }
+                            placeholder="值（只写入，保存后不可查看）"
+                            required
+                          />
+                          <input
+                            className="form-input"
+                            aria-label="备注"
+                            value={variable.note}
+                            onChange={(e) =>
+                              updateAgentVariable(index, {
+                                note: e.target.value,
+                              })
+                            }
+                            placeholder="备注，例如：财务管理员账号"
+                            maxLength={200}
+                          />
+                          <div className="lqa-agent-variable-tools">
+                            <label className="check">
+                              <input
+                                type="checkbox"
+                                checked={variable.sensitive}
+                                onChange={(e) =>
+                                  updateAgentVariable(index, {
+                                    sensitive: e.target.checked,
+                                  })
+                                }
+                              />
+                              敏感
+                            </label>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              aria-label={`删除变量 ${variable.name}`}
+                              disabled={agentVariables.length <= 1}
+                              onClick={() =>
+                                setAgentVariables((old) =>
+                                  old.filter((_, i) => i !== index),
+                                )
+                              }
+                            >
+                              删除
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="form-actions lqa-agent-variable-actions">
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          data-testid="agent-variable-add"
+                          disabled={agentVariables.length >= 20}
+                          onClick={() =>
+                            setAgentVariables((old) => [
+                              ...old,
+                              {
+                                name: '',
+                                value: '',
+                                sensitive: false,
+                                note: '',
+                              },
+                            ])
+                          }
+                        >
+                          添加变量
+                        </button>
+                      </div>
+                      <Field
+                        label="登录说明"
+                        required
+                        hint="用自然语言写登录步骤，引用变量名，不要写变量值。"
+                        htmlFor="agent-instructions"
+                      >
+                        <textarea
+                          id="agent-instructions"
+                          className="form-textarea"
+                          data-testid="agent-instructions"
+                          rows={3}
+                          maxLength={4000}
+                          value={agentInstructions}
+                          onChange={(e) => setAgentInstructions(e.target.value)}
+                          required
+                        />
+                      </Field>
+                    </>
+                  ) : authMode === 'form' ? (
                     <>
                       <Field
                         label="登录页 URL"

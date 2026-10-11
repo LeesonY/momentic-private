@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "sourceHashes": {
-    "domain.schema.json": "556ccb0962b88f9757a50fa162d9f055c3726b91615bd3c6be64dbe9a7e37e32",
+    "domain.schema.json": "9f695930120748b40de9f118504eecdcd1416d7eeba1f86c767de8e1ef3de9ba",
     "events.schema.json": "370ce9470ee51346b168a94c48252486a72599269efdeafd7445d3a1f1116e6c",
-    "openapi.json": "b6581aeee4fe3a3c4d6cd1f81c85b24a035bd1ea431206de8cb39a22866c1e0f",
+    "openapi.json": "634c751ba5fcad530c690a9217e1efa77588230e4e218707ad48ca63dd931767",
     "regression.schema.json": "3311ab392986b0253fc833e5eb97eecefd6f612b767ed308fd8edd75a086b39f",
     "report.schema.json": "e4cd7f59bc338d2c2890972d884bb3b7bef1f6478ddad0a2b67b8609a09dc7b0",
     "tools.schema.json": "d78913ce55720627e94341e0ae37a3a9f3046061a81d298b3bafb452b39a87c5"
@@ -12,6 +12,7 @@
     "ActionPermit",
     "ActionReservation",
     "ActionResult",
+    "AgentLoginConfig",
     "ApiKey",
     "ApiKeyCreate",
     "ApiKeyCreated",
@@ -23,6 +24,7 @@
     "AuthProfilePage",
     "AuthProfilePatch",
     "AuthResolve",
+    "AuthVariable",
     "Bounds",
     "BrowserSnapshot",
     "BudgetLimits",

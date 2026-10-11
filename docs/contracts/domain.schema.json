@@ -893,7 +893,8 @@
           "enum": [
             "none",
             "form",
-            "storage_state"
+            "storage_state",
+            "agent"
           ]
         },
         "allowedOrigins": {
@@ -932,6 +933,16 @@
           "anyOf": [
             {
               "$ref": "#/$defs/FormConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "agentConfig": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AgentLoginConfig"
             },
             {
               "type": "null"
@@ -1017,6 +1028,56 @@
         }
       ]
     },
+    "AuthVariable": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+        },
+        "sensitive": {
+          "type": "boolean"
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 200
+        }
+      },
+      "required": [
+        "name",
+        "sensitive"
+      ],
+      "additionalProperties": false
+    },
+    "AgentLoginConfig": {
+      "type": "object",
+      "properties": {
+        "loginUrl": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 8192,
+          "pattern": "^https?://"
+        },
+        "instructions": {
+          "type": "string",
+          "maxLength": 4000,
+          "minLength": 1
+        },
+        "variables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AuthVariable"
+          },
+          "maxItems": 20,
+          "minItems": 1
+        }
+      },
+      "required": [
+        "instructions",
+        "variables"
+      ],
+      "additionalProperties": false
+    },
     "AuthProfileCreate": {
       "type": "object",
       "properties": {
@@ -1041,7 +1102,8 @@
           "enum": [
             "none",
             "form",
-            "storage_state"
+            "storage_state",
+            "agent"
           ]
         },
         "allowedOrigins": {
@@ -1065,6 +1127,9 @@
         },
         "formConfig": {
           "$ref": "#/$defs/FormConfig"
+        },
+        "agentConfig": {
+          "$ref": "#/$defs/AgentLoginConfig"
         },
         "secretInput": {
           "type": "object",
@@ -1135,6 +1200,24 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "agent"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          },
+          "then": {
+            "required": [
+              "agentConfig",
+              "secretInput"
+            ]
+          }
         }
       ]
     },
@@ -1158,6 +1241,9 @@
         },
         "formConfig": {
           "$ref": "#/$defs/FormConfig"
+        },
+        "agentConfig": {
+          "$ref": "#/$defs/AgentLoginConfig"
         },
         "secretInput": {
           "type": "object",
@@ -3721,7 +3807,8 @@
           "enum": [
             "none",
             "form",
-            "storage_state"
+            "storage_state",
+            "agent"
           ]
         },
         "material": {

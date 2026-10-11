@@ -147,6 +147,8 @@ SecretVault 用随机 nonce 的 AES-256-GCM 加密，记录 keyVersion；KEK 通
 
 表单认证通过固定配置的字段定位和成功条件执行。CredentialBroker 只对当前获准 lease/profile 提供所需材料；模型看到角色、变量名和描述，不得到密码、cookie/token。storage state 校验 origin/容量，使用后仅存在获准浏览器 context 和任务 scratch。
 
+AI 登录（`mode: agent`，与 Momentic Mo 的用法一致）是默认推荐方式：认证配置保存变量（名称、是否敏感、备注）和自然语言登录说明，变量值只进 write-only secretInput。认证任务里，模型读取登录说明、变量名和已脱敏的页面观察，每次只提出一步（fill 变量 / click / otp / wait / done / blocked）；Worker 校验目标属于本次登记的观察后，按 `fill_credential:variable`、`submit_auth:submit` 申请服务端放行，变量值在私有端口内替换，模型始终拿不到值，填过的值和敏感值在后续观察中打码。成功不采信模型自报：服务端对自己登记的观察执行固定判定 `agent_login_completed`（无错误响应，且任何 frame 中都没有可见的密码输入框），通过后才允许抓取并复用登录状态。单次认证最多 12 次决策、最多 1 次向用户索取验证码，用运行冻结的 executor 模型绑定和预算。表单登录（`detectionMode: ai` 由服务端模型按账号、密码、提交、验证码、成功几个固定槽位识别字段，`manual` 使用固定定位器）和 storage state 保留为可选方式。
+
 执行中凭据需要进入运行进程和浏览器内存，不能声称完全不接触运行进程。实际截图、DOM、network headers/bodies、URL 和日志都走同一 RedactionPolicy；截图生成前对已知敏感字段遮罩。脱敏影响验收时使用固定检查或明确受阻，不展示虚假的未脱敏证据。
 
 API cookie 为 HttpOnly、Secure、SameSite，并验证 Origin/CSRF；后台 secret、模型 key 与 Worker service token 不进前端 bundle。模型网关仅访问已批准 endpoint，注册新 endpoint 为管理员动作。

@@ -61,7 +61,13 @@ export interface AuthPermit {
     | 'submit_auth'
     | 'import_storage_state';
   slot:
-    'login_url' | 'username' | 'password' | 'otp' | 'submit' | 'storage_state';
+    | 'login_url'
+    | 'username'
+    | 'password'
+    | 'otp'
+    | 'variable'
+    | 'submit'
+    | 'storage_state';
   // Explicit `| undefined` keeps this assignable from the orchestrator's permit
   // under `exactOptionalPropertyTypes`.
   target?: NodeTarget | undefined;
@@ -141,7 +147,7 @@ export class PrivateAuthError extends Error {
   }
 }
 
-const FILL_SLOTS = new Set(['username', 'password', 'otp']);
+const FILL_SLOTS = new Set(['username', 'password', 'otp', 'variable']);
 
 function fail(code: PrivateAuthError['code']): never {
   throw new PrivateAuthError(code);

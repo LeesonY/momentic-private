@@ -36,6 +36,7 @@ const files = [
   'packages/browser/test/policy-origin.test.mjs',
   'packages/browser/test/private-auth.test.mjs',
   'packages/browser/test/regression-locator.test.mjs',
+  'apps/worker/test/auth-agent.test.mjs',
   'apps/worker/test/auth-flow.test.mjs',
   'apps/worker/test/auth-import.test.mjs',
   'apps/worker/test/auth-redaction.test.mjs',

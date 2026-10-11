@@ -45,11 +45,16 @@ D["Locator"] = obj({"by": enum("role", "label", "test_id", "text", "css"), "valu
 D["Criterion"] = obj({"id": text(64, pattern="^[a-zA-Z0-9_.-]+$"), "kind": enum("element_visible", "text_equals", "url_matches", "http_status", "semantic", "visual"), "description": text(2000, minLength=1), "sourceKind": enum("generic_smoke", "user_spec", "project_knowledge", "saved_case", "inferred"), "sourceRef": text(500, minLength=1), "locator": ref("Locator"), "expectedValue": ref("JsonValue")}, ["id", "kind", "description", "sourceKind", "sourceRef"])
 D["CandidateCase"] = obj({"title": text(200, minLength=1), "summary": text(), "preconditions": arr(text(1000), 20), "outline": arr(text(1500), 30, 1), "criteria": arr(ref("Criterion"), 20, 1)})
 D["CaseDefinition"] = obj({"id": UUID, "runId": UUID, "projectId": UUID, "version": VER, **copy.deepcopy(D["CandidateCase"]["properties"])})
-D["AuthProfile"] = obj({"id": UUID, "projectId": UUID, "environmentId": nullable(UUID), "name": text(120), "mode": enum("none", "form", "storage_state"), "allowedOrigins": arr(URI, 30, 1), "sharingPolicy": enum("exclusive_run", "shared_state"), "hasSecret": BOOL, "version": VER})
+AUTH_MODES = ("none", "form", "storage_state", "agent")
+D["AuthProfile"] = obj({"id": UUID, "projectId": UUID, "environmentId": nullable(UUID), "name": text(120), "mode": enum(*AUTH_MODES), "allowedOrigins": arr(URI, 30, 1), "sharingPolicy": enum("exclusive_run", "shared_state"), "hasSecret": BOOL, "version": VER})
 D["FormConfig"] = obj({"loginUrl": URI, "detectionMode": enum("ai", "manual"), "usernameTarget": ref("Locator"), "passwordTarget": ref("Locator"), "submitTarget": ref("Locator"), "successCriterion": ref("Criterion"), "otpTarget": ref("Locator")}, ["loginUrl"])
 D["FormConfig"]["allOf"] = [{"if": {"properties": {"detectionMode": {"const": "ai"}}, "required": ["detectionMode"]}, "then": {}, "else": {"required": ["usernameTarget", "passwordTarget", "submitTarget", "successCriterion"]}}]
-D["AuthProfileCreate"] = obj({"environmentId": nullable(UUID), "name": text(120, minLength=1), "mode": enum("none", "form", "storage_state"), "allowedOrigins": arr(URI, 30, 1), "sharingPolicy": {**enum("exclusive_run", "shared_state"), "default": "exclusive_run"}, "formConfig": ref("FormConfig"), "secretInput": {"type": "object", "writeOnly": True, "additionalProperties": text(1000000)}}, ["name", "mode", "allowedOrigins"])
-D["AuthProfilePatch"] = obj({"expectedVersion": VER, "name": text(120), "sharingPolicy": enum("exclusive_run", "shared_state"), "formConfig": ref("FormConfig"), "secretInput": copy.deepcopy(D["AuthProfileCreate"]["properties"]["secretInput"]), "revoke": BOOL}, ["expectedVersion"])
+# Agent (Mo-style) sign-in: values live only in the write-only secretInput keyed
+# by variable name; the model sees names, notes and instructions, never values.
+D["AuthVariable"] = obj({"name": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"}, "sensitive": BOOL, "note": text(200)}, ["name", "sensitive"])
+D["AgentLoginConfig"] = obj({"loginUrl": URI, "instructions": text(4000, minLength=1), "variables": arr(ref("AuthVariable"), 20, 1)}, ["instructions", "variables"])
+D["AuthProfileCreate"] = obj({"environmentId": nullable(UUID), "name": text(120, minLength=1), "mode": enum(*AUTH_MODES), "allowedOrigins": arr(URI, 30, 1), "sharingPolicy": {**enum("exclusive_run", "shared_state"), "default": "exclusive_run"}, "formConfig": ref("FormConfig"), "agentConfig": ref("AgentLoginConfig"), "secretInput": {"type": "object", "writeOnly": True, "additionalProperties": text(1000000)}}, ["name", "mode", "allowedOrigins"])
+D["AuthProfilePatch"] = obj({"expectedVersion": VER, "name": text(120), "sharingPolicy": enum("exclusive_run", "shared_state"), "formConfig": ref("FormConfig"), "agentConfig": ref("AgentLoginConfig"), "secretInput": copy.deepcopy(D["AuthProfileCreate"]["properties"]["secretInput"]), "revoke": BOOL}, ["expectedVersion"])
 D["Knowledge"] = obj({"id": UUID, "projectId": UUID, "title": text(200), "kind": enum("terminology", "rule", "flow", "restriction"), "text": text(20000), "approved": BOOL, "version": VER})
 D["KnowledgeCreate"] = obj({"title": text(200, minLength=1), "kind": enum("terminology", "rule", "flow", "restriction"), "text": text(20000, minLength=1)})
 D["KnowledgePatch"] = obj({"expectedVersion": VER, "title": text(200), "text": text(20000), "approved": BOOL}, ["expectedVersion"])
@@ -103,7 +108,7 @@ D["ModelRequest"] = obj({"taskId": UUID, "profileId": UUID, "contextVersion": VE
 D["ModelRequest"]["properties"]["criterionId"] = copy.deepcopy(D["Criterion"]["properties"]["id"])
 D["ModelResult"] = obj({"data": ref("JsonValue"), "configuredModelId": text(200), "reportedModelId": nullable(text(200)), "usage": ref("ModelUsage")})
 D["AuthResolve"] = obj({"taskId": UUID, "authProfileId": UUID, "authProfileVersion": VER})
-D["CredentialMaterial"] = obj({"mode": enum("none", "form", "storage_state"), "material": {"type": "object", "additionalProperties": ref("JsonValue"), "x-sensitive": True}, "expiresAt": DATE})
+D["CredentialMaterial"] = obj({"mode": enum(*AUTH_MODES), "material": {"type": "object", "additionalProperties": ref("JsonValue"), "x-sensitive": True}, "expiresAt": DATE})
 D["Health"] = obj({"status": enum("ok", "not_ready"), "version": text(40)})
 D["User"]["properties"].update({"disabled": BOOL, "version": VER})
 D["User"]["required"].extend(["disabled", "version"])
@@ -140,8 +145,10 @@ D["Criterion"]["allOf"] = [
 D["AuthProfileCreate"]["allOf"] = [
     {"if": {"properties": {"mode": {"const": "form"}}, "required": ["mode"]}, "then": {"required": ["formConfig", "secretInput"], "properties": {"secretInput": {"required": ["username", "password"]}}}},
     {"if": {"properties": {"mode": {"const": "storage_state"}}, "required": ["mode"]}, "then": {"required": ["secretInput", "storageCriterion"], "properties": {"secretInput": {"required": ["storageState"]}}}},
+    {"if": {"properties": {"mode": {"const": "agent"}}, "required": ["mode"]}, "then": {"required": ["agentConfig", "secretInput"]}},
 ]
-D["AuthProfile"]["properties"].update({"status": enum("active", "revoked"), "formConfig": nullable(ref("FormConfig"))})
+# agentConfig is optional on the stored DTO so earlier profile versions stay valid.
+D["AuthProfile"]["properties"].update({"status": enum("active", "revoked"), "formConfig": nullable(ref("FormConfig")), "agentConfig": nullable(ref("AgentLoginConfig"))})
 D["AuthProfile"]["required"].extend(["status", "formConfig"])
 for auth_name in ("AuthProfile", "AuthProfileCreate", "AuthProfilePatch"):
     D[auth_name]["properties"]["storageCriterion"] = ref("Criterion")

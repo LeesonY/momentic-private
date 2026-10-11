@@ -16,7 +16,13 @@ export type AuthActionName =
   'navigate_auth' | 'fill_credential' | 'submit_auth' | 'import_storage_state';
 
 export type AuthActionSlot =
-  'login_url' | 'username' | 'password' | 'otp' | 'submit' | 'storage_state';
+  | 'login_url'
+  | 'username'
+  | 'password'
+  | 'otp'
+  | 'variable'
+  | 'submit'
+  | 'storage_state';
 
 export interface AuthActionRequest {
   requestId: string;
@@ -61,7 +67,7 @@ export interface AuthActionOutcome {
 
 const ACTION_SLOT_MAP: Record<AuthActionName, AuthActionSlot[]> = {
   navigate_auth: ['login_url'],
-  fill_credential: ['username', 'password', 'otp'],
+  fill_credential: ['username', 'password', 'otp', 'variable'],
   submit_auth: ['submit'],
   import_storage_state: ['storage_state'],
 };
@@ -325,7 +331,18 @@ export class AuthActionsManager {
       throw new StorageError('POLICY_DENIED');
     }
 
-    if (profile.mode === 'form' && request.action === 'import_storage_state') {
+    if (
+      (profile.mode === 'form' || profile.mode === 'agent') &&
+      request.action === 'import_storage_state'
+    ) {
+      throw new StorageError('VALIDATION_ERROR');
+    }
+    // Fixed form slots and named agent variables never cross modes.
+    if (
+      request.action === 'fill_credential' &&
+      request.slot !== 'otp' &&
+      (request.slot === 'variable') !== (profile.mode === 'agent')
+    ) {
       throw new StorageError('VALIDATION_ERROR');
     }
     if (
@@ -334,8 +351,11 @@ export class AuthActionsManager {
     ) {
       throw new StorageError('VALIDATION_ERROR');
     }
+    // AI-recognized forms and agent sign-in may ask the user for one code
+    // when the page shows a verification step, like Mo asking in the chat.
     if (
       request.slot === 'otp' &&
+      profile.mode !== 'agent' &&
       !profile.formConfig?.otpTarget &&
       profile.formConfig?.detectionMode !== 'ai'
     ) {
@@ -485,7 +505,9 @@ export class AuthActionsManager {
     if (request.action === 'navigate_auth') {
       if (profile.mode === 'form') {
         serverUrl = profile.formConfig?.loginUrl;
-      } else if (profile.mode === 'storage_state') {
+      } else if (profile.mode === 'agent' && profile.agentConfig?.loginUrl) {
+        serverUrl = profile.agentConfig.loginUrl;
+      } else if (profile.mode === 'storage_state' || profile.mode === 'agent') {
         let targetUrl = run.targetUrl;
         const raw = (
           await client.query<{

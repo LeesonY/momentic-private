@@ -18,6 +18,10 @@ import {
   criteriaHash,
   canonicalHash,
   PageGraph,
+  AGENT_LOGIN_CRITERION,
+  authCriterionFor,
+  evaluateAgentLogin,
+  evaluateAuthCriterion,
 } from '../dist/index.js';
 import { parseContract } from '@localqa/contracts';
 const statuses = [
@@ -272,4 +276,76 @@ test('graph URL/structure dedup, maxPages and maxDepth', () => {
   assert.equal(graph.visit('http://localhost:8080/a', 2, { nodes: [] }), false);
   assert.equal(graph.visit('http://localhost:8080/a', 1, { nodes: [] }), true);
   assert.equal(graph.canNavigate('http://localhost:8080/b', 1), false);
+});
+
+test('agent sign-in oracle: no visible password field and a healthy response', () => {
+  const evidence = [randomUUID()];
+  const field = (role, visible = true) => ({
+    nodeId: `${role}-1`,
+    frameId: 'main',
+    role,
+    name: role,
+    text: '',
+    visible,
+    enabled: true,
+    bounds: { left: 0, top: 0, width: 1, height: 1 },
+  });
+  const page = (nodes, responseStatus = 200) => ({ nodes, responseStatus });
+  assert.equal(
+    evaluateAgentLogin(page([field('link')]), evidence).result,
+    'passed',
+  );
+  assert.equal(
+    evaluateAgentLogin(page([field('password')]), evidence).result,
+    'failed',
+  );
+  // A hidden password input (for example a re-auth dialog) does not count.
+  assert.equal(
+    evaluateAgentLogin(
+      page([field('link'), field('password', false)]),
+      evidence,
+    ).result,
+    'passed',
+  );
+  assert.equal(
+    evaluateAgentLogin(page([field('link')], 500), evidence).result,
+    'failed',
+  );
+  assert.equal(evaluateAgentLogin(page([]), evidence).result, 'unknown');
+  assert.equal(evaluateAgentLogin(page([field('link')]), []).result, 'unknown');
+  const passed = evaluateAgentLogin(page([field('link')]), evidence);
+  assert.equal(passed.criterionId, AGENT_LOGIN_CRITERION.id);
+  assert.deepEqual(passed.evidenceRefs, evidence);
+});
+
+test('each auth mode has exactly one frozen criterion and evaluator', () => {
+  const success = parseContract('Criterion', {
+    id: 'login_success',
+    kind: 'element_visible',
+    description: 'menu',
+    sourceKind: 'user_spec',
+    sourceRef: 'auth_profile',
+    locator: { by: 'test_id', value: 'menu' },
+  });
+  assert.equal(authCriterionFor({ mode: 'none' }), null);
+  assert.equal(authCriterionFor({ mode: 'agent' }), AGENT_LOGIN_CRITERION);
+  assert.equal(
+    authCriterionFor({
+      mode: 'form',
+      formConfig: { successCriterion: success },
+    }),
+    success,
+  );
+  assert.equal(
+    authCriterionFor({ mode: 'storage_state', storageCriterion: success }),
+    success,
+  );
+  assert.equal(authCriterionFor({ mode: 'form', formConfig: null }), null);
+  // An agent profile cannot borrow another criterion to authorize capture.
+  const snapshot = { nodes: [], responseStatus: 200, truncated: false };
+  assert.equal(
+    evaluateAuthCriterion({ mode: 'agent' }, success, snapshot, [randomUUID()]),
+    undefined,
+  );
+  assert.ok(parseContract('Criterion', AGENT_LOGIN_CRITERION));
 });

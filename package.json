@@ -20,6 +20,7 @@
     "test:auth-pure": "node --test packages/browser/test/auth-state.test.mjs packages/browser/test/private-auth.test.mjs packages/browser/test/policy-origin.test.mjs apps/worker/test/auth-import.test.mjs apps/worker/test/auth-runtime.test.mjs apps/worker/test/auth-services.test.mjs",
     "test:auth-browser": "node --test packages/browser/test/trusted-auth-primitives.test.mjs apps/worker/test/auth-import-browser.test.mjs apps/worker/test/auth-import-task.test.mjs",
     "test:auth-pg": "node --test apps/worker/test/auth-pg-chromium.integration.mjs",
+    "test:auth-agent-pg": "node --test apps/worker/test/auth-agent-pg-chromium.integration.mjs",
     "test:ci-key": "node --test apps/api/test/t11-ci-keys.test.mjs apps/cli/localqa.test.mjs",
     "test:schedule": "node --test apps/api/test/t11-scheduler.test.mjs",
     "test:integration": "pnpm --filter @localqa/browser test && pnpm --filter @localqa/storage test",

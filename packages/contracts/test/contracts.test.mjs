@@ -65,6 +65,7 @@ function sample(schema) {
     if (schema.pattern?.includes('{64}')) return 'a'.repeat(64);
     if (schema.pattern === '^[1-9][0-9]*$') return '1';
     if (schema.pattern?.includes('@')) return 'sample@1';
+    if (schema.pattern?.startsWith('^[A-Z]')) return 'SAMPLE';
     return 'sample'.padEnd(schema.minLength ?? 0, 'x');
   }
   if (type === 'object' || schema.properties) {
