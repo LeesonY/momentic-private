@@ -94,5 +94,15 @@ export interface CapabilityProbeResponse {
 }
 
 export const DEFAULT_INPUT_TOKENS = 12_000;
-export const DEFAULT_OUTPUT_TOKENS = 2_000;
+/**
+ * Output cap for one call when a model profile sets none. Models that reason
+ * before answering (MoreSec DeepSeek counts reasoning against max_tokens)
+ * exhausted the former 200-400 token caller caps; non-reasoning models stop
+ * early, so a larger ceiling costs only budget reservation, which is settled
+ * to actual usage.
+ */
+export const DEFAULT_OUTPUT_TOKENS = 4_000;
+/** Bounds for a profile's configured maxOutputTokens (contract-enforced). */
+export const MIN_OUTPUT_TOKENS = 256;
+export const MAX_OUTPUT_TOKENS = 32_000;
 export const REPAIR_MARK = '格式修复';

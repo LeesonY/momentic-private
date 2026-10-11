@@ -883,6 +883,9 @@ export class ModelRepository {
         ...(data.responseFormat === undefined
           ? {}
           : { responseFormat: data.responseFormat }),
+        ...(data.maxOutputTokens === undefined
+          ? {}
+          : { maxOutputTokens: data.maxOutputTokens }),
         adapter: data.adapter,
         dataBoundary: data.dataBoundary,
         capabilities: {

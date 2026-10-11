@@ -38,6 +38,9 @@ export function createFrozenGateway(
         capabilities: document.capabilities,
         responseFormat: document.responseFormat ?? 'json_schema',
         status: document.status,
+        ...(document.maxOutputTokens !== undefined
+          ? { maxOutputTokens: document.maxOutputTokens }
+          : {}),
         encryptedApiKey: frozen.apiKey ? 'set' : null,
         approvedFallbackIds: [],
       },

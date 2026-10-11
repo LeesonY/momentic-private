@@ -1097,6 +1097,7 @@ export interface ModelProfile {
   status: "untested" | "ready" | "degraded" | "disabled";
   version: number;
   responseFormat?: "json_schema" | "json_object" | "native_tools";
+  maxOutputTokens?: number;
 }
 export interface ModelProfileCreate {
   name: string;
@@ -1106,6 +1107,7 @@ export interface ModelProfileCreate {
   dataBoundary: "internal" | "external";
   apiKey?: string;
   responseFormat?: "json_schema" | "json_object" | "native_tools";
+  maxOutputTokens?: number;
 }
 export interface ModelProfilePage {
   /**
@@ -1123,6 +1125,7 @@ export interface ModelProfilePatch {
   apiKey?: string;
   status?: "disabled" | "untested";
   responseFormat?: "json_schema" | "json_object" | "native_tools";
+  maxOutputTokens?: number;
 }
 export interface ModelRequest {
   taskId: string;
@@ -1134,7 +1137,7 @@ export interface ModelRequest {
    * @maxItems 100
    */
   messages: [ModelMessage, ...ModelMessage[]];
-  maxOutputTokens: number;
+  maxOutputTokens?: number;
   outputSchema: {
     [k: string]: unknown | undefined;
   };

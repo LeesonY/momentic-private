@@ -61,8 +61,12 @@ D["KnowledgePatch"] = obj({"expectedVersion": VER, "title": text(200), "text": t
 D["ModelCapabilities"] = obj({"structuredOutput": BOOL, "nativeTools": BOOL, "imageInput": BOOL})
 D["ModelProfile"] = obj({"id": UUID, "name": text(120), "endpoint": URI, "configuredModelId": text(200, minLength=1), "adapter": enum("openai_compatible", "anthropic_messages"), "dataBoundary": enum("internal", "external"), "capabilities": ref("ModelCapabilities"), "status": enum("untested", "ready", "degraded", "disabled"), "version": VER})
 D["ModelProfileCreate"] = obj({"name": text(120, minLength=1), "endpoint": URI, "configuredModelId": text(200, minLength=1), "adapter": enum("openai_compatible", "anthropic_messages"), "dataBoundary": enum("internal", "external"), "apiKey": text(1000, writeOnly=True)}, ["name", "endpoint", "configuredModelId", "adapter", "dataBoundary"])
+# Per-model output cap for every call (decisions, assertions, probes). Models
+# that reason before answering need room; unset means the gateway default.
+MODEL_OUTPUT_TOKENS = integer(256, 32000)
 for model_schema in ["ModelProfile", "ModelProfileCreate"]:
     D[model_schema]["properties"]["responseFormat"] = enum("json_schema", "json_object", "native_tools")
+    D[model_schema]["properties"]["maxOutputTokens"] = copy.deepcopy(MODEL_OUTPUT_TOKENS)
 D["ModelProbeResult"] = obj({"profileId": UUID, "capabilities": ref("ModelCapabilities"), "status": enum("ready", "degraded", "disabled"), "notes": arr(text(1000), 20)})
 D["ModelGrantCreate"] = obj({"modelProfileId": UUID}, ["modelProfileId"])
 D["RunCreate"] = obj({"projectId": UUID, "targetUrl": URI, "brief": text(4000), "environmentId": UUID, "authProfileId": UUID, "modelProfileId": UUID, "mode": enum("smoke"), "budget": ref("BudgetOverrides")}, ["projectId", "targetUrl"])
@@ -104,7 +108,8 @@ D["ActionPermit"] = obj({"actionId": UUID, "permitted": BOOL, "reasonCode": null
 D["ActionResult"] = obj({"outcome": enum("succeeded", "failed", "unknown", "cancelled"), "summary": text(2000), "evidenceRefs": arr(UUID, 30), "resultHash": text(64, pattern="^[0-9a-f]{64}$")})
 D["ModelPart"] = {"oneOf": [obj({"type": {"const": "text"}, "text": text(60000)}), obj({"type": {"const": "image"}, "artifactId": UUID})]}
 D["ModelMessage"] = obj({"role": enum("system", "user", "assistant", "tool"), "content": arr(ref("ModelPart"), 20, 1)})
-D["ModelRequest"] = obj({"taskId": UUID, "profileId": UUID, "contextVersion": VER, "purpose": enum("plan", "decide", "assert", "summarize"), "messages": arr(ref("ModelMessage"), 100, 1), "maxOutputTokens": integer(1, 2000), "outputSchema": {"type": "object"}})
+# maxOutputTokens is an optional caller ceiling; the bound model's own cap applies.
+D["ModelRequest"] = obj({"taskId": UUID, "profileId": UUID, "contextVersion": VER, "purpose": enum("plan", "decide", "assert", "summarize"), "messages": arr(ref("ModelMessage"), 100, 1), "maxOutputTokens": integer(1, 32000), "outputSchema": {"type": "object"}}, ["taskId", "profileId", "contextVersion", "purpose", "messages", "outputSchema"])
 D["ModelRequest"]["properties"]["criterionId"] = copy.deepcopy(D["Criterion"]["properties"]["id"])
 D["ModelResult"] = obj({"data": ref("JsonValue"), "configuredModelId": text(200), "reportedModelId": nullable(text(200)), "usage": ref("ModelUsage")})
 D["AuthResolve"] = obj({"taskId": UUID, "authProfileId": UUID, "authProfileVersion": VER})
@@ -120,6 +125,7 @@ D["ProjectPatch"] = obj({"expectedVersion": VER, "name": text(120), "status": en
 D["ProjectDeleteConfirm"] = obj({"expectedVersion": VER, "confirmName": text(120, minLength=1)})
 D["ModelProfilePatch"] = obj({"expectedVersion": VER, "name": text(120), "endpoint": URI, "configuredModelId": text(200), "apiKey": text(1000, writeOnly=True), "status": enum("disabled", "untested")}, ["expectedVersion"])
 D["ModelProfilePatch"]["properties"]["responseFormat"] = enum("json_schema", "json_object", "native_tools")
+D["ModelProfilePatch"]["properties"]["maxOutputTokens"] = copy.deepcopy(MODEL_OUTPUT_TOKENS)
 D["ModelBinding"] = obj({"profileId": UUID, "version": VER})
 D["RoleModels"] = obj({role: ref("ModelBinding") for role in ["coordinator", "explorer", "executor", "assertion", "reproducer"]})
 D["RunConfig"]["properties"].pop("modelProfileIds")

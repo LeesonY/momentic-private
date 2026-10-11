@@ -1446,6 +1446,11 @@
               "json_object",
               "native_tools"
             ]
+          },
+          "maxOutputTokens": {
+            "type": "integer",
+            "minimum": 256,
+            "maximum": 32000
           }
         },
         "required": [
@@ -1506,6 +1511,11 @@
               "json_object",
               "native_tools"
             ]
+          },
+          "maxOutputTokens": {
+            "type": "integer",
+            "minimum": 256,
+            "maximum": 32000
           }
         },
         "required": [
@@ -3722,7 +3732,7 @@
           "maxOutputTokens": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 2000
+            "maximum": 32000
           },
           "outputSchema": {
             "type": "object"
@@ -3739,7 +3749,6 @@
           "contextVersion",
           "purpose",
           "messages",
-          "maxOutputTokens",
           "outputSchema"
         ],
         "additionalProperties": false
@@ -4011,6 +4020,11 @@
               "json_object",
               "native_tools"
             ]
+          },
+          "maxOutputTokens": {
+            "type": "integer",
+            "minimum": 256,
+            "maximum": 32000
           }
         },
         "required": [
@@ -16753,6 +16767,11 @@
                 "json_object",
                 "native_tools"
               ]
+            },
+            "maxOutputTokens": {
+              "type": "integer",
+              "minimum": 256,
+              "maximum": 32000
             }
           },
           "required": [
@@ -16813,6 +16832,11 @@
                 "json_object",
                 "native_tools"
               ]
+            },
+            "maxOutputTokens": {
+              "type": "integer",
+              "minimum": 256,
+              "maximum": 32000
             }
           },
           "required": [
@@ -19029,7 +19053,7 @@
             "maxOutputTokens": {
               "type": "integer",
               "minimum": 1,
-              "maximum": 2000
+              "maximum": 32000
             },
             "outputSchema": {
               "type": "object"
@@ -19046,7 +19070,6 @@
             "contextVersion",
             "purpose",
             "messages",
-            "maxOutputTokens",
             "outputSchema"
           ],
           "additionalProperties": false
@@ -19318,6 +19341,11 @@
                 "json_object",
                 "native_tools"
               ]
+            },
+            "maxOutputTokens": {
+              "type": "integer",
+              "minimum": 256,
+              "maximum": 32000
             }
           },
           "required": [

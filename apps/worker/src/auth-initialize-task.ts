@@ -198,7 +198,6 @@ export async function initializeBrowserAuthentication(
                   purpose: 'decide',
                   messages,
                   outputSchema,
-                  maxOutputTokens: 300,
                 },
                 undefined,
                 callSignal,

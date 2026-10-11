@@ -1,6 +1,8 @@
 export {
   DEFAULT_INPUT_TOKENS,
   DEFAULT_OUTPUT_TOKENS,
+  MAX_OUTPUT_TOKENS,
+  MIN_OUTPUT_TOKENS,
   FIXTURE,
   REPAIR_MARK,
 } from './adapter.js';
@@ -31,6 +33,7 @@ export {
   assessCriterionOutput,
   createGateway,
   messageFromText,
+  outputTokenLimit,
   selectStructuredOutput,
   unwrapProviderOutput,
 } from './gateway.js';

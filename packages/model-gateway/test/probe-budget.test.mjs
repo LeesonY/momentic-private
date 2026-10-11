@@ -102,7 +102,8 @@ for (const endpoint of [
     assert.equal(result.errorCode, null);
     assert.equal(calls, 3);
     assert.equal(result.outputTokens, 4533);
-    assert.equal(JSON.parse(result.outboundRedacted).max_tokens, 2000);
+    // The default per-profile cap leaves room for reasoning tokens.
+    assert.equal(JSON.parse(result.outboundRedacted).max_tokens, 4000);
     assert.deepEqual(result.data.capabilities, {
       structuredOutput: true,
       nativeTools: false,
@@ -112,21 +113,27 @@ for (const endpoint of [
   });
 }
 
-test('other providers and protocols retain their existing probe budget', async () => {
-  for (const [endpoint, kind] of [
-    ['https://anthropic-probe.test/v1', 'anthropic_messages'],
-    ['https://motoken.moresec.cn.other.test', 'anthropic_messages'],
-    ['https://motoken.moresec.cn:3443/v1', 'openai_compatible'],
+test('every provider and protocol probes with the profile output cap', async () => {
+  for (const [endpoint, kind, configured, expected] of [
+    ['https://anthropic-probe.test/v1', 'anthropic_messages', undefined, 4000],
+    [
+      'https://motoken.moresec.cn:3443/v1',
+      'openai_compatible',
+      undefined,
+      4000,
+    ],
+    ['https://anthropic-probe.test/v1', 'anthropic_messages', 1024, 1024],
+    ['https://motoken.moresec.cn:3443/v1', 'openai_compatible', 8192, 8192],
   ]) {
     let calls = 0;
     const transport = async (_url, init) => {
       calls++;
       const body = JSON.parse(init.body);
       if (kind === 'anthropic_messages') {
-        assert.equal(body.max_tokens, 200);
+        assert.equal(body.max_tokens, expected);
         return anthropicResponse(probeText, 'end_turn', 16);
       }
-      assert.equal(body.max_completion_tokens, 200);
+      assert.equal(body.max_completion_tokens, expected);
       return new Response(
         JSON.stringify({
           model: profile.configuredModelId,
@@ -137,7 +144,14 @@ test('other providers and protocols retain their existing probe budget', async (
       );
     };
     const gateway = createGateway({
-      profiles: [{ ...profile, endpoint, kind }],
+      profiles: [
+        {
+          ...profile,
+          endpoint,
+          kind,
+          ...(configured ? { maxOutputTokens: configured } : {}),
+        },
+      ],
       decryptKey: () => 'fixture-key',
       adapter:
         kind === 'anthropic_messages'
@@ -166,7 +180,7 @@ test('MoreSec truncation still fails without retry or accepting partial JSON', a
   assert.equal(calls, 1);
   assert.equal(result.providerCalls, 1);
   assert.equal(result.repairCount, 0);
-  assert.equal(result.outputTokens, 2000);
+  assert.equal(result.outputTokens, 4000);
   assert.equal(result.data, null);
 });
 
@@ -222,4 +236,54 @@ test('malformed MoreSec endpoint fails during preflight', async () => {
   const result = await gateway.capabilityProbe(profile.id, 1000);
   assert.equal(result.errorCode, 'MODEL_NOT_CONFIGURED');
   assert.equal(calls, 0);
+});
+
+test('business requests use the profile cap; a caller may only lower it', async () => {
+  const seen = [];
+  const decide = (configured, maxOutputTokens) =>
+    createGateway({
+      profiles: [
+        { ...profile, ...(configured ? { maxOutputTokens: configured } : {}) },
+      ],
+      decryptKey: () => 'fixture-key',
+      adapter: createAnthropicAdapter(async (_url, init) => {
+        seen.push(JSON.parse(init.body).max_tokens);
+        return anthropicResponse(
+          '{"done":true,"toolCalls":[]}',
+          'end_turn',
+          16,
+        );
+      }),
+    }).generateDecision({
+      taskId: 'c3222222-2222-4222-8222-222222222222',
+      profileId: profile.id,
+      contextVersion: 1,
+      role: 'executor',
+      promptVersion: 'probe-budget-test',
+      purpose: 'decide',
+      messages: [
+        { role: 'user', content: [{ type: 'text', text: 'Return JSON' }] },
+      ],
+      approvedImageIds: [],
+      toolSchemas: [],
+      outputSchema: {
+        type: 'object',
+        required: ['done', 'toolCalls'],
+        additionalProperties: false,
+        properties: {
+          done: { type: 'boolean' },
+          toolCalls: { type: 'array' },
+        },
+      },
+      timeoutMs: 1000,
+      ...(maxOutputTokens ? { maxOutputTokens } : {}),
+    });
+  for (const [configured, caller] of [
+    [undefined, undefined],
+    [8192, undefined],
+    [1024, 8000],
+    [8192, 600],
+  ])
+    assert.equal((await decide(configured, caller)).requestResult, 'ok');
+  assert.deepEqual(seen, [4000, 8192, 1024, 600]);
 });
