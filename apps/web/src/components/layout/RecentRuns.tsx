@@ -37,8 +37,17 @@ const relativeTime = (iso: string) => {
   return `${Math.round(hours / 24)} 天前`;
 };
 
-const runTitle = (run: Run) =>
-  run.targetUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') || run.id;
+// Runs usually share one host, so lead with the path; the full URL is in
+// the tooltip.
+const runTitle = (run: Run) => {
+  try {
+    const url = new URL(run.targetUrl);
+    const path = `${url.pathname}${url.search}`;
+    return path === '/' ? url.host : path;
+  } catch {
+    return run.targetUrl || run.id;
+  }
+};
 
 /**
  * Sidebar list of the current project's runs, like Mo's "My sessions". It

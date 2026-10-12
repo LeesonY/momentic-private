@@ -1417,3 +1417,8 @@
     margin: 6px 0 0;
   }
 }
+
+/* Workbench without runs: center the empty state like Mo. */
+.lqa-page.is-full > .page-body > .empty-state {
+  min-height: calc(100vh - 120px);
+}
