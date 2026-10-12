@@ -300,6 +300,7 @@ try {
   await page.getByTestId('nav-environments').click();
   await page.getByTestId('environments-page').waitFor();
   await page.getByTestId('environments-empty-state').waitFor();
+  await page.getByTestId('btn-add-environment').click();
   await page.getByTestId('environment-name').fill(environment.name);
   await page.getByTestId('environment-base-url').fill(environment.baseUrl);
   await page
@@ -321,6 +322,7 @@ try {
   await page.getByTestId('btn-create-environment').click();
   await page.getByTestId(`env-row-${environmentId}`).waitFor();
   assert.equal(envCreated, true);
+  await page.getByTestId(`btn-add-auth-${environmentId}`).click();
   await page.getByTestId('auth-profile-name').fill(anonymousAuth.name);
   await page.getByTestId('auth-profile-mode').selectOption('none');
   await page

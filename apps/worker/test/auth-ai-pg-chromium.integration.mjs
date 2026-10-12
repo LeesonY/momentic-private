@@ -343,6 +343,8 @@ test(
         assert.equal(login.status(), 200);
         const page = await context.newPage();
         await page.goto(`${uiProxy.origin}/#/environments`);
+        await page.getByTestId(`btn-add-auth-${environment.id}`).click();
+        await page.getByTestId('auth-profile-mode').selectOption('form');
         await page.getByTestId('auth-ai-guidance').waitFor();
         assert.equal(
           await page.locator('#auth-profile-name').getAttribute('required'),
@@ -386,6 +388,8 @@ test(
         const switched = await (await patch).json();
         assert.equal(switched.formConfig.detectionMode, 'ai');
         assert.equal(switched.hasSecret, true);
+        await page.getByTestId(`btn-add-auth-${environment.id}`).click();
+        await page.getByTestId('auth-profile-mode').selectOption('form');
         await page.locator('#auth-login-url').fill(`${origin}/login`);
         await page.locator('#auth-username').fill(username);
         await page.locator('#auth-password').fill(password);
