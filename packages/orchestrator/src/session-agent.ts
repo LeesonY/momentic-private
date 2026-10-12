@@ -363,7 +363,14 @@ export class SessionAgent {
       gaps.push('本次没有可执行用例，不能据此认为目标系统通过测试。');
     const document: SessionReport = {
       ...context.session,
-      status: hasWork ? 'working' : 'finalizing',
+      // An invalid model plan cannot be repaired by repeatedly prompting the
+      // same planner after dispatching the fixed technical fallback. Finish
+      // after its owned executor/reproducer work, retaining the coverage gap.
+      status: fallbackToTechnicalSmoke
+        ? 'finalizing'
+        : hasWork
+          ? 'working'
+          : 'finalizing',
       plan: clean(accepted.rationale),
       caseIds: [...context.session.caseIds, ...caseIds],
       exploredUrls: [
@@ -417,6 +424,18 @@ export class SessionAgent {
   ): Promise<boolean> {
     const session = await this.read(client, run);
     if (!session) return false;
+    // A finalizing session can still have a suspected finding from the
+    // completed technical executor. Offer independent reproduction before
+    // entering finalize, so skipping extra AI planning cannot confirm a bug.
+    if (
+      session.status === 'finalizing' &&
+      run.phase !== 'finalize' &&
+      (await this.coordinator.enqueueReproductions(client, run, jobs))
+    ) {
+      if (run.phase !== 'reproduce')
+        await this.coordinator.change(client, run, 'running', 'reproduce');
+      return true;
+    }
     if (session.status === 'finalizing' || session.status === 'complete') {
       if (run.phase !== 'finalize')
         run = await this.coordinator.change(client, run, 'running', 'finalize');

@@ -158,7 +158,7 @@ test('malformed AI citation falls back only to immutable technical smoke and rec
   const documented = events.find((e) => e.action === 'session').document;
   assert.equal(documented.caseIds.length, 1);
   assert.match(documented.coverageGaps.join(' '), /未执行其业务断言/);
-  assert.equal(documented.status, 'working');
+  assert.equal(documented.status, 'finalizing');
 });
 
 test('truncated Planner output may only create fixed technical smoke, not invented business cases', async () => {
@@ -206,7 +206,7 @@ test('truncated Planner output may only create fixed technical smoke, not invent
   );
   assert.equal(events.filter((e) => e.action === 'enqueue').length, 1);
   const report = events.find((e) => e.action === 'session').document;
-  assert.equal(report.status, 'working');
+  assert.equal(report.status, 'finalizing');
   assert.match(report.coverageGaps.join(' '), /业务用例未得到确认/);
   const originalCount = events.length;
   await assert.rejects(
@@ -224,4 +224,19 @@ test('truncated Planner output may only create fixed technical smoke, not invent
     (error) => error.code === 'VALIDATION_ERROR',
   );
   assert.equal(events.length, originalCount);
+});
+
+test('fallback finalization preserves independent reproduction before report', async () => {
+  const run = { ...makeRun(), phase: 'execute' };
+  const { coordinator, events } = makeCoordinator();
+  const agent = new SessionAgent(coordinator);
+  agent.read = async () => ({
+    status: 'finalizing',
+    caseIds: ['a'],
+    coverageGaps: ['AI plan rejected'],
+  });
+  coordinator.enqueueReproductions = async () => 1;
+  const processed = await agent.advance({}, run, []);
+  assert.equal(processed, true);
+  assert.deepEqual(events, [{ action: 'phase', phase: 'reproduce' }]);
 });
