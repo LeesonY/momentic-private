@@ -35,6 +35,7 @@ import { replayRegression, type ReplayPorts } from './regression-replay.js';
 import { createRegressionAiAction } from './regression-ai.js';
 import { initializeBrowserAuthentication } from './auth-initialize-task.js';
 import { withApprovedBrowserAuth } from './auth-import-task.js';
+import { isFixedTechnicalSmoke } from './technical-smoke.js';
 export { CandidateVerifier } from './candidate-verifier.js';
 
 export interface WorkerOptions {
@@ -929,6 +930,8 @@ export class Worker {
             navigationStatus === 401 ||
             navigationStatus === 403);
         const role = work.task.role as AgentRole;
+        const fixedTechnicalCase =
+          work.stage === 'execute' && isFixedTechnicalSmoke(work.definition);
         const dispatcher = createPolicyDispatcher(
           async (call) => execute(call) as unknown as JsonValue,
         );
@@ -960,7 +963,7 @@ export class Worker {
         for (
           let round = 0;
           round <
-          (unavailableTarget
+          (unavailableTarget || fixedTechnicalCase
             ? 0
             : Math.min(12, work.run.effectiveConfig.budget.maxActionsPerCase));
           round++

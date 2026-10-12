@@ -541,6 +541,53 @@ export class Coordinator {
     return run;
   }
 
+  /**
+   * Trusted frozen smoke cases already contain the authoritative assertions.
+   * Avoid redundant AI exploration and planning before executing them.
+   */
+  private async startSmokeAfterAuth(
+    client: PoolClient,
+    run: Run,
+  ): Promise<Run> {
+    const cases = (
+      await client.query<{ document: CaseDefinition }>(
+        'SELECT document FROM run_cases WHERE project_id=$1 AND run_id=$2 ORDER BY id',
+        [run.projectId, run.id],
+      )
+    ).rows.map(({ document }) => document);
+    if (cases.length) {
+      if (cases.some((c) => c.regression))
+        throw new StorageError('VALIDATION_ERROR');
+      run = await this.change(client, run, 'running', 'execute');
+      for (const c of cases) {
+        const entryUrl = c.outline[0]?.startsWith('Navigate ')
+          ? c.outline[0].slice(9)
+          : run.targetUrl;
+        validateTarget(
+          entryUrl,
+          run.effectiveConfig.allowedOrigins,
+          this.protectedOrigins,
+        );
+        await this.enqueue(
+          client,
+          run,
+          'executor',
+          'execute',
+          `${c.id}:v${c.version}`,
+          c.id,
+          1,
+          { entryUrl },
+        );
+      }
+      return run;
+    }
+    run = await this.change(client, run, 'running', 'explore');
+    if (await this.sessions.read(client, run))
+      await this.sessions.advance(client, run, []);
+    else await this.enqueue(client, run, 'explorer', 'explore', 'entry', null);
+    return run;
+  }
+
   async change(
     client: PoolClient,
     run: Run,
@@ -2945,19 +2992,7 @@ export class Coordinator {
             );
           } else {
             run = await this.change(client, run, 'running', 'auth');
-            run = await this.change(client, run, 'running', 'explore');
-            if (await this.sessions.read(client, run))
-              await this.sessions.advance(client, run, []);
-            else {
-              await this.enqueue(
-                client,
-                run,
-                'explorer',
-                'explore',
-                'entry',
-                null,
-              );
-            }
+            run = await this.startSmokeAfterAuth(client, run);
           }
         } else if (run.phase === 'auth' && succeeded('auth')) {
           // finishAuth alone can mark the auth job successful after a real,
@@ -2966,19 +3001,7 @@ export class Coordinator {
           if (run.executionMode === 'regression') {
             run = await this.startApprovedRegression(client, run);
           } else {
-            run = await this.change(client, run, 'running', 'explore');
-            if (await this.sessions.read(client, run))
-              await this.sessions.advance(client, run, []);
-            else {
-              await this.enqueue(
-                client,
-                run,
-                'explorer',
-                'explore',
-                'entry',
-                null,
-              );
-            }
+            run = await this.startSmokeAfterAuth(client, run);
           }
         } else if (run.phase === 'explore' && succeeded('explore')) {
           run = await this.change(client, run, 'running', 'plan');

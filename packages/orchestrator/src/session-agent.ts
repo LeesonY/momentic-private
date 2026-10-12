@@ -9,6 +9,7 @@ import {
   type Finding,
 } from '@localqa/contracts';
 import { sanitizeText } from '@localqa/browser';
+import { DomainError, smokeCase } from '@localqa/domain';
 import { appendEvent, hashPayload, StorageError } from '@localqa/storage';
 import type { Coordinator, JobRow } from './core.js';
 import {
@@ -239,16 +240,58 @@ export class SessionAgent {
     const context = await this.context(client, run);
     if (!context || context.session.round !== job.result['sessionRound'])
       throw new StorageError('VERSION_CONFLICT');
-    const accepted = reviewSessionProposal(input, {
-      ...context,
-      targetUrl: run.targetUrl,
-      allowedOrigins: run.effectiveConfig.allowedOrigins,
-      protectedOrigins: this.coordinator.protectedOrigins,
-      existingCases: context.cases.map((c) => c.definition),
-      exploredUrls: context.session.exploredUrls,
-      imageInput: context.assertionCapabilities.imageInput,
-    });
+    let accepted: ReturnType<typeof reviewSessionProposal>;
+    let fallbackToTechnicalSmoke = false;
+    try {
+      accepted = reviewSessionProposal(input, {
+        ...context,
+        targetUrl: run.targetUrl,
+        allowedOrigins: run.effectiveConfig.allowedOrigins,
+        protectedOrigins: this.coordinator.protectedOrigins,
+        existingCases: context.cases.map((c) => c.definition),
+        exploredUrls: context.session.exploredUrls,
+        imageInput: context.assertionCapabilities.imageInput,
+      });
+    } catch (error) {
+      // A model's invalid source attribution or unauthorized proposed case
+      // must never become an executable business assertion. Preserve an
+      // explicit coverage gap and use only the server-owned technical smoke
+      // oracle (with immutable FR-013/016 criteria) on the approved entry.
+      const invalidProposal =
+        (error instanceof DomainError || error instanceof StorageError) &&
+        ['VALIDATION_ERROR', 'TARGET_NOT_ALLOWED'].includes(error.code);
+      if (!invalidProposal) throw error;
+      fallbackToTechnicalSmoke =
+        context.cases.length === 0 && context.remainingCases > 0;
+      accepted = {
+        action: 'dispatch',
+        rationale: 'AI 规划不符合源引用或授权约束，已拒绝原方案。',
+        cases: [],
+        exploreTargets: [],
+        coverageGaps: [
+          'AI 规划未通过服务端校验；未执行其业务断言。',
+          ...(fallbackToTechnicalSmoke
+            ? ['仅执行服务端固定的入口 HTTP/可见性技术冒烟。']
+            : []),
+        ],
+      };
+    }
     const caseIds: string[] = [];
+    if (fallbackToTechnicalSmoke) {
+      const c = smokeCase(run, run.targetUrl);
+      await this.coordinator.insertCase(client, c);
+      await this.coordinator.enqueue(
+        client,
+        run,
+        'executor',
+        'execute',
+        `${c.id}:v${c.version}`,
+        c.id,
+        1,
+        { entryUrl: run.targetUrl },
+      );
+      caseIds.push(c.id);
+    }
     for (const candidate of accepted.cases) {
       const { entryUrl, ...data } = candidate;
       const definition = parseContract('CaseDefinition', {
