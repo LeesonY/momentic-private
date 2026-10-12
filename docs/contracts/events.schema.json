@@ -35,7 +35,8 @@
             "input.resolved",
             "artifact.updated",
             "report.ready",
-            "run.finished"
+            "run.finished",
+            "session.updated"
           ]
         },
         "at": {
@@ -60,6 +61,25 @@
       ],
       "additionalProperties": false,
       "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "session.updated"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/SessionReport"
+              }
+            }
+          }
+        },
         {
           "if": {
             "properties": {
@@ -391,6 +411,128 @@
           }
         }
       ]
+    },
+    "SessionReport": {
+      "type": "object",
+      "properties": {
+        "objective": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "round": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 6
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "planning",
+            "working",
+            "reviewing",
+            "finalizing",
+            "complete"
+          ]
+        },
+        "plan": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "caseIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "maxItems": 30,
+          "minItems": 0
+        },
+        "exploredUrls": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 8192,
+            "pattern": "^https?://"
+          },
+          "maxItems": 30,
+          "minItems": 0
+        },
+        "coverageGaps": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "maxItems": 100,
+          "minItems": 0
+        },
+        "summary": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SessionRound"
+          },
+          "maxItems": 6,
+          "minItems": 0
+        }
+      },
+      "required": [
+        "objective",
+        "round",
+        "status",
+        "plan",
+        "caseIds",
+        "exploredUrls",
+        "coverageGaps",
+        "summary",
+        "history"
+      ],
+      "additionalProperties": false
+    },
+    "SessionRound": {
+      "type": "object",
+      "properties": {
+        "round": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "caseIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "maxItems": 30,
+          "minItems": 0
+        },
+        "exploreTargets": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 8192,
+            "pattern": "^https?://"
+          },
+          "maxItems": 30,
+          "minItems": 0
+        }
+      },
+      "required": [
+        "round",
+        "reason",
+        "caseIds",
+        "exploreTargets"
+      ],
+      "additionalProperties": false
     },
     "Run": {
       "type": "object",

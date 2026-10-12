@@ -4,35 +4,25 @@ import { StatusBadge } from '../ui/Badge.tsx';
 import { AppIcon, type AppIconName } from '../ui/AppIcon.tsx';
 import { ThemeToggle } from '../ui/ThemeToggle.tsx';
 import { CreateProjectDialog } from './CreateProjectDialog.tsx';
+import { RecentRuns } from './RecentRuns.tsx';
 
-const navGroups: {
-  label: string;
-  items: { key: AppRoute; label: string; icon: AppIconName }[];
-}[] = [
-  {
-    label: '测试执行',
-    items: [
-      { key: 'home', label: '项目首页', icon: 'grid' },
-      { key: 'workbench', label: '运行工作台', icon: 'activity' },
-    ],
-  },
-  {
-    label: '回归管理',
-    items: [
-      { key: 'saved-cases', label: '用例库', icon: 'layers' },
-      { key: 'schedules', label: '定时回归', icon: 'calendar' },
-      { key: 'modules', label: '模块库', icon: 'boxes' },
-    ],
-  },
-  {
-    label: '项目配置',
-    items: [
-      { key: 'environments', label: '环境与认证', icon: 'shield' },
-      { key: 'knowledge', label: '项目知识', icon: 'book' },
-      { key: 'models', label: '模型管理', icon: 'cpu' },
-      { key: 'members-ops', label: '成员与运维', icon: 'users' },
-    ],
-  },
+// One flat list like Mo's sidebar; groups are separated by spacing only.
+const navGroups: { key: AppRoute; label: string; icon: AppIconName }[][] = [
+  [
+    { key: 'home', label: '新建测试', icon: 'plus' },
+    { key: 'workbench', label: '运行工作台', icon: 'activity' },
+  ],
+  [
+    { key: 'saved-cases', label: '用例库', icon: 'layers' },
+    { key: 'schedules', label: '定时回归', icon: 'calendar' },
+    { key: 'modules', label: '模块库', icon: 'boxes' },
+  ],
+  [
+    { key: 'environments', label: '环境与认证', icon: 'shield' },
+    { key: 'knowledge', label: '项目知识', icon: 'book' },
+    { key: 'models', label: '模型管理', icon: 'cpu' },
+    { key: 'members-ops', label: '成员与运维', icon: 'users' },
+  ],
 ];
 
 // Detail pages highlight the list they were opened from.
@@ -74,20 +64,53 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({
         data-testid="app-header"
       >
         <div className="lqa-sidebar-top">
-          <button
-            className="lqa-brand"
-            type="button"
-            onClick={() => navigate('home')}
-            aria-label="LocalQA 项目首页"
-            data-testid="app-logo-home"
-          >
-            <span className="lqa-brand-mark">
-              <AppIcon name="layers" size={18} />
-            </span>
-            <span className="lqa-brand-wordmark">
-              Local<span>QA</span>
-            </span>
-          </button>
+          <div className="lqa-project-field">
+            {projects.length > 0 && currentProject ? (
+              <select
+                className="lqa-project-select"
+                aria-label="切换项目"
+                value={currentProject.id}
+                onChange={(event) => {
+                  const selected = projects.find(
+                    (project) => project.id === event.target.value,
+                  );
+                  if (selected) {
+                    setCurrentProject(selected);
+                    navigate('home');
+                  }
+                }}
+                data-testid="project-selector"
+              >
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                    {projects.some(
+                      (other) =>
+                        other.id !== project.id && other.name === project.name,
+                    )
+                      ? ` · ID ${project.id.slice(0, 8)}`
+                      : ''}
+                    {project.status === 'archived' ? '（已归档）' : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="lqa-project-empty">尚未创建项目</span>
+            )}
+            <AppIcon name="chevron-down" size={14} />
+          </div>
+          {currentUser?.globalRole === 'admin' && (
+            <button
+              type="button"
+              className="lqa-icon-button lqa-create-project"
+              aria-label="新建项目"
+              title="新建项目"
+              data-testid="btn-create-project"
+              onClick={() => setCreatingProject(true)}
+            >
+              <AppIcon name="plus" size={16} />
+            </button>
+          )}
           <button
             type="button"
             className="lqa-icon-button lqa-menu-button"
@@ -101,71 +124,15 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({
           </button>
         </div>
 
-        <div className="lqa-project-switch">
-          <span className="lqa-sidebar-label">当前项目</span>
-          <div className="lqa-project-row">
-            <div className="lqa-project-field">
-              <AppIcon name="folder" size={15} />
-              {projects.length > 0 && currentProject ? (
-                <select
-                  className="lqa-project-select"
-                  aria-label="切换项目"
-                  value={currentProject.id}
-                  onChange={(event) => {
-                    const selected = projects.find(
-                      (project) => project.id === event.target.value,
-                    );
-                    if (selected) {
-                      setCurrentProject(selected);
-                      navigate('home');
-                    }
-                  }}
-                  data-testid="project-selector"
-                >
-                  {projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                      {projects.some(
-                        (other) =>
-                          other.id !== project.id &&
-                          other.name === project.name,
-                      )
-                        ? ` · ID ${project.id.slice(0, 8)}`
-                        : ''}
-                      {project.status === 'archived' ? '（已归档）' : ''}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <span className="lqa-project-empty">尚未创建项目</span>
-              )}
-              <AppIcon name="chevron-down" size={14} />
-            </div>
-            {currentUser?.globalRole === 'admin' && (
-              <button
-                type="button"
-                className="lqa-icon-button lqa-create-project"
-                aria-label="新建项目"
-                title="新建项目"
-                data-testid="btn-create-project"
-                onClick={() => setCreatingProject(true)}
-              >
-                <AppIcon name="plus" size={17} />
-              </button>
-            )}
-          </div>
-        </div>
-
         <div id="lqa-sidebar-panel" className="lqa-sidebar-panel">
           <nav
             className="lqa-sidebar-nav"
             aria-label="主导航"
             data-testid="main-navigation"
           >
-            {navGroups.map((group) => (
-              <div className="lqa-nav-group" key={group.label}>
-                <span className="lqa-sidebar-label">{group.label}</span>
-                {group.items.map(({ key, label, icon }) => (
+            {navGroups.map((group, index) => (
+              <div className="lqa-nav-group" key={index}>
+                {group.map(({ key, label, icon }) => (
                   <button
                     key={key}
                     type="button"
@@ -174,13 +141,15 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({
                     onClick={() => navigate(key)}
                     data-testid={`nav-${key}`}
                   >
-                    <AppIcon name={icon} size={17} />
+                    <AppIcon name={icon} size={16} />
                     <span>{label}</span>
                   </button>
                 ))}
               </div>
             ))}
           </nav>
+
+          {currentUser && <RecentRuns onNavigate={() => setMenuOpen(false)} />}
 
           <div className="lqa-sidebar-footer">
             <div className="lqa-sidebar-controls">
@@ -218,7 +187,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({
                   title="退出登录"
                   data-testid="btn-logout"
                 >
-                  <AppIcon name="log-out" size={17} />
+                  <AppIcon name="log-out" size={16} />
                 </button>
               </div>
             ) : (

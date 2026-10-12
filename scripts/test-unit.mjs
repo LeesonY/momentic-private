@@ -29,6 +29,7 @@ const files = [
   'packages/report/test/unit.test.mjs',
   'packages/orchestrator/test/boundary.test.mjs',
   'packages/orchestrator/test/auth-ai.test.mjs',
+  'packages/orchestrator/test/session-planning.test.mjs',
   'packages/orchestrator/test/g3c-bound-model.test.mjs',
   'packages/orchestrator/test/g3d-process-model.test.mjs',
   'packages/orchestrator/test/regression-compiler.test.mjs',

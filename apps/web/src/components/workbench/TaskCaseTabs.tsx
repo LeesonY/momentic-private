@@ -4,6 +4,7 @@ import type {
   Finding,
   Task,
   Report,
+  SessionReport,
   Run,
 } from '@localqa/contracts';
 import { StatusBadge } from '../ui/Badge.tsx';
@@ -28,6 +29,7 @@ interface TaskCaseTabsProps {
   findings: Finding[];
   tasks: Task[];
   report: Report | null;
+  session?: SessionReport | null;
   runId: string;
   run?: Run | null;
   onRefreshReport?: () => void;
@@ -38,12 +40,13 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
   findings,
   tasks,
   report,
+  session,
   runId,
   run,
   onRefreshReport,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'cases' | 'findings' | 'tasks' | 'report'
+    'planning' | 'cases' | 'findings' | 'tasks' | 'report'
   >('cases');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { setRoute } = useApp();
@@ -57,6 +60,15 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
     value !== null ? `${Math.round(value * 100)}%` : empty;
 
   const tabs = [
+    ...(session
+      ? [
+          {
+            key: 'planning' as const,
+            label: '主 AI 规划',
+            count: session.round,
+          },
+        ]
+      : []),
     { key: 'cases' as const, label: '用例', count: cases.length },
     { key: 'findings' as const, label: '缺陷', count: findings.length },
     { key: 'tasks' as const, label: '任务', count: tasks.length },
@@ -257,6 +269,81 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
             </div>
           )}
 
+          {activeTab === 'planning' && session && (
+            <div
+              className="stack stack-md"
+              data-testid="session-planning-panel"
+            >
+              <div className="alert alert-info">
+                <div className="alert-body">
+                  <strong>
+                    {
+                      {
+                        planning: '正在规划覆盖范围',
+                        working: '子任务执行中',
+                        reviewing: '正在复核结果与规划补测',
+                        finalizing: '正在验收总结',
+                        complete: '会话已结束',
+                      }[session.status]
+                    }
+                  </strong>
+                  <p>
+                    第 {session.round} 轮 · 最多 6 轮 · {session.caseIds.length}{' '}
+                    条用例 · {session.exploredUrls.length} 个探索入口
+                  </p>
+                </div>
+              </div>
+              <div>
+                <div className="section-label">测试目标</div>
+                <p>
+                  {session.objective ||
+                    '探索目标页面和可观察流程，检查页面可用性。'}
+                </p>
+              </div>
+              <div>
+                <div className="section-label">当前计划</div>
+                <p data-testid="session-current-plan">
+                  {session.plan || '主 AI 正在制定第一轮计划…'}
+                </p>
+              </div>
+              {session.history.map((round) => (
+                <div
+                  className="lqa-item-card"
+                  key={round.round}
+                  data-testid={`session-round-${round.round}`}
+                >
+                  <div className="lqa-item-top">
+                    <strong>第 {round.round} 轮</strong>
+                    <span>
+                      {round.caseIds.length} 条执行用例 ·{' '}
+                      {round.exploreTargets.length} 个探索任务
+                    </span>
+                  </div>
+                  <p className="lqa-item-text">{round.reason}</p>
+                </div>
+              ))}
+              {session.summary && (
+                <div>
+                  <div className="section-label">主 AI 总结</div>
+                  <p data-testid="session-summary">{session.summary}</p>
+                  <p className="field-hint">
+                    通过数、缺陷数及复现状态以「报告」中的执行记录为准。
+                  </p>
+                </div>
+              )}
+              {session.coverageGaps.length > 0 && (
+                <div>
+                  <div className="section-label">覆盖缺口与限制</div>
+                  <ul>
+                    {session.coverageGaps.map((gap, i) => (
+                      <li key={i}>{gap}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === 'findings' && (
             <div data-testid="tab-content-findings">
               {findings.length === 0 ? (
@@ -401,6 +488,15 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
                     </div>
                   )}
 
+                  {report.session?.summary && (
+                    <div
+                      className="lqa-item-card"
+                      data-testid="report-session-summary"
+                    >
+                      <div className="section-label">主 AI 总结</div>
+                      <p>{report.session.summary}</p>
+                    </div>
+                  )}
                   <div className="stat-grid lqa-report-stats">
                     {[
                       ['计划用例', report.summary.planned, ''],

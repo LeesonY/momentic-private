@@ -154,13 +154,21 @@ export function validateBrowserTool(
   input: unknown,
   origins: readonly string[],
   protectedOrigins: readonly string[] = [],
+  sessionInteractions = false,
 ): ToolCall {
   const validate = getRootValidator('tools');
   if (!validate(input)) throw new DomainError('VALIDATION_ERROR');
   const call = input as ToolCall;
   if (
     !['explorer', 'executor', 'reproducer'].includes(role) ||
-    !['observe', 'navigate', 'capture'].includes(call.name)
+    ![
+      'observe',
+      'navigate',
+      'capture',
+      ...(sessionInteractions
+        ? ['click', 'type_text', 'select_option', 'press', 'scroll', 'wait_for']
+        : []),
+    ].includes(call.name)
   )
     throw new DomainError('POLICY_DENIED');
   if (call.name === 'navigate') {

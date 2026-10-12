@@ -72,6 +72,7 @@ export function createStubAdapter(): ProviderAdapter & { calls: number } {
       const body = input.body as {
         purpose?: string;
         messages?: { content: { type: string; text?: string }[] }[];
+        outputSchema?: { properties?: Record<string, unknown> };
       };
       const purpose = body.purpose ?? 'decide';
       const blob = textBlob(body.messages ?? []);
@@ -154,6 +155,70 @@ export function createStubAdapter(): ProviderAdapter & { calls: number } {
               evidenceRefs: [FIXTURE.fakeEvidenceId],
             },
             null,
+          ),
+        );
+      }
+      if (purpose === 'plan' && body.outputSchema?.properties?.['action']) {
+        const context = (body.messages ?? [])
+          .flatMap((m) => m.content)
+          .map((p) => {
+            try {
+              return JSON.parse(p.text ?? '');
+            } catch {
+              return null;
+            }
+          })
+          .find((p) => p?.session);
+        const data = {
+          action: 'finish',
+          rationale: '离线脚本仅验证通用入口',
+          exploreTargets: [] as string[],
+          cases: [] as unknown[],
+          coverageGaps: [],
+        };
+        if (context && !context.observations.length) {
+          data.action = 'dispatch';
+          data.exploreTargets = [context.targetUrl];
+        } else if (context && !context.cases.length && context.remainingCases) {
+          data.action = 'dispatch';
+          data.cases = [
+            {
+              entryUrl: context.targetUrl,
+              title: '离线入口检查',
+              summary: '脚本通用冒烟',
+              preconditions: [],
+              outline: ['检查可见内容'],
+              criteria: [
+                {
+                  id: 'smoke.visible',
+                  kind: 'element_visible',
+                  description: '页面内容可见',
+                  sourceKind: 'generic_smoke',
+                  sourceRef: 'FR-016',
+                  sourceQuote: '',
+                  locator: { by: 'css', value: 'body', name: null },
+                  expectedValue: null,
+                },
+              ],
+            },
+          ];
+        }
+        return Promise.resolve(
+          json(data, { inputTokens: 11, outputTokens: 7 }),
+        );
+      }
+      if (
+        purpose === 'summarize' &&
+        body.outputSchema?.properties?.['overview']
+      ) {
+        return Promise.resolve(
+          json(
+            {
+              overview: '完成离线脚本入口检查，不代表真实服务商测试。',
+              caseComments: [],
+              coverageGaps: [],
+            },
+            { inputTokens: 11, outputTokens: 7 },
           ),
         );
       }

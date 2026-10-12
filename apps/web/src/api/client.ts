@@ -28,6 +28,7 @@ import type {
   ModelProfile,
   ModelProfileCreate,
   ModelProfilePatch,
+  ModelDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -487,6 +488,13 @@ export class HttpApiClient implements ApiClient {
         body: JSON.stringify(input),
       },
       'ModelProfile',
+    );
+  }
+
+  public async deleteModel(modelProfileId: string, input: ModelDeleteConfirm): Promise<void> {
+    await this.request<void>(
+      `/model-profiles/${encodeURIComponent(modelProfileId)}`,
+      { method: 'DELETE', body: JSON.stringify(input) },
     );
   }
 

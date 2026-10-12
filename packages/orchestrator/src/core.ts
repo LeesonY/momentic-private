@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { SessionAgent, type SessionContext } from './session-agent.js';
 import { createRegressionPlan } from './regression-plan.js';
 import { AuthStateService, type AuthStateRef } from './auth-state-service.js';
 import { AuthOtpService } from './auth-otp.js';
@@ -111,6 +112,7 @@ export interface Work {
   definition: CaseDefinition | null;
   regressionPlan?: ReturnType<typeof createRegressionPlan>;
   findingId: string | null;
+  session?: SessionContext;
 }
 export interface Reservation {
   regressionSource?: import('@localqa/contracts').RegressionStepSource;
@@ -133,6 +135,7 @@ export interface CoordinatorOptions {
   protectedOrigins?: readonly string[];
 }
 export class Coordinator {
+  readonly sessions: SessionAgent;
   readonly db: Database;
   readonly serviceActor: Actor;
   readonly vault: SecretVault;
@@ -146,6 +149,7 @@ export class Coordinator {
   readonly projectSlots: number;
   readonly protectedOrigins: readonly string[];
   constructor(options: CoordinatorOptions) {
+    this.sessions = new SessionAgent(this);
     this.db = options.db;
     this.serviceActor = options.serviceActor;
     this.vault = options.vault;
@@ -394,6 +398,8 @@ export class Coordinator {
         }
         await this.insertCase(client, c);
       }
+      if (executionMode === 'smoke' && !trustedCases.length)
+        await this.sessions.initialize(client, run, data.brief ?? '');
       await this.enqueue(
         client,
         run,
@@ -1353,8 +1359,12 @@ export class Coordinator {
           [job.id, scope.projectId, contextId],
         );
       }
+      const session = ['coordinator', 'finalizer'].includes(job.role)
+        ? await this.sessions.context(client, run)
+        : null;
       return {
         run,
+        ...(session ? { session } : {}),
         task: { ...job.document, status: job.status },
         stage,
         targetUrl,
@@ -1596,6 +1606,8 @@ export class Coordinator {
           throw new StorageError('AUTH_FAILED');
       }
       const requested = parseContract('ToolCall', input);
+      const sessionInteractions =
+        (await this.sessions.read(client, run)) !== null;
       const call =
         run.executionMode === 'regression' &&
         ['executor', 'reproducer'].includes(job.role) &&
@@ -1606,7 +1618,52 @@ export class Coordinator {
               input,
               run.effectiveConfig.allowedOrigins,
               this.protectedOrigins,
+              sessionInteractions,
             );
+      if (sessionInteractions && 'target' in call.args && call.args.target) {
+        const target = call.args.target;
+        const owned = (
+          await client.query<{ document: BrowserSnapshot }>(
+            'SELECT document FROM page_snapshots WHERE project_id=$1 AND run_id=$2 AND task_id=$3 AND id=$4',
+            [scope.projectId, run.id, job.id, target.snapshotId],
+          )
+        ).rows[0]?.document;
+        const node = owned?.nodes.find(
+          (node) =>
+            node.nodeId === target.nodeId &&
+            node.frameId === (target.frameId ?? 'main'),
+        );
+        if (
+          !owned ||
+          owned.pageId !== target.pageId ||
+          !node ||
+          !node.visible ||
+          !node.enabled
+        )
+          throw new StorageError('POLICY_DENIED');
+        const latest = (
+          await client.query<{ result_hash: string }>(
+            "SELECT i.result_hash FROM action_intents i JOIN steps s ON s.action_id=i.id WHERE i.project_id=$1 AND i.run_id=$2 AND i.task_id=$3 AND i.outcome='succeeded' AND i.tool_call->>'name'<>'capture' ORDER BY s.seq DESC LIMIT 1",
+            [scope.projectId, run.id, job.id],
+          )
+        ).rows[0];
+        if (
+          latest?.result_hash !==
+          hashPayload({ status: 'succeeded', snapshot: owned, evidence: [] })
+        )
+          throw new StorageError('POLICY_DENIED');
+        if (
+          node.sensitive ||
+          ['password', 'hidden'].includes(node.inputType ?? node.role) ||
+          (call.name === 'press' && call.args.key === 'Enter') ||
+          (call.name === 'click' &&
+            (node.inputType === 'submit' ||
+              /删除|新增|新建|创建|保存|提交|发送|购买|支付|启用|停用|禁用|授权|重置|发布|\b(delete|remove|create|save|submit|send|purchase|enable|disable|reset|publish)\b/i.test(
+                `${node.name} ${node.text}`,
+              )))
+        )
+          throw new StorageError('POLICY_DENIED');
+      }
       let verifiedSource:
         import('@localqa/contracts').RegressionStepSource | undefined;
       if (run.executionMode === 'regression') {
@@ -1993,6 +2050,12 @@ export class Coordinator {
         throw new StorageError('POLICY_DENIED');
       if (result['stage'] !== job.result?.['stage'])
         throw new StorageError('VALIDATION_ERROR');
+      if (await this.sessions.read(client, run)) {
+        if (result['stage'] === 'plan')
+          await this.sessions.applyPlan(client, run, job, result['decision']);
+        if (result['stage'] === 'finalize')
+          await this.sessions.conclude(client, run, result['conclusion']);
+      }
       if (job.case_id) {
         if (!results) throw new StorageError('VALIDATION_ERROR');
         const definition = parseContract(
@@ -2072,49 +2135,103 @@ export class Coordinator {
             ),
           )!;
           const refs = [...new Set(results.flatMap((r) => r.evidenceRefs))];
-          const finding = parseContract('Finding', {
-            id: randomUUID(),
-            runId: run.id,
-            caseIds: [definition.id],
-            kind: 'functional',
-            status: 'suspected',
-            title: definition.title,
-            severity: 'medium',
-            expected: failed.description,
-            actual: 'Fixed sourced criterion failed',
-            expectedSource: failed.sourceKind,
-            reproSteps: definition.outline,
-            evidenceRefs: refs,
-            reproductionRef: null,
-            triageDisposition: 'open',
-            version: 1,
-          });
-          await client.query(
-            "INSERT INTO findings(id,project_id,run_id,case_id,original_attempt_id,criteria_hash,fingerprint,kind,status,expected_source,document) VALUES($1,$2,$3,$4,$5,$6,$7,'functional','suspected',$8,$9)",
-            [
-              finding.id,
+          const sessionManaged =
+            (await this.sessions.read(client, run)) !== null;
+          const fingerprint = sessionManaged
+            ? hashPayload({
+                entryUrl: job.result?.['entryUrl'] ?? run.targetUrl,
+                preconditions: definition.preconditions,
+                outline: definition.outline,
+                criterion: {
+                  kind: failed.kind,
+                  sourceKind: failed.sourceKind,
+                  sourceRef: failed.sourceRef,
+                  description: failed.description
+                    .trim()
+                    .replace(/\s+/g, ' ')
+                    .toLowerCase(),
+                  locator: failed.locator,
+                  expectedValue: failed.expectedValue,
+                },
+              })
+            : hashPayload([definition.id, failed.id]);
+          const duplicate = sessionManaged
+            ? (
+                await client.query<{ id: string; document: unknown }>(
+                  "SELECT id,document FROM findings WHERE project_id=$1 AND run_id=$2 AND fingerprint=$3 AND status IN ('suspected','confirmed') ORDER BY id LIMIT 1 FOR UPDATE",
+                  [scope.projectId, run.id, fingerprint],
+                )
+              ).rows[0]
+            : undefined;
+          if (duplicate) {
+            const old = parseContract('Finding', duplicate.document);
+            const grouped = parseContract('Finding', {
+              ...old,
+              version: old.version + 1,
+              caseIds: [...new Set([...old.caseIds, definition.id])],
+              evidenceRefs: [...new Set([...old.evidenceRefs, ...refs])],
+            });
+            await client.query(
+              'UPDATE findings SET version=version+1,document=$2 WHERE id=$1 AND project_id=$3',
+              [old.id, grouped, scope.projectId],
+            );
+            for (const ref of refs)
+              await client.query(
+                'INSERT INTO finding_evidence(project_id,finding_id,artifact_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',
+                [scope.projectId, old.id, ref],
+              );
+            await appendEvent(
+              client,
               scope.projectId,
               run.id,
-              definition.id,
-              attempt.id,
-              criteriaHash(definition),
-              hashPayload([definition.id, failed.id]),
-              failed.sourceKind,
-              finding,
-            ],
-          );
-          for (const ref of refs)
-            await client.query(
-              'INSERT INTO finding_evidence(project_id,finding_id,artifact_id) VALUES($1,$2,$3)',
-              [scope.projectId, finding.id, ref],
+              'finding.updated',
+              grouped,
             );
-          await appendEvent(
-            client,
-            scope.projectId,
-            run.id,
-            'finding.updated',
-            finding,
-          );
+          } else {
+            const finding = parseContract('Finding', {
+              id: randomUUID(),
+              runId: run.id,
+              caseIds: [definition.id],
+              kind: 'functional',
+              status: 'suspected',
+              title: definition.title,
+              severity: 'medium',
+              expected: failed.description,
+              actual: 'Fixed sourced criterion failed',
+              expectedSource: failed.sourceKind,
+              reproSteps: definition.outline,
+              evidenceRefs: refs,
+              reproductionRef: null,
+              triageDisposition: 'open',
+              version: 1,
+            });
+            await client.query(
+              "INSERT INTO findings(id,project_id,run_id,case_id,original_attempt_id,criteria_hash,fingerprint,kind,status,expected_source,document) VALUES($1,$2,$3,$4,$5,$6,$7,'functional','suspected',$8,$9)",
+              [
+                finding.id,
+                scope.projectId,
+                run.id,
+                definition.id,
+                attempt.id,
+                criteriaHash(definition),
+                fingerprint,
+                failed.sourceKind,
+                finding,
+              ],
+            );
+            for (const ref of refs)
+              await client.query(
+                'INSERT INTO finding_evidence(project_id,finding_id,artifact_id) VALUES($1,$2,$3)',
+                [scope.projectId, finding.id, ref],
+              );
+            await appendEvent(
+              client,
+              scope.projectId,
+              run.id,
+              'finding.updated',
+              finding,
+            );
+          }
         }
         if (job.role === 'reproducer') {
           const findingId = job.result?.['findingId'];
@@ -2684,6 +2801,13 @@ export class Coordinator {
               (j.result?.['stage'] ?? j.document.summary) === stage,
           );
         if (
+          ['explore', 'plan', 'execute', 'reproduce', 'finalize'].includes(
+            run.phase,
+          ) &&
+          (await this.sessions.advance(client, run, refreshed))
+        )
+          continue;
+        if (
           run.phase === 'auth' &&
           !succeeded('auth') &&
           refreshed.some(
@@ -2787,14 +2911,18 @@ export class Coordinator {
           } else {
             run = await this.change(client, run, 'running', 'auth');
             run = await this.change(client, run, 'running', 'explore');
-            await this.enqueue(
-              client,
-              run,
-              'explorer',
-              'explore',
-              'entry',
-              null,
-            );
+            if (await this.sessions.read(client, run))
+              await this.sessions.advance(client, run, []);
+            else {
+              await this.enqueue(
+                client,
+                run,
+                'explorer',
+                'explore',
+                'entry',
+                null,
+              );
+            }
           }
         } else if (run.phase === 'auth' && succeeded('auth')) {
           // finishAuth alone can mark the auth job successful after a real,
@@ -2804,14 +2932,18 @@ export class Coordinator {
             run = await this.startApprovedRegression(client, run);
           } else {
             run = await this.change(client, run, 'running', 'explore');
-            await this.enqueue(
-              client,
-              run,
-              'explorer',
-              'explore',
-              'entry',
-              null,
-            );
+            if (await this.sessions.read(client, run))
+              await this.sessions.advance(client, run, []);
+            else {
+              await this.enqueue(
+                client,
+                run,
+                'explorer',
+                'explore',
+                'entry',
+                null,
+              );
+            }
           }
         } else if (run.phase === 'explore' && succeeded('explore')) {
           run = await this.change(client, run, 'running', 'plan');
@@ -2876,71 +3008,11 @@ export class Coordinator {
               },
             );
         } else if (run.phase === 'execute' || run.phase === 'reproduce') {
-          const findings = (
-            await client.query(
-              "SELECT * FROM findings WHERE project_id=$1 AND run_id=$2 AND status='suspected' ORDER BY id",
-              [projectId, id],
-            )
-          ).rows;
-          const candidates = findings.filter(
-            (f) =>
-              !refreshed.some(
-                (j) =>
-                  j.role === 'reproducer' && j.result?.['findingId'] === f.id,
-              ),
+          const created = await this.enqueueReproductions(
+            client,
+            run,
+            refreshed,
           );
-          let created = 0;
-          for (const f of candidates) {
-            const budget = (
-              await client.query(
-                'SELECT * FROM run_budgets WHERE run_id=$1 FOR UPDATE',
-                [id],
-              )
-            ).rows[0];
-            try {
-              budget.reserved = reserve(
-                budget.limits,
-                budget.used,
-                budget.reserved,
-                { reproductions: 1 },
-              );
-            } catch (error) {
-              if (
-                error instanceof DomainError &&
-                error.code === 'BUDGET_EXCEEDED'
-              )
-                break;
-              throw error;
-            }
-            await client.query(
-              'UPDATE run_budgets SET reserved=$2 WHERE run_id=$1',
-              [id, budget.reserved],
-            );
-            const jobId = await this.enqueue(
-              client,
-              run,
-              'reproducer',
-              'reproduce',
-              f.id,
-              f.case_id,
-              1,
-              {
-                findingId: f.id,
-                entryUrl:
-                  (
-                    await client.query(
-                      "SELECT j.result->>'entryUrl' url FROM case_attempts a JOIN jobs j ON j.id=a.task_id WHERE a.id=$1 AND a.project_id=$2",
-                      [f.original_attempt_id, projectId],
-                    )
-                  ).rows[0]?.url ?? run.targetUrl,
-              },
-            );
-            await client.query(
-              "INSERT INTO budget_reservations(id,project_id,run_id,task_id,request_id,kind,reserved,status) VALUES($1,$2,$3,$4,$5,'reproduction','{\"reproductions\":1}','reserved')",
-              [randomUUID(), projectId, id, jobId, randomUUID()],
-            );
-            created++;
-          }
           if (created && run.phase !== 'reproduce')
             await this.change(client, run, 'running', 'reproduce');
           else if (!created) {
@@ -2963,6 +3035,71 @@ export class Coordinator {
           );
       }
     });
+  }
+  async enqueueReproductions(
+    client: PoolClient,
+    run: Run,
+    jobs: JobRow[],
+  ): Promise<number> {
+    const findings = (
+      await client.query(
+        "SELECT * FROM findings WHERE project_id=$1 AND run_id=$2 AND status='suspected' ORDER BY id",
+        [run.projectId, run.id],
+      )
+    ).rows;
+    const candidates = findings.filter(
+      (f) =>
+        !jobs.some(
+          (j) => j.role === 'reproducer' && j.result?.['findingId'] === f.id,
+        ),
+    );
+    let created = 0;
+    for (const f of candidates) {
+      const budget = (
+        await client.query(
+          'SELECT * FROM run_budgets WHERE run_id=$1 FOR UPDATE',
+          [run.id],
+        )
+      ).rows[0];
+      try {
+        budget.reserved = reserve(budget.limits, budget.used, budget.reserved, {
+          reproductions: 1,
+        });
+      } catch (error) {
+        if (error instanceof DomainError && error.code === 'BUDGET_EXCEEDED')
+          break;
+        throw error;
+      }
+      await client.query('UPDATE run_budgets SET reserved=$2 WHERE run_id=$1', [
+        run.id,
+        budget.reserved,
+      ]);
+      const jobId = await this.enqueue(
+        client,
+        run,
+        'reproducer',
+        'reproduce',
+        f.id,
+        f.case_id,
+        1,
+        {
+          findingId: f.id,
+          entryUrl:
+            (
+              await client.query(
+                "SELECT j.result->>'entryUrl' url FROM case_attempts a JOIN jobs j ON j.id=a.task_id WHERE a.id=$1 AND a.project_id=$2",
+                [f.original_attempt_id, run.projectId],
+              )
+            ).rows[0]?.url ?? run.targetUrl,
+        },
+      );
+      await client.query(
+        "INSERT INTO budget_reservations(id,project_id,run_id,task_id,request_id,kind,reserved,status) VALUES($1,$2,$3,$4,$5,'reproduction','{\"reproductions\":1}','reserved')",
+        [randomUUID(), run.projectId, run.id, jobId, randomUUID()],
+      );
+      created++;
+    }
+    return created;
   }
   async interrupt(
     client: PoolClient,
@@ -3133,6 +3270,7 @@ export class Coordinator {
     const summary = (await import('@localqa/domain')).summarize(
       rows.map((r) => r.status ?? (r.started ? 'inconclusive' : 'not_run')),
     );
+    await this.sessions.finishRun(client, run, reason);
     const final = await this.change(
       client,
       run,

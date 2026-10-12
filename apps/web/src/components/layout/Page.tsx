@@ -10,7 +10,7 @@ interface PageProps extends Omit<
   eyebrow?: React.ReactNode;
   /** Buttons aligned with the title. */
   actions?: React.ReactNode;
-  /** Optional "back to list" link above the title. */
+  /** Optional "back to list" link before the title. */
   back?: { label: string; onClick: () => void; testId?: string };
   /** default: reading width; wide: tables and dashboards; full: workbench. */
   width?: 'default' | 'wide' | 'full';
@@ -19,7 +19,10 @@ interface PageProps extends Omit<
   children: React.ReactNode;
 }
 
-/** Content area of one route inside AppShell. */
+/**
+ * Content area of one route inside AppShell: a full-width top bar with the
+ * title and actions, then the page body.
+ */
 export const Page: React.FC<PageProps> = ({
   title,
   description,
@@ -37,19 +40,19 @@ export const Page: React.FC<PageProps> = ({
     className={`lqa-page is-${width} ${className}`}
     data-testid={testId}
   >
-    {back && (
-      <button
-        type="button"
-        className="back-link"
-        onClick={back.onClick}
-        data-testid={back.testId}
-      >
-        <AppIcon name="chevron-left" size={15} />
-        {back.label}
-      </button>
-    )}
-    {(title || actions) && (
+    {(title || actions || back) && (
       <header className="page-header">
+        {back && (
+          <button
+            type="button"
+            className="back-link"
+            onClick={back.onClick}
+            data-testid={back.testId}
+          >
+            <AppIcon name="chevron-left" size={15} />
+            {back.label}
+          </button>
+        )}
         <div className="page-heading">
           {eyebrow && <div className="page-eyebrow">{eyebrow}</div>}
           {title && <h1 className="page-title">{title}</h1>}

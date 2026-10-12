@@ -52,8 +52,8 @@ for (const [path, methods] of Object.entries(openApi.paths)) {
   }
 }
 
-if (operations.length !== 91) {
-  throw new Error(`Expected 91 public operations, found ${operations.length}`);
+if (operations.length !== 92) {
+  throw new Error(`Expected 92 public operations, found ${operations.length}`);
 }
 
 const opNames = operations.map((op) => op.operationId);
@@ -88,6 +88,7 @@ import type {
   ModelProfile,
   ModelProfileCreate,
   ModelProfilePatch,
+  ModelDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -194,6 +195,7 @@ export type {
   ModelProfile,
   ModelProfileCreate,
   ModelProfilePatch,
+  ModelDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -348,6 +350,7 @@ export interface ApiClient {
   createModel(input: ModelProfileCreate): Promise<ModelProfile>;
   getModel(modelProfileId: string): Promise<ModelProfile>;
   updateModel(modelProfileId: string, input: ModelProfilePatch): Promise<ModelProfile>;
+  deleteModel(modelProfileId: string, input: ModelDeleteConfirm): Promise<void>;
   probeModel(modelProfileId: string): Promise<ModelProbeResult>;
 
   // Runs & Execution
@@ -488,6 +491,7 @@ import type {
   ModelProfile,
   ModelProfileCreate,
   ModelProfilePatch,
+  ModelDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -947,6 +951,13 @@ export class HttpApiClient implements ApiClient {
         body: JSON.stringify(input),
       },
       'ModelProfile',
+    );
+  }
+
+  public async deleteModel(modelProfileId: string, input: ModelDeleteConfirm): Promise<void> {
+    await this.request<void>(
+      \`/model-profiles/\${encodeURIComponent(modelProfileId)}\`,
+      { method: 'DELETE', body: JSON.stringify(input) },
     );
   }
 

@@ -404,6 +404,7 @@ async function extractNodesFromFrame(
       frameId: rn.frameId,
       role: rn.role,
       ...(rn.inputType ? { inputType: rn.inputType } : {}),
+      ...(rn.isSensitive ? { sensitive: true } : {}),
       name: sanitizeText(rn.name),
       text: sanitizeText(rn.text),
       visible: rn.visible,

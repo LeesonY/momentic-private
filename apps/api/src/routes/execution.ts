@@ -647,17 +647,88 @@ export function registerExecutionRoutes(router: Router): void {
         parseContract('Artifact', r.document),
       );
 
-      // Model Usage
-      const usageRows = await client.query<{ usage: unknown }>(
-        `SELECT b.charged AS usage
-         FROM budget_reservations b
-         WHERE b.project_id = $1 AND b.run_id = $2 AND b.kind = 'model_call' AND b.status = 'consumed'`,
+      // Model requests contain actual provider diagnostics; reservation counters
+      // are BudgetUsed, not ModelUsage DTOs.
+      const usageRows = await client.query<{
+        diagnostic: Record<string, unknown>;
+        configured_model_id: string;
+      }>(
+        `SELECT m.redacted_diagnostic AS diagnostic,
+                COALESCE(m.redacted_diagnostic->>'configuredModelId',v.document->>'configuredModelId','unknown') AS configured_model_id
+         FROM model_requests m
+         LEFT JOIN model_profile_versions v ON v.profile_id::text=m.redacted_diagnostic->>'profileId'
+           AND v.version::text=m.redacted_diagnostic->>'profileVersion'
+         WHERE m.project_id=$1 AND m.run_id=$2 ORDER BY m.request_id`,
         [projectId, runId],
       );
-      const modelUsage: ModelUsage[] = usageRows.rows
-        .filter((r) => r.usage && typeof r.usage === 'object')
-        .map((r) => parseContract('ModelUsage', r.usage));
+      const grouped = new Map<
+        string,
+        { usage: ModelUsage; sources: Set<string> }
+      >();
+      for (const row of usageRows.rows) {
+        const d = row.diagnostic;
+        if (typeof d['profileId'] !== 'string') continue;
+        const reportedModelId =
+          typeof d['reportedModelId'] === 'string'
+            ? d['reportedModelId']
+            : null;
+        const key = JSON.stringify([
+          d['profileId'],
+          row.configured_model_id,
+          reportedModelId,
+        ]);
+        let group = grouped.get(key);
+        if (!group) {
+          group = {
+            usage: {
+              profileId: d['profileId'],
+              configuredModelId: row.configured_model_id,
+              reportedModelId,
+              requests: 0,
+              inputTokens: 0,
+              outputTokens: 0,
+              usageSource: 'unknown',
+            },
+            sources: new Set(),
+          };
+          grouped.set(key, group);
+        }
+        group.usage.requests++;
+        group.sources.add(
+          typeof d['usageSource'] === 'string' ? d['usageSource'] : 'unknown',
+        );
+        for (const field of ['inputTokens', 'outputTokens'] as const) {
+          const value = d[field];
+          group.usage[field] =
+            group.usage[field] !== null &&
+            typeof value === 'number' &&
+            Number.isSafeInteger(value) &&
+            value >= 0
+              ? group.usage[field] + value
+              : null;
+        }
+      }
+      const modelUsage = [...grouped.values()].map(({ usage, sources }) =>
+        parseContract('ModelUsage', {
+          ...usage,
+          usageSource:
+            sources.size > 1
+              ? 'mixed'
+              : ['reported', 'estimated'].includes([...sources][0] ?? '')
+                ? [...sources][0]
+                : 'unknown',
+        }),
+      );
 
+      const sessionRow = (
+        await client.query<{ document: unknown }>(
+          'SELECT document FROM run_sessions WHERE project_id=$1 AND run_id=$2',
+          [projectId, runId],
+        )
+      ).rows[0];
+      const session = sessionRow
+        ? parseContract('SessionReport', sessionRow.document)
+        : null;
       return parseContract('Report', {
         schemaVersion: 1,
         example: false,
@@ -669,7 +740,8 @@ export function registerExecutionRoutes(router: Router): void {
         reproductions,
         artifacts,
         modelUsage,
-        coverageGaps: [],
+        ...(session ? { session } : {}),
+        coverageGaps: session?.coverageGaps ?? [],
         cleanupStatus: 'succeeded',
         warnings: [],
       });

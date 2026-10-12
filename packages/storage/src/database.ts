@@ -20,6 +20,11 @@ export function mapDatabaseError(error: unknown): never {
   if (db.message === 'LEASE_EXPIRED') throw new StorageError('LEASE_EXPIRED');
   if (db.message === 'PROJECT_ARCHIVED')
     throw new StorageError('PROJECT_ARCHIVED');
+  if (db.message === 'MODEL_NOT_CONFIGURED')
+    throw new StorageError(
+      'MODEL_NOT_CONFIGURED',
+      '模型已删除或不可用，请重新选择模型',
+    );
   if (db.code === '23505') throw new StorageError('IDEMPOTENCY_CONFLICT');
   if (db.code === '23503' || db.code === '23514' || db.code === '22P02')
     throw new StorageError('VALIDATION_ERROR');

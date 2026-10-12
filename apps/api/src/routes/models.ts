@@ -20,7 +20,7 @@ export function registerModelRoutes(router: Router): void {
            FROM model_profile_grants g
            JOIN model_profiles p ON p.id = g.profile_id
            JOIN model_profile_versions v ON v.profile_id = p.id AND v.version = p.version
-          WHERE g.project_id = $1
+          WHERE g.project_id = $1 AND p.deleted_at IS NULL
           ORDER BY p.created_at, p.id`,
           [projectId],
         );
@@ -62,6 +62,7 @@ export function registerModelRoutes(router: Router): void {
          FROM model_profiles m
          JOIN model_profile_versions v
            ON v.profile_id = m.id AND v.version = m.version
+         WHERE m.deleted_at IS NULL
          ORDER BY m.created_at, m.id`,
         );
         return rows.rows.map((r) => parseContract('ModelProfile', r.document));
@@ -114,6 +115,21 @@ export function registerModelRoutes(router: Router): void {
 
       ctx.res.statusCode = 200;
       return parseContract('ModelProfile', updated);
+    },
+  );
+
+  router.delete(
+    '/api/v1/model-profiles/{modelProfileId}',
+    async (ctx: RequestContext) => {
+      await requireAdmin(ctx);
+      const input = parseContract('ModelDeleteConfirm', ctx.body);
+      await ctx.api.modelRepo.delete(
+        ctx.actor!,
+        ctx.params.modelProfileId!,
+        input,
+      );
+      ctx.res.statusCode = 204;
+      ctx.res.end();
     },
   );
 

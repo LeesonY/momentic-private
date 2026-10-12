@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "sourceHashes": {
-    "domain.schema.json": "de60af42e6eb7578ebe9399a332813fbf1704aeb522599b73928663fb3369d85",
-    "events.schema.json": "370ce9470ee51346b168a94c48252486a72599269efdeafd7445d3a1f1116e6c",
-    "openapi.json": "5059c4d61de0cf94f163c3e88a7c13be53f4621c25feb8d559bd118d45bd748c",
+    "domain.schema.json": "c06d6a1f73c32529d346b8617447a7103befbffaaad2098675e61122fafcd722",
+    "events.schema.json": "4f91d060f7646033c54189ceaec3a3ac6c3572fa09ea9990489d488c2c3de072",
+    "openapi.json": "9daa0e2eaa4a8955981b0149cf25801a6ade1924e3426b6f53e1889b28ebe0c6",
     "regression.schema.json": "3311ab392986b0253fc833e5eb97eecefd6f612b767ed308fd8edd75a086b39f",
-    "report.schema.json": "e4cd7f59bc338d2c2890972d884bb3b7bef1f6478ddad0a2b67b8609a09dc7b0",
-    "tools.schema.json": "d78913ce55720627e94341e0ae37a3a9f3046061a81d298b3bafb452b39a87c5"
+    "report.schema.json": "69ef98178c54e32ea40bc27ff87fa00ee75b3455489103e557313a807a4284d2",
+    "tools.schema.json": "bd5d8724c7a644905284bc31eda235225037019864f389c182ab7829f4cae7e3"
   },
   "definitions": [
     "ActionPermit",
@@ -70,6 +70,7 @@
     "MessageInput",
     "ModelBinding",
     "ModelCapabilities",
+    "ModelDeleteConfirm",
     "ModelGrantCreate",
     "ModelMessage",
     "ModelPart",
@@ -141,6 +142,13 @@
     "SchedulePage",
     "SchedulePatch",
     "ScheduleRunTemplate",
+    "SessionCase",
+    "SessionConclusion",
+    "SessionCriterion",
+    "SessionDecision",
+    "SessionLocator",
+    "SessionReport",
+    "SessionRound",
     "SnapshotNode",
     "Step",
     "StepPage",

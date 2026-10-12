@@ -30,7 +30,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     {actionText && onAction && (
       <button
         type="button"
-        className="btn btn-secondary btn-sm"
+        className="btn btn-primary btn-sm"
         onClick={onAction}
       >
         {actionText}
