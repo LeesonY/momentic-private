@@ -44,7 +44,6 @@ export const ProjectHomePage: React.FC = () => {
       'flow',
     );
   const [allowWrites, setAllowWrites] = useState(false);
-  const [writeScope, setWriteScope] = useState('');
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [selectedEnvId, setSelectedEnvId] = useState<string>('');
   const [authProfiles, setAuthProfiles] = useState<AuthProfile[]>([]);
@@ -131,12 +130,8 @@ export const ProjectHomePage: React.FC = () => {
       setError('模型或项目配置尚未就绪，请先完成配置后再运行');
       return;
     }
-    if (
-      allowWrites &&
-      taskIntent !== 'plan' &&
-      (!selectedEnvId || !writeScope.trim())
-    ) {
-      setError('允许业务操作时，请选择测试环境并填写页面范围');
+    if (allowWrites && taskIntent !== 'plan' && !selectedEnvId) {
+      setError('允许业务操作时，请选择测试环境');
       return;
     }
     if (!targetUrl.trim()) {
@@ -156,14 +151,6 @@ export const ProjectHomePage: React.FC = () => {
           allowWrites && taskIntent !== 'plan'
             ? 'approved_workflows'
             : 'non_submitting',
-        ...(allowWrites && taskIntent !== 'plan'
-          ? {
-              writeScope: writeScope
-                .split(/\n|,/)
-                .map((path) => new URL(path.trim(), targetUrl).href)
-                .filter(Boolean),
-            }
-          : {}),
         environmentId: selectedEnvId || undefined,
         authProfileId: selectedAuthId || undefined,
         modelProfileId: selectedModelId || undefined,
@@ -488,7 +475,7 @@ export const ProjectHomePage: React.FC = () => {
                 <Field label="动作策略">
                   <p className="field-hint" data-testid="smoke-action-policy">
                     {allowWrites
-                      ? '允许已授权页面范围内的业务操作'
+                      ? '允许所选测试环境全部页面的业务操作'
                       : '浏览、填写与检查，不提交业务数据'}
                   </p>
                 </Field>
@@ -503,34 +490,17 @@ export const ProjectHomePage: React.FC = () => {
                   type="checkbox"
                   checked={allowWrites}
                   data-testid="allow-business-writes"
-                  onChange={(e) => {
-                    setAllowWrites(e.target.checked);
-                    if (e.target.checked && !writeScope) {
-                      try {
-                        setWriteScope(new URL(targetUrl).pathname);
-                      } catch {
-                        setWriteScope('/');
-                      }
-                    }
-                  }}
+                  onChange={(e) => setAllowWrites(e.target.checked)}
                 />{' '}
                 允许在测试环境中创建、修改和清理测试数据
               </label>
               {allowWrites && (
-                <Field
-                  label="允许业务操作的页面范围"
-                  hint="每行一个页面路径，包含其子页面。只在选定测试环境内生效；需要管理员或项目负责人权限。请在说明中明确测试数据和清理方式。"
+                <p
+                  className="field-hint"
+                  data-testid="business-write-all-pages"
                 >
-                  <textarea
-                    className="form-input"
-                    rows={2}
-                    value={writeScope}
-                    required
-                    onChange={(e) => setWriteScope(e.target.value)}
-                    data-testid="business-write-scope"
-                    placeholder="/organizations"
-                  />
-                </Field>
+                  允许在所选测试环境的全部页面创建、修改和清理测试数据。
+                </p>
               )}
             </div>
           )}

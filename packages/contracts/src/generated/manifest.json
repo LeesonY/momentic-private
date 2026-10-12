@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "sourceHashes": {
-    "domain.schema.json": "e2f7305525836199f809b66546024463532b1be6d47dab1b0752bf53b1de4d27",
-    "events.schema.json": "0a53bc59e3387530d8662178272eff8789de524260d706df2c134ea85c3be481",
-    "openapi.json": "e7b75e961a43970e9546482ff018354ca974920fd06a83df2a9837ce48b96a4b",
+    "domain.schema.json": "08e034af9de315e18cec4eb4ea49f55094785f1bb2615689b829d5cf8f3d7c0f",
+    "events.schema.json": "e8153dc9a7f17101f246134197e9c613f0f08140af53fdf7454d38af47c5e321",
+    "openapi.json": "58deee2aab760410e280f9d6ff0f255d314242f5cd942cfa5f26370d645fdd30",
     "regression.schema.json": "3311ab392986b0253fc833e5eb97eecefd6f612b767ed308fd8edd75a086b39f",
-    "report.schema.json": "0746b04f91480a1f25a037af55f6cca2091887784671ada0758ef92857c9ddc6",
+    "report.schema.json": "1a75d4fb5f6f244eafd2ebee393e39f1e83b6665dd13fdd5f6c54ed6378f6195",
     "tools.schema.json": "bd5d8724c7a644905284bc31eda235225037019864f389c182ab7829f4cae7e3"
   },
   "definitions": [

@@ -77,7 +77,7 @@ D["FollowUpInput"] = obj({"expectedVersion": VER, "text": text(4000, minLength=1
 D["RunConfig"] = obj({"allowedOrigins": arr(URI, 30, 1), "actionPolicy": enum("non_submitting", "approved_workflows"), "budget": ref("BudgetLimits"), "environmentVersion": nullable(VER), "authProfileVersion": nullable(VER), "modelProfileIds": arr(UUID, 10, 1), "knowledgeVersionIds": arr(UUID, 100)})
 for name in ["RunCreate", "RunConfig"]:
     D[name]["properties"]["taskIntent"] = ref("TaskIntent")
-    D[name]["properties"]["writeScope"] = arr(URI, 20)
+    D[name]["properties"]["writeScope"] = arr(URI, 30)
 D["RunCreate"]["properties"]["actionPolicy"] = enum("non_submitting", "approved_workflows")
 D["RunConfig"]["properties"]["previousRunId"] = UUID
 RUN_STATUS = ["draft", "queued", "running", "awaiting_input", "cancelling", "completed", "cancelled", "failed"]

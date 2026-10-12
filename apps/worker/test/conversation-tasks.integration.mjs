@@ -407,8 +407,8 @@ test(
       };
       const run = await start({
         actionPolicy: 'approved_workflows',
-        writeScope: [target],
       });
+      assert.deepEqual(run.effectiveConfig.writeScope, [siteOrigin + '/']);
       await advance(run.id, true);
       const inputs = await (
         await request.get(`${origin}/api/v1/runs/${run.id}/inputs`)
@@ -463,7 +463,7 @@ test(
       const next = await nextResponse.json();
       assert.notEqual(next.id, run.id);
       assert.equal(next.effectiveConfig.previousRunId, run.id);
-      assert.deepEqual(next.effectiveConfig.writeScope, [target]);
+      assert.deepEqual(next.effectiveConfig.writeScope, [siteOrigin + '/']);
       await request.post(`${origin}/api/v1/runs/${next.id}/cancel`);
       await coordinator.tick(project.id);
       const plan = await start({ taskIntent: 'plan', brief: goal });
@@ -532,6 +532,27 @@ test(
       );
       await page.getByTestId('task-intent-plan').click();
       assert.equal(await page.getByTestId('allow-business-writes').count(), 0);
+      await page.getByTestId('task-intent-flow').click();
+      await page.getByTestId('allow-business-writes').check();
+      assert.equal(await page.getByTestId('business-write-scope').count(), 0);
+      await page.getByTestId('business-write-all-pages').waitFor();
+      const started = page.waitForResponse(
+        (r) =>
+          r.url() === `${origin}/api/v1/runs` &&
+          r.request().method() === 'POST',
+      );
+      await page.getByTestId('btn-start-smoke-run').click();
+      const siteWideResponse = await started;
+      await check(siteWideResponse, 202);
+      assert.equal(
+        'writeScope' in siteWideResponse.request().postDataJSON(),
+        false,
+      );
+      const siteWide = await siteWideResponse.json();
+      assert.deepEqual(siteWide.effectiveConfig.writeScope, [siteOrigin + '/']);
+      await request.post(`${origin}/api/v1/runs/${siteWide.id}/cancel`);
+      await coordinator.tick(project.id);
+
       console.log(
         `CONVERSATION_ACCEPTED: modelCalls=${calls}; non-admin project owner + real pending request after refresh + reply in planner context + one scoped save with live message + plan-only zero browser work + follow-up + auth profile resume`,
       );

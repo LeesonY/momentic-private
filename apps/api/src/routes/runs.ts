@@ -45,15 +45,8 @@ export async function startTrustedSmokeRun(
   )
     throw new StorageError('VALIDATION_ERROR', '请提供需求、变更或问题描述');
   if (actionPolicy === 'approved_workflows') {
-    if (
-      !input.environmentId ||
-      !input.writeScope?.length ||
-      input.taskIntent === 'plan'
-    )
-      throw new StorageError(
-        'VALIDATION_ERROR',
-        '业务操作需要测试环境和明确的页面范围',
-      );
+    if (!input.environmentId || input.taskIntent === 'plan')
+      throw new StorageError('VALIDATION_ERROR', '业务操作需要选择测试环境');
     await ctx.api.db.actor(ctx.actor!, (client) =>
       authorize(client, projectId, 'config.write'),
     );
@@ -149,12 +142,17 @@ export async function startTrustedSmokeRun(
     actionPolicy,
     taskIntent: input.taskIntent ?? 'flow',
     ...(previousRunId ? { previousRunId } : {}),
-    ...(input.writeScope
+    ...(actionPolicy === 'approved_workflows'
       ? {
-          writeScope: input.writeScope.map((url) => {
+          writeScope: (
+            input.writeScope ??
+            allowedOrigins.map((origin) => new URL(origin).origin + '/')
+          ).map((url) => {
             const parsed = new URL(url);
             if (
-              !allowedOrigins.includes(parsed.origin) ||
+              !allowedOrigins.some(
+                (origin) => new URL(origin).origin === parsed.origin,
+              ) ||
               parsed.username ||
               parsed.password ||
               parsed.search ||

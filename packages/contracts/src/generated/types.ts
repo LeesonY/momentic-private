@@ -1452,7 +1452,7 @@ export interface RunConfig {
   taskIntent?: TaskIntent;
   /**
    * @minItems 0
-   * @maxItems 20
+   * @maxItems 30
    */
   writeScope?: string[];
   previousRunId?: string;
@@ -1570,7 +1570,7 @@ export interface RunCreate {
   taskIntent?: TaskIntent;
   /**
    * @minItems 0
-   * @maxItems 20
+   * @maxItems 30
    */
   writeScope?: string[];
   actionPolicy?: "non_submitting" | "approved_workflows";
