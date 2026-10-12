@@ -1,4 +1,17 @@
-import type { CaseDefinition } from '@localqa/contracts';
+import type { BrowserSnapshot, CaseDefinition } from '@localqa/contracts';
+
+/** Match the fixed body-visible oracle: ignore loading-only/secret nodes. */
+export function hasReadableMainContent(
+  snapshot: Pick<BrowserSnapshot, 'nodes'>,
+): boolean {
+  return snapshot.nodes.some(
+    (node) =>
+      node.visible &&
+      node.frameId === 'main' &&
+      node.text.trim().length > 0 &&
+      !['password', 'hidden', 'canvas'].includes(node.role),
+  );
+}
 
 /**
  * Only the exact server-owned FR-013/016 technical baseline needs no AI

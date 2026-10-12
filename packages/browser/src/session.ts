@@ -262,6 +262,23 @@ export class BrowserSessionImpl implements BrowserSession {
     return this.page;
   }
 
+  public async waitForReadableBody(timeoutMs = 5000): Promise<boolean> {
+    if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 5000)
+      throw new Error('Invalid bounded body wait');
+    if (this.isClosed) return false;
+    try {
+      await this.page
+        .locator('body')
+        .filter({ hasText: /\S/ })
+        .waitFor({ state: 'visible', timeout: timeoutMs });
+      return !this.isClosed;
+    } catch {
+      // The caller must record a fresh snapshot and produce an unknown result
+      // if the page never renders; a timeout is not evidence of success.
+      return false;
+    }
+  }
+
   public getContext(): BrowserContext {
     return this.context;
   }

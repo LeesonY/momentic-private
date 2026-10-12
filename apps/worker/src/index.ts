@@ -35,7 +35,10 @@ import { replayRegression, type ReplayPorts } from './regression-replay.js';
 import { createRegressionAiAction } from './regression-ai.js';
 import { initializeBrowserAuthentication } from './auth-initialize-task.js';
 import { withApprovedBrowserAuth } from './auth-import-task.js';
-import { isFixedTechnicalSmoke } from './technical-smoke.js';
+import {
+  hasReadableMainContent,
+  isFixedTechnicalSmoke,
+} from './technical-smoke.js';
 export { CandidateVerifier } from './candidate-verifier.js';
 
 export interface WorkerOptions {
@@ -932,6 +935,17 @@ export class Worker {
         const role = work.task.role as AgentRole;
         const fixedTechnicalCase =
           work.stage === 'execute' && isFixedTechnicalSmoke(work.definition);
+        if (
+          fixedTechnicalCase &&
+          snapshot &&
+          !hasReadableMainContent(snapshot)
+        ) {
+          // SPA entry pages can return HTTP 200 before the first real content
+          // renders. Wait for body text at most once, then record a fresh
+          // policy-audited snapshot. A timeout is NOT a passing assertion.
+          await session!.waitForReadableBody?.(5000);
+          await execute({ name: 'observe', args: {} });
+        }
         const dispatcher = createPolicyDispatcher(
           async (call) => execute(call) as unknown as JsonValue,
         );
@@ -1094,6 +1108,7 @@ export class Worker {
           if (
             unavailableTarget ||
             modelActionDenials > 0 ||
+            criterion.sourceKind === 'generic_smoke' ||
             !['unknown', 'not_evaluated'].includes(results[index]!.result)
           )
             continue;

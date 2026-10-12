@@ -31,6 +31,11 @@ export interface BrowserSession {
    * Captures the current fresh BrowserSnapshot of the active page.
    */
   getSnapshot(options?: { forceFresh?: boolean }): Promise<BrowserSnapshot>;
+  /**
+   * Trusted read-only SPA readiness wait. Does not grant page/DOM mutation
+   * capabilities to the model and never constitutes passing evidence.
+   */
+  waitForReadableBody?(timeoutMs?: number): Promise<boolean>;
   resolveRegressionLocator?(
     locator: Locator,
     signal?: AbortSignal,

@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { isFixedTechnicalSmoke } from '../dist/technical-smoke.js';
+import {
+  hasReadableMainContent,
+  isFixedTechnicalSmoke,
+} from '../dist/technical-smoke.js';
 
 const http = {
   id: 'smoke.http',
@@ -75,6 +78,47 @@ test('only canonical server-owned generic smoke can skip AI exploration', () => 
           sourceRef: 'user',
           description: 'Logged in',
         },
+      ],
+    }),
+    false,
+  );
+});
+
+test('loading-only snapshot is not body-visible evidence; rendered button is', () => {
+  assert.equal(
+    hasReadableMainContent({
+      nodes: [
+        {
+          visible: true,
+          frameId: 'main',
+          role: 'bar',
+          text: '',
+          name: 'Loading',
+        },
+      ],
+    }),
+    false,
+  );
+  assert.equal(
+    hasReadableMainContent({
+      nodes: [
+        { visible: true, frameId: 'main', role: 'button', text: 'Sign in' },
+      ],
+    }),
+    true,
+  );
+  assert.equal(
+    hasReadableMainContent({
+      nodes: [
+        { visible: true, frameId: 'main', role: 'password', text: 'secret' },
+      ],
+    }),
+    false,
+  );
+  assert.equal(
+    hasReadableMainContent({
+      nodes: [
+        { visible: true, frameId: 'other', role: 'button', text: 'Sign in' },
       ],
     }),
     false,

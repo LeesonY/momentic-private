@@ -124,6 +124,26 @@ describe('Frozen TLS policy is scoped to one approved HTTPS origin', () => {
   });
 });
 
+describe('Read-only SPA content readiness', () => {
+  it('does not mistake an empty body for rendered content, but sees later text', async () => {
+    const session = await createSession();
+    try {
+      await session.getPage().setContent('<html><body></body></html>');
+      assert.equal(await session.waitForReadableBody(65), false);
+      await session
+        .getPage()
+        .setContent('<html><body><button>Sign in</button></body></html>');
+      assert.equal(await session.waitForReadableBody(500), true);
+      await assert.rejects(
+        session.waitForReadableBody(6000),
+        /Invalid bounded body wait/,
+      );
+    } finally {
+      await session.close();
+    }
+  });
+});
+
 describe('T03 Browser Execution Layer Verification', () => {
   describe('1. Task Isolation & Port Cleanliness', () => {
     it('isolates cookies and auth state between separate sessions', async () => {
