@@ -616,6 +616,25 @@
       ],
       "additionalProperties": false
     },
+    "ConfigDeleteConfirm": {
+      "type": "object",
+      "properties": {
+        "expectedVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "confirmName": {
+          "type": "string",
+          "maxLength": 120,
+          "minLength": 1
+        }
+      },
+      "required": [
+        "expectedVersion",
+        "confirmName"
+      ],
+      "additionalProperties": false
+    },
     "Locator": {
       "type": "object",
       "properties": {

@@ -1000,6 +1000,54 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "deleteEnvironment",
+        "tags": [
+          "P0"
+        ],
+        "summary": "deleteEnvironment",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "environmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "deleteEnvironment"
+          },
+          "default": {
+            "description": "Stable, redacted error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigDeleteConfirm"
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/auth-profiles/{authProfileId}": {
@@ -1053,6 +1101,54 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AuthProfilePatch"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteAuthProfile",
+        "tags": [
+          "P0"
+        ],
+        "summary": "deleteAuthProfile",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "authProfileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "deleteAuthProfile"
+          },
+          "default": {
+            "description": "Stable, redacted error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigDeleteConfirm"
               }
             }
           }
@@ -6190,6 +6286,25 @@
         },
         "required": [
           "expectedVersion"
+        ],
+        "additionalProperties": false
+      },
+      "ConfigDeleteConfirm": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "confirmName": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "confirmName"
         ],
         "additionalProperties": false
       },

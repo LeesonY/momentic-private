@@ -5,6 +5,39 @@ import { parsePagination, paginate, type Router } from '../router.js';
 import type { RequestContext } from '../types.js';
 
 export function registerConfigRoutes(router: Router): void {
+  for (const [path, table, kind, parameter] of [
+    [
+      '/api/v1/environments/{environmentId}',
+      'environments',
+      'Environment',
+      'environmentId',
+    ],
+    [
+      '/api/v1/auth-profiles/{authProfileId}',
+      'auth_profiles',
+      'AuthProfile',
+      'authProfileId',
+    ],
+  ] as const) {
+    router.delete(path, async (ctx: RequestContext) => {
+      await requireAuth(ctx);
+      const input = parseContract('ConfigDeleteConfirm', ctx.body);
+      const id = ctx.params[parameter]!;
+      const projectId = await ctx.api.db.actor(ctx.actor!, async (client) => {
+        const row = (
+          await client.query<{ project_id: string }>(
+            `SELECT project_id FROM ${table} WHERE id=$1 AND deleted_at IS NULL`,
+            [id],
+          )
+        ).rows[0];
+        if (!row) throw new StorageError('NOT_FOUND');
+        return row.project_id;
+      });
+      await ctx.api.configRepo.delete(ctx.actor!, kind, projectId, id, input);
+      ctx.res.statusCode = 204;
+      ctx.res.end();
+    });
+  }
   // GET /api/v1/projects/{projectId}/environments
   router.get(
     '/api/v1/projects/{projectId}/environments',
@@ -22,7 +55,7 @@ export function registerConfigRoutes(router: Router): void {
          FROM environments e
          JOIN environment_versions v
            ON v.project_id = e.project_id AND v.environment_id = e.id AND v.version = e.version
-         WHERE e.project_id = $1
+         WHERE e.project_id = $1 AND e.deleted_at IS NULL
          ORDER BY v.created_at, e.id`,
             [projectId],
           );
@@ -72,7 +105,7 @@ export function registerConfigRoutes(router: Router): void {
            FROM environments e
            JOIN environment_versions v
              ON v.project_id = e.project_id AND v.environment_id = e.id AND v.version = e.version
-           WHERE e.id = $1`,
+           WHERE e.id = $1 AND e.deleted_at IS NULL`,
             [environmentId],
           )
         ).rows[0];
@@ -132,7 +165,7 @@ export function registerConfigRoutes(router: Router): void {
          FROM auth_profiles a
          JOIN auth_profile_versions v
            ON v.project_id = a.project_id AND v.auth_profile_id = a.id AND v.version = a.version
-         WHERE a.project_id = $1
+         WHERE a.project_id = $1 AND a.deleted_at IS NULL
          ORDER BY v.created_at, a.id`,
           [projectId],
         );

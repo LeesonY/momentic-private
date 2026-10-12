@@ -23,6 +23,7 @@ import type {
   AuthProfileCreate,
   AuthProfilePatch,
   AuthProfilePage,
+  ConfigDeleteConfirm,
   Knowledge,
   KnowledgeCreate,
   KnowledgePatch,
@@ -451,6 +452,38 @@ export class MockApiClient implements ApiClient {
     const found = this.environments.find((e) => e.id === environmentId);
     if (!found) throw new Error('环境未找到');
     return found;
+  }
+  public async deleteEnvironment(
+    environmentId: string,
+    input: ConfigDeleteConfirm,
+  ): Promise<void> {
+    const current = await this.getEnvironment(environmentId);
+    if (
+      current.version !== input.expectedVersion ||
+      current.name !== input.confirmName
+    )
+      throw new Error('配置版本或名称不匹配，请刷新后重试');
+    if (this.authProfiles.some((a) => a.environmentId === environmentId))
+      throw new Error('环境下仍有认证配置，请先删除这些认证配置');
+    this.environments = this.environments.filter((e) => e.id !== environmentId);
+  }
+  public async deleteAuthProfile(
+    authProfileId: string,
+    input: ConfigDeleteConfirm,
+  ): Promise<void> {
+    const current = this.authProfiles.find((a) => a.id === authProfileId);
+    if (!current) throw new Error('认证配置未找到');
+    if (
+      current.version !== input.expectedVersion ||
+      current.name !== input.confirmName
+    )
+      throw new Error('配置版本或名称不匹配，请刷新后重试');
+    this.authProfiles = this.authProfiles.filter((a) => a.id !== authProfileId);
+    this.environments = this.environments.map((e) =>
+      e.defaultAuthProfileId === authProfileId
+        ? { ...e, defaultAuthProfileId: null, version: e.version + 1 }
+        : e,
+    );
   }
 
   public async updateEnvironment(

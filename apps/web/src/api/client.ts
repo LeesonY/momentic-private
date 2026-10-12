@@ -29,6 +29,7 @@ import type {
   ModelProfileCreate,
   ModelProfilePatch,
   ModelDeleteConfirm,
+  ConfigDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -376,6 +377,10 @@ export class HttpApiClient implements ApiClient {
     );
   }
 
+  public async deleteEnvironment(environmentId: string, input: ConfigDeleteConfirm): Promise<void> {
+    await this.request<void>(`/environments/${encodeURIComponent(environmentId)}`, { method: 'DELETE', body: JSON.stringify(input) });
+  }
+
   // 17. listAuthProfile
   public async listAuthProfile(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
@@ -412,6 +417,10 @@ export class HttpApiClient implements ApiClient {
       },
       'AuthProfile',
     );
+  }
+
+  public async deleteAuthProfile(authProfileId: string, input: ConfigDeleteConfirm): Promise<void> {
+    await this.request<void>(`/auth-profiles/${encodeURIComponent(authProfileId)}`, { method: 'DELETE', body: JSON.stringify(input) });
   }
 
   // 20. listKnowledge

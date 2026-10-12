@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { Environment, AuthProfile } from '@localqa/contracts';
 import { useAppContext } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
@@ -8,6 +8,7 @@ import { EmptyState } from '../components/ui/EmptyState.tsx';
 import { AppIcon } from '../components/ui/AppIcon.tsx';
 import { EnvironmentDialog } from '../components/environments/EnvironmentDialog.tsx';
 import { AuthProfileDialog } from '../components/environments/AuthProfileDialog.tsx';
+import { Modal } from '../components/ui/Modal.tsx';
 
 /** Two AI paths: agent sign-in follows instructions; AI forms fill a fixed
  * account/password sequence with AI-recognized fields. */
@@ -38,6 +39,86 @@ export const EnvironmentsPage: React.FC = () => {
   const [notice, setNotice] = useState('');
   const [switchingAuthId, setSwitchingAuthId] = useState<string | null>(null);
   const [authUpdateError, setAuthUpdateError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{
+    kind: 'environment' | 'auth';
+    record: Environment | AuthProfile;
+  } | null>(null);
+  const [deleteName, setDeleteName] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const projectRef = useRef(currentProject?.id);
+  projectRef.current = currentProject?.id;
+  const openDelete = (
+    kind: 'environment' | 'auth',
+    record: Environment | AuthProfile,
+  ) => {
+    setDeleteTarget({ kind, record });
+    setDeleteName('');
+    setDeleteError('');
+  };
+  const closeDelete = () => {
+    if (!deleting) setDeleteTarget(null);
+  };
+  const deleteConfig = async () => {
+    if (
+      !deleteTarget ||
+      deleting ||
+      !canConfigure ||
+      deleteName !== deleteTarget.record.name
+    )
+      return;
+    const target = deleteTarget;
+    const projectId = currentProject?.id;
+    if (!projectId || target.record.projectId !== projectId) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      const input = {
+        expectedVersion: target.record.version,
+        confirmName: deleteName,
+      };
+      if (target.kind === 'environment')
+        await defaultApiClient.deleteEnvironment(target.record.id, input);
+      else await defaultApiClient.deleteAuthProfile(target.record.id, input);
+      if (projectRef.current !== projectId) return;
+      if (target.kind === 'environment')
+        setEnvironments((old) =>
+          old.filter((env) => env.id !== target.record.id),
+        );
+      else {
+        setAuthProfiles((old) =>
+          old.filter((profile) => profile.id !== target.record.id),
+        );
+        setEnvironments((old) =>
+          old.map((env) =>
+            env.defaultAuthProfileId === target.record.id
+              ? { ...env, defaultAuthProfileId: null }
+              : env,
+          ),
+        );
+        try {
+          const refreshed = await defaultApiClient.listEnvironments(projectId, {
+            limit: 100,
+          });
+          if (projectRef.current === projectId)
+            setEnvironments(refreshed.items);
+        } catch {
+          if (projectRef.current === projectId)
+            setNotice(
+              '认证配置已删除，环境列表刷新失败，请刷新页面后继续编辑。',
+            );
+        }
+      }
+      setDeleteTarget(null);
+    } catch (error) {
+      if (projectRef.current === projectId)
+        setDeleteError(
+          error instanceof Error ? error.message : '删除失败，请刷新后重试',
+        );
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const enableAiRecognition = async (profile: AuthProfile) => {
     if (
@@ -69,6 +150,8 @@ export const EnvironmentsPage: React.FC = () => {
     setAuthProfiles([]);
     setEnvDialog(null);
     setAuthDialogEnvId(null);
+    setDeleteTarget(null);
+    setDeleteError('');
     setNotice('');
     setAuthUpdateError('');
     setCanConfigure(currentUser?.globalRole === 'admin');
@@ -180,6 +263,17 @@ export const EnvironmentsPage: React.FC = () => {
                 {switchingAuthId === profile.id ? '切换中…' : '改用 AI 识别'}
               </button>
             )}
+            {canEdit && (
+              <button
+                type="button"
+                className="btn btn-danger-outline btn-sm"
+                disabled={deleting || Boolean(switchingAuthId)}
+                data-testid={`btn-delete-auth-${profile.id}`}
+                onClick={() => openDelete('auth', profile)}
+              >
+                删除
+              </button>
+            )}
           </li>
         );
       })}
@@ -284,15 +378,28 @@ export const EnvironmentsPage: React.FC = () => {
                     </a>
                   </div>
                   {canEdit && (
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      type="button"
-                      data-testid={`btn-edit-env-${env.id}`}
-                      onClick={() => setEnvDialog({ mode: 'edit', id: env.id })}
-                    >
-                      <AppIcon name="edit" size={13} />
-                      编辑
-                    </button>
+                    <div className="lqa-model-actions">
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        type="button"
+                        data-testid={`btn-edit-env-${env.id}`}
+                        onClick={() =>
+                          setEnvDialog({ mode: 'edit', id: env.id })
+                        }
+                      >
+                        <AppIcon name="edit" size={13} />
+                        编辑
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-danger-outline btn-sm"
+                        disabled={deleting || Boolean(switchingAuthId)}
+                        data-testid={`btn-delete-env-${env.id}`}
+                        onClick={() => openDelete('environment', env)}
+                      >
+                        删除
+                      </button>
+                    </div>
                   )}
                 </div>
                 <dl className="lqa-env-facts">
@@ -428,6 +535,63 @@ export const EnvironmentsPage: React.FC = () => {
             setAuthDialogEnvId(null);
           }}
         />
+      )}
+      {deleteTarget && (
+        <Modal
+          title={
+            deleteTarget.kind === 'environment' ? '删除环境' : '删除认证配置'
+          }
+          onClose={closeDelete}
+          closeOnOverlay={!deleting}
+          testId="config-delete-dialog"
+          footer={
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={deleting}
+                onClick={closeDelete}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                data-testid="config-delete-confirm"
+                disabled={deleting || deleteName !== deleteTarget.record.name}
+                onClick={() => void deleteConfig()}
+              >
+                {deleting ? '删除中…' : '确认删除'}
+              </button>
+            </>
+          }
+        >
+          <p>
+            删除「{deleteTarget.record.name}
+            」后，新任务将无法选择它，历史测试记录保留。
+          </p>
+          <p>
+            {deleteTarget.kind === 'environment'
+              ? '请先删除环境下的认证配置。正在被任务或启用的定时计划使用时无法删除。'
+              : '如果它是环境默认登录，删除后将改为匿名访问。正在被任务或启用的定时计划使用时无法删除。'}
+          </p>
+          <label className="lqa-model-field">
+            <span>输入名称「{deleteTarget.record.name}」以确认</span>
+            <input
+              className="form-input"
+              value={deleteName}
+              disabled={deleting}
+              autoFocus
+              data-testid="config-delete-name"
+              onChange={(e) => setDeleteName(e.target.value)}
+            />
+          </label>
+          {deleteError && (
+            <Alert tone="danger" role="alert" testId="config-delete-error">
+              {deleteError}
+            </Alert>
+          )}
+        </Modal>
       )}
     </Page>
   );

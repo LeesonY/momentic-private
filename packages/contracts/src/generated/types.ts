@@ -29,6 +29,7 @@ export type Contract =
   | CaseDefinition
   | CaseRecord
   | CaseRecordPage
+  | ConfigDeleteConfirm
   | CredentialMaterial
   | Criterion
   | CriterionResult
@@ -851,6 +852,10 @@ export interface CaseRecordPage {
    */
   items: CaseRecord[];
   nextCursor: string | null;
+}
+export interface ConfigDeleteConfirm {
+  expectedVersion: number;
+  confirmName: string;
 }
 export interface CredentialMaterial {
   mode: "none" | "form" | "storage_state" | "agent";
@@ -1904,6 +1909,7 @@ export interface ContractTypes {
   CaseDefinition: CaseDefinition;
   CaseRecord: CaseRecord;
   CaseRecordPage: CaseRecordPage;
+  ConfigDeleteConfirm: ConfigDeleteConfirm;
   CredentialMaterial: CredentialMaterial;
   Criterion: Criterion;
   CriterionResult: CriterionResult;

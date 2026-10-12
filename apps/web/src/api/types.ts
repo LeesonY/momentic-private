@@ -28,6 +28,7 @@ import type {
   ModelProfileCreate,
   ModelProfilePatch,
   ModelDeleteConfirm,
+  ConfigDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -135,6 +136,7 @@ export type {
   ModelProfileCreate,
   ModelProfilePatch,
   ModelDeleteConfirm,
+  ConfigDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -233,7 +235,9 @@ export type PublicOperationName =
   | 'createKnowledge'
   | 'getEnvironment'
   | 'updateEnvironment'
+  | 'deleteEnvironment'
   | 'updateAuthProfile'
+  | 'deleteAuthProfile'
   | 'updateKnowledge'
   | 'listModels'
   | 'createModel'
@@ -365,10 +369,12 @@ export interface ApiClient {
   createEnvironment(projectId: string, input: EnvironmentCreate): Promise<Environment>;
   getEnvironment(environmentId: string): Promise<Environment>;
   updateEnvironment(environmentId: string, input: EnvironmentPatch): Promise<Environment>;
+  deleteEnvironment(environmentId: string, input: ConfigDeleteConfirm): Promise<void>;
   listAuthProfile(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage>;
   listAuthProfiles(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage>;
   createAuthProfile(projectId: string, input: AuthProfileCreate): Promise<AuthProfile>;
   updateAuthProfile(authProfileId: string, input: AuthProfilePatch): Promise<AuthProfile>;
+  deleteAuthProfile(authProfileId: string, input: ConfigDeleteConfirm): Promise<void>;
 
   // Knowledge & Models
   listKnowledge(projectId: string, query?: PaginationQuery): Promise<KnowledgePage>;

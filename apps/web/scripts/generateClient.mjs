@@ -52,8 +52,8 @@ for (const [path, methods] of Object.entries(openApi.paths)) {
   }
 }
 
-if (operations.length !== 92) {
-  throw new Error(`Expected 92 public operations, found ${operations.length}`);
+if (operations.length !== 94) {
+  throw new Error(`Expected 94 public operations, found ${operations.length}`);
 }
 
 const opNames = operations.map((op) => op.operationId);
@@ -89,6 +89,7 @@ import type {
   ModelProfileCreate,
   ModelProfilePatch,
   ModelDeleteConfirm,
+  ConfigDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -196,6 +197,7 @@ export type {
   ModelProfileCreate,
   ModelProfilePatch,
   ModelDeleteConfirm,
+  ConfigDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -335,10 +337,12 @@ export interface ApiClient {
   createEnvironment(projectId: string, input: EnvironmentCreate): Promise<Environment>;
   getEnvironment(environmentId: string): Promise<Environment>;
   updateEnvironment(environmentId: string, input: EnvironmentPatch): Promise<Environment>;
+  deleteEnvironment(environmentId: string, input: ConfigDeleteConfirm): Promise<void>;
   listAuthProfile(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage>;
   listAuthProfiles(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage>;
   createAuthProfile(projectId: string, input: AuthProfileCreate): Promise<AuthProfile>;
   updateAuthProfile(authProfileId: string, input: AuthProfilePatch): Promise<AuthProfile>;
+  deleteAuthProfile(authProfileId: string, input: ConfigDeleteConfirm): Promise<void>;
 
   // Knowledge & Models
   listKnowledge(projectId: string, query?: PaginationQuery): Promise<KnowledgePage>;
@@ -492,6 +496,7 @@ import type {
   ModelProfileCreate,
   ModelProfilePatch,
   ModelDeleteConfirm,
+  ConfigDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -839,6 +844,10 @@ export class HttpApiClient implements ApiClient {
     );
   }
 
+  public async deleteEnvironment(environmentId: string, input: ConfigDeleteConfirm): Promise<void> {
+    await this.request<void>(\`/environments/\${encodeURIComponent(environmentId)}\`, { method: 'DELETE', body: JSON.stringify(input) });
+  }
+
   // 17. listAuthProfile
   public async listAuthProfile(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
@@ -875,6 +884,10 @@ export class HttpApiClient implements ApiClient {
       },
       'AuthProfile',
     );
+  }
+
+  public async deleteAuthProfile(authProfileId: string, input: ConfigDeleteConfirm): Promise<void> {
+    await this.request<void>(\`/auth-profiles/\${encodeURIComponent(authProfileId)}\`, { method: 'DELETE', body: JSON.stringify(input) });
   }
 
   // 20. listKnowledge

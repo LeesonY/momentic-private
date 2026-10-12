@@ -12,6 +12,7 @@ import type {
   AuthProfile,
   AuthProfileCreate,
   AuthProfilePatch,
+  ConfigDeleteConfirm,
   Knowledge,
   KnowledgeCreate,
   KnowledgePatch,
@@ -428,7 +429,7 @@ async function versionDocument<N extends keyof Versioned>(
   const spec = versionSpecs[kind];
   const row = (
     await client.query<{ document: unknown }>(
-      `SELECT v.document FROM ${spec.head} h JOIN ${spec.versions} v ON v.project_id=h.project_id AND v.${spec.key}=h.id AND v.version=h.version WHERE h.project_id=$1 AND h.id=$2`,
+      `SELECT v.document FROM ${spec.head} h JOIN ${spec.versions} v ON v.project_id=h.project_id AND v.${spec.key}=h.id AND v.version=h.version WHERE h.project_id=$1 AND h.id=$2 ${kind === 'Knowledge' ? '' : 'AND h.deleted_at IS NULL'}`,
       [projectId, id],
     )
   ).rows[0];
@@ -445,7 +446,7 @@ async function bump(
   if (
     !(
       await client.query(
-        `UPDATE ${table} SET version=version+1 WHERE project_id=$1 AND id=$2 AND version=$3`,
+        `UPDATE ${table} SET version=version+1 WHERE project_id=$1 AND id=$2 AND version=$3 ${table === 'environments' || table === 'auth_profiles' ? 'AND deleted_at IS NULL' : ''}`,
         [projectId, id, expectedVersion],
       )
     ).rowCount
@@ -517,6 +518,150 @@ export class ConfigurationRepository {
     return this.db.actor(actor, (client) =>
       versionDocument(client, kind, projectId, id),
     );
+  }
+  async delete(
+    actor: Actor,
+    kind: 'Environment' | 'AuthProfile',
+    projectId: string,
+    id: string,
+    input: ConfigDeleteConfirm,
+  ): Promise<void> {
+    const data = parseContract('ConfigDeleteConfirm', input);
+    const spec = versionSpecs[kind];
+    await this.db.actor(actor, async (client) => {
+      await authorize(client, projectId, 'config.write');
+      const row = (
+        await client.query<{ document: unknown }>(
+          `SELECT v.document FROM ${spec.head} h JOIN ${spec.versions} v
+         ON v.project_id=h.project_id AND v.${spec.key}=h.id AND v.version=h.version
+         WHERE h.project_id=$1 AND h.id=$2 AND h.deleted_at IS NULL FOR UPDATE OF h`,
+          [projectId, id],
+        )
+      ).rows[0];
+      if (!row) throw new StorageError('NOT_FOUND');
+      const current = parseContract(kind, row.document);
+      if (current.version !== data.expectedVersion)
+        throw new StorageError('VERSION_CONFLICT', '配置已更新，请刷新后重试');
+      if (current.name !== data.confirmName)
+        throw new StorageError('VALIDATION_ERROR', '输入的名称不匹配');
+      const column =
+        kind === 'Environment' ? 'environment_id' : 'auth_profile_id';
+      if (
+        (
+          await client.query(
+            `SELECT 1 FROM runs WHERE project_id=$1 AND ${column}=$2
+         AND status NOT IN ('completed','cancelled','failed') LIMIT 1`,
+            [projectId, id],
+          )
+        ).rowCount
+      )
+        throw new StorageError(
+          'CONFIG_IN_USE',
+          '配置仍被未结束的测试任务使用，请结束任务后再删除',
+        );
+      const scheduleCondition =
+        kind === 'Environment'
+          ? "s.run_template->>'environmentId'=$2::text"
+          : `(s.run_template->>'authProfileId'=$2::text OR
+            (s.run_template->>'authProfileId' IS NULL AND EXISTS(
+             SELECT 1 FROM environments e JOIN environment_versions v
+             ON v.project_id=e.project_id AND v.environment_id=e.id AND v.version=e.version
+             WHERE e.project_id=s.project_id AND e.deleted_at IS NULL
+             AND e.id::text=s.run_template->>'environmentId' AND v.default_auth_profile_id::text=$2::text)))`;
+      if (
+        (
+          await client.query(
+            `SELECT 1 FROM schedules s WHERE s.project_id=$1 AND s.enabled AND ${scheduleCondition} LIMIT 1`,
+            [projectId, id],
+          )
+        ).rowCount
+      )
+        throw new StorageError(
+          'CONFIG_IN_USE',
+          '配置仍被启用的定时计划使用，请先调整或停用计划',
+        );
+      if (kind === 'Environment') {
+        if (
+          (
+            await client.query(
+              `SELECT 1 FROM auth_profiles a JOIN auth_profile_versions v
+           ON v.project_id=a.project_id AND v.auth_profile_id=a.id AND v.version=a.version
+           WHERE a.project_id=$1 AND a.deleted_at IS NULL AND v.environment_id=$2 LIMIT 1`,
+              [projectId, id],
+            )
+          ).rowCount
+        )
+          throw new StorageError(
+            'CONFIG_IN_USE',
+            '环境下仍有认证配置，请先删除这些认证配置',
+          );
+      } else {
+        const defaults = (
+          await client.query<{ document: unknown }>(
+            `SELECT v.document FROM environments e JOIN environment_versions v
+           ON v.project_id=e.project_id AND v.environment_id=e.id AND v.version=e.version
+           WHERE e.project_id=$1 AND e.deleted_at IS NULL AND v.default_auth_profile_id=$2 FOR UPDATE OF e`,
+            [projectId, id],
+          )
+        ).rows;
+        for (const row of defaults) {
+          const old = parseContract('Environment', row.document);
+          const updated = parseContract('Environment', {
+            ...old,
+            defaultAuthProfileId: null,
+            version: old.version + 1,
+          });
+          await bump(client, 'environments', projectId, old.id, old.version);
+          await client.query(
+            'INSERT INTO environment_versions(project_id,environment_id,version,document,default_auth_profile_id) VALUES($1,$2,$3,$4,NULL)',
+            [projectId, old.id, updated.version, updated],
+          );
+          await audit(
+            client,
+            'environment.updated',
+            old.id,
+            projectId,
+            updated.version,
+          );
+        }
+      }
+      await client.query(
+        `UPDATE ${spec.head} SET deleted_at=clock_timestamp(),version=version+1 ${kind === 'AuthProfile' ? ',revoked=true' : ''} WHERE project_id=$1 AND id=$2`,
+        [projectId, id],
+      );
+      const deleted = parseContract(kind, {
+        ...current,
+        version: current.version + 1,
+        ...(kind === 'AuthProfile' ? { status: 'revoked' } : {}),
+      });
+      if (kind === 'AuthProfile') {
+        await client.query(
+          `INSERT INTO auth_profile_versions(project_id,auth_profile_id,version,document,environment_id,secret_id,secret_version)
+           SELECT project_id,auth_profile_id,$4,$5,environment_id,secret_id,secret_version
+           FROM auth_profile_versions WHERE project_id=$1 AND auth_profile_id=$2 AND version=$3`,
+          [projectId, id, current.version, deleted.version, deleted],
+        );
+      } else {
+        const environment = parseContract('Environment', deleted);
+        await client.query(
+          'INSERT INTO environment_versions(project_id,environment_id,version,document,default_auth_profile_id) VALUES($1,$2,$3,$4,$5)',
+          [
+            projectId,
+            id,
+            deleted.version,
+            deleted,
+            environment.defaultAuthProfileId,
+          ],
+        );
+      }
+      await audit(
+        client,
+        kind === 'Environment' ? 'environment.deleted' : 'auth.deleted',
+        id,
+        projectId,
+        deleted.version,
+      );
+    });
   }
   async createEnvironment(
     actor: Actor,
