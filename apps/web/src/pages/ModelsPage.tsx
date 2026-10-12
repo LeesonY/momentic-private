@@ -613,6 +613,16 @@ export const ModelsPage: React.FC = () => {
           onClose={() => setEditing(null)}
           onSaved={(updated) => {
             replaceModel(updated);
+            setProbeErrors((previous) => {
+              const next = { ...previous };
+              delete next[updated.id];
+              return next;
+            });
+            setProbeNotes((previous) => {
+              const next = { ...previous };
+              delete next[updated.id];
+              return next;
+            });
             setEditing(null);
           }}
         />

@@ -1049,8 +1049,14 @@ export class ModelRepository {
       const dto = parseContract('ModelProfile', {
         ...row.document,
         ...patch,
-        ...(patch.responseFormat !== undefined &&
-        patch.responseFormat !== (row.document.responseFormat ?? 'json_schema')
+        ...(apiKey !== undefined ||
+        (patch.configuredModelId !== undefined &&
+          patch.configuredModelId !== row.document.configuredModelId) ||
+        (patch.endpoint !== undefined &&
+          patch.endpoint !== row.document.endpoint) ||
+        (patch.responseFormat !== undefined &&
+          patch.responseFormat !==
+            (row.document.responseFormat ?? 'json_schema'))
           ? {
               capabilities: {
                 structuredOutput: false,

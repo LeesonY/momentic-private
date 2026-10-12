@@ -13,16 +13,15 @@ import {
   parseOutputTokens,
 } from './modelForm.ts';
 
-/**
- * Admin-only: renames a profile or changes its output cap. Connection fields
- * stay read-only here because editing them would not reset probe results.
- */
+/** Admin-only: updates a profile without reading back its stored credential. */
 export const EditModelModal: React.FC<{
   model: ModelProfile;
   onClose: () => void;
   onSaved: (model: ModelProfile) => void;
 }> = ({ model, onClose, onSaved }) => {
   const [name, setName] = useState(model.name);
+  const [modelId, setModelId] = useState(model.configuredModelId);
+  const [apiKey, setApiKey] = useState('');
   const [outputTokens, setOutputTokens] = useState(
     model.maxOutputTokens === undefined ? '' : String(model.maxOutputTokens),
   );
@@ -30,15 +29,24 @@ export const EditModelModal: React.FC<{
   const [error, setError] = useState<string | null>(null);
 
   const nameChanged = name.trim() !== model.name;
+  const modelIdChanged = modelId.trim() !== model.configuredModelId;
+  const keyChanged = apiKey.trim().length > 0;
   const capChanged =
     outputTokens.trim() !==
     (model.maxOutputTokens === undefined ? '' : String(model.maxOutputTokens));
+  const changed = nameChanged || modelIdChanged || keyChanged || capChanged;
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (saving || (!nameChanged && !capChanged)) return;
+    if (saving || !changed) return;
+    if (!modelId.trim()) {
+      setError('模型 ID 不能为空');
+      return;
+    }
     const patch: ModelProfilePatch = { expectedVersion: model.version };
     if (nameChanged) patch.name = name.trim();
+    if (modelIdChanged) patch.configuredModelId = modelId.trim();
+    if (keyChanged) patch.apiKey = apiKey.trim();
     if (capChanged) {
       const cap = parseOutputTokens(outputTokens);
       if (cap === null) {
@@ -88,7 +96,7 @@ export const EditModelModal: React.FC<{
             type="submit"
             form="form-edit-model"
             className="btn btn-primary"
-            disabled={saving || !name.trim() || (!nameChanged && !capChanged)}
+            disabled={saving || !name.trim() || !modelId.trim() || !changed}
             data-testid="btn-edit-model-submit"
           >
             {saving ? '保存中…' : '保存'}
@@ -104,10 +112,6 @@ export const EditModelModal: React.FC<{
           <dd>
             <code>{model.endpoint}</code>
           </dd>
-          <dt>模型 ID</dt>
-          <dd>
-            <code>{model.configuredModelId}</code>
-          </dd>
         </dl>
         <Field label="名称" required htmlFor="edit-model-name">
           <input
@@ -119,6 +123,39 @@ export const EditModelModal: React.FC<{
             onChange={(e) => setName(e.target.value)}
           />
         </Field>
+        <Field label="模型 ID" required htmlFor="edit-model-id">
+          <input
+            id="edit-model-id"
+            className="form-input is-mono"
+            required
+            maxLength={200}
+            value={modelId}
+            disabled={saving}
+            data-testid="edit-model-id"
+            onChange={(e) => setModelId(e.target.value)}
+          />
+        </Field>
+        <Field
+          label="API Key"
+          htmlFor="edit-model-key"
+          hint="留空保留原 Key；填写新 Key 后替换，加密保存且不回显"
+        >
+          <input
+            id="edit-model-key"
+            className="form-input"
+            type="password"
+            autoComplete="new-password"
+            maxLength={1000}
+            placeholder="输入新 Key，留空不修改"
+            value={apiKey}
+            disabled={saving}
+            data-testid="edit-model-key"
+            onChange={(e) => setApiKey(e.target.value)}
+          />
+        </Field>
+        {(modelIdChanged || keyChanged) && (
+          <Alert tone="info">修改模型 ID 或 Key 后，需要重新探测模型。</Alert>
+        )}
         <Field
           label="单次输出上限（token）"
           htmlFor="edit-model-cap"

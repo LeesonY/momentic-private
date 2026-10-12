@@ -589,7 +589,35 @@ export class MockApiClient implements ApiClient {
   ): Promise<ModelProfile> {
     const found = this.models.find((m) => m.id === modelProfileId);
     if (!found) throw new Error('模型配置未找到');
-    return { ...found, ...input };
+    if (found.version !== input.expectedVersion)
+      throw new Error('模型配置已更新，请刷新后重试');
+    const { expectedVersion, apiKey, ...patch } = input;
+    const connectionChanged =
+      apiKey !== undefined ||
+      (patch.configuredModelId !== undefined &&
+        patch.configuredModelId !== found.configuredModelId) ||
+      (patch.endpoint !== undefined && patch.endpoint !== found.endpoint) ||
+      (patch.responseFormat !== undefined &&
+        patch.responseFormat !== (found.responseFormat ?? 'json_schema'));
+    const updated: ModelProfile = {
+      ...found,
+      ...patch,
+      ...(connectionChanged
+        ? {
+            capabilities: {
+              structuredOutput: false,
+              nativeTools: false,
+              imageInput: false,
+            },
+            status:
+              patch.status ??
+              (found.status === 'disabled' ? 'disabled' : 'untested'),
+          }
+        : {}),
+      version: expectedVersion + 1,
+    };
+    this.models = this.models.map((m) => (m.id === updated.id ? updated : m));
+    return updated;
   }
 
   public async deleteModel(
