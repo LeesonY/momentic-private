@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useApp } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
-import type { Run } from '@localqa/contracts';
 import { RunStoreProvider, useRunStore } from '../state/RunStore.tsx';
 import { Page } from '../components/layout/Page.tsx';
 import { EmptyState } from '../components/ui/EmptyState.tsx';
@@ -10,14 +9,12 @@ import { AppIcon } from '../components/ui/AppIcon.tsx';
 import { ReconnectBanner } from '../components/layout/ReconnectBanner.tsx';
 import { PhaseProgress } from '../components/workbench/PhaseProgress.tsx';
 import { InputRequestBar } from '../components/workbench/InputRequestBar.tsx';
-import { RunHistoryList } from '../components/workbench/RunHistoryList.tsx';
 import { TaskCaseTabs } from '../components/workbench/TaskCaseTabs.tsx';
 import { StatusBadge } from '../components/ui/Badge.tsx';
 import { ErrorCard } from '../components/ui/ErrorCard.tsx';
 
 export const WorkbenchPage: React.FC = () => {
   const { currentProject, routeParams, setRoute } = useApp();
-  const [runs, setRuns] = useState<Run[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string>(
     routeParams.runId || '',
   );
@@ -30,7 +27,6 @@ export const WorkbenchPage: React.FC = () => {
     async function load() {
       try {
         const res = await defaultApiClient.listRuns(projId);
-        setRuns(res.items);
         if (!selectedRunId && res.items.length > 0) {
           setSelectedRunId(res.items[0].id);
           setRoute('workbench', { runId: res.items[0].id });
@@ -51,20 +47,11 @@ export const WorkbenchPage: React.FC = () => {
     }
   }, [routeParams.runId]);
 
-  const handleSelectRun = (id: string) => {
-    setSelectedRunId(id);
-    setRoute('workbench', { runId: id });
-  };
-
   return (
     <Page width="full" testId="workbench-page">
       {selectedRunId ? (
         <RunStoreProvider runId={selectedRunId} key={selectedRunId}>
-          <WorkbenchContent
-            runs={runs}
-            activeRunId={selectedRunId}
-            onSelectRun={handleSelectRun}
-          />
+          <WorkbenchContent activeRunId={selectedRunId} />
         </RunStoreProvider>
       ) : runsLoaded ? (
         <EmptyState
@@ -83,11 +70,9 @@ export const WorkbenchPage: React.FC = () => {
   );
 };
 
-const WorkbenchContent: React.FC<{
-  runs: Run[];
-  activeRunId: string;
-  onSelectRun: (id: string) => void;
-}> = ({ runs, activeRunId, onSelectRun }) => {
+const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
+  activeRunId,
+}) => {
   const {
     run,
     cases,
@@ -243,12 +228,6 @@ const WorkbenchContent: React.FC<{
 
   return (
     <div className="workbench-layout" data-testid="workbench-container">
-      <RunHistoryList
-        runs={runs.map((item) => (item.id === run?.id ? run : item))}
-        activeRunId={activeRunId}
-        onSelectRun={onSelectRun}
-      />
-
       <div
         className="workbench-column workbench-center"
         data-testid="workbench-center-panel"

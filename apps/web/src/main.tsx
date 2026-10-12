@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client';
 import { App } from './App.tsx';
 import { AppProvider } from './state/AppContext.tsx';
 import { ThemeProvider } from './state/ThemeContext.tsx';
+import '@fontsource-variable/geist';
+import '@fontsource-variable/geist-mono';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/controls.css';

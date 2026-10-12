@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
-import { AppIcon } from '../components/ui/AppIcon.tsx';
+import { AppIcon, type AppIconName } from '../components/ui/AppIcon.tsx';
 import { CreateProjectDialog } from '../components/layout/CreateProjectDialog.tsx';
 import { Page } from '../components/layout/Page.tsx';
-import { Section } from '../components/ui/Section.tsx';
 import { Field } from '../components/ui/Field.tsx';
 import { Alert } from '../components/ui/Alert.tsx';
 import type {
@@ -264,70 +263,172 @@ export const ProjectHomePage: React.FC = () => {
         'external'
       : models.some((m) => m.dataBoundary === 'external'));
 
+  const focusUrl = () => document.getElementById('input-target-url')?.focus();
+  const briefs: {
+    icon: AppIconName;
+    tone: string;
+    title: string;
+    text: string;
+    onClick: () => void;
+  }[] = [
+    {
+      icon: 'globe',
+      tone: 'is-info',
+      title: '冒烟测试一个网址',
+      text: '填入网址，系统在限定范围内探索页面，生成并执行检查。',
+      onClick: focusUrl,
+    },
+    {
+      icon: 'layers',
+      tone: 'is-success',
+      title: '回归已保存的用例',
+      text: '从用例库挑选用例，按审查过的基线重新执行。',
+      onClick: () => setRoute('saved-cases'),
+    },
+    {
+      icon: 'calendar',
+      tone: 'is-warning',
+      title: '设置定时回归',
+      text: '按计划自动运行回归，结果出现在运行工作台。',
+      onClick: () => setRoute('schedules'),
+    },
+    {
+      icon: 'shield',
+      tone: 'is-ai',
+      title: '配置环境与登录',
+      text: '设置可访问范围、排除路径和登录方式。',
+      onClick: () => setRoute('environments'),
+    },
+    {
+      icon: 'book',
+      tone: 'is-danger',
+      title: '补充项目知识',
+      text: '告诉系统业务术语、规则和关键流程。',
+      onClick: () => setRoute('knowledge'),
+    },
+    {
+      icon: 'cpu',
+      tone: 'is-muted',
+      title: '管理模型',
+      text: '接入模型、探测能力，再授权给本项目。',
+      onClick: () => setRoute('models'),
+    },
+  ];
+  const usesDefaultAuth =
+    !!selectedAuthId &&
+    environments.find((env) => env.id === selectedEnvId)
+      ?.defaultAuthProfileId === selectedAuthId;
+
   return (
-    <Page
-      testId="project-home-page"
-      eyebrow={
-        <>
-          <AppIcon name="sparkles" size={14} /> 自动化测试控制台
-        </>
-      }
-      title={currentProject?.name || '项目首页'}
-      description="输入目标地址，系统会在限定范围内自动探索、生成用例、执行检查并独立复现缺陷。"
-    >
-      {error && (
-        <Alert tone="danger" testId="home-error-banner">
-          {error}
-        </Alert>
-      )}
+    <Page testId="project-home-page" className="lqa-home">
+      <div className="lqa-home-inner">
+        <h1 className="lqa-home-title">要测试哪个网站？</h1>
 
-      <form onSubmit={handleStart}>
-        <Section
-          icon="globe"
-          title="发起冒烟测试"
-          description="填写目标地址，并确认本次运行使用的环境、认证和模型。"
-        >
-          <Field
-            label="目标地址"
+        {error && (
+          <Alert tone="danger" testId="home-error-banner">
+            {error}
+          </Alert>
+        )}
+
+        <form className="lqa-composer" onSubmit={handleStart}>
+          <input
+            id="input-target-url"
+            type="url"
+            className="lqa-composer-url"
+            aria-label="目标地址"
+            placeholder="输入要测试的网址，例如 https://example.com/"
+            value={targetUrl}
+            onChange={(e) => setTargetUrl(e.target.value)}
             required
-            htmlFor="input-target-url"
-            hint="仅限获准访问的 HTTP(S) 地址，默认以该地址的 Origin 作为探测范围。"
-          >
-            <input
-              id="input-target-url"
-              type="url"
-              className="form-input lqa-url-input"
-              placeholder="https://example.com/ 或 http://localhost:8080/"
-              value={targetUrl}
-              onChange={(e) => setTargetUrl(e.target.value)}
-              required
-              data-testid="input-target-url"
-            />
-          </Field>
+            data-testid="input-target-url"
+          />
+          <textarea
+            id="input-run-description"
+            rows={2}
+            maxLength={4000}
+            className="lqa-composer-note"
+            aria-label="测试说明（可选）"
+            placeholder="测试说明（可选），例如：点击查看明细后应显示订单明细；检查列表筛选和分页；不要创建或删除数据。"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            data-testid="input-run-description"
+          />
 
-          <Field
-            label="测试说明"
-            optional
-            htmlFor="input-run-description"
-            hint="主 AI 将据此规划用例、派工和补测。请写明预期结果和禁止操作，登录凭据放在环境与认证中。"
-          >
-            <textarea
-              id="input-run-description"
-              rows={3}
-              maxLength={4000}
-              className="form-input"
-              placeholder="例如：点击查看明细后应显示订单明细；检查列表筛选和分页；不要创建或删除数据。"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              data-testid="input-run-description"
-            />
-          </Field>
+          {showAdvanced && (
+            <div
+              className="lqa-composer-advanced"
+              data-testid="advanced-budget-panel"
+            >
+              <div className="grid-3">
+                <Field label="最多用例数" hint="1–30">
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={maxCases}
+                    min={1}
+                    max={30}
+                    onChange={(e) => setMaxCases(Number(e.target.value))}
+                  />
+                </Field>
+                <Field label="最多探索页面数" hint="1–30">
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={maxPages}
+                    min={1}
+                    max={30}
+                    onChange={(e) => setMaxPages(Number(e.target.value))}
+                  />
+                </Field>
+                <Field label="探索深度" hint="0–5">
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={maxDepth}
+                    min={0}
+                    max={5}
+                    onChange={(e) => setMaxDepth(Number(e.target.value))}
+                  />
+                </Field>
+                <Field label="最长执行时间（秒）" hint="60–3600">
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={maxActiveSeconds}
+                    min={60}
+                    max={3600}
+                    onChange={(e) =>
+                      setMaxActiveSeconds(Number(e.target.value))
+                    }
+                  />
+                </Field>
+                <Field label="最多操作步数" hint="10–1000">
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={maxActions}
+                    min={10}
+                    max={1000}
+                    onChange={(e) => setMaxActions(Number(e.target.value))}
+                  />
+                </Field>
+                <Field label="动作策略">
+                  <p className="field-hint" data-testid="smoke-action-policy">
+                    固定为
+                    non_submitting（不提交表单）。经审批的业务写入须通过独立的授权回归流程发起，URL
+                    冒烟入口不能切换为写入模式。
+                  </p>
+                </Field>
+              </div>
+            </div>
+          )}
 
-          <div className="lqa-run-form-grid">
-            <Field label="运行环境" htmlFor="select-environment">
+          <div className="lqa-composer-toolbar">
+            <label className="lqa-composer-chip" title="运行环境">
+              <AppIcon name="globe" size={15} />
               <select
                 id="select-environment"
-                className="form-select"
+                aria-label="运行环境"
                 value={selectedEnvId}
                 onChange={(e) => {
                   setSelectedEnvId(e.target.value);
@@ -346,64 +447,38 @@ export const ProjectHomePage: React.FC = () => {
                   </option>
                 ))}
               </select>
-            </Field>
-
-            <Field
-              label="认证凭据"
-              htmlFor="select-auth-profile"
-              hint={
-                !!selectedAuthId &&
-                environments.find((env) => env.id === selectedEnvId)
-                  ?.defaultAuthProfileId === selectedAuthId ? (
-                  <span data-testid="default-auth-notice">
-                    已选择环境默认认证；可手动切换为匿名访问。
-                  </span>
-                ) : undefined
-              }
-            >
+            </label>
+            <label className="lqa-composer-chip" title="认证凭据">
+              <AppIcon name="key" size={15} />
               <select
                 id="select-auth-profile"
-                className="form-select"
+                aria-label="认证凭据"
                 value={selectedAuthId}
                 onChange={(e) => setSelectedAuthId(e.target.value)}
                 data-testid="select-auth-profile"
               >
-                <option value="">不使用认证（匿名访问）</option>
+                <option value="">匿名访问</option>
                 {authOptions.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}（{a.mode}）
                   </option>
                 ))}
               </select>
-            </Field>
-
-            <Field
-              label="本次运行模型"
-              htmlFor="select-model-profile"
-              hint={
-                <span data-testid="configured-model-notice">
-                  {projectDefaultModel
-                    ? `项目默认：${projectDefaultModel.name}。`
-                    : '未设置项目默认模型时，服务端将从授权模型中选择。'}
-                  手动选择时，服务器会校验该模型是否已授权给本项目。{' '}
-                  <button
-                    type="button"
-                    className="btn btn-link text-xs"
-                    onClick={() => setRoute('models')}
-                  >
-                    查看模型配置
-                  </button>
-                </span>
-              }
-            >
+            </label>
+            <label className="lqa-composer-chip" title="本次运行模型">
+              <AppIcon name="cpu" size={15} />
               <select
                 id="select-model-profile"
-                className="form-select"
+                aria-label="本次运行模型"
                 value={selectedModelId}
                 onChange={(e) => setSelectedModelId(e.target.value)}
                 data-testid="select-model-profile"
               >
-                <option value="">使用项目默认或授权模型</option>
+                <option value="">
+                  {projectDefaultModel
+                    ? `默认模型：${projectDefaultModel.name}`
+                    : '项目默认或授权模型'}
+                </option>
                 {models
                   .filter((m) => m.status !== 'disabled')
                   .map((m) => (
@@ -414,128 +489,21 @@ export const ProjectHomePage: React.FC = () => {
                     </option>
                   ))}
               </select>
-            </Field>
-          </div>
-
-          {(!isMock && (optionsLoading || optionsError || missingModel)) ||
-          showExternalNotice ? (
-            <div className="stack stack-sm lqa-run-notices">
-              {!isMock && (optionsLoading || optionsError || missingModel) && (
-                <Alert
-                  tone="warning"
-                  title="暂时不能启动真实模型冒烟"
-                  testId="model-unconfigured-notice"
-                >
-                  {optionsLoading
-                    ? '正在加载项目配置…'
-                    : optionsError
-                      ? `配置读取失败：${optionsError}`
-                      : '当前没有可用模型。请由管理员在“模型管理”中完成配置与项目授权，系统不会自动使用模拟模型。'}
-                </Alert>
-              )}
-              {showExternalNotice && (
-                <Alert
-                  tone="warning"
-                  title="外部模型数据去向"
-                  testId="external-model-notice"
-                >
-                  已配置的模型中包含外部商业服务。若本次运行绑定外部模型，脱敏后的
-                  DOM、可访问名称及获准截图可能传输到相应服务商。请在项目模型配置中确认实际绑定的数据去向。
-                </Alert>
-              )}
-            </div>
-          ) : null}
-
-          <div className="lqa-advanced">
+            </label>
             <button
               type="button"
-              className="btn btn-ghost btn-sm"
+              className={`lqa-composer-chip ${showAdvanced ? 'is-active' : ''}`}
               aria-expanded={showAdvanced}
+              aria-label="高级额度与策略"
+              title="高级额度与策略"
               onClick={() => setShowAdvanced(!showAdvanced)}
               data-testid="btn-toggle-advanced-budget"
             >
-              <AppIcon
-                name={showAdvanced ? 'chevron-down' : 'chevron-right'}
-                size={15}
-              />
-              高级额度与策略
-              <span className="subtle">（冒烟预设）</span>
+              <AppIcon name="settings" size={15} />
             </button>
-
-            {showAdvanced && (
-              <div className="panel" data-testid="advanced-budget-panel">
-                <div className="grid-3">
-                  <Field label="最多用例数" hint="1–30">
-                    <input
-                      type="number"
-                      className="form-input"
-                      value={maxCases}
-                      min={1}
-                      max={30}
-                      onChange={(e) => setMaxCases(Number(e.target.value))}
-                    />
-                  </Field>
-                  <Field label="最多探索页面数" hint="1–30">
-                    <input
-                      type="number"
-                      className="form-input"
-                      value={maxPages}
-                      min={1}
-                      max={30}
-                      onChange={(e) => setMaxPages(Number(e.target.value))}
-                    />
-                  </Field>
-                  <Field label="探索深度" hint="0–5">
-                    <input
-                      type="number"
-                      className="form-input"
-                      value={maxDepth}
-                      min={0}
-                      max={5}
-                      onChange={(e) => setMaxDepth(Number(e.target.value))}
-                    />
-                  </Field>
-                  <Field label="最长执行时间（秒）" hint="60–3600">
-                    <input
-                      type="number"
-                      className="form-input"
-                      value={maxActiveSeconds}
-                      min={60}
-                      max={3600}
-                      onChange={(e) =>
-                        setMaxActiveSeconds(Number(e.target.value))
-                      }
-                    />
-                  </Field>
-                  <Field label="最多操作步数" hint="10–1000">
-                    <input
-                      type="number"
-                      className="form-input"
-                      value={maxActions}
-                      min={10}
-                      max={1000}
-                      onChange={(e) => setMaxActions(Number(e.target.value))}
-                    />
-                  </Field>
-                  <Field label="动作策略">
-                    <p className="field-hint" data-testid="smoke-action-policy">
-                      固定为
-                      non_submitting（不提交表单）。经审批的业务写入须通过独立的授权回归流程发起，URL
-                      冒烟入口不能切换为写入模式。
-                    </p>
-                  </Field>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="lqa-run-form-footer">
-            <span className="text-sm muted">
-              冒烟测试只做导航、观察和截图，不会提交表单或写入业务数据。
-            </span>
             <button
               type="submit"
-              className="btn btn-primary btn-lg"
+              className="btn btn-primary lqa-composer-submit"
               disabled={
                 starting ||
                 optionsLoading ||
@@ -545,12 +513,83 @@ export const ProjectHomePage: React.FC = () => {
               }
               data-testid="btn-start-smoke-run"
             >
-              <AppIcon name="play" size={15} />
+              <AppIcon name="play" size={14} />
               {starting ? '正在建立运行...' : '开始冒烟测试'}
             </button>
           </div>
-        </Section>
-      </form>
+        </form>
+
+        <div className="lqa-composer-hints">
+          <span>
+            主 AI
+            将据此规划用例、派工和补测。请写明预期结果和禁止操作，登录凭据放在环境与认证中。
+          </span>
+          <span>
+            冒烟测试只做导航、观察和截图，不会提交表单或写入业务数据。
+          </span>
+          {usesDefaultAuth && (
+            <span data-testid="default-auth-notice">
+              已选择环境默认认证；可手动切换为匿名访问。
+            </span>
+          )}
+          <span data-testid="configured-model-notice">
+            手动选择的模型须已授权给本项目。{' '}
+            <button
+              type="button"
+              className="btn btn-link text-xs"
+              onClick={() => setRoute('models')}
+            >
+              查看模型配置
+            </button>
+          </span>
+        </div>
+
+        {!isMock && (optionsLoading || optionsError || missingModel) && (
+          <Alert
+            tone="warning"
+            title="暂时不能启动真实模型冒烟"
+            testId="model-unconfigured-notice"
+          >
+            {optionsLoading
+              ? '正在加载项目配置…'
+              : optionsError
+                ? `配置读取失败：${optionsError}`
+                : '当前没有可用模型。请由管理员在“模型管理”中完成配置与项目授权，系统不会自动使用模拟模型。'}
+          </Alert>
+        )}
+        {showExternalNotice && (
+          <Alert
+            tone="warning"
+            title="外部模型数据去向"
+            testId="external-model-notice"
+          >
+            已配置的模型中包含外部商业服务。若本次运行绑定外部模型，脱敏后的
+            DOM、可访问名称及获准截图可能传输到相应服务商。请在项目模型配置中确认实际绑定的数据去向。
+          </Alert>
+        )}
+
+        <div className="lqa-home-divider">
+          <span>或者从这里开始</span>
+        </div>
+        <div className="lqa-briefs">
+          {briefs.map((brief) => (
+            <button
+              type="button"
+              key={brief.title}
+              className="lqa-brief"
+              onClick={brief.onClick}
+            >
+              <AppIcon
+                name={brief.icon}
+                size={18}
+                className={`lqa-brief-icon ${brief.tone}`}
+              />
+              <span className="lqa-brief-title">{brief.title}</span>
+              <span className="lqa-brief-text">{brief.text}</span>
+            </button>
+          ))}
+        </div>
+      </div>
     </Page>
   );
 };
