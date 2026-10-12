@@ -787,11 +787,27 @@ export function registerExecutionRoutes(router: Router): void {
                 '本次允许业务操作，尚无独立的测试数据清理证据，请核对并清理测试数据。',
               ]
             : []),
-          ...(run.status === 'failed'
+          ...(run.terminationReason === 'model_failure'
             ? [
                 ...new Set(
                   usageRows.rows.flatMap(({ diagnostic }) => {
                     const code = diagnostic['errorCode'];
+                    if (code === 'MODEL_TIMEOUT') {
+                      const timeout = diagnostic['timeoutMs'];
+                      const seconds =
+                        typeof timeout === 'number' &&
+                        Number.isFinite(timeout) &&
+                        timeout > 0
+                          ? ` ${timeout / 1000} 秒`
+                          : '';
+                      return [
+                        `MODEL_TIMEOUT：模型请求超过${seconds}响应等待上限，请稍后重试或检查服务商响应速度。`,
+                      ];
+                    }
+                    if (code === 'SERVICE_UNAVAILABLE')
+                      return [
+                        'SERVICE_UNAVAILABLE：模型服务未能完成响应，请检查服务商连接状态。',
+                      ];
                     if (code === 'RATE_LIMITED')
                       return [
                         'RATE_LIMITED：模型服务商返回 HTTP 429，渠道繁忙或请求受到限流，请稍后重试或检查服务商并发额度。',

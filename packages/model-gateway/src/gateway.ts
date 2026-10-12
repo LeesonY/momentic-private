@@ -941,9 +941,11 @@ export function createGateway(options: {
       outbound.push(outboundText);
       providerCalls += 1;
       const controller = new AbortController();
-      const timeout = options.rateLimitRetry
-        ? Math.max(1, input.timeoutMs - (Date.now() - started))
-        : input.timeoutMs;
+      const timeout = input.timeoutMs - (Date.now() - started);
+      if (timeout <= 0)
+        throw Object.assign(new Error('MODEL_TIMEOUT'), {
+          code: 'MODEL_TIMEOUT',
+        });
       const timer = setTimeout(() => controller.abort(), timeout);
       try {
         return await options.adapter.send(
@@ -955,6 +957,12 @@ export function createGateway(options: {
           },
           controller.signal,
         );
+      } catch (error) {
+        if (controller.signal.aborted)
+          throw Object.assign(new Error('MODEL_TIMEOUT'), {
+            code: 'MODEL_TIMEOUT',
+          });
+        throw error;
       } finally {
         clearTimeout(timer);
       }

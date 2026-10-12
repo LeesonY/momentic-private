@@ -14,6 +14,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const files = [
+  'packages/orchestrator/test/model-timeout.test.mjs',
   'packages/model-gateway/test/rate-limit-retry.test.mjs',
   'apps/worker/test/preflight-model.test.mjs',
   'apps/web/scripts/phaseTermination.test.mjs',

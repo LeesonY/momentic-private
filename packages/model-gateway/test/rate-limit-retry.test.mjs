@@ -101,3 +101,64 @@ test('cancellation during backoff prevents another provider request', async () =
   assert.notEqual((await pending).requestResult, 'ok');
   assert.equal(f.calls(), 1);
 });
+
+test('format repair shares the original deadline rather than resetting it', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  let readyFirst,
+    readySecond,
+    calls = 0;
+  const first = new Promise((resolve) => {
+    readyFirst = resolve;
+  });
+  const second = new Promise((resolve) => {
+    readySecond = resolve;
+  });
+  const gateway = createGateway({
+    profiles: [profile],
+    decryptKey: () => 'fixture-key',
+    adapter: createOpenAIAdapter(
+      (_url, init) =>
+        new Promise((resolve, reject) => {
+          const call = ++calls;
+          init.signal.addEventListener(
+            'abort',
+            () =>
+              reject(
+                Object.assign(new Error('aborted'), { name: 'AbortError' }),
+              ),
+            { once: true },
+          );
+          setTimeout(
+            () =>
+              resolve(
+                call === 1
+                  ? new Response(
+                      JSON.stringify({
+                        choices: [
+                          {
+                            finish_reason: 'stop',
+                            message: { content: 'invalid JSON' },
+                          },
+                        ],
+                      }),
+                      { status: 200 },
+                    )
+                  : response(200),
+              ),
+            700,
+          );
+          if (call === 1) readyFirst();
+          else readySecond();
+        }),
+    ),
+  });
+  const pending = gateway.generateDecision(input);
+  await first;
+  t.mock.timers.tick(700);
+  await second;
+  t.mock.timers.tick(300);
+  const record = await pending;
+  assert.equal(record.errorCode, 'MODEL_TIMEOUT');
+  assert.equal(record.repairCount, 1);
+  assert.equal(calls, 2);
+});
