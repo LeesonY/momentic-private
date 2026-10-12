@@ -28,6 +28,8 @@ export interface AuthenticatedImportTask {
   authStateId: string;
   /** The run's approved network scope. No widening to the profile's scope. */
   allowedOrigins: readonly string[];
+  actionPolicy?: 'non_submitting' | 'approved_workflows';
+  writeScope?: readonly string[] | undefined;
   tlsPolicy?: 'strict' | 'allow_self_signed';
   artifactsDir?: string;
   navigationTimeoutMs?: number;
@@ -175,7 +177,8 @@ export async function withApprovedBrowserAuth(
       taskId: active.taskId,
       allowedOrigins: [...taskOrigins],
       tlsPolicy: options.tlsPolicy ?? 'strict',
-      mode: 'non_submitting',
+      mode: options.actionPolicy ?? 'non_submitting',
+      writeScope: options.writeScope,
       artifactsDir: options.artifactsDir,
       navigationTimeoutMs: options.navigationTimeoutMs,
       enableTrace: false,

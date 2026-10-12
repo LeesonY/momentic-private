@@ -1,3 +1,4 @@
+import { withinWriteScope } from '@localqa/browser';
 import { randomUUID } from 'node:crypto';
 import { SessionAgent, type SessionContext } from './session-agent.js';
 import { createRegressionPlan } from './regression-plan.js';
@@ -272,7 +273,7 @@ export class Coordinator {
         throw new StorageError('RATE_LIMITED');
       const id = trustedCases[0]?.runId ?? randomUUID();
       const now = new Date().toISOString();
-      const run = parseContract('Run', {
+      let run = parseContract('Run', {
         id,
         projectId: data.projectId,
         creatorId: actor.userId,
@@ -402,15 +403,20 @@ export class Coordinator {
       }
       if (executionMode === 'smoke' && !trustedCases.length)
         await this.sessions.initialize(client, run, data.brief ?? '');
-      await this.enqueue(
-        client,
-        run,
-        'coordinator',
-        'preflight',
-        'prepare',
-        null,
-        1,
-      );
+      if (effective.taskIntent === 'plan') {
+        run = await this.change(client, run, 'running', 'plan');
+        await this.sessions.advance(client, run, []);
+      } else {
+        await this.enqueue(
+          client,
+          run,
+          'coordinator',
+          'preflight',
+          'prepare',
+          null,
+          1,
+        );
+      }
       await audit(client, 'run.created', id, data.projectId);
       await client.query(
         "INSERT INTO request_idempotency(project_id,actor_id,route,key,body_hash,result_id,expires_at) VALUES($1,$2,'T05/run',$3,$4,$5,clock_timestamp()+interval '24 hours')",
@@ -1737,12 +1743,18 @@ export class Coordinator {
         if (
           node.sensitive ||
           ['password', 'hidden'].includes(node.inputType ?? node.role) ||
-          (call.name === 'press' && call.args.key === 'Enter') ||
-          (call.name === 'click' &&
-            (node.inputType === 'submit' ||
-              /删除|新增|新建|创建|保存|提交|发送|购买|支付|启用|停用|禁用|授权|重置|发布|\b(delete|remove|create|save|submit|send|purchase|enable|disable|reset|publish)\b/i.test(
-                `${node.name} ${node.text}`,
-              )))
+          (!withinWriteScope(
+            owned!.displayUrl,
+            run.effectiveConfig.actionPolicy === 'approved_workflows'
+              ? (run.effectiveConfig.writeScope ?? [])
+              : [],
+          ) &&
+            ((call.name === 'press' && call.args.key === 'Enter') ||
+              (call.name === 'click' &&
+                (node.inputType === 'submit' ||
+                  /删除|新增|新建|创建|保存|提交|发送|购买|支付|启用|停用|禁用|授权|重置|发布|\b(delete|remove|create|save|submit|send|purchase|enable|disable|reset|publish)\b/i.test(
+                    `${node.name} ${node.text}`,
+                  )))))
         )
           throw new StorageError('POLICY_DENIED');
       }
@@ -2604,6 +2616,8 @@ export class Coordinator {
     projectId: string,
     inputId: string,
     expectedVersion: number,
+    text?: string,
+    decision: 'provide' | 'approve' | 'reject' = 'provide',
   ): Promise<InputRequest> {
     return this.db.actor(actor, async (client) => {
       await authorize(client, projectId, 'run');
@@ -2646,23 +2660,44 @@ export class Coordinator {
         throw new StorageError('VALIDATION_ERROR');
       const updated = {
         ...input,
-        status: 'resolved',
+        status: decision === 'reject' ? 'rejected' : 'resolved',
         version: input.version + 1,
       };
+      if (decision !== 'reject' && text?.trim())
+        await client.query(
+          'INSERT INTO run_messages(id,project_id,run_id,actor_id,context_version,redacted_text) VALUES($1,$2,$3,$4,$5,$6)',
+          [
+            randomUUID(),
+            projectId,
+            run.id,
+            actor.userId,
+            run.contextVersion,
+            text.trim(),
+          ],
+        );
       await client.query(
         'UPDATE input_requests SET document=$2,version=version+1,actor_id=actor_id() WHERE id=$1',
         [inputId, updated],
       );
       for (const job of jobs) {
         if (job.status !== 'waiting') continue;
+        if (decision === 'reject') {
+          await this.interrupt(client, run, job, 'cancelled');
+          continue;
+        }
         const acted = (
           await client.query(
             'SELECT 1 FROM action_intents WHERE project_id=$1 AND task_id=$2 LIMIT 1',
             [projectId, job.id],
           )
         ).rowCount;
-        if (acted) await this.interrupt(client, run, job, 'interrupted');
-        else {
+        if (acted) {
+          await client.query(
+            'UPDATE jobs SET result=result||\'{"interruptionReason":"user_input"}\'::jsonb WHERE id=$1',
+            [job.id],
+          );
+          await this.interrupt(client, run, job, 'interrupted');
+        } else {
           await client.query(
             "UPDATE case_attempts SET status='interrupted',finished_at=clock_timestamp() WHERE project_id=$1 AND task_id=$2 AND status='running'",
             [projectId, job.id],
@@ -2679,6 +2714,18 @@ export class Coordinator {
       }
       if (run.status === 'awaiting_input')
         await this.change(client, run, 'running', run.phase);
+      if (decision === 'reject') {
+        const session = await this.sessions.read(client, run);
+        if (session)
+          await this.sessions.write(client, run, {
+            ...session,
+            status: 'finalizing',
+            coverageGaps: [
+              ...session.coverageGaps,
+              '用户拒绝补充信息，未完成的范围保留在报告中。',
+            ].slice(0, 100),
+          });
+      }
       await appendEvent(client, projectId, run.id, 'input.resolved', updated);
       await audit(
         client,
@@ -2844,7 +2891,10 @@ export class Coordinator {
               j.document.attempt + 1,
               { previousTaskId: j.id },
             );
-            if (!run.terminationReason)
+            if (
+              !run.terminationReason &&
+              j.result?.['interruptionReason'] !== 'user_input'
+            )
               run = await this.change(
                 client,
                 run,

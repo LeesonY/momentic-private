@@ -47,6 +47,8 @@ export function sessionModelContext(
       summary: context.session.summary.slice(0, 1000),
     },
     actionPolicy: context.actionPolicy,
+    taskIntent: context.taskIntent,
+    writeScope: context.writeScope,
     assertionCapabilities: context.assertionCapabilities,
     remainingCases: context.remainingCases,
     remainingPages: context.remainingPages,

@@ -84,6 +84,7 @@ export class BrowserSessionImpl implements BrowserSession {
       mode: options.mode,
       allowedOrigins: options.allowedOrigins,
       restrictedPaths: options.restrictedPaths,
+      writeScope: options.writeScope,
     });
 
     this.recorder = new SessionRecorder({

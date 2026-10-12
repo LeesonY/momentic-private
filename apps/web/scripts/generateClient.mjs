@@ -52,8 +52,8 @@ for (const [path, methods] of Object.entries(openApi.paths)) {
   }
 }
 
-if (operations.length !== 95) {
-  throw new Error(`Expected 95 public operations, found ${operations.length}`);
+if (operations.length !== 97) {
+  throw new Error(`Expected 97 public operations, found ${operations.length}`);
 }
 
 const opNames = operations.map((op) => op.operationId);
@@ -100,6 +100,8 @@ import type {
   BudgetOverrides,
   MessageInput,
   InputRequest,
+  InputRequestPage,
+  FollowUpInput,
   InputResponse,
   CaseRecord,
   CaseRecordPage,
@@ -209,6 +211,8 @@ export type {
   BudgetOverrides,
   MessageInput,
   InputRequest,
+  InputRequestPage,
+  FollowUpInput,
   InputResponse,
   CaseRecord,
   CaseRecordPage,
@@ -309,6 +313,9 @@ export interface CreateRunInput {
   modelProfileId?: string;
   budgetOverrides?: BudgetOverrides;
   budget?: BudgetOverrides;
+  taskIntent?: RunConfig['taskIntent'];
+  actionPolicy?: RunConfig['actionPolicy'];
+  writeScope?: string[];
   mode?: 'smoke';
   config?: Partial<RunConfig>;
 }
@@ -374,6 +381,8 @@ export interface ApiClient {
     runId: string,
     query?: PaginationQuery,
   ): Promise<RunMessagePage>;
+  listRunInputs(runId: string): Promise<InputRequestPage>;
+  continueRun(runId: string, input: FollowUpInput): Promise<Run>;
   respondToInput(
     runId: string,
     inputId: string,
@@ -508,6 +517,8 @@ import type {
   RunPage,
   MessageInput,
   InputRequest,
+  InputRequestPage,
+  FollowUpInput,
   InputResponse,
   CaseRecord,
   CaseRecordPage,
@@ -1001,6 +1012,9 @@ export class HttpApiClient implements ApiClient {
     if (input.environmentId) payload.environmentId = input.environmentId;
     if (input.authProfileId) payload.authProfileId = input.authProfileId;
     if (input.modelProfileId) payload.modelProfileId = input.modelProfileId;
+    if (input.taskIntent) payload.taskIntent = input.taskIntent;
+    if (input.actionPolicy) payload.actionPolicy = input.actionPolicy;
+    if (input.writeScope) payload.writeScope = input.writeScope;
     const budget = ('budget' in input ? input.budget : undefined) ?? ('budgetOverrides' in input ? input.budgetOverrides : undefined);
     if (budget && Object.keys(budget).length > 0) {
       payload.budget = budget;
@@ -1082,6 +1096,13 @@ export class HttpApiClient implements ApiClient {
       { method: 'GET' },
       'RunMessagePage',
     );
+  }
+
+  public async listRunInputs(runId: string): Promise<InputRequestPage> {
+    return this.request<InputRequestPage>(\`/runs/\${encodeURIComponent(runId)}/inputs\`, undefined, 'InputRequestPage');
+  }
+  public async continueRun(runId: string, input: FollowUpInput): Promise<Run> {
+    return this.request<Run>(\`/runs/\${encodeURIComponent(runId)}/follow-up\`, { method: 'POST', headers: { 'Idempotency-Key': typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : \`idemp_\${Date.now()}_\${Math.random().toString(36).slice(2)}\` }, body: JSON.stringify(input) }, 'Run');
   }
 
   // 33. respondToInput

@@ -42,11 +42,13 @@ export type Contract =
   | ExportInput
   | Finding
   | FindingPage
+  | FollowUpInput
   | FormConfig
   | Health
   | HeartbeatInput
   | HeartbeatResult
   | InputRequest
+  | InputRequestPage
   | InputResponse
   | JsonValue
   | Knowledge
@@ -149,6 +151,7 @@ export type Contract =
   | Summary
   | Task
   | TaskComplete
+  | TaskIntent
   | TaskPage
   | ToolCall
   | ToolResult
@@ -425,6 +428,7 @@ export type ModelPart =
       type: "image";
       artifactId: string;
     };
+export type TaskIntent = "flow" | "explore" | "reproduce" | "plan" | "changes" | "spec";
 export type RunEvent = {
   schemaVersion: 1;
   id: string;
@@ -953,6 +957,10 @@ export interface FindingPage {
   items: Finding[];
   nextCursor: string | null;
 }
+export interface FollowUpInput {
+  expectedVersion: number;
+  text: string;
+}
 export interface Health {
   status: "ok" | "not_ready";
   version: string;
@@ -974,6 +982,13 @@ export interface InputRequest {
   prompt: string;
   expiresAt: string;
   version: number;
+}
+export interface InputRequestPage {
+  /**
+   * @minItems 0
+   * @maxItems 100
+   */
+  items: InputRequest[];
 }
 export interface InputResponse {
   expectedVersion: number;
@@ -1434,6 +1449,13 @@ export interface RunConfig {
    * @maxItems 100
    */
   knowledgeVersionIds: string[];
+  taskIntent?: TaskIntent;
+  /**
+   * @minItems 0
+   * @maxItems 20
+   */
+  writeScope?: string[];
+  previousRunId?: string;
   models: RoleModels;
 }
 export interface RoleModels {
@@ -1495,6 +1517,7 @@ export interface SessionReport {
    * @maxItems 6
    */
   history: SessionRound[];
+  messageCursor?: string | null;
 }
 export interface SessionRound {
   round: number;
@@ -1544,6 +1567,13 @@ export interface RunCreate {
   modelProfileId?: string;
   mode?: "smoke";
   budget?: BudgetOverrides;
+  taskIntent?: TaskIntent;
+  /**
+   * @minItems 0
+   * @maxItems 20
+   */
+  writeScope?: string[];
+  actionPolicy?: "non_submitting" | "approved_workflows";
 }
 export interface RunDeleteConfirm {
   expectedVersion: number;
@@ -1765,7 +1795,7 @@ export interface SessionConclusion {
   coverageGaps: string[];
 }
 export interface SessionDecision {
-  action: "dispatch" | "finish";
+  action: "dispatch" | "finish" | "ask";
   rationale: string;
   /**
    * @minItems 0
@@ -1782,6 +1812,7 @@ export interface SessionDecision {
    * @maxItems 20
    */
   coverageGaps: string[];
+  question?: string;
 }
 export interface Step {
   id: string;
@@ -1927,11 +1958,13 @@ export interface ContractTypes {
   ExportInput: ExportInput;
   Finding: Finding;
   FindingPage: FindingPage;
+  FollowUpInput: FollowUpInput;
   FormConfig: FormConfig;
   Health: Health;
   HeartbeatInput: HeartbeatInput;
   HeartbeatResult: HeartbeatResult;
   InputRequest: InputRequest;
+  InputRequestPage: InputRequestPage;
   InputResponse: InputResponse;
   JsonValue: JsonValue;
   Knowledge: Knowledge;
@@ -2034,6 +2067,7 @@ export interface ContractTypes {
   Summary: Summary;
   Task: Task;
   TaskComplete: TaskComplete;
+  TaskIntent: TaskIntent;
   TaskPage: TaskPage;
   ToolCall: ToolCall;
   ToolResult: ToolResult;

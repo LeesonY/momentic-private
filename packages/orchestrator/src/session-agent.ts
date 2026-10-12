@@ -41,6 +41,8 @@ export interface SessionContext {
   remainingCases: number;
   remainingPages: number;
   actionPolicy: Run['effectiveConfig']['actionPolicy'];
+  taskIntent: Run['effectiveConfig']['taskIntent'];
+  writeScope: readonly string[];
   assertionCapabilities: {
     structuredOutput: boolean;
     nativeTools: boolean;
@@ -222,6 +224,8 @@ export class SessionAgent {
         run.effectiveConfig.budget.maxPages - session.exploredUrls.length,
       ),
       actionPolicy: run.effectiveConfig.actionPolicy,
+      taskIntent: run.effectiveConfig.taskIntent ?? 'flow',
+      writeScope: run.effectiveConfig.writeScope ?? [],
       assertionCapabilities,
     };
   }
@@ -254,7 +258,9 @@ export class SessionAgent {
       )
         throw new StorageError('VALIDATION_ERROR');
       fallbackToTechnicalSmoke =
-        context.cases.length === 0 && context.remainingCases > 0;
+        context.cases.length === 0 &&
+        context.remainingCases > 0 &&
+        run.effectiveConfig.taskIntent !== 'plan';
       accepted = {
         action: 'dispatch',
         rationale: 'AI 规划输出被截断或格式不合法；服务端未采用该输出。',
@@ -288,7 +294,9 @@ export class SessionAgent {
           ['VALIDATION_ERROR', 'TARGET_NOT_ALLOWED'].includes(error.code);
         if (!invalidProposal) throw error;
         fallbackToTechnicalSmoke =
-          context.cases.length === 0 && context.remainingCases > 0;
+          context.cases.length === 0 &&
+          context.remainingCases > 0 &&
+          run.effectiveConfig.taskIntent !== 'plan';
         accepted = {
           action: 'dispatch',
           rationale: 'AI 规划不符合源引用或授权约束，已拒绝原方案。',
@@ -304,7 +312,8 @@ export class SessionAgent {
       }
     }
     const caseIds: string[] = [];
-    if (fallbackToTechnicalSmoke) {
+    const planningOnly = run.effectiveConfig.taskIntent === 'plan';
+    if (fallbackToTechnicalSmoke && !planningOnly) {
       const c = smokeCase(run, run.targetUrl);
       await this.coordinator.insertCase(client, c);
       await this.coordinator.enqueue(
@@ -330,19 +339,20 @@ export class SessionAgent {
         outline: [`Navigate ${entryUrl}`, ...data.outline],
       });
       await this.coordinator.insertCase(client, definition);
-      await this.coordinator.enqueue(
-        client,
-        run,
-        'executor',
-        'execute',
-        `${definition.id}:v1`,
-        definition.id,
-        1,
-        { entryUrl },
-      );
+      if (!planningOnly)
+        await this.coordinator.enqueue(
+          client,
+          run,
+          'executor',
+          'execute',
+          `${definition.id}:v1`,
+          definition.id,
+          1,
+          { entryUrl },
+        );
       caseIds.push(definition.id);
     }
-    for (const url of accepted.exploreTargets)
+    for (const url of planningOnly ? [] : accepted.exploreTargets)
       await this.coordinator.enqueue(
         client,
         run,
@@ -353,7 +363,11 @@ export class SessionAgent {
         1,
         { entryUrl: url },
       );
-    if (caseIds.length && ['explore', 'plan'].includes(run.phase))
+    if (
+      !planningOnly &&
+      caseIds.length &&
+      ['explore', 'plan'].includes(run.phase)
+    )
       await this.coordinator.change(client, run, 'running', 'execute');
     const hasWork = caseIds.length > 0 || accepted.exploreTargets.length > 0;
     const gaps = [...context.session.coverageGaps, ...accepted.coverageGaps];
@@ -366,11 +380,12 @@ export class SessionAgent {
       // An invalid model plan cannot be repaired by repeatedly prompting the
       // same planner after dispatching the fixed technical fallback. Finish
       // after its owned executor/reproducer work, retaining the coverage gap.
-      status: fallbackToTechnicalSmoke
-        ? 'finalizing'
-        : hasWork
-          ? 'working'
-          : 'finalizing',
+      status:
+        planningOnly || fallbackToTechnicalSmoke
+          ? 'finalizing'
+          : hasWork
+            ? 'working'
+            : 'finalizing',
       plan: clean(accepted.rationale),
       caseIds: [...context.session.caseIds, ...caseIds],
       exploredUrls: [
@@ -422,8 +437,24 @@ export class SessionAgent {
     run: Run,
     jobs: JobRow[],
   ): Promise<boolean> {
-    const session = await this.read(client, run);
+    let session = await this.read(client, run);
     if (!session) return false;
+    const latestMessage =
+      (
+        await client.query<{ id: string }>(
+          'SELECT id FROM run_messages WHERE project_id=$1 AND run_id=$2 AND actor_id IS NOT NULL ORDER BY created_at DESC,id DESC LIMIT 1',
+          [run.projectId, run.id],
+        )
+      ).rows[0]?.id ?? null;
+    // Text changes no browser/auth authority. Apply it at the next dispatch
+    // boundary; current actions settle once and are never automatically replayed.
+    if (
+      latestMessage !== (session.messageCursor ?? null) &&
+      run.phase !== 'finalize'
+    ) {
+      session = { ...session, status: 'working' };
+      await this.write(client, run, session);
+    }
     // A finalizing session can still have a suspected finding from the
     // completed technical executor. Offer independent reproduction before
     // entering finalize, so skipping extra AI planning cannot confirm a bug.
@@ -506,6 +537,7 @@ export class SessionAgent {
       const next = {
         ...session,
         round: session.round + 1,
+        messageCursor: latestMessage,
         status: session.round ? ('reviewing' as const) : ('planning' as const),
       };
       await this.write(client, run, next);

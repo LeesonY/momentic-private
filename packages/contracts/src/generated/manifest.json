@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "sourceHashes": {
-    "domain.schema.json": "60b57c649e3b0f7386925c871174c1ecca21e48a76c6441edaf89292a3b72162",
-    "events.schema.json": "4f91d060f7646033c54189ceaec3a3ac6c3572fa09ea9990489d488c2c3de072",
-    "openapi.json": "ef2fe19e6a6cdc703fe5f31013bb4d84ee68ae2dbf527920595f4707972f56fa",
+    "domain.schema.json": "e2f7305525836199f809b66546024463532b1be6d47dab1b0752bf53b1de4d27",
+    "events.schema.json": "0a53bc59e3387530d8662178272eff8789de524260d706df2c134ea85c3be481",
+    "openapi.json": "e7b75e961a43970e9546482ff018354ca974920fd06a83df2a9837ce48b96a4b",
     "regression.schema.json": "3311ab392986b0253fc833e5eb97eecefd6f612b767ed308fd8edd75a086b39f",
-    "report.schema.json": "69ef98178c54e32ea40bc27ff87fa00ee75b3455489103e557313a807a4284d2",
+    "report.schema.json": "0746b04f91480a1f25a037af55f6cca2091887784671ada0758ef92857c9ddc6",
     "tools.schema.json": "bd5d8724c7a644905284bc31eda235225037019864f389c182ab7829f4cae7e3"
   },
   "definitions": [
@@ -50,11 +50,13 @@
     "ExportInput",
     "Finding",
     "FindingPage",
+    "FollowUpInput",
     "FormConfig",
     "Health",
     "HeartbeatInput",
     "HeartbeatResult",
     "InputRequest",
+    "InputRequestPage",
     "InputResponse",
     "JsonValue",
     "Knowledge",
@@ -157,6 +159,7 @@
     "Summary",
     "Task",
     "TaskComplete",
+    "TaskIntent",
     "TaskPage",
     "ToolCall",
     "ToolResult",

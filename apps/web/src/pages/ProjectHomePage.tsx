@@ -39,6 +39,12 @@ export const ProjectHomePage: React.FC = () => {
 
   const [targetUrl, setTargetUrl] = useState('');
   const [description, setDescription] = useState('');
+  const [taskIntent, setTaskIntent] =
+    useState<NonNullable<import('@localqa/contracts').RunConfig['taskIntent']>>(
+      'flow',
+    );
+  const [allowWrites, setAllowWrites] = useState(false);
+  const [writeScope, setWriteScope] = useState('');
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [selectedEnvId, setSelectedEnvId] = useState<string>('');
   const [authProfiles, setAuthProfiles] = useState<AuthProfile[]>([]);
@@ -55,6 +61,8 @@ export const ProjectHomePage: React.FC = () => {
   const [maxDepth, setMaxDepth] = useState(2);
   const [maxActiveSeconds, setMaxActiveSeconds] = useState(600);
   const [maxActions, setMaxActions] = useState(120);
+  const [maxActionsPerCase, setMaxActionsPerCase] = useState(24);
+  const [concurrency, setConcurrency] = useState(2);
   const [maxModelCalls] = useState(100);
   const [maxReproductions] = useState(3);
 
@@ -123,6 +131,14 @@ export const ProjectHomePage: React.FC = () => {
       setError('模型或项目配置尚未就绪，请先完成配置后再运行');
       return;
     }
+    if (
+      allowWrites &&
+      taskIntent !== 'plan' &&
+      (!selectedEnvId || !writeScope.trim())
+    ) {
+      setError('允许业务操作时，请选择测试环境并填写页面范围');
+      return;
+    }
     if (!targetUrl.trim()) {
       setError('请输入有效的被测目标 URL');
       return;
@@ -135,6 +151,19 @@ export const ProjectHomePage: React.FC = () => {
         projectId: currentProject.id,
         targetUrl,
         description: description || undefined,
+        taskIntent,
+        actionPolicy:
+          allowWrites && taskIntent !== 'plan'
+            ? 'approved_workflows'
+            : 'non_submitting',
+        ...(allowWrites && taskIntent !== 'plan'
+          ? {
+              writeScope: writeScope
+                .split(/\n|,/)
+                .map((path) => new URL(path.trim(), targetUrl).href)
+                .filter(Boolean),
+            }
+          : {}),
         environmentId: selectedEnvId || undefined,
         authProfileId: selectedAuthId || undefined,
         modelProfileId: selectedModelId || undefined,
@@ -144,6 +173,8 @@ export const ProjectHomePage: React.FC = () => {
           maxDepth,
           maxActiveSeconds,
           maxActions,
+          maxActionsPerCase,
+          concurrency,
           maxModelCalls,
           maxReproductions,
         },
@@ -263,57 +294,57 @@ export const ProjectHomePage: React.FC = () => {
         'external'
       : models.some((m) => m.dataBoundary === 'external'));
 
-  const focusUrl = () => document.getElementById('input-target-url')?.focus();
-  const briefs: {
+  const intents: {
+    intent: NonNullable<import('@localqa/contracts').RunConfig['taskIntent']>;
     icon: AppIconName;
-    tone: string;
     title: string;
     text: string;
-    onClick: () => void;
+    placeholder: string;
   }[] = [
     {
+      intent: 'flow',
+      icon: 'activity',
+      title: '测试一个流程',
+      text: '描述操作步骤和预期，AI 规划并执行。',
+      placeholder: '例如：创建测试组织 → 搜索 → 编辑名称 → 验证保存结果。',
+    },
+    {
+      intent: 'explore',
       icon: 'globe',
-      tone: 'is-info',
-      title: '冒烟测试一个网址',
-      text: '填入网址，系统在限定范围内探索页面，生成并执行检查。',
-      onClick: focusUrl,
+      title: '探索功能区域',
+      text: '按页面和业务区域发现、执行测试用例。',
+      placeholder: '例如：探索组织管理的筛选、分页、新建和编辑流程。',
     },
     {
-      icon: 'layers',
-      tone: 'is-success',
-      title: '回归已保存的用例',
-      text: '从用例库挑选用例，按审查过的基线重新执行。',
-      onClick: () => setRoute('saved-cases'),
-    },
-    {
-      icon: 'calendar',
-      tone: 'is-warning',
-      title: '设置定时回归',
-      text: '按计划自动运行回归，结果出现在运行工作台。',
-      onClick: () => setRoute('schedules'),
-    },
-    {
+      intent: 'reproduce',
       icon: 'shield',
-      tone: 'is-ai',
-      title: '配置环境与登录',
-      text: '设置可访问范围、排除路径和登录方式。',
-      onClick: () => setRoute('environments'),
+      title: '复现一个问题',
+      text: '提供现象与复现条件，独立验证问题。',
+      placeholder: '描述复现步骤、实际结果、预期结果及必要条件。',
     },
     {
+      intent: 'plan',
       icon: 'book',
-      tone: 'is-danger',
-      title: '补充项目知识',
-      text: '告诉系统业务术语、规则和关键流程。',
-      onClick: () => setRoute('knowledge'),
+      title: '只生成测试计划',
+      text: '根据目标生成用例方案，不操作页面。',
+      placeholder: '描述业务规则、范围和预期，AI 只生成计划。',
     },
     {
-      icon: 'cpu',
-      tone: 'is-muted',
-      title: '管理模型',
-      text: '接入模型、探测能力，再授权给本项目。',
-      onClick: () => setRoute('models'),
+      intent: 'changes',
+      icon: 'layers',
+      title: '按变更回归',
+      text: '粘贴变更说明或代码差异，测试影响范围。',
+      placeholder: '粘贴本次变更说明或代码差异，并说明可能影响的页面。',
+    },
+    {
+      intent: 'spec',
+      icon: 'file-text',
+      title: '按规格测试',
+      text: '依据粘贴的需求和验收标准执行测试。',
+      placeholder: '粘贴需求或验收标准，注明可测试的范围和预期。',
     },
   ];
+  const activeIntent = intents.find((item) => item.intent === taskIntent)!;
   const usesDefaultAuth =
     !!selectedAuthId &&
     environments.find((env) => env.id === selectedEnvId)
@@ -322,7 +353,26 @@ export const ProjectHomePage: React.FC = () => {
   return (
     <Page testId="project-home-page" className="lqa-home">
       <div className="lqa-home-inner">
-        <h1 className="lqa-home-title">要测试哪个网站？</h1>
+        <h1 className="lqa-home-title">这次想测试什么？</h1>
+        <div className="lqa-briefs" data-testid="task-intents">
+          {intents.map((item) => (
+            <button
+              key={item.intent}
+              type="button"
+              className="lqa-brief"
+              aria-pressed={taskIntent === item.intent}
+              data-testid={`task-intent-${item.intent}`}
+              onClick={() => {
+                setTaskIntent(item.intent);
+                if (item.intent === 'plan') setAllowWrites(false);
+              }}
+            >
+              <AppIcon name={item.icon} size={18} />
+              <span className="lqa-brief-title">{item.title}</span>
+              <span className="lqa-brief-text">{item.text}</span>
+            </button>
+          ))}
+        </div>
 
         {error && (
           <Alert tone="danger" testId="home-error-banner">
@@ -348,7 +398,8 @@ export const ProjectHomePage: React.FC = () => {
             maxLength={4000}
             className="lqa-composer-note"
             aria-label="测试说明（可选）"
-            placeholder="测试说明（可选），例如：点击查看明细后应显示订单明细；检查列表筛选和分页；不要创建或删除数据。"
+            placeholder={activeIntent.placeholder}
+            required={['spec', 'changes', 'reproduce'].includes(taskIntent)}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             data-testid="input-run-description"
@@ -412,17 +463,77 @@ export const ProjectHomePage: React.FC = () => {
                     onChange={(e) => setMaxActions(Number(e.target.value))}
                   />
                 </Field>
+                <Field label="单用例最多操作" hint="1–100，仍受总操作额度限制">
+                  <input
+                    type="number"
+                    className="form-input"
+                    min={1}
+                    max={100}
+                    value={maxActionsPerCase}
+                    onChange={(e) =>
+                      setMaxActionsPerCase(Number(e.target.value))
+                    }
+                  />
+                </Field>
+                <Field label="并发任务数" hint="1–16，实际执行受平台配额限制">
+                  <input
+                    type="number"
+                    className="form-input"
+                    min={1}
+                    max={16}
+                    value={concurrency}
+                    onChange={(e) => setConcurrency(Number(e.target.value))}
+                  />
+                </Field>
                 <Field label="动作策略">
                   <p className="field-hint" data-testid="smoke-action-policy">
-                    固定为
-                    non_submitting（不提交表单）。经审批的业务写入须通过独立的授权回归流程发起，URL
-                    冒烟入口不能切换为写入模式。
+                    {allowWrites
+                      ? '允许已授权页面范围内的业务操作'
+                      : '浏览、填写与检查，不提交业务数据'}
                   </p>
                 </Field>
               </div>
             </div>
           )}
 
+          {taskIntent !== 'plan' && (
+            <div className="lqa-composer-advanced">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={allowWrites}
+                  data-testid="allow-business-writes"
+                  onChange={(e) => {
+                    setAllowWrites(e.target.checked);
+                    if (e.target.checked && !writeScope) {
+                      try {
+                        setWriteScope(new URL(targetUrl).pathname);
+                      } catch {
+                        setWriteScope('/');
+                      }
+                    }
+                  }}
+                />{' '}
+                允许在测试环境中创建、修改和清理测试数据
+              </label>
+              {allowWrites && (
+                <Field
+                  label="允许业务操作的页面范围"
+                  hint="每行一个页面路径，包含其子页面。只在选定测试环境内生效；需要管理员或项目负责人权限。请在说明中明确测试数据和清理方式。"
+                >
+                  <textarea
+                    className="form-input"
+                    rows={2}
+                    value={writeScope}
+                    required
+                    onChange={(e) => setWriteScope(e.target.value)}
+                    data-testid="business-write-scope"
+                    placeholder="/organizations"
+                  />
+                </Field>
+              )}
+            </div>
+          )}
           <div className="lqa-composer-toolbar">
             <label className="lqa-composer-chip" title="运行环境">
               <AppIcon name="globe" size={15} />
@@ -567,28 +678,6 @@ export const ProjectHomePage: React.FC = () => {
             DOM、可访问名称及获准截图可能传输到相应服务商。请在项目模型配置中确认实际绑定的数据去向。
           </Alert>
         )}
-
-        <div className="lqa-home-divider">
-          <span>或者从这里开始</span>
-        </div>
-        <div className="lqa-briefs">
-          {briefs.map((brief) => (
-            <button
-              type="button"
-              key={brief.title}
-              className="lqa-brief"
-              onClick={brief.onClick}
-            >
-              <AppIcon
-                name={brief.icon}
-                size={18}
-                className={`lqa-brief-icon ${brief.tone}`}
-              />
-              <span className="lqa-brief-title">{brief.title}</span>
-              <span className="lqa-brief-text">{brief.text}</span>
-            </button>
-          ))}
-        </div>
       </div>
     </Page>
   );

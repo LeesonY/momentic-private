@@ -57,6 +57,8 @@ import type {
   TriagePreview,
   TriageCommit,
   InputRequest,
+  InputRequestPage,
+  FollowUpInput,
   InputResponse,
   Export,
   ExportInput,
@@ -760,6 +762,18 @@ export class MockApiClient implements ApiClient {
     return { items: [], nextCursor: null };
   }
 
+  public async listRunInputs(_runId: string): Promise<InputRequestPage> {
+    return { items: [] };
+  }
+  public async continueRun(runId: string, input: FollowUpInput): Promise<Run> {
+    const parent = this.runs.find((run) => run.id === runId);
+    if (!parent) throw new Error('运行记录未找到');
+    return this.createRun({
+      projectId: parent.projectId,
+      targetUrl: parent.targetUrl,
+      description: input.text,
+    });
+  }
   public async respondToInput(
     _runId: string,
     _inputId: string,

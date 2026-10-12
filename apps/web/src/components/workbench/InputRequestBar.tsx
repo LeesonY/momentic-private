@@ -4,6 +4,7 @@ import { AppIcon } from '../ui/AppIcon.tsx';
 
 interface InputRequestBarProps {
   request: InputRequest;
+  authProfiles?: readonly { id: string; name: string }[];
   onRespond: (
     decision: 'provide' | 'approve' | 'reject',
     text?: string,
@@ -13,13 +14,14 @@ interface InputRequestBarProps {
 export const InputRequestBar: React.FC<InputRequestBarProps> = ({
   request,
   onRespond,
+  authProfiles = [],
 }) => {
   const isAuthKind =
     request.kind === 'auth_profile' || request.kind === 'one_time_code';
   const isOtp = request.kind === 'one_time_code';
 
   const [decision, setDecision] = useState<'provide' | 'approve' | 'reject'>(
-    isAuthKind ? 'reject' : 'approve',
+    request.kind === 'clarification' ? 'provide' : 'reject',
   );
   const [responseText, setResponseText] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
@@ -53,9 +55,7 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
     currentIdentityRef.current.epoch = requestEpochRef.current;
     inFlightRef.current = false;
 
-    const isAuth =
-      request.kind === 'auth_profile' || request.kind === 'one_time_code';
-    setDecision(isAuth ? 'reject' : 'approve');
+    setDecision(request.kind === 'clarification' ? 'provide' : 'reject');
     setResponseText('');
     setSubmitting(false);
     setError(null);
@@ -85,11 +85,11 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
     const effectiveDecision: 'provide' | 'approve' | 'reject' = isAuth
       ? isOtp
         ? (override ?? decision)
-        : 'reject'
+        : (override ?? decision)
       : decision;
 
     if (
-      (isAuth && !isOtp && effectiveDecision !== 'reject') ||
+      (isAuth && !isOtp && effectiveDecision === 'approve') ||
       (isOtp && effectiveDecision === 'approve')
     ) {
       inFlightRef.current = false;
@@ -99,7 +99,7 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
 
     // For reject, never pass text key
     const effectiveText =
-      effectiveDecision === 'reject' || (isAuth && !isOtp)
+      effectiveDecision === 'reject'
         ? undefined
         : isOtp
           ? responseText
@@ -170,23 +170,17 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
           data-testid="input-request-badge"
         >
           类型 {request.kind}
-          {isAuthKind && !isOtp ? '（尚未接线）' : ''}
         </span>
       </div>
 
       <p className="lqa-input-request-prompt">{request.prompt}</p>
 
       {isAuthKind && !isOtp && (
-        <div className="alert alert-danger" data-testid="auth-blocked-notice">
-          <AppIcon name="alert-circle" size={15} />
-          <div className="alert-body">
-            <strong>安全受阻：</strong>
-            当前执行环境尚未接入安全认证会话与一次性验证码通道，严禁通过普通文本提交账号凭据或验证码，因此不能批准继续，只能
-            <strong>拒绝</strong>以安全中止本次认证请求。
-          </div>
-        </div>
+        <p className="field-hint">
+          选择已配置的登录账号。AI
+          会识别登录页面；账号密码由私有认证通道使用，不进入普通对话。
+        </p>
       )}
-
       <div className="lqa-input-request-controls">
         {isOtp ? (
           <>
@@ -223,21 +217,34 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
         ) : isAuthKind ? (
           <>
             <select
-              className="form-select lqa-decision-select"
-              aria-label="答复方式"
-              value="reject"
-              disabled
-              data-testid="input-decision-select"
+              className="form-select"
+              aria-label="认证配置"
+              data-testid="input-auth-profile"
+              value={responseText}
+              onChange={(e) => setResponseText(e.target.value)}
+              disabled={submitting}
             >
-              <option value="reject">仅支持拒绝</option>
+              <option value="">选择登录账号</option>
+              {authProfiles.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.name}
+                </option>
+              ))}
             </select>
             <button
-              className="btn btn-danger"
-              onClick={() => void handleSubmit()}
-              disabled={submitting}
+              className="btn btn-primary"
+              onClick={() => void handleSubmit('provide')}
+              disabled={submitting || !responseText}
               data-testid="btn-submit-input-response"
             >
-              {submitting ? '提交中...' : '拒绝此请求'}
+              使用此账号并继续
+            </button>
+            <button
+              className="btn btn-danger-outline"
+              onClick={() => void handleSubmit('reject')}
+              disabled={submitting}
+            >
+              拒绝
             </button>
           </>
         ) : (
@@ -252,7 +259,6 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
               disabled={submitting}
               data-testid="input-decision-select"
             >
-              <option value="approve">批准继续</option>
               <option value="provide">提供材料</option>
               <option value="reject">拒绝</option>
             </select>
@@ -290,7 +296,7 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
         {isOtp
           ? '验证码只提交到私有认证通道并且一次性有效；超时或会话中断后不能重试原验证码。'
           : isAuthKind
-            ? '接入安全会话前，拒绝此请求可以安全地结束等待或把该任务标记为失败，避免长时间挂起。'
+            ? '如没有可用账号，请先在环境与认证中配置，再刷新此页面。'
             : '输入等待最长 300 秒，超时后系统会保留已有结果并自动退出，不会无限期挂起。'}
       </p>
     </section>

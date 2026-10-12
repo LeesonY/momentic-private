@@ -72,7 +72,14 @@ D["ModelProbeResult"] = obj({"profileId": UUID, "capabilities": ref("ModelCapabi
 D["ModelGrantCreate"] = obj({"modelProfileId": UUID}, ["modelProfileId"])
 D["RunCreate"] = obj({"projectId": UUID, "targetUrl": URI, "brief": text(4000), "environmentId": UUID, "authProfileId": UUID, "modelProfileId": UUID, "mode": enum("smoke"), "budget": ref("BudgetOverrides")}, ["projectId", "targetUrl"])
 D["RunDeleteConfirm"] = obj({"expectedVersion": VER, "confirmRunId": UUID})
+D["TaskIntent"] = enum("flow", "explore", "reproduce", "plan", "changes", "spec")
+D["FollowUpInput"] = obj({"expectedVersion": VER, "text": text(4000, minLength=1)})
 D["RunConfig"] = obj({"allowedOrigins": arr(URI, 30, 1), "actionPolicy": enum("non_submitting", "approved_workflows"), "budget": ref("BudgetLimits"), "environmentVersion": nullable(VER), "authProfileVersion": nullable(VER), "modelProfileIds": arr(UUID, 10, 1), "knowledgeVersionIds": arr(UUID, 100)})
+for name in ["RunCreate", "RunConfig"]:
+    D[name]["properties"]["taskIntent"] = ref("TaskIntent")
+    D[name]["properties"]["writeScope"] = arr(URI, 20)
+D["RunCreate"]["properties"]["actionPolicy"] = enum("non_submitting", "approved_workflows")
+D["RunConfig"]["properties"]["previousRunId"] = UUID
 RUN_STATUS = ["draft", "queued", "running", "awaiting_input", "cancelling", "completed", "cancelled", "failed"]
 PHASE = ["preflight", "auth", "explore", "plan", "execute", "reproduce", "finalize"]
 REASONS = ["normal", "budget_limit", "input_timeout", "user_cancel", "worker_failure", "model_failure", "setup_failure"]
@@ -91,12 +98,15 @@ D["Report"] = obj({"schemaVersion": {"const": 1}, "example": BOOL, "generatedAt"
 D["SessionLocator"] = obj({"by": D["Locator"]["properties"]["by"], "value": text(500, minLength=1), "name": nullable(text(500))})
 D["SessionCriterion"] = obj({**copy.deepcopy(D["Criterion"]["properties"]), "locator": nullable(ref("SessionLocator")), "expectedValue": nullable(text(2000)), "sourceQuote": text(1000)})
 D["SessionCase"] = obj({**copy.deepcopy(D["CandidateCase"]["properties"]), "entryUrl": URI, "criteria": arr(ref("SessionCriterion"), 3, 1)})
-D["SessionDecision"] = obj({"action": enum("dispatch", "finish"), "rationale": text(2000, minLength=1), "exploreTargets": arr(URI, 2), "cases": arr(ref("SessionCase"), 4), "coverageGaps": arr(text(1000), 20)})
+D["SessionDecision"] = obj({"action": enum("dispatch", "finish", "ask"), "rationale": text(2000, minLength=1), "exploreTargets": arr(URI, 2), "cases": arr(ref("SessionCase"), 4), "coverageGaps": arr(text(1000), 20)})
+D["SessionDecision"]["properties"]["question"] = text(2000, minLength=1)
 D["SessionConclusion"] = obj({"overview": text(4000, minLength=1), "caseComments": arr(obj({"caseId": UUID, "comment": text(1000)}), 30), "coverageGaps": arr(text(1000), 20)})
 D["SessionRound"] = obj({"round": integer(1, 6), "reason": text(2000), "caseIds": arr(UUID, 30), "exploreTargets": arr(URI, 30)})
 D["SessionReport"] = obj({"objective": text(4000), "round": integer(0, 6), "status": enum("planning", "working", "reviewing", "finalizing", "complete"), "plan": text(2000), "caseIds": arr(UUID, 30), "exploredUrls": arr(URI, 30), "coverageGaps": arr(text(2000), 100), "summary": text(4000), "history": arr(ref("SessionRound"), 6)})
+D["SessionReport"]["properties"]["messageCursor"] = nullable(UUID)
 D["Report"]["properties"]["session"] = ref("SessionReport")
 D["InputRequest"] = obj({"id": UUID, "runId": UUID, "kind": enum("auth_profile", "one_time_code", "clarification", "scope_extension", "write_action"), "status": enum("pending", "resolved", "rejected", "expired"), "prompt": text(2000), "expiresAt": DATE, "version": VER})
+D["InputRequestPage"] = obj({"items": arr(ref("InputRequest"), 100)})
 D["InputResponse"] = obj({"expectedVersion": VER, "decision": enum("provide", "approve", "reject"), "authProfileId": UUID, "text": text(4000), "oneTimeCode": text(32, minLength=4, writeOnly=True), "allowedOrigins": arr(URI, 30)}, ["expectedVersion", "decision"])
 D["MessageInput"] = obj({"text": text(4000, minLength=1), "expectedContextVersion": VER})
 D["RunMessage"] = obj({"id": UUID, "runId": UUID, "actorId": UUID, "contextVersion": VER, "redactedText": text(4000), "createdAt": DATE})
@@ -355,6 +365,8 @@ operation(P+"/runs/{runId}", "delete", "deleteRun", body="RunDeleteConfirm", sta
 operation(P+"/runs/{runId}/cancel", "post", "cancelRun", "Run", status=202)
 operation(P+"/runs/{runId}/messages", "post", "sendRunMessage", "Run", "MessageInput", 202)
 operation(P+"/runs/{runId}/messages", "get", "listRunMessages", "RunMessagePage", queries=[("cursor", False, text(2000)), ("limit", False, integer(1, 100))])
+operation(P+"/runs/{runId}/inputs", "get", "listRunInputs", "InputRequestPage")
+operation(P+"/runs/{runId}/follow-up", "post", "continueRun", "Run", "FollowUpInput", 202, idem=True)
 operation(P+"/runs/{runId}/inputs/{inputId}/respond", "post", "respondToInput", "InputRequest", "InputResponse")
 operation(P+"/runs/{runId}/events", "get", "streamEvents", "RunEvent", media="text/event-stream")
 paths[P+"/runs/{runId}/events"]["get"]["parameters"].append({"name": "Last-Event-ID", "in": "header", "required": False, "schema": text(30, pattern="^[0-9]+$")})

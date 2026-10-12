@@ -4,6 +4,7 @@ import {
   LocalVolumeArtifactStore,
   ExportService,
   validateEvidenceReferences,
+  resolveCleanupStatus,
 } from '@localqa/report';
 import { parseContract, getApiValidator } from '@localqa/contracts';
 import type {
@@ -749,6 +750,21 @@ export function registerExecutionRoutes(router: Router): void {
       const session = sessionRow
         ? parseContract('SessionReport', sessionRow.document)
         : null;
+      const cleanupRows = (
+        await client.query<{ status: string | null }>(
+          "SELECT result->>'cleanupStatus' AS status FROM jobs WHERE project_id=$1 AND run_id=$2 AND role='finalizer'",
+          [projectId, runId],
+        )
+      ).rows;
+      const resolvedCleanup = resolveCleanupStatus(
+        run.status,
+        cleanupRows.map((row) => row.status),
+      ).status;
+      const businessCleanupUnverified =
+        run.effectiveConfig.actionPolicy === 'approved_workflows' &&
+        ['not_required', 'succeeded', 'manual_required'].includes(
+          resolvedCleanup,
+        );
       return parseContract('Report', {
         schemaVersion: 1,
         example: false,
@@ -762,9 +778,16 @@ export function registerExecutionRoutes(router: Router): void {
         modelUsage,
         ...(session ? { session } : {}),
         coverageGaps: session?.coverageGaps ?? [],
-        cleanupStatus: 'succeeded',
-        warnings:
-          run.status === 'failed'
+        cleanupStatus: businessCleanupUnverified
+          ? 'manual_required'
+          : resolvedCleanup,
+        warnings: [
+          ...(businessCleanupUnverified
+            ? [
+                '本次允许业务操作，尚无独立的测试数据清理证据，请核对并清理测试数据。',
+              ]
+            : []),
+          ...(run.status === 'failed'
             ? [
                 ...new Set(
                   usageRows.rows.flatMap(({ diagnostic }) => {
@@ -785,7 +808,8 @@ export function registerExecutionRoutes(router: Router): void {
                   }),
                 ),
               ]
-            : [],
+            : []),
+        ],
       });
     });
 

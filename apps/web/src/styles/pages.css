@@ -1603,3 +1603,8 @@
 .lqa-page.is-full > .page-body > .empty-state {
   min-height: calc(100vh - 120px);
 }
+
+.lqa-brief[aria-pressed='true'] {
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-active);
+}

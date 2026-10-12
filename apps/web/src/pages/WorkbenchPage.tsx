@@ -79,6 +79,30 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
   const [showDeleteRun, setShowDeleteRun] = useState(false);
   const [deletingRun, setDeletingRun] = useState(false);
   const [deleteRunError, setDeleteRunError] = useState('');
+  const [inputProfiles, setInputProfiles] = useState<
+    import('@localqa/contracts').AuthProfile[]
+  >([]);
+  const [messageError, setMessageError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    setInputProfiles([]);
+    if (currentProject)
+      void defaultApiClient
+        .listAuthProfiles(currentProject.id, { limit: 100 })
+        .then((page) => {
+          if (!cancelled)
+            setInputProfiles(
+              page.items.filter(
+                (profile) =>
+                  profile.status === 'active' && profile.mode !== 'none',
+              ),
+            );
+        })
+        .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [currentProject?.id]);
   useEffect(() => {
     let cancelled = false;
     setCanDeleteRun(currentUser?.globalRole === 'admin');
@@ -146,6 +170,7 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
 
   const [inputMsg, setInputMsg] = useState('');
   const [sendingMsg, setSendingMsg] = useState(false);
+  const messageSendingRef = useRef(false);
   const [, setInputResponding] = useState(false);
   const inputRespondingRef = useRef(false);
   const activeInputScopeRef = useRef<{
@@ -185,9 +210,9 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
       // A code may only be sent via the dedicated InputResponse.oneTimeCode.
       if (isAuthKind && activeInputRequest.kind !== 'one_time_code') {
         if (decision !== 'reject') {
-          throw new Error('认证服务当前尚未接线，仅允许拒绝操作');
+          if (decision !== 'provide' || !text)
+            throw new Error('请选择认证配置');
         }
-        text = undefined;
       }
       if (
         activeInputRequest.kind === 'one_time_code' &&
@@ -220,12 +245,25 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMsg.trim()) return;
+    if (!inputMsg.trim() || messageSendingRef.current) return;
+    messageSendingRef.current = true;
     setSendingMsg(true);
+    setMessageError('');
     try {
-      await sendMessage(inputMsg);
+      if (run && ['completed', 'cancelled', 'failed'].includes(run.status)) {
+        const next = await defaultApiClient.continueRun(run.id, {
+          expectedVersion: run.version,
+          text: inputMsg,
+        });
+        setRoute('workbench', { runId: next.id });
+      } else await sendMessage(inputMsg);
       setInputMsg('');
+    } catch (error) {
+      setMessageError(
+        error instanceof Error ? error.message : '发送失败，请重试',
+      );
     } finally {
+      messageSendingRef.current = false;
       setSendingMsg(false);
     }
   };
@@ -350,7 +388,7 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
                       : '冒烟模式'}
                 </span>
                 <span className="badge badge-neutral">
-                  上下文 v{run.contextVersion}
+                  授权 v{run.contextVersion}
                 </span>
               </div>
             </div>
@@ -490,6 +528,7 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
         {activeInputRequest && (
           <InputRequestBar
             request={activeInputRequest}
+            authProfiles={inputProfiles}
             onRespond={handleRespondInput}
           />
         )}
@@ -499,7 +538,7 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
             <div className="card-heading">
               <h3 className="card-title">
                 <AppIcon name="send" size={16} />
-                补充说明
+                任务对话
                 <span
                   className="badge badge-neutral badge-sm"
                   data-testid="run-messages-count"
@@ -508,11 +547,25 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
                 </span>
               </h3>
               <p className="card-description">
-                运行过程中补充的业务预期与排除路径，每条消息都会推进上下文版本。
+                运行过程中补充的业务预期与排除路径，补充内容会用于下一轮派工，已执行的业务动作不会自动重放。
               </p>
             </div>
           </div>
 
+          {session?.objective && (
+            <p className="lqa-message-text">任务：{session.objective}</p>
+          )}
+          {(session?.summary || session?.plan) && (
+            <div className="lqa-message" data-testid="main-ai-message">
+              <div className="lqa-message-meta">
+                <span className="badge badge-success badge-sm">主 AI</span>
+                <span>第 {session.round} 轮</span>
+              </div>
+              <div className="lqa-message-text">
+                {session.summary || session.plan}
+              </div>
+            </div>
+          )}
           {messages.length === 0 ? (
             <div className="lqa-muted-box" data-testid="no-messages-notice">
               暂无补充消息。需要提供业务预期或排除路径时，请在下方发送。
@@ -549,7 +602,18 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
             </div>
           )}
 
-          {!isCompleted && (
+          {messageError && (
+            <Alert tone="danger" testId="run-message-error">
+              {messageError}
+            </Alert>
+          )}
+          {isCompleted && (
+            <p className="field-hint">
+              继续测试将沿用本次环境与操作范围，上轮总结会交给主
+              AI。每轮执行记录独立保存。
+            </p>
+          )}
+          {
             <form
               onSubmit={handleSendMessage}
               className="lqa-message-form"
@@ -558,7 +622,11 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
               <input
                 type="text"
                 className="form-input"
-                placeholder="输入补充说明、业务预期或排除路径…"
+                placeholder={
+                  isCompleted
+                    ? '描述下一步要测试的内容…'
+                    : '输入补充说明、业务预期或排除路径…'
+                }
                 value={inputMsg}
                 onChange={(e) => setInputMsg(e.target.value)}
                 data-testid="input-run-message"
@@ -570,10 +638,10 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
                 data-testid="btn-send-message"
               >
                 <AppIcon name="send" size={14} />
-                {sendingMsg ? '发送中...' : '发送'}
+                {sendingMsg ? '发送中...' : isCompleted ? '继续测试' : '发送'}
               </button>
             </form>
-          )}
+          }
         </section>
 
         <section className="card" data-testid="timeline-card">

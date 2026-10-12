@@ -1631,6 +1631,27 @@
         },
         "budget": {
           "$ref": "#/$defs/BudgetOverrides"
+        },
+        "taskIntent": {
+          "$ref": "#/$defs/TaskIntent"
+        },
+        "writeScope": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 8192,
+            "pattern": "^https?://"
+          },
+          "maxItems": 20,
+          "minItems": 0
+        },
+        "actionPolicy": {
+          "type": "string",
+          "enum": [
+            "non_submitting",
+            "approved_workflows"
+          ]
         }
       },
       "required": [
@@ -1654,6 +1675,36 @@
       "required": [
         "expectedVersion",
         "confirmRunId"
+      ],
+      "additionalProperties": false
+    },
+    "TaskIntent": {
+      "type": "string",
+      "enum": [
+        "flow",
+        "explore",
+        "reproduce",
+        "plan",
+        "changes",
+        "spec"
+      ]
+    },
+    "FollowUpInput": {
+      "type": "object",
+      "properties": {
+        "expectedVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 4000,
+          "minLength": 1
+        }
+      },
+      "required": [
+        "expectedVersion",
+        "text"
       ],
       "additionalProperties": false
     },
@@ -1711,6 +1762,24 @@
           },
           "maxItems": 100,
           "minItems": 0
+        },
+        "taskIntent": {
+          "$ref": "#/$defs/TaskIntent"
+        },
+        "writeScope": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 8192,
+            "pattern": "^https?://"
+          },
+          "maxItems": 20,
+          "minItems": 0
+        },
+        "previousRunId": {
+          "type": "string",
+          "format": "uuid"
         },
         "models": {
           "$ref": "#/$defs/RoleModels"
@@ -2869,7 +2938,8 @@
           "type": "string",
           "enum": [
             "dispatch",
-            "finish"
+            "finish",
+            "ask"
           ]
         },
         "rationale": {
@@ -2904,6 +2974,11 @@
           },
           "maxItems": 20,
           "minItems": 0
+        },
+        "question": {
+          "type": "string",
+          "maxLength": 2000,
+          "minLength": 1
         }
       },
       "required": [
@@ -3070,6 +3145,17 @@
           },
           "maxItems": 6,
           "minItems": 0
+        },
+        "messageCursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -3136,6 +3222,23 @@
         "prompt",
         "expiresAt",
         "version"
+      ],
+      "additionalProperties": false
+    },
+    "InputRequestPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/InputRequest"
+          },
+          "maxItems": 100,
+          "minItems": 0
+        }
+      },
+      "required": [
+        "items"
       ],
       "additionalProperties": false
     },

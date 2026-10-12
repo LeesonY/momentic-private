@@ -39,6 +39,8 @@ import type {
   BudgetOverrides,
   MessageInput,
   InputRequest,
+  InputRequestPage,
+  FollowUpInput,
   InputResponse,
   CaseRecord,
   CaseRecordPage,
@@ -148,6 +150,8 @@ export type {
   BudgetOverrides,
   MessageInput,
   InputRequest,
+  InputRequestPage,
+  FollowUpInput,
   InputResponse,
   CaseRecord,
   CaseRecordPage,
@@ -256,6 +260,8 @@ export type PublicOperationName =
   | 'cancelRun'
   | 'sendRunMessage'
   | 'listRunMessages'
+  | 'listRunInputs'
+  | 'continueRun'
   | 'respondToInput'
   | 'streamEvents'
   | 'listRunCases'
@@ -342,6 +348,9 @@ export interface CreateRunInput {
   modelProfileId?: string;
   budgetOverrides?: BudgetOverrides;
   budget?: BudgetOverrides;
+  taskIntent?: RunConfig['taskIntent'];
+  actionPolicy?: RunConfig['actionPolicy'];
+  writeScope?: string[];
   mode?: 'smoke';
   config?: Partial<RunConfig>;
 }
@@ -407,6 +416,8 @@ export interface ApiClient {
     runId: string,
     query?: PaginationQuery,
   ): Promise<RunMessagePage>;
+  listRunInputs(runId: string): Promise<InputRequestPage>;
+  continueRun(runId: string, input: FollowUpInput): Promise<Run>;
   respondToInput(
     runId: string,
     inputId: string,

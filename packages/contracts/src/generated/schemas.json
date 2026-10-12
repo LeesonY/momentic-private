@@ -1632,6 +1632,27 @@
           },
           "budget": {
             "$ref": "#/$defs/BudgetOverrides"
+          },
+          "taskIntent": {
+            "$ref": "#/$defs/TaskIntent"
+          },
+          "writeScope": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 8192,
+              "pattern": "^https?://"
+            },
+            "maxItems": 20,
+            "minItems": 0
+          },
+          "actionPolicy": {
+            "type": "string",
+            "enum": [
+              "non_submitting",
+              "approved_workflows"
+            ]
           }
         },
         "required": [
@@ -1655,6 +1676,36 @@
         "required": [
           "expectedVersion",
           "confirmRunId"
+        ],
+        "additionalProperties": false
+      },
+      "TaskIntent": {
+        "type": "string",
+        "enum": [
+          "flow",
+          "explore",
+          "reproduce",
+          "plan",
+          "changes",
+          "spec"
+        ]
+      },
+      "FollowUpInput": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "text"
         ],
         "additionalProperties": false
       },
@@ -1712,6 +1763,24 @@
             },
             "maxItems": 100,
             "minItems": 0
+          },
+          "taskIntent": {
+            "$ref": "#/$defs/TaskIntent"
+          },
+          "writeScope": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 8192,
+              "pattern": "^https?://"
+            },
+            "maxItems": 20,
+            "minItems": 0
+          },
+          "previousRunId": {
+            "type": "string",
+            "format": "uuid"
           },
           "models": {
             "$ref": "#/$defs/RoleModels"
@@ -2870,7 +2939,8 @@
             "type": "string",
             "enum": [
               "dispatch",
-              "finish"
+              "finish",
+              "ask"
             ]
           },
           "rationale": {
@@ -2905,6 +2975,11 @@
             },
             "maxItems": 20,
             "minItems": 0
+          },
+          "question": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1
           }
         },
         "required": [
@@ -3071,6 +3146,17 @@
             },
             "maxItems": 6,
             "minItems": 0
+          },
+          "messageCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -3137,6 +3223,23 @@
           "prompt",
           "expiresAt",
           "version"
+        ],
+        "additionalProperties": false
+      },
+      "InputRequestPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/InputRequest"
+            },
+            "maxItems": 100,
+            "minItems": 0
+          }
+        },
+        "required": [
+          "items"
         ],
         "additionalProperties": false
       },
@@ -8750,6 +8853,17 @@
             },
             "maxItems": 6,
             "minItems": 0
+          },
+          "messageCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -8982,6 +9096,24 @@
             "maxItems": 100,
             "minItems": 0
           },
+          "taskIntent": {
+            "$ref": "#/$defs/TaskIntent"
+          },
+          "writeScope": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 8192,
+              "pattern": "^https?://"
+            },
+            "maxItems": 20,
+            "minItems": 0
+          },
+          "previousRunId": {
+            "type": "string",
+            "format": "uuid"
+          },
           "models": {
             "$ref": "#/$defs/RoleModels"
           }
@@ -9074,6 +9206,17 @@
           "maxTotalTokens"
         ],
         "additionalProperties": false
+      },
+      "TaskIntent": {
+        "type": "string",
+        "enum": [
+          "flow",
+          "explore",
+          "reproduce",
+          "plan",
+          "changes",
+          "spec"
+        ]
       },
       "RoleModels": {
         "type": "object",
@@ -12427,6 +12570,120 @@
                   "schema": {
                     "$ref": "#/components/schemas/Error"
                   }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/runs/{runId}/inputs": {
+        "get": {
+          "operationId": "listRunInputs",
+          "tags": [
+            "P0"
+          ],
+          "summary": "listRunInputs",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "runId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "listRunInputs",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/InputRequestPage"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/runs/{runId}/follow-up": {
+        "post": {
+          "operationId": "continueRun",
+          "tags": [
+            "P0"
+          ],
+          "summary": "continueRun",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "runId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "Idempotency-Key",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              }
+            }
+          ],
+          "responses": {
+            "202": {
+              "description": "continueRun",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Run"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowUpInput"
                 }
               }
             }
@@ -17761,6 +18018,27 @@
             },
             "budget": {
               "$ref": "#/components/schemas/BudgetOverrides"
+            },
+            "taskIntent": {
+              "$ref": "#/components/schemas/TaskIntent"
+            },
+            "writeScope": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uri",
+                "maxLength": 8192,
+                "pattern": "^https?://"
+              },
+              "maxItems": 20,
+              "minItems": 0
+            },
+            "actionPolicy": {
+              "type": "string",
+              "enum": [
+                "non_submitting",
+                "approved_workflows"
+              ]
             }
           },
           "required": [
@@ -17784,6 +18062,36 @@
           "required": [
             "expectedVersion",
             "confirmRunId"
+          ],
+          "additionalProperties": false
+        },
+        "TaskIntent": {
+          "type": "string",
+          "enum": [
+            "flow",
+            "explore",
+            "reproduce",
+            "plan",
+            "changes",
+            "spec"
+          ]
+        },
+        "FollowUpInput": {
+          "type": "object",
+          "properties": {
+            "expectedVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "text": {
+              "type": "string",
+              "maxLength": 4000,
+              "minLength": 1
+            }
+          },
+          "required": [
+            "expectedVersion",
+            "text"
           ],
           "additionalProperties": false
         },
@@ -17841,6 +18149,24 @@
               },
               "maxItems": 100,
               "minItems": 0
+            },
+            "taskIntent": {
+              "$ref": "#/components/schemas/TaskIntent"
+            },
+            "writeScope": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uri",
+                "maxLength": 8192,
+                "pattern": "^https?://"
+              },
+              "maxItems": 20,
+              "minItems": 0
+            },
+            "previousRunId": {
+              "type": "string",
+              "format": "uuid"
             },
             "models": {
               "$ref": "#/components/schemas/RoleModels"
@@ -18999,7 +19325,8 @@
               "type": "string",
               "enum": [
                 "dispatch",
-                "finish"
+                "finish",
+                "ask"
               ]
             },
             "rationale": {
@@ -19034,6 +19361,11 @@
               },
               "maxItems": 20,
               "minItems": 0
+            },
+            "question": {
+              "type": "string",
+              "maxLength": 2000,
+              "minLength": 1
             }
           },
           "required": [
@@ -19200,6 +19532,17 @@
               },
               "maxItems": 6,
               "minItems": 0
+            },
+            "messageCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -19266,6 +19609,23 @@
             "prompt",
             "expiresAt",
             "version"
+          ],
+          "additionalProperties": false
+        },
+        "InputRequestPage": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/InputRequest"
+              },
+              "maxItems": 100,
+              "minItems": 0
+            }
+          },
+          "required": [
+            "items"
           ],
           "additionalProperties": false
         },
@@ -25092,6 +25452,24 @@
             "maxItems": 100,
             "minItems": 0
           },
+          "taskIntent": {
+            "$ref": "#/$defs/TaskIntent"
+          },
+          "writeScope": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 8192,
+              "pattern": "^https?://"
+            },
+            "maxItems": 20,
+            "minItems": 0
+          },
+          "previousRunId": {
+            "type": "string",
+            "format": "uuid"
+          },
           "models": {
             "$ref": "#/$defs/RoleModels"
           }
@@ -25184,6 +25562,17 @@
           "maxTotalTokens"
         ],
         "additionalProperties": false
+      },
+      "TaskIntent": {
+        "type": "string",
+        "enum": [
+          "flow",
+          "explore",
+          "reproduce",
+          "plan",
+          "changes",
+          "spec"
+        ]
       },
       "RoleModels": {
         "type": "object",
@@ -26535,6 +26924,17 @@
             },
             "maxItems": 6,
             "minItems": 0
+          },
+          "messageCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [

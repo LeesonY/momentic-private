@@ -11,6 +11,27 @@ export interface PolicyOptions {
   allowedOrigins?: string[] | undefined;
   restrictedPaths?: string[] | undefined;
   forbiddenSchemes?: string[] | undefined;
+  writeScope?: readonly string[] | undefined;
+}
+
+export function withinWriteScope(
+  url: string,
+  scope: readonly string[],
+): boolean {
+  try {
+    const page = new URL(url);
+    return scope.some((value) => {
+      const approved = new URL(value);
+      const prefix = decodeURIComponent(approved.pathname).replace(/\/$/, '');
+      const path = decodeURIComponent(page.pathname);
+      return (
+        page.origin === approved.origin &&
+        (path === prefix || path.startsWith(`${prefix}/`))
+      );
+    });
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -22,9 +43,11 @@ export class PolicyInterceptor {
   private readonly allowedOrigins: Set<string>;
   private readonly restrictedPaths: string[];
   private readonly forbiddenSchemes: Set<string>;
+  private readonly writeScope: readonly string[];
 
   constructor(options: PolicyOptions = {}) {
     this.mode = options.mode || 'non_submitting';
+    this.writeScope = options.writeScope ?? [];
     this.allowedOrigins = new Set(
       (options.allowedOrigins || []).map((o) => this.normalizeOrigin(o)),
     );
@@ -128,6 +151,7 @@ export class PolicyInterceptor {
   public checkAction(
     toolCall: ToolCall,
     targetMeta?: ActionTargetMetadata,
+    pageUrl = '',
   ): PolicyCheckResult {
     // Prohibited tools: evaluate, shell, file io, etc.
     const toolName = toolCall.name as string;
@@ -148,7 +172,16 @@ export class PolicyInterceptor {
     }
 
     // In P0 non_submitting mode, check if target has dangerous mutation intent
-    if (this.mode === 'non_submitting' && targetMeta) {
+    if (targetMeta?.href) {
+      const navigation = this.checkNavigationUrl(targetMeta.href);
+      if (!navigation.allowed) return navigation;
+    }
+    if (
+      (this.mode === 'non_submitting' ||
+        (this.mode === 'approved_workflows' &&
+          !withinWriteScope(pageUrl, this.writeScope))) &&
+      targetMeta
+    ) {
       if (targetMeta.isDangerousMutation) {
         return {
           allowed: false,
@@ -169,6 +202,14 @@ export class PolicyInterceptor {
       const textSample =
         `${targetMeta.name || ''} ${targetMeta.text || ''}`.toLowerCase();
       const destructiveKeywords = [
+        '保存',
+        'save',
+        '创建',
+        'create',
+        '新增',
+        '新建',
+        '提交',
+        'submit',
         '删除',
         'delete',
         'remove',

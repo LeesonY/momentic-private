@@ -1,7 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { parseContract } from '@localqa/contracts';
 import type { Run, RunConfig, InputRequest } from '@localqa/contracts';
-import { StorageError, appendEvent, runDTO } from '@localqa/storage';
+import {
+  StorageError,
+  appendEvent,
+  runDTO,
+  authorize,
+  audit,
+} from '@localqa/storage';
 import { DEFAULT_LIMITS, TERMINAL } from '@localqa/domain';
 import { sanitizeUserText } from '../redact.js';
 import { resolveRunAuth } from '../runAuth.js';
@@ -14,6 +20,7 @@ import type { RequestContext } from '../types.js';
 /** Trusted dispatch reuses exactly the ordinary API admission path. Caller must authenticate independently. */
 export async function startTrustedSmokeRun(
   ctx: RequestContext,
+  previousRunId?: string,
 ): Promise<unknown> {
   const idempotencyKey = ctx.headers['idempotency-key'];
   if (
@@ -31,6 +38,26 @@ export async function startTrustedSmokeRun(
 
   const input = parseContract('RunCreate', ctx.body);
   const projectId = input.projectId;
+  const actionPolicy = input.actionPolicy ?? 'non_submitting';
+  if (
+    ['spec', 'changes', 'reproduce'].includes(input.taskIntent ?? '') &&
+    !input.brief?.trim()
+  )
+    throw new StorageError('VALIDATION_ERROR', '请提供需求、变更或问题描述');
+  if (actionPolicy === 'approved_workflows') {
+    if (
+      !input.environmentId ||
+      !input.writeScope?.length ||
+      input.taskIntent === 'plan'
+    )
+      throw new StorageError(
+        'VALIDATION_ERROR',
+        '业务操作需要测试环境和明确的页面范围',
+      );
+    await ctx.api.db.actor(ctx.actor!, (client) =>
+      authorize(client, projectId, 'config.write'),
+    );
+  } else if (input.writeScope) throw new StorageError('VALIDATION_ERROR');
 
   // Reject viewer from starting runs and ensure project exists
   await ctx.api.db.actor(ctx.actor!, async (client) => {
@@ -119,7 +146,25 @@ export async function startTrustedSmokeRun(
 
   const runConfig: RunConfig = parseContract('RunConfig', {
     allowedOrigins,
-    actionPolicy: 'non_submitting',
+    actionPolicy,
+    taskIntent: input.taskIntent ?? 'flow',
+    ...(previousRunId ? { previousRunId } : {}),
+    ...(input.writeScope
+      ? {
+          writeScope: input.writeScope.map((url) => {
+            const parsed = new URL(url);
+            if (
+              !allowedOrigins.includes(parsed.origin) ||
+              parsed.username ||
+              parsed.password ||
+              parsed.search ||
+              parsed.hash
+            )
+              throw new StorageError('TARGET_NOT_ALLOWED');
+            return parsed.href;
+          }),
+        }
+      : {}),
     environmentVersion,
     authProfileVersion,
     models: modelBindings,
@@ -139,6 +184,70 @@ export async function startTrustedSmokeRun(
 }
 
 export function registerRunRoutes(router: Router): void {
+  router.post('/api/v1/runs/{runId}/follow-up', async (ctx) => {
+    await requireAuth(ctx);
+    const input = parseContract('FollowUpInput', ctx.body);
+    const parent = await ctx.api.db.actor(ctx.actor!, async (client) => {
+      const row = (
+        await client.query<{
+          project_id: string;
+          environment_id: string | null;
+          auth_profile_id: string | null;
+        }>(
+          'SELECT project_id,environment_id,auth_profile_id FROM runs WHERE id=$1',
+          [ctx.params.runId!],
+        )
+      ).rows[0];
+      if (!row) throw new StorageError('NOT_FOUND');
+      const run = await runDTO(client, row.project_id, ctx.params.runId!);
+      if (!TERMINAL.has(run.status) || run.version !== input.expectedVersion)
+        throw new StorageError('VERSION_CONFLICT');
+      const session = (
+        await client.query<{ document: { summary?: string } }>(
+          'SELECT document FROM run_sessions WHERE run_id=$1',
+          [run.id],
+        )
+      ).rows[0];
+      return { run, row, summary: session?.document.summary ?? '' };
+    });
+    ctx.body = {
+      projectId: parent.run.projectId,
+      targetUrl: parent.run.targetUrl,
+      brief: sanitizeUserText(
+        `上轮总结：${parent.summary.slice(0, 1500)}\n用户继续要求：${input.text}`,
+      ).slice(0, 4000),
+      ...(parent.row.environment_id
+        ? { environmentId: parent.row.environment_id }
+        : {}),
+      ...(parent.row.auth_profile_id
+        ? { authProfileId: parent.row.auth_profile_id }
+        : {}),
+      modelProfileId: parent.run.effectiveConfig.models.coordinator.profileId,
+      taskIntent: parent.run.effectiveConfig.taskIntent ?? 'flow',
+      actionPolicy: parent.run.effectiveConfig.actionPolicy,
+      ...(parent.run.effectiveConfig.writeScope
+        ? { writeScope: parent.run.effectiveConfig.writeScope }
+        : {}),
+      budget: parent.run.effectiveConfig.budget,
+    };
+    return startTrustedSmokeRun(ctx, parent.run.id);
+  });
+  router.get('/api/v1/runs/{runId}/inputs', async (ctx) => {
+    await requireAuth(ctx);
+    return ctx.api.db.actor(ctx.actor!, async (client) => {
+      const parent = await client.query('SELECT 1 FROM runs WHERE id=$1', [
+        ctx.params.runId!,
+      ]);
+      if (!parent.rowCount) throw new StorageError('NOT_FOUND');
+      const rows = await client.query<{ document: unknown }>(
+        "SELECT document FROM input_requests WHERE run_id=$1 AND document->>'status'='pending' AND (document->>'expiresAt')::timestamptz>clock_timestamp() ORDER BY id",
+        [ctx.params.runId!],
+      );
+      return parseContract('InputRequestPage', {
+        items: rows.rows.map((r) => r.document),
+      });
+    });
+  });
   router.delete('/api/v1/runs/{runId}', async (ctx: RequestContext) => {
     await requireAuth(ctx);
     const input = parseContract('RunDeleteConfirm', ctx.body);
@@ -325,13 +434,13 @@ export function registerRunRoutes(router: Router): void {
         throw new StorageError('VERSION_CONFLICT');
       }
 
-      const nextContextVersion = current.contextVersion + 1;
       const nextVersion = current.version + 1;
 
-      // Update runs context_version and version (trigger save_run_context auto-records run_context_versions)
+      // Conversation text cannot invalidate an in-flight lease or authenticated state.
+      // Only actual permission/configuration changes advance authority context.
       await client.query(
-        'UPDATE runs SET context_version = $3, version = $4, updated_at = clock_timestamp() WHERE project_id = $1 AND id = $2 AND version = $5',
-        [projectId, runId, nextContextVersion, nextVersion, current.version],
+        'UPDATE runs SET version = $3, updated_at = clock_timestamp() WHERE project_id = $1 AND id = $2 AND version = $4',
+        [projectId, runId, nextVersion, current.version],
       );
 
       // Record message
@@ -346,7 +455,7 @@ export function registerRunRoutes(router: Router): void {
           projectId,
           runId,
           ctx.actor!.userId,
-          nextContextVersion,
+          current.contextVersion,
           redactedText,
         ],
       );
@@ -401,6 +510,93 @@ export function registerRunRoutes(router: Router): void {
           const authenticationInput =
             currentInput.kind === 'auth_profile' ||
             currentInput.kind === 'one_time_code';
+          if (
+            currentInput.kind === 'auth_profile' &&
+            response.decision === 'provide'
+          ) {
+            if (
+              !response.authProfileId ||
+              response.text ||
+              response.oneTimeCode ||
+              response.allowedOrigins
+            )
+              throw new StorageError('VALIDATION_ERROR');
+            await authorize(client, projectId, 'run');
+            const run = await runDTO(client, projectId, runId!);
+            if (
+              run.phase !== 'preflight' ||
+              TERMINAL.has(run.status) ||
+              run.status === 'cancelling'
+            )
+              throw new StorageError(
+                'VALIDATION_ERROR',
+                '认证只能在执行前补充，请重新发起任务',
+              );
+            const metadata = (
+              await client.query<{ environment_id: string | null }>(
+                'SELECT environment_id FROM runs WHERE id=$1',
+                [runId!],
+              )
+            ).rows[0]!;
+            const head = await client.query(
+              'SELECT id FROM auth_profiles WHERE project_id=$1 AND id=$2 AND NOT revoked AND deleted_at IS NULL FOR SHARE',
+              [projectId, response.authProfileId],
+            );
+            if (!head.rowCount) throw new StorageError('NOT_FOUND');
+            const profile = await resolveRunAuth(
+              client,
+              projectId,
+              response.authProfileId,
+              metadata.environment_id ?? undefined,
+              run.effectiveConfig.allowedOrigins,
+              false,
+            );
+            if (!profile || profile.mode === 'none')
+              throw new StorageError('VALIDATION_ERROR');
+            const config = parseContract('RunConfig', {
+              ...run.effectiveConfig,
+              authProfileVersion: profile.version,
+            });
+            await client.query(
+              "UPDATE runs SET auth_profile_id=$2,auth_profile_version=$3,effective_config=$4,context_version=context_version+1,version=version+1,status='running',updated_at=clock_timestamp() WHERE id=$1",
+              [run.id, profile.id, profile.version, config],
+            );
+            await client.query(
+              "UPDATE jobs SET status='queued',result=result||'{\"inputId\":null}'::jsonb WHERE project_id=$1 AND run_id=$2 AND status='waiting' AND result->>'inputId'=$3 AND result->>'stage'='preflight'",
+              [projectId, run.id, inputId!],
+            );
+            const updated = parseContract('InputRequest', {
+              ...currentInput,
+              status: 'resolved',
+              version: currentInput.version + 1,
+            });
+            await client.query(
+              'UPDATE input_requests SET document=$2,version=version+1,actor_id=actor_id() WHERE id=$1',
+              [inputId!, updated],
+            );
+            await audit(
+              client,
+              'input.auth_profile_provided',
+              inputId!,
+              projectId,
+              updated.version,
+            );
+            await appendEvent(
+              client,
+              projectId,
+              run.id,
+              'run.updated',
+              await runDTO(client, projectId, run.id),
+            );
+            await appendEvent(
+              client,
+              projectId,
+              run.id,
+              'input.resolved',
+              updated,
+            );
+            return updated;
+          }
           if (currentInput.kind === 'one_time_code') {
             if (
               response.authProfileId !== undefined ||
@@ -435,14 +631,16 @@ export function registerRunRoutes(router: Router): void {
             throw new StorageError('VALIDATION_ERROR');
           }
 
-          if (
-            currentInput.kind === 'clarification' &&
-            response.decision === 'provide'
-          ) {
+          if (currentInput.kind === 'clarification') {
             // The coordinator owns its transaction and rechecks the input.
             // Do not hold this transaction's run/input locks while calling it.
             return { clarificationProjectId: projectId };
           }
+          if (response.decision !== 'reject')
+            throw new StorageError(
+              'VALIDATION_ERROR',
+              '该请求需要重新配置后发起任务',
+            );
 
           const nextStatus =
             response.decision === 'reject' ? 'rejected' : 'resolved';
@@ -457,6 +655,21 @@ export function registerRunRoutes(router: Router): void {
             [inputId!, updated],
           );
 
+          await client.query(
+            "UPDATE jobs SET status='cancelled' WHERE project_id=$1 AND run_id=$2 AND status='waiting' AND result->>'inputId'=$3",
+            [projectId, runId!, inputId!],
+          );
+          await client.query(
+            "UPDATE runs SET status='running',termination_reason='setup_failure',version=version+1,updated_at=clock_timestamp() WHERE id=$1 AND status IN ('running','awaiting_input')",
+            [runId!],
+          );
+          await appendEvent(
+            client,
+            projectId,
+            runId!,
+            'run.updated',
+            await runDTO(client, projectId, runId!),
+          );
           await appendEvent(
             client,
             projectId,
@@ -485,6 +698,10 @@ export function registerRunRoutes(router: Router): void {
                 updatedInput.clarificationProjectId,
                 inputId!,
                 response.expectedVersion,
+                response.text === undefined
+                  ? undefined
+                  : sanitizeUserText(response.text),
+                response.decision,
               )
             : updatedInput;
       ctx.res.statusCode = 200;

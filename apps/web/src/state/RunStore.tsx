@@ -94,7 +94,7 @@ export function RunStoreProvider({
     setLoading(true);
     setError(null);
     try {
-      const [runData, caseRes, taskRes, findRes, repData, msgs] =
+      const [runData, caseRes, taskRes, findRes, repData, msgs, inputs] =
         await Promise.all([
           defaultApiClient.getRun(runId),
           defaultApiClient.listRunCases(runId).catch(() => ({ items: [] })),
@@ -102,8 +102,10 @@ export function RunStoreProvider({
           defaultApiClient.listRunFindings(runId).catch(() => ({ items: [] })),
           defaultApiClient.getReport(runId).catch(() => null),
           fetchRunMessages('/api/v1', runId),
+          defaultApiClient.listRunInputs(runId),
         ]);
 
+      if (runIdRef.current !== runId) return;
       setRun(runData);
       setCases(caseRes.items);
       setTasks(taskRes.items);
@@ -116,17 +118,7 @@ export function RunStoreProvider({
         recordMessageRendered(m.redactedText, m.createdAt);
       }
 
-      if (runData.status === 'awaiting_input') {
-        setActiveInputRequest({
-          id: 'inp_req_01',
-          runId,
-          kind: 'auth_profile',
-          prompt: '需要补充认证凭据或短信验证码以继续测试受限区域。',
-          expiresAt: new Date(Date.now() + 300000).toISOString(),
-          status: 'pending',
-          version: 1,
-        });
-      }
+      setActiveInputRequest(inputs.items[0] ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载运行状态失败');
     } finally {
@@ -358,6 +350,8 @@ export function RunStoreProvider({
     };
     if (targetRequest.kind === 'one_time_code') {
       if (decision === 'provide' && text) payload.oneTimeCode = text;
+    } else if (targetRequest.kind === 'auth_profile') {
+      if (decision === 'provide' && text) payload.authProfileId = text;
     } else if (decision !== 'reject' && text !== undefined && text !== '')
       payload.text = text;
 
@@ -391,6 +385,7 @@ export function RunStoreProvider({
         activeInputRequestRef.current?.version === capturedVersion
       ) {
         setActiveInputRequest(null);
+        await loadSnapshot();
       }
       // Note: Do NOT arbitrarily set run.status to 'running'; run status is managed strictly by server SSE / read polling.
     } finally {

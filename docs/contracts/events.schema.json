@@ -478,6 +478,17 @@
           },
           "maxItems": 6,
           "minItems": 0
+        },
+        "messageCursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -710,6 +721,24 @@
           "maxItems": 100,
           "minItems": 0
         },
+        "taskIntent": {
+          "$ref": "#/$defs/TaskIntent"
+        },
+        "writeScope": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 8192,
+            "pattern": "^https?://"
+          },
+          "maxItems": 20,
+          "minItems": 0
+        },
+        "previousRunId": {
+          "type": "string",
+          "format": "uuid"
+        },
         "models": {
           "$ref": "#/$defs/RoleModels"
         }
@@ -802,6 +831,17 @@
         "maxTotalTokens"
       ],
       "additionalProperties": false
+    },
+    "TaskIntent": {
+      "type": "string",
+      "enum": [
+        "flow",
+        "explore",
+        "reproduce",
+        "plan",
+        "changes",
+        "spec"
+      ]
     },
     "RoleModels": {
       "type": "object",
