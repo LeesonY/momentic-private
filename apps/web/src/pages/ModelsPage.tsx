@@ -25,6 +25,17 @@ const probeFailureHints: Record<string, string> = {
     '服务暂时不可用，可能是上游异常、网络连接或响应格式问题。',
 };
 
+/** Mirrors the gateway default and contract bounds for a per-call output cap. */
+const DEFAULT_OUTPUT_TOKENS = 4000;
+const MIN_OUTPUT_TOKENS = 256;
+const MAX_OUTPUT_TOKENS = 32000;
+const parseOutputTokens = (value: string): number | null => {
+  const n = Number(value.trim());
+  return Number.isInteger(n) && n >= MIN_OUTPUT_TOKENS && n <= MAX_OUTPUT_TOKENS
+    ? n
+    : null;
+};
+
 export const ModelsPage: React.FC = () => {
   const { currentUser, currentProject, replaceProject } = useAppContext();
   const activeProjectIdRef = useRef(currentProject?.id);
@@ -47,6 +58,10 @@ export const ModelsPage: React.FC = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [newOutputTokens, setNewOutputTokens] = useState('');
+  const [capDrafts, setCapDrafts] = useState<Record<string, string>>({});
+  const [capSaving, setCapSaving] = useState<string | null>(null);
+  const [capErrors, setCapErrors] = useState<Record<string, string>>({});
   const [newModel, setNewModel] = useState<ModelProfileCreate>({
     name: '',
     endpoint: '',
@@ -60,11 +75,23 @@ export const ModelsPage: React.FC = () => {
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (creating || currentUser?.globalRole !== 'admin') return;
+    const outputTokens = newOutputTokens.trim()
+      ? parseOutputTokens(newOutputTokens)
+      : undefined;
+    if (outputTokens === null) {
+      setCreateError(
+        `单次输出上限需为 ${MIN_OUTPUT_TOKENS}–${MAX_OUTPUT_TOKENS} 的整数`,
+      );
+      return;
+    }
     setCreating(true);
     setCreateError(null);
     try {
       const created = await defaultApiClient.createModel({
         ...newModel,
+        ...(outputTokens !== undefined
+          ? { maxOutputTokens: outputTokens }
+          : {}),
         name: newModel.name.trim(),
         endpoint: newModel.endpoint.trim(),
         configuredModelId: newModel.configuredModelId.trim(),
@@ -79,11 +106,40 @@ export const ModelsPage: React.FC = () => {
         dataBoundary: 'external',
         apiKey: '',
       });
+      setNewOutputTokens('');
       setShowCreate(false);
     } catch (error) {
       setCreateError(error instanceof Error ? error.message : '创建模型失败');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleSaveCap = async (model: ModelProfile) => {
+    const value = parseOutputTokens(capDrafts[model.id] ?? '');
+    if (value === null) {
+      setCapErrors((old) => ({
+        ...old,
+        [model.id]: `需为 ${MIN_OUTPUT_TOKENS}–${MAX_OUTPUT_TOKENS} 的整数`,
+      }));
+      return;
+    }
+    setCapSaving(model.id);
+    setCapErrors((old) => ({ ...old, [model.id]: '' }));
+    try {
+      const updated = await defaultApiClient.updateModel(model.id, {
+        expectedVersion: model.version,
+        maxOutputTokens: value,
+      });
+      setModels((old) => old.map((m) => (m.id === updated.id ? updated : m)));
+      setCapDrafts((old) => ({ ...old, [model.id]: '' }));
+    } catch {
+      setCapErrors((old) => ({
+        ...old,
+        [model.id]: '保存失败，请刷新后重试',
+      }));
+    } finally {
+      setCapSaving(null);
     }
   };
 
@@ -505,6 +561,26 @@ export const ModelsPage: React.FC = () => {
                     密钥不会在保存后显示于页面
                   </span>
                 </label>
+                <label className="lqa-model-field">
+                  <span className="form-label">
+                    单次输出上限 (token){' '}
+                    <span className="lqa-field-optional">可选</span>
+                  </span>
+                  <input
+                    className="form-input"
+                    type="number"
+                    min={MIN_OUTPUT_TOKENS}
+                    max={MAX_OUTPUT_TOKENS}
+                    step={1}
+                    placeholder={`默认 ${DEFAULT_OUTPUT_TOKENS}`}
+                    value={newOutputTokens}
+                    data-testid="model-max-output-tokens"
+                    onChange={(e) => setNewOutputTokens(e.target.value)}
+                  />
+                  <span className="lqa-field-hint">
+                    每次模型调用的输出上限；先思考再作答的模型需要更大的值
+                  </span>
+                </label>
               </div>
               <div className="lqa-model-form-note">
                 <AppIcon name="shield" size={17} />
@@ -655,6 +731,48 @@ export const ModelsPage: React.FC = () => {
                     <div>
                       <span>运行状态</span>
                       <code>{m.status}</code>
+                    </div>
+                    <div>
+                      <span>单次输出上限</span>
+                      <code data-testid={`model-output-cap-${m.id}`}>
+                        {m.maxOutputTokens ??
+                          `${DEFAULT_OUTPUT_TOKENS}（默认）`}
+                      </code>
+                      {currentUser?.globalRole === 'admin' && (
+                        <div className="lqa-model-cap-edit">
+                          <input
+                            className="form-input"
+                            type="number"
+                            min={MIN_OUTPUT_TOKENS}
+                            max={MAX_OUTPUT_TOKENS}
+                            step={1}
+                            aria-label="新的单次输出上限"
+                            placeholder="修改"
+                            value={capDrafts[m.id] ?? ''}
+                            onChange={(e) =>
+                              setCapDrafts((old) => ({
+                                ...old,
+                                [m.id]: e.target.value,
+                              }))
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            disabled={
+                              capSaving === m.id || !(capDrafts[m.id] ?? '')
+                            }
+                            onClick={() => void handleSaveCap(m)}
+                          >
+                            {capSaving === m.id ? '保存中…' : '保存'}
+                          </button>
+                        </div>
+                      )}
+                      {capErrors[m.id] && (
+                        <span className="lqa-model-cap-error" role="alert">
+                          {capErrors[m.id]}
+                        </span>
+                      )}
                     </div>
                   </div>
 

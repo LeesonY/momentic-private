@@ -1,4 +1,8 @@
-import { evaluateTechnical } from '@localqa/domain';
+import {
+  AGENT_LOGIN_CRITERION,
+  evaluateAgentLogin,
+  evaluateTechnical,
+} from '@localqa/domain';
 import { isErrorCode } from '@localqa/contracts';
 import type {
   BrowserSnapshot,
@@ -271,6 +275,23 @@ export function createAuthAdapters(
         target: sameSnapshotTarget(target, observed),
       };
     },
+    async observe(signal?: AbortSignal): Promise<BrowserSnapshot> {
+      if (signal?.aborted) throw new AuthAdapterError('CANCELLED');
+      let observed: BrowserSnapshot;
+      try {
+        observed = await session.getSnapshot({ forceFresh: true });
+      } catch (error) {
+        throw new AuthAdapterError(errorCode(error) ?? 'OBSERVATION_FAILED');
+      }
+      if (
+        !observed ||
+        typeof observed !== 'object' ||
+        !Array.isArray(observed.nodes)
+      ) {
+        throw new AuthAdapterError('OBSERVATION_FAILED');
+      }
+      return observed;
+    },
     async evaluate(
       snapshot: BrowserSnapshot,
       candidate: Criterion,
@@ -294,14 +315,20 @@ export function createAuthAdapters(
         outline: ['auth'],
         criteria: [criterion],
       };
+      // Agent sign-in has its own fixed oracle; the server re-evaluates it
+      // over the registered observation in the same way.
+      const agentOracle =
+        JSON.stringify(criterion) === JSON.stringify(AGENT_LOGIN_CRITERION);
       let results: CriterionResult[];
       try {
-        results = evaluateTechnical(
-          definition,
-          snapshot,
-          snapshot.responseStatus ?? null,
-          evidence,
-        );
+        results = agentOracle
+          ? [evaluateAgentLogin(snapshot, evidence)]
+          : evaluateTechnical(
+              definition,
+              snapshot,
+              snapshot.responseStatus ?? null,
+              evidence,
+            );
       } catch (error) {
         throw new AuthAdapterError(
           isErrorCode(errorCode(error) ?? '')

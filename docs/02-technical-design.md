@@ -135,7 +135,7 @@ P0 `non_submitting` 允许观察、获准导航、明确安全的 tab/展开/分
 
 每次请求记录 profile/version、modelId、adapterVersion、promptVersion、角色、耗时、请求结果和 reported/estimated 用量。禁止悄悄切换到未配置的外部服务；fallback 必须来自管理员批准的列表并在报告记录。图片不受支持时，视觉验收不得伪装为文本验收。
 
-页面/附件/console/旧缓存属于观察材料，不成为动作授权或系统指令。上下文按 URL/frame/控件相关性裁剪，保留验收依据、实际观察和近期动作。单请求默认上限 12,000 输入 tokens、2,000 输出 tokens；超大页面分块，重要信息无法保留时标为不确定。长期摘要注明对应观察版本，不用摘要替代当前证据。
+页面/附件/console/旧缓存属于观察材料，不成为动作授权或系统指令。上下文按 URL/frame/控件相关性裁剪，保留验收依据、实际观察和近期动作。单请求默认上限 12,000 输入 tokens；输出上限按模型配置（`maxOutputTokens`，256–32,000，未设置时 4,000），决策、断言和能力探测都用这个值，调用方只能请求更小的值，不能放大。先思考再作答的模型（如 MoreSec DeepSeek）会把推理也计入输出，要留足；不思考的模型会提前结束，上限只影响预算预约，用完后按实际用量核销。超大页面分块，重要信息无法保留时标为不确定。长期摘要注明对应观察版本，不用摘要替代当前证据。
 
 关键数据与权限预期优先确定性校验。AI semantic/visual 判断须给 criterionId、结论、观察引用和简短依据；运行时核对引用属于本次/当前页面，不能接受模型捏造的证据 ID。无可引用依据时判 inconclusive。
 
@@ -146,6 +146,8 @@ P0 `non_submitting` 允许观察、获准导航、明确安全的 tab/展开/分
 SecretVault 用随机 nonce 的 AES-256-GCM 加密，记录 keyVersion；KEK 通过受保护挂载提供，不存数据库和镜像。API 返回 secret 名称和元数据，不返回原值。备份密钥另存，恢复和轮换实测。
 
 表单认证通过固定配置的字段定位和成功条件执行。CredentialBroker 只对当前获准 lease/profile 提供所需材料；模型看到角色、变量名和描述，不得到密码、cookie/token。storage state 校验 origin/容量，使用后仅存在获准浏览器 context 和任务 scratch。
+
+AI 登录（`mode: agent`，与 Momentic Mo 的用法一致）是默认推荐方式：认证配置保存变量（名称、是否敏感、备注）和自然语言登录说明，变量值只进 write-only secretInput。认证任务里，模型读取登录说明、变量名和已脱敏的页面观察，每次只提出一步（fill 变量 / click / otp / wait / done / blocked）；Worker 校验目标属于本次登记的观察后，按 `fill_credential:variable`、`submit_auth:submit` 申请服务端放行，变量值在私有端口内替换，模型始终拿不到值，填过的值和敏感值在后续观察中打码。成功不采信模型自报：服务端对自己登记的观察执行固定判定 `agent_login_completed`（无错误响应，且任何 frame 中都没有可见的密码输入框），通过后才允许抓取并复用登录状态。单次认证最多 12 次决策、最多 1 次向用户索取验证码，用运行冻结的 executor 模型绑定和预算。表单登录（`detectionMode: ai` 由服务端模型按账号、密码、提交、验证码、成功几个固定槽位识别字段，`manual` 使用固定定位器）和 storage state 保留为可选方式。
 
 执行中凭据需要进入运行进程和浏览器内存，不能声称完全不接触运行进程。实际截图、DOM、network headers/bodies、URL 和日志都走同一 RedactionPolicy；截图生成前对已知敏感字段遮罩。脱敏影响验收时使用固定检查或明确受阻，不展示虚假的未脱敏证据。
 

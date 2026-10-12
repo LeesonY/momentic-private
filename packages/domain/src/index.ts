@@ -3,9 +3,11 @@ import {
   parseContract,
   getRootValidator,
   type Run,
+  type AuthProfile,
   type BudgetLimits,
   type BudgetUsed,
   type CaseDefinition,
+  type Criterion,
   type CriterionResult,
   type BrowserSnapshot,
   type Summary,
@@ -333,6 +335,85 @@ export function evaluateTechnical(
       evidenceRefs: evidence,
     });
   });
+}
+/**
+ * Fixed success oracle for agent (Mo-style) sign-in. Users give variables and
+ * natural-language instructions, not a success locator, so the server derives
+ * success from its own registered observation instead of the model's claim.
+ */
+export const AGENT_LOGIN_CRITERION: Criterion = Object.freeze({
+  id: 'agent_login_completed',
+  kind: 'semantic',
+  description:
+    'Agent sign-in left the sign-in form: no visible password field and no error response',
+  sourceKind: 'inferred',
+  sourceRef: 'auth:agent_login',
+});
+/** The one frozen success criterion a profile's auth job must satisfy. */
+export function authCriterionFor(
+  profile: Pick<AuthProfile, 'mode' | 'formConfig' | 'storageCriterion'>,
+): Criterion | null {
+  if (profile.mode === 'form')
+    return profile.formConfig?.successCriterion ?? null;
+  if (profile.mode === 'storage_state') return profile.storageCriterion ?? null;
+  if (profile.mode === 'agent') return AGENT_LOGIN_CRITERION;
+  return null;
+}
+/**
+ * Deterministic part of agent sign-in success, evaluated on one redacted
+ * observation: a healthy response and no visible password input in any frame.
+ * The model's own "signed in" claim is necessary upstream but never sufficient.
+ */
+export function evaluateAgentLogin(
+  snapshot: BrowserSnapshot,
+  evidence: string[],
+): CriterionResult {
+  let result: CriterionResult['result'];
+  let reason: string;
+  if (snapshot.responseStatus !== null && snapshot.responseStatus >= 400) {
+    result = 'failed';
+    reason = 'Error response after sign-in';
+  } else if (snapshot.nodes.length === 0) {
+    result = 'unknown';
+    reason = 'Empty observation cannot prove sign-in';
+  } else if (
+    snapshot.nodes.some((node) => node.role === 'password' && node.visible)
+  ) {
+    result = 'failed';
+    reason = 'Visible password field: still on a sign-in form';
+  } else {
+    result = 'passed';
+    reason = 'No visible password field after agent sign-in';
+  }
+  if (evidence.length === 0 && result !== 'unknown') {
+    result = 'unknown';
+    reason = 'Required owned evidence missing';
+  }
+  return parseContract('CriterionResult', {
+    criterionId: AGENT_LOGIN_CRITERION.id,
+    result,
+    reason,
+    evidenceRefs: evidence,
+  });
+}
+/** Evaluates a profile's frozen auth criterion exactly as the server does. */
+export function evaluateAuthCriterion(
+  profile: Pick<AuthProfile, 'mode'>,
+  criterion: Criterion,
+  snapshot: BrowserSnapshot,
+  evidence: string[],
+): CriterionResult | undefined {
+  if (profile.mode === 'agent') {
+    return criterion.id === AGENT_LOGIN_CRITERION.id
+      ? evaluateAgentLogin(snapshot, evidence)
+      : undefined;
+  }
+  return evaluateTechnical(
+    { criteria: [criterion] },
+    snapshot,
+    null,
+    evidence,
+  )[0];
 }
 export function verdictStatus(
   c: CaseDefinition,

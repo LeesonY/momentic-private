@@ -68,7 +68,6 @@ export function authRecognitionPayload(
   }[slot];
   return {
     purpose: 'decide',
-    maxOutputTokens: 2000,
     outputSchema: {
       type: 'object',
       additionalProperties: false,

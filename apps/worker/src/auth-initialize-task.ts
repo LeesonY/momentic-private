@@ -6,11 +6,13 @@ import {
   createTrustedBrowserAuthPrimitives,
 } from '@localqa/browser';
 import type { AuthSessionBinding } from '@localqa/browser';
+import { authCriterionFor } from '@localqa/domain';
 import type { RuntimeClient } from '@localqa/orchestrator';
 import type { LeaseProof } from '@localqa/storage';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createAuthAdapters } from './auth-adapters.js';
 import { createAiAuthAdapters } from './auth-ai-adapters.js';
+import { createAgentLoginDriver } from './auth-agent.js';
 import { runAuthFlow } from './auth-flow.js';
 import type { AuthFlowOutcome } from './auth-flow.js';
 import { createAuthRuntimeBridge } from './auth-runtime.js';
@@ -47,9 +49,11 @@ const same = (allocated: AuthSessionBinding, active: AuthSessionBinding) =>
   Date.parse(active.expiresAt) > Date.now();
 
 /**
- * Run the production, server-authorized form authentication in an owned
- * Chromium context. This is not a model tool and never exposes credential
- * material, private tickets or imported state to ordinary task output.
+ * Run the production, server-authorized authentication in an owned Chromium
+ * context. Form and storage-state profiles are fixed adapters; agent profiles
+ * let the auth-job model propose steps over redacted observations. Neither is a
+ * model tool, and credential material, private tickets or imported state never
+ * reach ordinary task output or the model.
  * finishAuth performs the *only* successful auth-job settlement in PostgreSQL.
  */
 export async function initializeBrowserAuthentication(
@@ -66,16 +70,12 @@ export async function initializeBrowserAuthentication(
   if (signal.aborted)
     return { ...blocked, status: 'cancelled', reasonCode: 'CANCELLED' };
   const { profile, runtime, proof } = options;
-  // Manual forms and imported state require a frozen success criterion.
-  // AI forms establish it from server-validated login-page observations.
-  const criterion =
-    profile.mode === 'form'
-      ? profile.formConfig?.successCriterion
-      : profile.mode === 'storage_state'
-        ? profile.storageCriterion
-        : undefined;
+  // Manual forms, imported state and agent sign-in have a frozen success
+  // criterion. AI-recognized forms establish it from server-validated
+  // login-page observations.
+  const criterion = authCriterionFor(profile);
   if (
-    !['form', 'storage_state'].includes(profile.mode) ||
+    !['form', 'storage_state', 'agent'].includes(profile.mode) ||
     profile.status !== 'active' ||
     (!criterion && profile.formConfig?.detectionMode !== 'ai') ||
     profile.projectId !== options.projectId
@@ -185,6 +185,25 @@ export async function initializeBrowserAuthentication(
             // ledger; its immutable ID is the supporting evidence for this oracle.
             ownedEvidence: (snapshot) => [snapshot.snapshotId],
           });
+    // The auth job runs under the executor lease, so agent sign-in uses the
+    // run's frozen executor model binding and its budget.
+    const agent =
+      profile.mode === 'agent'
+        ? createAgentLoginDriver({
+            call: (messages, outputSchema, callSignal) =>
+              runtime.model(
+                proof,
+                'executor',
+                {
+                  purpose: 'decide',
+                  messages,
+                  outputSchema,
+                },
+                undefined,
+                callSignal,
+              ),
+          })
+        : undefined;
     const outcome = await runAuthFlow(
       {
         profile,
@@ -192,7 +211,8 @@ export async function initializeBrowserAuthentication(
         runtime: flowRuntime,
         port,
         adapters,
-        criterion,
+        criterion: criterion ?? undefined,
+        agent,
       },
       signal,
     );

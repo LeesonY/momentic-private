@@ -8,7 +8,11 @@ import type {
   CredentialMaterial,
   Criterion,
 } from '@localqa/contracts';
-import { evaluateTechnical } from '@localqa/domain';
+import {
+  AGENT_LOGIN_CRITERION,
+  evaluateAuthCriterion,
+  evaluateTechnical,
+} from '@localqa/domain';
 import {
   StorageError,
   hashPayload,
@@ -150,6 +154,7 @@ export class AuthStateService {
   private successCriterion(auth: Authority): Criterion | null {
     if (auth.profile.mode === 'storage_state')
       return auth.profile.storageCriterion ?? null;
+    if (auth.profile.mode === 'agent') return AGENT_LOGIN_CRITERION;
     if (auth.profile.mode !== 'form') return null;
     if (auth.profile.formConfig?.detectionMode !== 'ai')
       return auth.profile.formConfig?.successCriterion ?? null;
@@ -719,13 +724,14 @@ export class AuthStateService {
     // An auth success gate must be derived from the actual server-owned
     // observation, not from a worker's self-reported "passed" flag.
     // Only fixed, locally evaluable criteria may authorize credential reuse;
-    // speculative semantic/visual assertions stay blocked.
-    const observed = evaluateTechnical(
-      { criteria: [criterion] },
+    // speculative semantic/visual assertions stay blocked. Agent sign-in uses
+    // its own fixed, deterministic oracle over this same observation.
+    const observed = evaluateAuthCriterion(
+      auth.profile,
+      criterion,
       current.snapshot,
-      null,
       [snapshotId],
-    )[0];
+    );
     if (
       observed?.result !== 'passed' ||
       result.evidenceRefs.length === 0 ||

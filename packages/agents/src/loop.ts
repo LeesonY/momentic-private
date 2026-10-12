@@ -74,7 +74,6 @@ export async function runToolLoop(input: {
       })),
       outputSchema: DECISION_SCHEMA,
       timeoutMs: input.timeoutMs,
-      maxOutputTokens: 400,
       knownEvidenceIds: input.knownEvidenceIds,
     });
     records.push(record);

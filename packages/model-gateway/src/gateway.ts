@@ -12,6 +12,8 @@ import {
 import {
   DEFAULT_INPUT_TOKENS,
   DEFAULT_OUTPUT_TOKENS,
+  MAX_OUTPUT_TOKENS,
+  MIN_OUTPUT_TOKENS,
   FIXTURE,
   REPAIR_MARK,
   type NormalizedCall,
@@ -183,23 +185,24 @@ export interface GatewayProfile {
    * Anything else, including omitted or untested, can be probed again.
    */
   status?: 'untested' | 'ready' | 'degraded' | 'disabled';
+  /** Per-call output cap from the model profile; omitted uses the default. */
+  maxOutputTokens?: number;
   encryptedApiKey: string | null;
   approvedFallbackIds: readonly string[];
 }
 
-function probeOutputTokenLimit(profile: GatewayProfile | undefined): number {
-  if (profile?.kind === 'anthropic_messages') {
-    try {
-      // MoreSec counts DeepSeek reasoning tokens against max_tokens. A
-      // short JSON probe needs the standard bounded output budget there.
-      if (new URL(profile.endpoint).hostname === 'motoken.moresec.cn') {
-        return DEFAULT_OUTPUT_TOKENS;
-      }
-    } catch {
-      // Invalid endpoints are rejected by the normal call preflight.
-    }
-  }
-  return 200;
+/**
+ * The bound model's output cap for every call, probes included. A caller may
+ * ask for less (an explicit request ceiling), never for more.
+ */
+export function outputTokenLimit(profile: GatewayProfile | undefined): number {
+  const configured = profile?.maxOutputTokens;
+  return typeof configured === 'number' &&
+    Number.isSafeInteger(configured) &&
+    configured >= MIN_OUTPUT_TOKENS &&
+    configured <= MAX_OUTPUT_TOKENS
+    ? configured
+    : DEFAULT_OUTPUT_TOKENS;
 }
 
 export type ResolvedArtifact =
@@ -218,7 +221,8 @@ export interface CallInput {
   toolSchemas: readonly { name: string; parameters: Record<string, unknown> }[];
   outputSchema: Record<string, unknown>;
   timeoutMs: number;
-  maxOutputTokens: number;
+  /** Optional caller ceiling; the profile's outputTokenLimit always applies. */
+  maxOutputTokens?: number;
   maxInputTokens?: number;
   fallbackProfileId?: string;
   knownEvidenceIds?: readonly string[];
@@ -899,7 +903,11 @@ export function createGateway(options: {
     const outputShapeTrace: NonNullable<CallRecord['outputShapeTrace']> = [];
     let visualTransmitted = false;
     let reportedModelId: string | null = null;
-    const maxOutput = Math.min(input.maxOutputTokens, DEFAULT_OUTPUT_TOKENS);
+    const limit = outputTokenLimit(profile);
+    const maxOutput =
+      input.maxOutputTokens === undefined
+        ? limit
+        : Math.min(input.maxOutputTokens, limit);
 
     const sendOnce = async (
       current: readonly ModelMessage[],
@@ -1208,8 +1216,7 @@ export function createGateway(options: {
           },
         },
         timeoutMs,
-        maxOutputTokens: probeOutputTokenLimit(profile),
-        ...(profile ? {} : {}),
+        maxOutputTokens: outputTokenLimit(profile),
       }).then(async (record) => {
         if (
           record.requestResult !== 'ok' ||
@@ -1308,7 +1315,7 @@ export function createGateway(options: {
                 model: profile.configuredModelId,
                 apiKey,
                 capability,
-                maxOutputTokens: probeOutputTokenLimit(profile),
+                maxOutputTokens: outputTokenLimit(profile),
               },
               controller.signal,
             );
@@ -1386,7 +1393,9 @@ export function createGateway(options: {
         purpose: request.purpose,
         messages: request.messages,
         outputSchema: request.outputSchema as Record<string, unknown>,
-        maxOutputTokens: request.maxOutputTokens,
+        ...(request.maxOutputTokens !== undefined
+          ? { maxOutputTokens: request.maxOutputTokens }
+          : {}),
         role: extra.role,
         promptVersion: extra.promptVersion,
         approvedImageIds: extra.approvedImageIds,

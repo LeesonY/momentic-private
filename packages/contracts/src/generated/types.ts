@@ -4,6 +4,7 @@ export type Contract =
   | ActionPermit
   | ActionReservation
   | ActionResult
+  | AgentLoginConfig
   | ApiKey
   | ApiKeyCreate
   | ApiKeyCreated
@@ -15,6 +16,7 @@ export type Contract =
   | AuthProfilePage
   | AuthProfilePatch
   | AuthResolve
+  | AuthVariable
   | Bounds
   | BrowserSnapshot
   | BudgetLimits
@@ -312,7 +314,7 @@ export type FormConfig = {
 export type AuthProfileCreate = {
   environmentId?: string | null;
   name: string;
-  mode: "none" | "form" | "storage_state";
+  mode: "none" | "form" | "storage_state" | "agent";
   /**
    * @minItems 1
    * @maxItems 30
@@ -320,6 +322,7 @@ export type AuthProfileCreate = {
   allowedOrigins: [string, ...string[]];
   sharingPolicy?: "exclusive_run" | "shared_state";
   formConfig?: FormConfig;
+  agentConfig?: AgentLoginConfig;
   secretInput?: {
     [k: string]: string | undefined;
   };
@@ -503,6 +506,20 @@ export interface ActionResult {
   evidenceRefs: string[];
   resultHash: string;
 }
+export interface AgentLoginConfig {
+  loginUrl?: string;
+  instructions: string;
+  /**
+   * @minItems 1
+   * @maxItems 20
+   */
+  variables: [AuthVariable, ...AuthVariable[]];
+}
+export interface AuthVariable {
+  name: string;
+  sensitive: boolean;
+  note?: string;
+}
 export interface ApiKey {
   id: string;
   projectId: string;
@@ -560,7 +577,7 @@ export interface AuthProfile {
   projectId: string;
   environmentId: string | null;
   name: string;
-  mode: "none" | "form" | "storage_state";
+  mode: "none" | "form" | "storage_state" | "agent";
   /**
    * @minItems 1
    * @maxItems 30
@@ -571,6 +588,7 @@ export interface AuthProfile {
   version: number;
   status: "active" | "revoked";
   formConfig: FormConfig | null;
+  agentConfig?: AgentLoginConfig | null;
   storageCriterion?: Criterion;
 }
 export interface AuthProfilePage {
@@ -586,6 +604,7 @@ export interface AuthProfilePatch {
   name?: string;
   sharingPolicy?: "exclusive_run" | "shared_state";
   formConfig?: FormConfig;
+  agentConfig?: AgentLoginConfig;
   secretInput?: {
     [k: string]: string | undefined;
   };
@@ -824,7 +843,7 @@ export interface CaseRecordPage {
   nextCursor: string | null;
 }
 export interface CredentialMaterial {
-  mode: "none" | "form" | "storage_state";
+  mode: "none" | "form" | "storage_state" | "agent";
   material: {
     [k: string]: JsonValue | undefined;
   };
@@ -1078,6 +1097,7 @@ export interface ModelProfile {
   status: "untested" | "ready" | "degraded" | "disabled";
   version: number;
   responseFormat?: "json_schema" | "json_object" | "native_tools";
+  maxOutputTokens?: number;
 }
 export interface ModelProfileCreate {
   name: string;
@@ -1087,6 +1107,7 @@ export interface ModelProfileCreate {
   dataBoundary: "internal" | "external";
   apiKey?: string;
   responseFormat?: "json_schema" | "json_object" | "native_tools";
+  maxOutputTokens?: number;
 }
 export interface ModelProfilePage {
   /**
@@ -1104,6 +1125,7 @@ export interface ModelProfilePatch {
   apiKey?: string;
   status?: "disabled" | "untested";
   responseFormat?: "json_schema" | "json_object" | "native_tools";
+  maxOutputTokens?: number;
 }
 export interface ModelRequest {
   taskId: string;
@@ -1115,7 +1137,7 @@ export interface ModelRequest {
    * @maxItems 100
    */
   messages: [ModelMessage, ...ModelMessage[]];
-  maxOutputTokens: number;
+  maxOutputTokens?: number;
   outputSchema: {
     [k: string]: unknown | undefined;
   };
@@ -1731,6 +1753,7 @@ export interface ContractTypes {
   ActionPermit: ActionPermit;
   ActionReservation: ActionReservation;
   ActionResult: ActionResult;
+  AgentLoginConfig: AgentLoginConfig;
   ApiKey: ApiKey;
   ApiKeyCreate: ApiKeyCreate;
   ApiKeyCreated: ApiKeyCreated;
@@ -1742,6 +1765,7 @@ export interface ContractTypes {
   AuthProfilePage: AuthProfilePage;
   AuthProfilePatch: AuthProfilePatch;
   AuthResolve: AuthResolve;
+  AuthVariable: AuthVariable;
   Bounds: Bounds;
   BrowserSnapshot: BrowserSnapshot;
   BudgetLimits: BudgetLimits;

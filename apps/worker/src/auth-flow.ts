@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import { ERROR_CODES } from '@localqa/contracts';
 import type {
   AuthProfile,
+  AuthVariable,
   BrowserSnapshot,
   CredentialMaterial,
   Criterion,
@@ -20,11 +22,21 @@ import type {
   PrivateAuthPort,
 } from '@localqa/browser';
 
-/** The four private auth actions. The model has no entry to any of them. */
+/**
+ * The four private auth actions. The model never calls them: in agent mode it
+ * only proposes a variable name and a node of the registered observation, and
+ * this flow turns that proposal into a server-granted action.
+ */
 export type AuthActionName =
   'navigate_auth' | 'fill_credential' | 'submit_auth' | 'import_storage_state';
 export type AuthActionSlot =
-  'login_url' | 'username' | 'password' | 'otp' | 'submit' | 'storage_state';
+  | 'login_url'
+  | 'username'
+  | 'password'
+  | 'otp'
+  | 'variable'
+  | 'submit'
+  | 'storage_state';
 
 /** Same shape as the AUTH-5 private request: no URL, secret, state, or code. */
 export interface AuthActionRequest {
@@ -131,7 +143,49 @@ export interface AuthFlowAdapters {
     criterion: Criterion,
     signal: AbortSignal,
   ): Promise<CriterionResult>;
+  /** Fresh read-only observation of the current page (agent mode). */
+  observe?(signal: AbortSignal): Promise<BrowserSnapshot>;
 }
+
+/** What the agent driver may see: variable names and notes, never values. */
+export interface AgentLoginStepInput {
+  instructions: string;
+  variables: readonly AuthVariable[];
+  /** The redacted observation registered for this session. */
+  snapshot: BrowserSnapshot;
+  history: readonly AgentLoginHistoryEntry[];
+  /** Constant code for why the previous proposal was not executed. */
+  issue: string | null;
+}
+
+export interface AgentLoginHistoryEntry {
+  action: 'fill' | 'click' | 'otp' | 'wait';
+  variable?: string;
+  nodeId?: string;
+  label?: string;
+}
+
+/** One proposal. Every target must belong to the given snapshot. */
+export type AgentLoginDecision =
+  | { kind: 'fill'; variable: string; target: NodeTarget }
+  | { kind: 'click'; target: NodeTarget }
+  | { kind: 'otp'; target: NodeTarget }
+  | { kind: 'wait' }
+  | { kind: 'done' }
+  | { kind: 'blocked' }
+  /** A malformed proposal: nothing runs, the model is asked again. */
+  | { kind: 'invalid'; issue: string };
+
+/** Model-backed planner for agent (Mo-style) sign-in. */
+export interface AgentLoginDriver {
+  decide(
+    input: AgentLoginStepInput,
+    signal: AbortSignal,
+  ): Promise<AgentLoginDecision>;
+}
+
+/** Bounded so a confused model cannot loop on a sign-in page. */
+export const AGENT_LOGIN_MAX_DECISIONS = 12;
 
 export interface AuthFlowOptions {
   /** Frozen profile. `mode: 'none'` never touches material or the port. */
@@ -142,8 +196,12 @@ export interface AuthFlowOptions {
   /** Required for form/storage_state; unused and untouched for `none`. */
   port?: PrivateAuthPort | undefined;
   adapters: AuthFlowAdapters;
-  /** Frozen criterion; only `storage_state` profiles take it from here. */
+  /** Frozen criterion; `storage_state` and `agent` profiles take it from here. */
   criterion?: Criterion | undefined;
+  /** Required for `agent` profiles only. */
+  agent?: AgentLoginDriver | undefined;
+  /** Settle time before a re-observation in agent mode (tests use 0). */
+  settleMs?: number | undefined;
   newRequestId?: (() => string) | undefined;
   now?: (() => number) | undefined;
 }
@@ -765,6 +823,185 @@ export async function runAuthFlow(
     return captureAndFinish();
   }
 
+  /**
+   * Re-reads the page after it settles. The observation is redacted with the
+   * already-known secrets and registered before any permit may cite it.
+   */
+  async function observeFresh(): Promise<BrowserSnapshot> {
+    check();
+    if (typeof adapters.observe !== 'function') {
+      throw new Stop('blocked', 'RESOLVER_UNAVAILABLE');
+    }
+    const settle = options.settleMs ?? 800;
+    if (settle > 0) {
+      try {
+        await delay(settle, undefined, { signal });
+      } catch {
+        throw new Stop('cancelled', 'CANCELLED');
+      }
+    }
+    let fresh: BrowserSnapshot;
+    try {
+      fresh = await adapters.observe(signal);
+    } catch (error) {
+      throw failure(error, 'OBSERVATION_FAILED');
+    }
+    const redacted = requirePort().redactObservation(fresh);
+    if (redacted.snapshotId !== fresh.snapshotId) {
+      throw new Stop('blocked', 'OBSERVATION_MISMATCH');
+    }
+    try {
+      check();
+      await runtime.recordAuthObservation(redacted);
+    } catch (error) {
+      throw failure(error, 'OBSERVATION_FAILED');
+    }
+    return redacted;
+  }
+
+  /**
+   * Mo-style sign-in: the model reads the instructions, the variable names and
+   * the redacted page, and proposes one step at a time. Values are substituted
+   * here, inside the private port; the model never receives them. Success is
+   * the fixed agent oracle, re-evaluated by the server, not the model's claim.
+   */
+  async function agentFlow(): Promise<string> {
+    const config = options.profile.agentConfig;
+    if (!config) throw new Stop('blocked', 'AGENT_CONFIG_MISSING');
+    const driver = options.agent;
+    if (!driver || typeof driver.decide !== 'function') {
+      throw new Stop('blocked', 'AGENT_DRIVER_MISSING');
+    }
+    const value = await material();
+    const values = new Map<string, string>();
+    for (const variable of config.variables) {
+      const secret = value.material?.[variable.name];
+      if (typeof secret !== 'string' || secret.length === 0) {
+        throw new Stop('blocked', 'MATERIAL_INVALID');
+      }
+      values.set(variable.name, secret);
+    }
+    // Sensitive values are scrubbed from every observation, including the
+    // first one after navigation (auto-filled or echoed fields).
+    requirePort().primeSensitiveValues(
+      config.variables
+        .filter((variable) => variable.sensitive)
+        .map((variable) => values.get(variable.name)!),
+    );
+    let current = requireSnapshot(
+      await perform('navigate_auth', 'login_url', { kind: 'navigate' }),
+    );
+    const history: AgentLoginHistoryEntry[] = [];
+    let issue: string | null = null;
+    let otpUsed = false;
+    for (let round = 0; round < AGENT_LOGIN_MAX_DECISIONS; round++) {
+      check();
+      let decision: AgentLoginDecision;
+      try {
+        decision = await driver.decide(
+          {
+            instructions: config.instructions,
+            variables: config.variables,
+            snapshot: current,
+            history,
+            issue,
+          },
+          signal,
+        );
+      } catch (error) {
+        throw failure(error, 'AGENT_DECISION_FAILED');
+      }
+      issue = null;
+      if (decision.kind === 'invalid') {
+        issue = decision.issue;
+        continue;
+      }
+      if (decision.kind === 'blocked') {
+        throw new Stop('blocked', 'AGENT_LOGIN_BLOCKED');
+      }
+      if (decision.kind === 'wait') {
+        history.push({ action: 'wait' });
+        current = await observeFresh();
+        continue;
+      }
+      if (decision.kind === 'done') {
+        // Judge the settled page, not the one the model last saw.
+        const settled = await observeFresh();
+        await criterion(settled, options.criterion);
+        return captureAndFinish();
+      }
+      const target = decision.target;
+      const node =
+        target &&
+        target.snapshotId === current.snapshotId &&
+        target.pageId === current.pageId
+          ? current.nodes.find(
+              (candidate) =>
+                candidate.nodeId === target.nodeId &&
+                (candidate.frameId ?? 'main') === (target.frameId ?? 'main'),
+            )
+          : undefined;
+      if (!node || !node.visible || !node.enabled) {
+        // Proposals are never rewritten onto another node. Ask again.
+        issue = 'TARGET_INVALID';
+        continue;
+      }
+      const label = `${node.role}:${node.name}`.slice(0, 120);
+      if (decision.kind === 'fill') {
+        const secret = values.get(decision.variable);
+        if (!secret) {
+          issue = 'UNKNOWN_VARIABLE';
+          continue;
+        }
+        current = requireSnapshot(
+          await perform(
+            'fill_credential',
+            'variable',
+            { kind: 'fill', secret },
+            target,
+          ),
+        );
+        history.push({
+          action: 'fill',
+          variable: decision.variable,
+          nodeId: target.nodeId,
+          label,
+        });
+      } else if (decision.kind === 'click') {
+        requireSnapshot(
+          await perform('submit_auth', 'submit', { kind: 'submit' }, target),
+        );
+        history.push({ action: 'click', nodeId: target.nodeId, label });
+        // A click often navigates; propose the next step on the settled page.
+        current = await observeFresh();
+      } else {
+        // At most one code per session; the user types it in the run page.
+        if (otpUsed) throw new Stop('blocked', 'OTP_UNAVAILABLE');
+        otpUsed = true;
+        let otp: AuthOtpMaterial;
+        try {
+          otp = await runtime.pauseForOtp();
+        } catch (error) {
+          throw failure(error, 'OTP_UNAVAILABLE');
+        }
+        const code = otp?.code;
+        if (typeof code !== 'string' || code.length === 0) {
+          throw new Stop('blocked', 'OTP_UNAVAILABLE');
+        }
+        current = requireSnapshot(
+          await perform(
+            'fill_credential',
+            'otp',
+            { kind: 'fill', secret: code },
+            target,
+          ),
+        );
+        history.push({ action: 'otp', nodeId: target.nodeId, label });
+      }
+    }
+    throw new Stop('blocked', 'AGENT_STEP_LIMIT');
+  }
+
   async function storageFlow(): Promise<string> {
     const value = await material();
     // resolveAuth ships `{storageState: "<json>"}`; that exact key is the only
@@ -788,7 +1025,7 @@ export async function runAuthFlow(
   }
 
   try {
-    if (mode !== 'form' && mode !== 'storage_state') {
+    if (mode !== 'form' && mode !== 'storage_state' && mode !== 'agent') {
       throw new Stop('blocked', 'AUTH_MODE_UNSUPPORTED');
     }
     if (!options.profile) throw new Stop('blocked', 'AUTH_PROFILE_MISSING');
@@ -802,7 +1039,12 @@ export async function runAuthFlow(
     if (requirePort().sessionId !== binding.sessionId) {
       throw new Stop('blocked', 'SESSION_MISMATCH');
     }
-    const stateRef = mode === 'form' ? await formFlow() : await storageFlow();
+    const stateRef =
+      mode === 'form'
+        ? await formFlow()
+        : mode === 'agent'
+          ? await agentFlow()
+          : await storageFlow();
     return finish('succeeded', 'AUTH_SUCCEEDED', stateRef);
   } catch (error) {
     const stop = failure(error, 'AUTH_FLOW_ERROR');

@@ -208,19 +208,26 @@ test(
       await once(fixture, 'listening');
       const origin = `http://127.0.0.1:${fixture.address().port}`;
 
-      containerId = docker([
-        'run',
-        '--detach',
-        '--name',
-        `localqa-auth-integration-${randomUUID().slice(0, 10)}`,
-        '--publish',
-        '127.0.0.1::5432',
-        '--env-file',
-        envPath,
-        'postgres:18-alpine',
-      ]);
-      const port = docker(['port', containerId, '5432/tcp']).split(':').at(-1);
-      const connection = `postgresql://localqa:${pgPassword}@127.0.0.1:${port}/localqa`;
+      // An empty, disposable database may be supplied instead of Docker, for
+      // example when this test itself runs inside the worker image.
+      let connection = process.env.LOCALQA_TEST_DATABASE_URL;
+      if (!connection) {
+        containerId = docker([
+          'run',
+          '--detach',
+          '--name',
+          `localqa-auth-integration-${randomUUID().slice(0, 10)}`,
+          '--publish',
+          '127.0.0.1::5432',
+          '--env-file',
+          envPath,
+          'postgres:18-alpine',
+        ]);
+        const port = docker(['port', containerId, '5432/tcp'])
+          .split(':')
+          .at(-1);
+        connection = `postgresql://localqa:${pgPassword}@127.0.0.1:${port}/localqa`;
+      }
       let migrated = false;
       for (let i = 0; i < 65; i++) {
         try {

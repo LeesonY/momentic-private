@@ -336,7 +336,7 @@
 
 .lqa-model-profile-details {
   display: grid;
-  grid-template-columns: 1fr 2fr 0.7fr;
+  grid-template-columns: 1fr 2fr 0.7fr 1.1fr;
   gap: 17px;
   margin: 22px 0;
   padding: 18px;
@@ -458,4 +458,17 @@
     min-width: 0;
     flex: 1;
   }
+}
+
+.lqa-model-cap-edit {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.lqa-model-cap-edit .form-input {
+  min-width: 0;
+}
+
+.lqa-model-cap-error {
+  color: var(--color-danger-text);
 }

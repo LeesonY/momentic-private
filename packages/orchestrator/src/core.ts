@@ -2512,6 +2512,12 @@ export class Coordinator {
         ]);
         await appendEvent(client, projectId, row.run_id, 'step.recorded', step);
       }
+      // Finished runs keep no exclusive credential. finalize() releases its own
+      // lock; this also frees locks left by runs that ended before that fix.
+      await client.query(
+        "UPDATE auth_profile_run_locks l SET status='released', released_at=clock_timestamp(), release_reason='run_finished' FROM runs r WHERE l.project_id=$1 AND r.project_id=l.project_id AND r.id=l.run_id AND l.status='held' AND r.status IN ('completed','cancelled','failed')",
+        [projectId],
+      );
       const ids = (
         await client.query(
           "SELECT id FROM runs WHERE project_id=$1 AND status NOT IN ('completed','cancelled','failed') ORDER BY id",
@@ -3144,6 +3150,12 @@ export class Coordinator {
       reportVersion: final.version,
       generatedAt: new Date().toISOString(),
     });
+    // A granted exclusive auth lock otherwise outlives the run, and every
+    // later run on the same profile fails auth with RATE_LIMITED.
+    await client.query(
+      "UPDATE auth_profile_run_locks SET status='released', released_at=clock_timestamp(), release_reason='run_finished' WHERE project_id=$1 AND run_id=$2 AND status='held'",
+      [run.projectId, run.id],
+    );
     await appendEvent(client, run.projectId, run.id, 'run.finished', final);
   }
 }

@@ -66,6 +66,9 @@ export function createWorkerModelOptions(input: {
         capabilities: document.capabilities,
         responseFormat: document.responseFormat ?? 'json_schema',
         status: document.status,
+        ...(document.maxOutputTokens !== undefined
+          ? { maxOutputTokens: document.maxOutputTokens }
+          : {}),
         encryptedApiKey: loaded.apiKey ? slot : null,
         approvedFallbackIds: [],
       };
