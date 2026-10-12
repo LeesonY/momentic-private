@@ -1,5 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import type { CaseRecord, Run, RunEvent, Task } from '@localqa/contracts';
+import type {
+  CaseRecord,
+  Run,
+  RunEvent,
+  SessionReport,
+  Task,
+} from '@localqa/contracts';
 import type { RunMessage } from '../../api/index.ts';
 import { AppIcon } from '../ui/AppIcon.tsx';
 import { StatusBadge } from '../ui/Badge.tsx';
@@ -53,6 +59,22 @@ export function buildRunFeed(
         taskId: task.id,
         text: `${stage} · ${task.status === 'queued' ? '已派工' : task.status === 'running' ? '正在执行' : task.status === 'succeeded' ? '任务完成' : task.status === 'waiting' ? '等待外部输入' : '任务' + task.status}`,
       };
+    } else if (event.type === 'session.updated') {
+      const session = data as unknown as SessionReport;
+      const message =
+        session.status === 'complete'
+          ? session.summary?.trim()
+          : session.plan?.trim();
+      if (message) {
+        entry = {
+          key: event.id,
+          at: event.at,
+          label:
+            session.status === 'complete' ? '主 AI 结果总结' : '主 AI 计划',
+          kind: 'agent',
+          text: message,
+        };
+      }
     } else if (event.type === 'case.result') {
       const record = data as unknown as CaseRecord;
       entry = {
@@ -63,17 +85,6 @@ export function buildRunFeed(
         status: record.verdict?.status || 'not_run',
         text: `${record.definition?.title || '测试用例'}：${record.verdict?.summary || '尚无可核验的最终判定'}`,
       };
-    } else if (event.type === 'session.updated') {
-      const summary = typeof data.summary === 'string' ? data.summary : '';
-      const plan = typeof data.plan === 'string' ? data.plan : '';
-      if (summary || plan)
-        entry = {
-          key: event.id,
-          at: event.at,
-          label: '主 AI · 计划与总结',
-          kind: 'agent',
-          text: summary || plan,
-        };
     } else if (event.type === 'run.finished') {
       const result = data as unknown as Run;
       entry = {
@@ -99,7 +110,8 @@ export const RunConversationFeed: React.FC<{
   cases: CaseRecord[];
   events: RunEvent[];
   messages: RunMessage[];
-}> = ({ run, tasks, cases, events, messages }) => {
+  session?: SessionReport | null;
+}> = ({ run, tasks, cases, events, messages, session }) => {
   const [selectedTask, setSelectedTask] = useState<string | null | undefined>(
     undefined,
   );
@@ -145,7 +157,10 @@ export const RunConversationFeed: React.FC<{
           <div className="mo-feed-avatar">任务</div>
           <div className="mo-feed-main">
             <strong>本次测试目标</strong>
-            <p className="break-all">{run.targetUrl}</p>
+            <p>
+              {session?.objective?.trim() || '根据本次冻结测试范围执行目标检查'}
+            </p>
+            <p className="break-all text-xs muted">{run.targetUrl}</p>
             <span className="text-xs muted">执行范围以本次冻结配置为准</span>
           </div>
         </div>

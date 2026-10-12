@@ -3302,7 +3302,7 @@ export class Coordinator {
       );
     }
     await client.query(
-      'UPDATE jobs SET status=$2, lease_until=NULL WHERE id=$1',
+      'UPDATE jobs SET status=$2, lease_until=NULL, finished_at=clock_timestamp() WHERE id=$1',
       [job.id, status],
     );
     await client.query(

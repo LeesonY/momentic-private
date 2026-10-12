@@ -548,6 +548,7 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
           cases={cases}
           events={events}
           messages={messages}
+          session={session}
         />
 
         <section

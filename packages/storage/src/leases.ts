@@ -357,7 +357,7 @@ export class LeaseRepository {
       const canRetry =
         !isAuthTask && !acted && ['queued', 'running'].includes(job.run_status);
       await client.query(
-        "UPDATE jobs SET status=$2,worker_id=NULL,lease_until=NULL,finished_at=CASE WHEN $2='queued' THEN NULL ELSE clock_timestamp() END WHERE id=$1",
+        "UPDATE jobs SET status=$2,worker_id=NULL,lease_until=NULL,started_at=CASE WHEN $2='queued' THEN NULL ELSE started_at END,finished_at=CASE WHEN $2='queued' THEN NULL ELSE clock_timestamp() END WHERE id=$1",
         [job.id, canRetry ? 'queued' : 'interrupted'],
       );
       await client.query(
