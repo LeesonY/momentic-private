@@ -1,4 +1,5 @@
 import { Ajv } from 'ajv';
+import { setTimeout as retryDelay } from 'node:timers/promises';
 import formatsPlugin from 'ajv-formats';
 import {
   parseContract,
@@ -549,6 +550,8 @@ export function createGateway(options: {
   profiles: readonly GatewayProfile[];
   decryptKey: (profileId: string, ciphertext: string) => string;
   adapter: ProviderAdapter;
+  /** Opt-in for runtime calls; probes keep their existing single-attempt behavior. */
+  rateLimitRetry?: { delaysMs: readonly number[]; signal?: AbortSignal };
   /**
    * Turns an approved artifact id into bytes or an https URL.
    * Absent means an approved image cannot be sent.
@@ -900,6 +903,7 @@ export function createGateway(options: {
     const outbound: string[] = [];
     let providerCalls = 0;
     let repairCount = 0;
+    let rateLimitRetries = 0;
     const outputShapeTrace: NonNullable<CallRecord['outputShapeTrace']> = [];
     let visualTransmitted = false;
     let reportedModelId: string | null = null;
@@ -937,7 +941,10 @@ export function createGateway(options: {
       outbound.push(outboundText);
       providerCalls += 1;
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), input.timeoutMs);
+      const timeout = options.rateLimitRetry
+        ? Math.max(1, input.timeoutMs - (Date.now() - started))
+        : input.timeoutMs;
+      const timer = setTimeout(() => controller.abort(), timeout);
       try {
         return await options.adapter.send(
           {
@@ -1050,11 +1057,37 @@ export function createGateway(options: {
       response.errorCode
         ? response
         : { ...response, raw: unwrapProviderOutput(response.raw) };
+    const sendWithUsage = async (current: readonly ModelMessage[]) => {
+      const delays = (options.rateLimitRetry?.delaysMs ?? []).slice(0, 2);
+      let response = present(await sendOnce(current));
+      noteUsage(response, JSON.stringify(current));
+      while (
+        response.httpStatus === 429 &&
+        response.errorCode === 'RATE_LIMITED' &&
+        rateLimitRetries < delays.length
+      ) {
+        const wait = delays[rateLimitRetries]!;
+        if (
+          !Number.isSafeInteger(wait) ||
+          wait < 0 ||
+          wait > 10000 ||
+          Date.now() - started + wait >= input.timeoutMs
+        )
+          break;
+        rateLimitRetries++;
+        await retryDelay(wait, undefined, {
+          signal: options.rateLimitRetry?.signal,
+        });
+        response = present(await sendOnce(current));
+        noteUsage(response, JSON.stringify(current));
+      }
+      return response;
+    };
 
     try {
       let response: ProviderResponse;
       try {
-        response = present(await sendOnce(messages));
+        response = await sendWithUsage(messages);
       } catch (error) {
         if (
           typeof error === 'object' &&
@@ -1074,7 +1107,6 @@ export function createGateway(options: {
         }
         throw error;
       }
-      noteUsage(response, JSON.stringify(messages));
       const stopped = stopForProvider(response);
       if (stopped) return stopped;
       if (input.purpose === 'probe') {
@@ -1090,8 +1122,7 @@ export function createGateway(options: {
           formatRepairInstruction(input, parsed.kind),
         );
         messages = [...messages, repair];
-        response = present(await sendOnce(messages));
-        noteUsage(response, JSON.stringify(messages));
+        response = await sendWithUsage(messages);
         const repairedStop = stopForProvider(response);
         if (repairedStop) return repairedStop;
         parsed = parseWithSchema(response.raw, validator);

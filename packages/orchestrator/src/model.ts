@@ -445,6 +445,8 @@ export class BoundModel {
                     : tokens - meta.inputTokens,
                   configuredModelId: input.model,
                   reportedModelId: response.reportedModelId,
+                  httpStatus: response.httpStatus,
+                  errorCode: response.errorCode,
                 }),
                 scope.projectId,
                 alreadyUnknown ? 'unknown' : 'settled',
@@ -525,6 +527,7 @@ export class BoundModel {
     const images = await this.materializeImages(bound);
     const budgetDenied = { current: false };
     const gateway = createGateway({
+      rateLimitRetry: { delaysMs: [2000, 4000], ...(signal ? { signal } : {}) },
       profiles: [bound.profile],
       decryptKey: this.options.decryptKey,
       resolveArtifact: (artifactId) => images.get(artifactId) ?? null,
@@ -606,6 +609,7 @@ export class BoundModel {
       throw new StorageError('VALIDATION_ERROR');
     const budgetDenied = { current: false };
     const gateway = createGateway({
+      rateLimitRetry: { delaysMs: [2000, 4000], ...(signal ? { signal } : {}) },
       profiles: [bound.profile],
       decryptKey: this.options.decryptKey,
       adapter: this.budgetAdapter(
@@ -652,6 +656,7 @@ export class BoundModel {
     const images = await this.materializeImages(bound);
     const budgetDenied = { current: false };
     const gateway = createGateway({
+      rateLimitRetry: { delaysMs: [2000, 4000], ...(signal ? { signal } : {}) },
       profiles: [bound.profile],
       decryptKey: this.options.decryptKey,
       resolveArtifact: (artifactId) => images.get(artifactId) ?? null,

@@ -272,6 +272,9 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
               run.terminationReason ??
               '未知'}
             。
+            {report?.warnings.map((warning, index) => (
+              <p key={index}>{warning}</p>
+            ))}
           </Alert>
         )}
 

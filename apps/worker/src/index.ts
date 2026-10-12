@@ -9,6 +9,7 @@ import {
 } from '@localqa/browser';
 import {
   parseContract,
+  isErrorCode,
   type BrowserSnapshot,
   type ToolCall,
   type ModelMessage,
@@ -140,23 +141,8 @@ export class Worker {
           supportedAuth ||
           (await this.runtime.requireAnonymousOrInput(proof))
         ) {
-          if (work.run.executionMode !== 'regression')
-            await this.decide(
-              proof,
-              'coordinator',
-              [
-                {
-                  role: 'user',
-                  content: [
-                    {
-                      type: 'text',
-                      text: 'Approved preflight config. DISPATCHED',
-                    },
-                  ],
-                },
-              ],
-              signal,
-            );
+          // Preflight validates server-frozen configuration. AI planning starts
+          // after authentication; an unused decision must not block setup.
           await this.runtime.finish(proof, {
             stage: 'preflight',
             checked: true,
@@ -189,7 +175,11 @@ export class Worker {
         // finishAuth settles successful auth jobs itself. Ordinary finish()
         // explicitly refuses the auth stage and must never forge success.
         if (outcome.status !== 'succeeded')
-          throw new DomainError('AUTH_FAILED');
+          throw new DomainError(
+            isErrorCode(outcome.reasonCode)
+              ? outcome.reasonCode
+              : 'AUTH_FAILED',
+          );
         return true;
       }
       if (work.stage === 'plan') {
@@ -1307,7 +1297,11 @@ export class Worker {
       !returnFailureRecord &&
       !['ok', 'repaired'].includes(record.requestResult)
     )
-      throw new DomainError('MODEL_FAILURE');
+      throw new DomainError(
+        record.errorCode === 'VALIDATION_ERROR'
+          ? 'MODEL_FAILURE'
+          : (record.errorCode ?? 'MODEL_FAILURE'),
+      );
     return record;
   }
 }

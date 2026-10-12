@@ -36,9 +36,14 @@ const real = process.env.AUTH_AI_REAL_MODEL === '1';
 const ui = process.env.AUTH_AI_UI === '1';
 const scenario = process.env.AUTH_AI_SCENARIO ?? 'ordinary';
 assert.ok(
-  ['ordinary', 'two_step', 'wrong_password', 'otp', 'late_dom'].includes(
-    scenario,
-  ),
+  [
+    'ordinary',
+    'two_step',
+    'wrong_password',
+    'otp',
+    'late_dom',
+    'busy_once',
+  ].includes(scenario),
 );
 
 test(
@@ -224,6 +229,16 @@ test(
           'known auth material must not reach provider',
         );
         modelCalls++;
+        if (scenario === 'busy_once' && modelCalls === 1)
+          return new Response(
+            JSON.stringify({
+              error: {
+                code: 'channel:sticky_key_busy',
+                message: 'Key busy fixture',
+              },
+            }),
+            { status: 429 },
+          );
         if (real) return globalThis.fetch(url, init);
         const body = JSON.parse(wire);
         const system =
@@ -663,7 +678,31 @@ test(
             auth.actions.filter((a) => a.action === 'submit_auth').length,
             2,
           );
-        if (scenario !== 'late_dom') {
+        if (scenario === 'busy_once') {
+          const diagnostics = await coordinator.tx(
+            async (c) =>
+              (
+                await c.query(
+                  'SELECT redacted_diagnostic FROM model_requests WHERE run_id=$1',
+                  [run.id],
+                )
+              ).rows,
+          );
+          assert.equal(
+            diagnostics.length,
+            modelCalls,
+            'Each retry is charged and recorded',
+          );
+          assert.equal(
+            diagnostics.filter(
+              (r) =>
+                r.redacted_diagnostic.httpStatus === 429 &&
+                r.redacted_diagnostic.errorCode === 'RATE_LIMITED',
+            ).length,
+            1,
+          );
+        }
+        if (!['late_dom', 'busy_once'].includes(scenario)) {
           const viewsBefore = dashboardViews;
           await coordinator.tick(project.id);
           assert.equal(await worker.once(), true);

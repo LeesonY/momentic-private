@@ -743,7 +743,29 @@ export function registerExecutionRoutes(router: Router): void {
         ...(session ? { session } : {}),
         coverageGaps: session?.coverageGaps ?? [],
         cleanupStatus: 'succeeded',
-        warnings: [],
+        warnings:
+          run.status === 'failed'
+            ? [
+                ...new Set(
+                  usageRows.rows.flatMap(({ diagnostic }) => {
+                    const code = diagnostic['errorCode'];
+                    if (code === 'RATE_LIMITED')
+                      return [
+                        'RATE_LIMITED：模型服务商返回 HTTP 429，渠道繁忙或请求受到限流，请稍后重试或检查服务商并发额度。',
+                      ];
+                    if (code === 'MODEL_NOT_CONFIGURED')
+                      return [
+                        'MODEL_NOT_CONFIGURED：模型服务商拒绝认证，请检查 API Key 和模型权限。',
+                      ];
+                    if (code === 'MODEL_BILLING_REQUIRED')
+                      return [
+                        'MODEL_BILLING_REQUIRED：模型服务商提示余额或计费异常。',
+                      ];
+                    return [];
+                  }),
+                ),
+              ]
+            : [],
       });
     });
 

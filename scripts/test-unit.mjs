@@ -14,6 +14,8 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const files = [
+  'packages/model-gateway/test/rate-limit-retry.test.mjs',
+  'apps/worker/test/preflight-model.test.mjs',
   'apps/web/scripts/phaseTermination.test.mjs',
   'packages/contracts/test/contracts.test.mjs',
   'packages/contracts/test/drift.test.mjs',
