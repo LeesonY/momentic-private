@@ -986,9 +986,13 @@ export class Worker {
                       }
                     : {
                         instruction:
-                          '探索该区域的入口、控件和可观察流程；不执行提交操作，不确认 Bug。',
+                          work.run.effectiveConfig.actionPolicy ===
+                          'approved_workflows'
+                            ? '探索该区域的业务流程；只在 writeScope 内操作指定测试数据，不重复提交，清理未验证时说明，不确认 Bug。'
+                            : '探索该区域的入口、控件和可观察流程；不执行提交操作，不确认 Bug。',
                       }),
                   actionPolicy: work.run.effectiveConfig.actionPolicy,
+                  writeScope: work.run.effectiveConfig.writeScope ?? [],
                 }),
               },
             ],
