@@ -14,6 +14,12 @@ import { AppIcon } from '../ui/AppIcon.tsx';
 import { ReportExportPanel } from './ReportExportPanel.tsx';
 import { useApp } from '../../state/AppContext.tsx';
 import { getRegressionProvenanceStatus } from '../../utils/provenance.ts';
+import {
+  TaskExecutionDetail,
+  taskRoleLabel,
+  taskStageLabel,
+  taskDurationLabel,
+} from './TaskExecutionDetail.tsx';
 
 const cleanupLabels: Record<string, string> = {
   not_required: '无需清理',
@@ -49,6 +55,7 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
     'planning' | 'cases' | 'findings' | 'tasks' | 'report'
   >('cases');
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const { setRoute } = useApp();
   const isRegressionRun =
     report?.run.executionMode === 'regression' ||
@@ -125,7 +132,12 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
                   compact
                   icon="list"
                   title="暂无用例记录"
-                  description="冒烟规划进行中，或此运行尚未生成用例。"
+                  description={
+                    run &&
+                    ['completed', 'cancelled', 'failed'].includes(run.status)
+                      ? '本次运行尚未形成可验证用例，不能据此认定测试通过。'
+                      : '正在等待规划或执行回传真实用例。'
+                  }
                 />
               ) : (
                 <div className="lqa-card-list">
@@ -279,7 +291,13 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
                   <strong>
                     {
                       {
-                        planning: '正在规划覆盖范围',
+                        planning:
+                          run &&
+                          ['completed', 'failed', 'cancelled'].includes(
+                            run.status,
+                          )
+                            ? '规划未完成'
+                            : '正在规划覆盖范围',
                         working: '子任务执行中',
                         reviewing: '正在复核结果与规划补测',
                         finalizing: '正在验收总结',
@@ -303,7 +321,11 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
               <div>
                 <div className="section-label">当前计划</div>
                 <p data-testid="session-current-plan">
-                  {session.plan || '主 AI 正在制定第一轮计划…'}
+                  {session.plan ||
+                    (run &&
+                    ['completed', 'failed', 'cancelled'].includes(run.status)
+                      ? '没有有效的 AI 规划输出。请检查模型错误与覆盖缺口；不能认定规划完成。'
+                      : '等待主 AI 返回可核验的第一轮计划…')}
                 </p>
               </div>
               {session.history.map((round) => (
@@ -349,8 +371,19 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
               {findings.length === 0 ? (
                 <EmptyState
                   compact
-                  title="未发现缺陷"
-                  description="当前所有自动化检查都没有触发失败判定。"
+                  title={
+                    run &&
+                    ['completed', 'cancelled', 'failed'].includes(run.status) &&
+                    cases.length > 0 &&
+                    cases.every((c) => !!c.verdict)
+                      ? '本次没有已确认缺陷'
+                      : '尚无已确认缺陷'
+                  }
+                  description={
+                    cases.length === 0
+                      ? '尚无已验证的用例，0 个缺陷不代表产品没有问题。'
+                      : '缺陷仅以已执行用例及真实 Verdict 为准，未覆盖的业务不在结论范围内。'
+                  }
                   icon="check-circle"
                 />
               ) : (
@@ -398,13 +431,34 @@ export const TaskCaseTabs: React.FC<TaskCaseTabsProps> = ({
                       className="lqa-item-card"
                       data-testid={`task-item-${t.id}`}
                     >
-                      <div className="lqa-item-top">
-                        <span className="lqa-timeline-role">{t.role}</span>
+                      <button
+                        type="button"
+                        className="mo-dispatch-card"
+                        onClick={() =>
+                          setExpandedTaskId((old) =>
+                            old === t.id ? null : t.id,
+                          )
+                        }
+                        aria-expanded={expandedTaskId === t.id}
+                        data-testid={`btn-expand-task-${t.id}`}
+                      >
+                        <span className="mo-dispatch-copy">
+                          <strong>{taskRoleLabel[t.role]}</strong>
+                          <span>{taskStageLabel[t.summary] ?? t.summary}</span>
+                          <span className="text-xs muted">
+                            {taskDurationLabel(t.elapsedSeconds)}
+                          </span>
+                        </span>
                         <StatusBadge status={t.status} size="sm" />
-                      </div>
-                      <p className="lqa-item-text">
-                        {t.summary || '任务执行中...'}
-                      </p>
+                      </button>
+                      {expandedTaskId === t.id && (
+                        <TaskExecutionDetail
+                          task={t}
+                          active={t.status === 'running'}
+                          runTargetUrl={run?.targetUrl ?? ''}
+                          onClose={() => setExpandedTaskId(null)}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>

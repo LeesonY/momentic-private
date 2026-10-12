@@ -36,6 +36,7 @@ interface RunState {
   session: SessionReport | null;
   activeInputRequest: InputRequest | null;
   messages: RunMessage[];
+  events: RunEvent[];
   sseStatus: SseConnectionStatus;
   reconnectAttempt: number;
   loading: boolean;
@@ -71,6 +72,7 @@ export function RunStoreProvider({
   const [activeInputRequest, setActiveInputRequest] =
     useState<InputRequest | null>(null);
   const [messages, setMessages] = useState<RunMessage[]>([]);
+  const [events, setEvents] = useState<RunEvent[]>([]);
   const [sseStatus, setSseStatus] =
     useState<SseConnectionStatus>('disconnected');
   const [reconnectAttempt, setReconnectAttempt] = useState<number>(0);
@@ -94,16 +96,27 @@ export function RunStoreProvider({
     setLoading(true);
     setError(null);
     try {
-      const [runData, caseRes, taskRes, findRes, repData, msgs, inputs] =
-        await Promise.all([
-          defaultApiClient.getRun(runId),
-          defaultApiClient.listRunCases(runId).catch(() => ({ items: [] })),
-          defaultApiClient.listRunTasks(runId).catch(() => ({ items: [] })),
-          defaultApiClient.listRunFindings(runId).catch(() => ({ items: [] })),
-          defaultApiClient.getReport(runId).catch(() => null),
-          fetchRunMessages('/api/v1', runId),
-          defaultApiClient.listRunInputs(runId),
-        ]);
+      const [
+        runData,
+        caseRes,
+        taskRes,
+        findRes,
+        repData,
+        msgs,
+        inputs,
+        history,
+      ] = await Promise.all([
+        defaultApiClient.getRun(runId),
+        defaultApiClient.listRunCases(runId).catch(() => ({ items: [] })),
+        defaultApiClient.listRunTasks(runId).catch(() => ({ items: [] })),
+        defaultApiClient.listRunFindings(runId).catch(() => ({ items: [] })),
+        defaultApiClient.getReport(runId).catch(() => null),
+        fetchRunMessages('/api/v1', runId),
+        defaultApiClient.listRunInputs(runId),
+        defaultApiClient
+          .listEventHistory(runId, { limit: 100 })
+          .catch(() => null),
+      ]);
 
       if (runIdRef.current !== runId) return;
       setRun(runData);
@@ -113,6 +126,7 @@ export function RunStoreProvider({
       setReport(repData);
       setSession(repData?.session ?? null);
       setMessages(msgs);
+      if (history) setEvents(history.items);
 
       for (const m of msgs) {
         recordMessageRendered(m.redactedText, m.createdAt);
@@ -159,6 +173,10 @@ export function RunStoreProvider({
   // 2. Event projection handler
   const handleEvent = useCallback(
     (event: RunEvent) => {
+      setEvents((prev) => {
+        if (prev.some((existing) => existing.id === event.id)) return prev;
+        return [...prev, event].sort((a, b) => a.seq - b.seq).slice(-150);
+      });
       switch (event.type) {
         case 'run.updated': {
           const payload = event.payload as unknown as Partial<Run>;
@@ -411,6 +429,7 @@ export function RunStoreProvider({
         session,
         activeInputRequest,
         messages,
+        events,
         sseStatus,
         reconnectAttempt,
         loading,

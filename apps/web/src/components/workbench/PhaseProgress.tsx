@@ -1,4 +1,5 @@
 import React from 'react';
+import type { Task } from '@localqa/contracts';
 
 export interface PhaseStepState {
   key: string;
@@ -13,6 +14,7 @@ export interface PhaseProgressProps {
   status: string;
   executionMode?: 'smoke' | 'regression';
   terminationPhase?: string;
+  tasks?: Task[];
 }
 
 export const PHASES = [
@@ -117,6 +119,44 @@ export function computePhaseTimeline({
   });
 }
 
+/** Only observed jobs can make a phase green. Stage order alone is not proof. */
+export function computeObservedPhases(
+  input: Parameters<typeof computePhaseTimeline>[0] & { tasks: Task[] },
+): PhaseStepState[] {
+  const guessed = computePhaseTimeline(input);
+  const terminal = ['completed', 'cancelled', 'failed', 'interrupted'].includes(
+    input.status ?? '',
+  );
+  return guessed.map((phase) => {
+    const jobs = input.tasks.filter((t) => t.summary === phase.key);
+    if (!jobs.length)
+      return {
+        ...phase,
+        stateClass: terminal
+          ? 'skipped'
+          : phase.stateClass === 'active'
+            ? 'active'
+            : '',
+        isCompleted: false,
+      };
+    if (jobs.some((job) => ['failed', 'interrupted'].includes(job.status)))
+      return { ...phase, stateClass: 'failed', isCompleted: false };
+    if (jobs.some((job) => job.status === 'cancelled'))
+      return { ...phase, stateClass: 'cancelled', isCompleted: false };
+    if (jobs.every((job) => job.status === 'succeeded'))
+      return { ...phase, stateClass: 'completed', isCompleted: true };
+    return {
+      ...phase,
+      stateClass: jobs.some((job) =>
+        ['running', 'waiting'].includes(job.status),
+      )
+        ? 'active'
+        : '',
+      isCompleted: false,
+    };
+  });
+}
+
 // "1. 预检 (Preflight)" → "预检"
 const shortName = (name: string) =>
   name.replace(/^\d+\.\s*/, '').replace(/\s*\(.*\)$/, '');
@@ -126,14 +166,18 @@ export const PhaseProgress: React.FC<PhaseProgressProps> = ({
   status,
   executionMode = 'smoke',
   terminationPhase,
+  tasks,
 }) => {
   const isQueued = status.toLowerCase() === 'queued';
-  const timeline = computePhaseTimeline({
+  const input = {
     currentPhase,
     status,
     executionMode,
     terminationPhase,
-  });
+  };
+  const timeline = tasks
+    ? computeObservedPhases({ ...input, tasks })
+    : computePhaseTimeline(input);
   const terminated = ['failed', 'cancelled', 'interrupted'].includes(
     status.toLowerCase(),
   );

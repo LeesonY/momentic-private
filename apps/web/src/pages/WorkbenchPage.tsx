@@ -10,6 +10,7 @@ import { ReconnectBanner } from '../components/layout/ReconnectBanner.tsx';
 import { PhaseProgress } from '../components/workbench/PhaseProgress.tsx';
 import { InputRequestBar } from '../components/workbench/InputRequestBar.tsx';
 import { TaskCaseTabs } from '../components/workbench/TaskCaseTabs.tsx';
+import { RunConversationFeed } from '../components/workbench/RunConversationFeed.tsx';
 import { StatusBadge } from '../components/ui/Badge.tsx';
 import { ErrorCard } from '../components/ui/ErrorCard.tsx';
 import { Modal } from '../components/ui/Modal.tsx';
@@ -134,6 +135,7 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
     session,
     activeInputRequest,
     messages,
+    events,
     sseStatus,
     reconnectAttempt,
     cancelRun,
@@ -445,31 +447,38 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
             </div>
           )}
 
-          <div
-            className="stat-grid lqa-budget-grid"
-            data-testid="budget-metrics-bar"
-          >
-            {budgetItems.map((item) => (
-              <div className="stat" key={item.label}>
-                <div className="stat-label">{item.label}</div>
-                <div className="stat-value">
-                  {item.used.toLocaleString()}
-                  {item.unit}
-                  <small>
-                    {' '}
-                    / {item.limit.toLocaleString()}
+          <details className="mo-budget-details">
+            <summary>
+              资源与预算 · {run.budgetUsed.modelCalls} 次模型调用 ·{' '}
+              {run.budgetUsed.actions} 步操作
+            </summary>
+            <div
+              className="stat-grid lqa-budget-grid"
+              data-testid="budget-metrics-bar"
+            >
+              {budgetItems.map((item) => (
+                <div className="stat" key={item.label}>
+                  <div className="stat-label">{item.label}</div>
+                  <div className="stat-value">
+                    {item.used.toLocaleString()}
                     {item.unit}
-                  </small>
+                    <small>
+                      {' '}
+                      / {item.limit.toLocaleString()}
+                      {item.unit}
+                    </small>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </details>
         </section>
 
         <PhaseProgress
           currentPhase={run.phase}
           status={run.status}
           executionMode={run.executionMode}
+          tasks={tasks}
           terminationPhase={
             ['failed', 'cancelled'].includes(run.status)
               ? tasks.find((task) =>
@@ -533,75 +542,29 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
           />
         )}
 
-        <section className="card" data-testid="run-messages-card">
+        <RunConversationFeed
+          run={run}
+          tasks={tasks}
+          cases={cases}
+          events={events}
+          messages={messages}
+        />
+
+        <section
+          className="card mo-message-composer"
+          data-testid="run-messages-card"
+        >
           <div className="card-header">
             <div className="card-heading">
               <h3 className="card-title">
-                <AppIcon name="send" size={16} />
-                任务对话
-                <span
-                  className="badge badge-neutral badge-sm"
-                  data-testid="run-messages-count"
-                >
-                  {messages.length}
-                </span>
+                <AppIcon name="send" size={16} />{' '}
+                {isCompleted ? '继续此测试' : '补充测试要求'}
               </h3>
               <p className="card-description">
-                运行过程中补充的业务预期与排除路径，补充内容会用于下一轮派工，已执行的业务动作不会自动重放。
+                与主 AI 补充业务预期，输入和动作均受当前运行授权限制。
               </p>
             </div>
           </div>
-
-          {session?.objective && (
-            <p className="lqa-message-text">任务：{session.objective}</p>
-          )}
-          {(session?.summary || session?.plan) && (
-            <div className="lqa-message" data-testid="main-ai-message">
-              <div className="lqa-message-meta">
-                <span className="badge badge-success badge-sm">主 AI</span>
-                <span>第 {session.round} 轮</span>
-              </div>
-              <div className="lqa-message-text">
-                {session.summary || session.plan}
-              </div>
-            </div>
-          )}
-          {messages.length === 0 ? (
-            <div className="lqa-muted-box" data-testid="no-messages-notice">
-              暂无补充消息。需要提供业务预期或排除路径时，请在下方发送。
-            </div>
-          ) : (
-            <div className="lqa-message-list" data-testid="run-messages-list">
-              {messages.map((m) => (
-                <div
-                  key={m.id}
-                  className="lqa-message"
-                  data-testid="run-message-item"
-                  data-message-id={m.id}
-                  data-redacted-text={m.redactedText}
-                  data-context-version={m.contextVersion}
-                  data-created-at={m.createdAt}
-                >
-                  <div className="lqa-message-meta">
-                    <span className="badge badge-info badge-sm">
-                      v{m.contextVersion}
-                    </span>
-                    <span>操作员</span>
-                    <span className="push">
-                      {new Date(m.createdAt).toLocaleTimeString()}
-                    </span>
-                  </div>
-                  <div
-                    className="lqa-message-text"
-                    data-testid="run-message-text"
-                  >
-                    {m.redactedText}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
           {messageError && (
             <Alert tone="danger" testId="run-message-error">
               {messageError}
@@ -642,53 +605,6 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
               </button>
             </form>
           }
-        </section>
-
-        <section className="card" data-testid="timeline-card">
-          <div className="card-header">
-            <div className="card-heading">
-              <h3 className="card-title">
-                <AppIcon name="activity" size={16} />
-                执行动态
-              </h3>
-              <p className="card-description">
-                只展示真实发生的任务事实，模型的隐藏推理已过滤。
-              </p>
-            </div>
-          </div>
-
-          {tasks.length === 0 ? (
-            <div className="lqa-muted-box">暂无任务事件。</div>
-          ) : (
-            <ol className="lqa-timeline">
-              {tasks.map((task) => (
-                <li
-                  key={task.id}
-                  className={`lqa-timeline-item is-${task.status}`}
-                >
-                  <span className="lqa-timeline-dot" aria-hidden="true" />
-                  <div className="lqa-timeline-body">
-                    <div className="row row-wrap">
-                      <span className="lqa-timeline-role">
-                        {{
-                          coordinator: '主 AI',
-                          explorer: '探索 AI',
-                          executor: '执行 AI',
-                          reproducer: '复现 AI',
-                          finalizer: '总结 AI',
-                        }[task.role] ?? task.role}
-                      </span>
-                      <StatusBadge status={task.status} size="sm" />
-                      <span className="push subtle text-xs nowrap">
-                        {task.elapsedSeconds}s
-                      </span>
-                    </div>
-                    <p>{task.summary || '任务执行中...'}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
         </section>
       </div>
 

@@ -178,8 +178,15 @@ export function registerExecutionRoutes(router: Router): void {
       const rows = await client.query<{
         document: unknown;
         status: Task['status'];
+        elapsed_seconds: number;
       }>(
-        `SELECT document, status
+        `SELECT document, status,
+             CASE WHEN started_at IS NULL
+                    OR (status IN ('succeeded','failed','cancelled','interrupted')
+                        AND finished_at IS NULL) THEN 0
+               ELSE GREATEST(1, CEIL(EXTRACT(EPOCH FROM
+                 (COALESCE(finished_at,clock_timestamp())-started_at))))::integer
+             END AS elapsed_seconds
          FROM jobs
          WHERE run_id = $1
          ORDER BY available_at, id`,
@@ -190,6 +197,7 @@ export function registerExecutionRoutes(router: Router): void {
         parseContract('Task', {
           ...(r.document as Record<string, unknown>),
           status: r.status,
+          elapsedSeconds: r.elapsed_seconds,
         }),
       );
     });

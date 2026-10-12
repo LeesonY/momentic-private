@@ -221,6 +221,219 @@
 }
 
 /* ---- Workbench --------------------------------------------------------------- */
+.mo-conversation {
+  display: flex;
+  flex-direction: column;
+  min-height: 310px;
+  flex: 1 0 auto;
+  gap: var(--space-3);
+  padding: clamp(14px, 2vw, 24px);
+  border-radius: var(--radius-xl);
+}
+
+.mo-feed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: 8px 4px;
+}
+
+.mo-feed-entry {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  max-width: 100%;
+}
+
+.mo-feed-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  height: 36px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 12px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-main);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mo-feed-user .mo-feed-avatar {
+  background: var(--color-bg-muted);
+}
+
+.mo-feed-task .mo-feed-avatar {
+  background: var(--color-primary-subtle);
+}
+
+.mo-feed-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.mo-feed-main > p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mo-dispatch-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 13px 15px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-main);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.mo-dispatch-card:hover,
+.mo-dispatch-card[aria-expanded='true'] {
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-subtle);
+}
+
+.mo-dispatch-copy {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 5px;
+  overflow-wrap: anywhere;
+}
+
+.mo-feed-task-detail {
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: 16px;
+}
+
+.mo-agent-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 16px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 14px;
+  background: var(--color-bg-subtle);
+}
+
+.mo-browser-capture {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 15px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+}
+
+.mo-browser-capture strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.mo-browser-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 145px;
+  gap: 10px;
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: 10px;
+  font-size: var(--text-sm);
+}
+
+.mo-evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.mo-evidence img {
+  display: block;
+  max-height: 360px;
+  max-width: 100%;
+  width: 100%;
+  object-fit: contain;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  background: var(--color-bg-subtle);
+}
+
+.mo-action-step {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+}
+
+.mo-action-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-main);
+  text-align: left;
+  cursor: pointer;
+}
+
+.mo-action-toggle > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.mo-action-evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.mo-message-composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  box-shadow: 0 -7px 20px var(--color-overlay);
+}
+
+.mo-budget-details {
+  padding-top: 8px;
+  color: var(--color-text-muted);
+}
+
+.mo-budget-details > summary {
+  cursor: pointer;
+  font-size: var(--text-xs);
+}
+
+.mo-budget-details > .lqa-budget-grid {
+  margin-top: var(--space-3);
+}
+
 .workbench-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

@@ -236,7 +236,11 @@ test('fallback finalization preserves independent reproduction before report', a
     coverageGaps: ['AI plan rejected'],
   });
   coordinator.enqueueReproductions = async () => 1;
-  const processed = await agent.advance({}, run, []);
+  const processed = await agent.advance(
+    { query: async () => ({ rows: [] }) },
+    run,
+    [],
+  );
   assert.equal(processed, true);
   assert.deepEqual(events, [{ action: 'phase', phase: 'reproduce' }]);
 });

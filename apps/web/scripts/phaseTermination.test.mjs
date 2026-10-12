@@ -51,3 +51,28 @@ test('auth termination does not mark unexecuted testing phases as completed', ()
     'Do not infer success before task history loads',
   );
 });
+
+test('Mo-style phase indicator uses actual task outcomes, not phase order', () => {
+  const timeline = exports.computeObservedPhases({
+    currentPhase: 'finalize',
+    status: 'failed',
+    terminationPhase: 'plan',
+    tasks: [
+      { summary: 'preflight', status: 'succeeded' },
+      { summary: 'plan', status: 'failed' },
+    ],
+  });
+  const phase = (key) => timeline.find((entry) => entry.key === key);
+  assert.equal(phase('preflight').stateClass, 'completed');
+  assert.equal(phase('auth').stateClass, 'skipped');
+  assert.equal(phase('explore').stateClass, 'skipped');
+  assert.equal(phase('plan').stateClass, 'failed');
+  assert.equal(phase('execute').isCompleted, false);
+  assert.equal(phase('finalize').isCompleted, false);
+  const noExecutedTasks = exports.computeObservedPhases({
+    currentPhase: 'finalize',
+    status: 'completed',
+    tasks: [],
+  });
+  assert.ok(noExecutedTasks.every((item) => !item.isCompleted));
+});
