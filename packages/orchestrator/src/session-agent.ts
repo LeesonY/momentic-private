@@ -230,6 +230,7 @@ export class SessionAgent {
     run: Run,
     job: JobRow,
     input: unknown,
+    plannerFailureCode?: string,
   ): Promise<void> {
     if (job.role !== 'coordinator' || job.result?.['stage'] !== 'plan')
       throw new StorageError('FORBIDDEN');
@@ -242,39 +243,65 @@ export class SessionAgent {
       throw new StorageError('VERSION_CONFLICT');
     let accepted: ReturnType<typeof reviewSessionProposal>;
     let fallbackToTechnicalSmoke = false;
-    try {
-      accepted = reviewSessionProposal(input, {
-        ...context,
-        targetUrl: run.targetUrl,
-        allowedOrigins: run.effectiveConfig.allowedOrigins,
-        protectedOrigins: this.coordinator.protectedOrigins,
-        existingCases: context.cases.map((c) => c.definition),
-        exploredUrls: context.session.exploredUrls,
-        imageInput: context.assertionCapabilities.imageInput,
-      });
-    } catch (error) {
-      // A model's invalid source attribution or unauthorized proposed case
-      // must never become an executable business assertion. Preserve an
-      // explicit coverage gap and use only the server-owned technical smoke
-      // oracle (with immutable FR-013/016 criteria) on the approved entry.
-      const invalidProposal =
-        (error instanceof DomainError || error instanceof StorageError) &&
-        ['VALIDATION_ERROR', 'TARGET_NOT_ALLOWED'].includes(error.code);
-      if (!invalidProposal) throw error;
+    if (plannerFailureCode !== undefined) {
+      // Failure codes are emitted by the trusted model gateway, not inferred
+      // from model text. Provider/network/billing failures must NOT fall back.
+      if (
+        input !== undefined ||
+        !['MODEL_OUTPUT_TRUNCATED', 'VALIDATION_ERROR'].includes(
+          plannerFailureCode,
+        )
+      )
+        throw new StorageError('VALIDATION_ERROR');
       fallbackToTechnicalSmoke =
         context.cases.length === 0 && context.remainingCases > 0;
       accepted = {
         action: 'dispatch',
-        rationale: 'AI 规划不符合源引用或授权约束，已拒绝原方案。',
+        rationale: 'AI 规划输出被截断或格式不合法；服务端未采用该输出。',
         cases: [],
         exploreTargets: [],
         coverageGaps: [
-          'AI 规划未通过服务端校验；未执行其业务断言。',
+          'AI 规划的结构化输出无效；业务用例未得到确认。',
           ...(fallbackToTechnicalSmoke
             ? ['仅执行服务端固定的入口 HTTP/可见性技术冒烟。']
             : []),
         ],
       };
+    } else {
+      try {
+        accepted = reviewSessionProposal(input, {
+          ...context,
+          targetUrl: run.targetUrl,
+          allowedOrigins: run.effectiveConfig.allowedOrigins,
+          protectedOrigins: this.coordinator.protectedOrigins,
+          existingCases: context.cases.map((c) => c.definition),
+          exploredUrls: context.session.exploredUrls,
+          imageInput: context.assertionCapabilities.imageInput,
+        });
+      } catch (error) {
+        // A model's invalid source attribution or unauthorized proposed case
+        // must never become an executable business assertion. Preserve an
+        // explicit coverage gap and use only the server-owned technical smoke
+        // oracle (with immutable FR-013/016 criteria) on the approved entry.
+        const invalidProposal =
+          (error instanceof DomainError || error instanceof StorageError) &&
+          ['VALIDATION_ERROR', 'TARGET_NOT_ALLOWED'].includes(error.code);
+        if (!invalidProposal) throw error;
+        fallbackToTechnicalSmoke =
+          context.cases.length === 0 && context.remainingCases > 0;
+        accepted = {
+          action: 'dispatch',
+          rationale: 'AI 规划不符合源引用或授权约束，已拒绝原方案。',
+          cases: [],
+          exploreTargets: [],
+          coverageGaps: [
+            'AI 规划未通过服务端校验；未执行其业务断言。',
+            ...(fallbackToTechnicalSmoke
+              ? ['仅执行服务端固定的入口 HTTP/可见性技术冒烟。']
+              : []),
+          ],
+        };
+      }
     }
     const caseIds: string[] = [];
     if (fallbackToTechnicalSmoke) {

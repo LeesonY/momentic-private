@@ -228,8 +228,23 @@ export class Worker {
             undefined,
             signal,
           );
-          if (!['ok', 'repaired'].includes(record.requestResult))
+          if (!['ok', 'repaired'].includes(record.requestResult)) {
+            // No model-generated business criteria are trusted when the
+            // planner's structured response is truncated or malformed.
+            if (
+              record.requestResult === 'malformed' &&
+              ['MODEL_OUTPUT_TRUNCATED', 'VALIDATION_ERROR'].includes(
+                record.errorCode ?? '',
+              )
+            ) {
+              await this.runtime.finish(proof, {
+                stage: 'plan',
+                plannerFailureCode: record.errorCode,
+              });
+              return true;
+            }
             throw new DomainError(record.errorCode ?? 'MODEL_FAILURE');
+          }
           await this.runtime.finish(proof, {
             stage: 'plan',
             decision: record.data,

@@ -160,3 +160,68 @@ test('malformed AI citation falls back only to immutable technical smoke and rec
   assert.match(documented.coverageGaps.join(' '), /未执行其业务断言/);
   assert.equal(documented.status, 'working');
 });
+
+test('truncated Planner output may only create fixed technical smoke, not invented business cases', async () => {
+  const run = { ...makeRun(), phase: 'plan' };
+  const { coordinator, events } = makeCoordinator();
+  const agent = new SessionAgent(coordinator);
+  agent.context = async () => ({
+    session: {
+      round: 1,
+      status: 'planning',
+      objective: 'Check login',
+      plan: '',
+      caseIds: [],
+      exploredUrls: [],
+      coverageGaps: [],
+      summary: '',
+      history: [],
+    },
+    sources: [],
+    observations: [],
+    cases: [],
+    findings: [],
+    remainingCases: 1,
+    remainingPages: 1,
+    actionPolicy: 'non_submitting',
+    assertionCapabilities: {
+      structuredOutput: true,
+      nativeTools: false,
+      imageInput: false,
+    },
+  });
+  agent.write = async (_client, _run, document) => {
+    events.push({ action: 'session', document });
+  };
+  const client = { query: async () => ({ rows: [{ run_id: run.id }] }) };
+  const job = {
+    role: 'coordinator',
+    result: { stage: 'plan', sessionRound: 1 },
+  };
+  await agent.applyPlan(client, run, job, undefined, 'MODEL_OUTPUT_TRUNCATED');
+  const c = events.find((e) => e.action === 'case')?.definition;
+  assert.deepEqual(
+    c.criteria.map((v) => v.id),
+    ['smoke.http', 'smoke.visible'],
+  );
+  assert.equal(events.filter((e) => e.action === 'enqueue').length, 1);
+  const report = events.find((e) => e.action === 'session').document;
+  assert.equal(report.status, 'working');
+  assert.match(report.coverageGaps.join(' '), /业务用例未得到确认/);
+  const originalCount = events.length;
+  await assert.rejects(
+    agent.applyPlan(client, run, job, undefined, 'SERVICE_UNAVAILABLE'),
+    (error) => error.code === 'VALIDATION_ERROR',
+  );
+  await assert.rejects(
+    agent.applyPlan(
+      client,
+      run,
+      job,
+      { action: 'finish' },
+      'MODEL_OUTPUT_TRUNCATED',
+    ),
+    (error) => error.code === 'VALIDATION_ERROR',
+  );
+  assert.equal(events.length, originalCount);
+});

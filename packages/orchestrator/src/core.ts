@@ -2133,8 +2133,16 @@ export class Coordinator {
       if (result['stage'] !== job.result?.['stage'])
         throw new StorageError('VALIDATION_ERROR');
       if (await this.sessions.read(client, run)) {
-        if (result['stage'] === 'plan')
-          await this.sessions.applyPlan(client, run, job, result['decision']);
+        if (result['stage'] === 'plan') {
+          const failureCode = result['plannerFailureCode'];
+          await this.sessions.applyPlan(
+            client,
+            run,
+            job,
+            result['decision'],
+            typeof failureCode === 'string' ? failureCode : undefined,
+          );
+        }
         if (result['stage'] === 'finalize')
           await this.sessions.conclude(client, run, result['conclusion']);
       }
