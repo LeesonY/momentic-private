@@ -130,6 +130,7 @@ export const RunConversationFeed: React.FC<{
     selectedTask === undefined ? (activeBrowserTask?.id ?? null) : selectedTask;
   const focusedTask = tasks.find((task) => task.id === focusedTaskId);
   const runTerminal = ['completed', 'failed', 'cancelled'].includes(run.status);
+  const persistedTasks = tasks.filter((task) => task.runId === run.id);
 
   return (
     <section
@@ -164,16 +165,54 @@ export const RunConversationFeed: React.FC<{
             <span className="text-xs muted">执行范围以本次冻结配置为准</span>
           </div>
         </div>
-        {feed.length === 0 && (
+        {feed.length === 0 && persistedTasks.length === 0 && (
           <div className="mo-feed-entry" data-testid="mo-waiting-feedback">
             <div className="mo-feed-avatar">AI</div>
             <div className="mo-feed-main">
-              <strong>等待实际任务反馈</strong>
+              <strong>
+                {runTerminal ? '没有可展示的执行记录' : '等待实际任务反馈'}
+              </strong>
               <p>
-                {run.status === 'queued'
-                  ? '正在等待 Worker 领取任务。'
-                  : '已提交执行请求，等待运行事件和可验证证据。'}
+                {runTerminal
+                  ? '运行已结束，但任务和历史事件均不可用，不能据此判断已完成哪些验证。'
+                  : run.status === 'queued'
+                    ? '正在等待 Worker 领取任务。'
+                    : '已提交执行请求，等待运行事件和可验证证据。'}
               </p>
+            </div>
+          </div>
+        )}
+        {feed.length === 0 && persistedTasks.length > 0 && (
+          <div className="mo-feed-entry" data-testid="mo-persisted-tasks">
+            <div className="mo-feed-avatar">AI</div>
+            <div className="mo-feed-main">
+              <strong>已保存的代理任务</strong>
+              <p className="text-xs muted">
+                本次未取得完整历史事件；下列记录来自持久化任务状态，不代表可还原的操作时间线。
+              </p>
+              {persistedTasks.map((task) => (
+                <button
+                  className="mo-dispatch-card"
+                  type="button"
+                  key={task.id}
+                  onClick={() =>
+                    setSelectedTask((current) =>
+                      current === task.id ? null : task.id,
+                    )
+                  }
+                  aria-expanded={focusedTaskId === task.id}
+                  data-testid={`mo-task-${task.id}`}
+                >
+                  <span className="mo-dispatch-copy">
+                    <strong>{taskRoleLabel[task.role]}</strong>
+                    <span>{taskStageLabel[task.summary] ?? task.summary}</span>
+                    <span className="text-xs muted">
+                      {taskDurationLabel(task.elapsedSeconds)}
+                    </span>
+                  </span>
+                  <StatusBadge status={task.status} size="sm" />
+                </button>
+              ))}
             </div>
           </div>
         )}
