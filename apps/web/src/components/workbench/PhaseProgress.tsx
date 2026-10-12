@@ -12,6 +12,7 @@ export interface PhaseProgressProps {
   currentPhase: string;
   status: string;
   executionMode?: 'smoke' | 'regression';
+  terminationPhase?: string;
 }
 
 export const PHASES = [
@@ -35,13 +36,19 @@ export function computePhaseTimeline({
   currentPhase = '',
   status = '',
   executionMode = 'smoke',
+  terminationPhase,
 }: {
   currentPhase?: string;
   status?: string;
   executionMode?: 'smoke' | 'regression';
+  terminationPhase?: string;
 }): PhaseStepState[] {
   const normStatus = (status || '').toLowerCase();
-  const normPhase = (currentPhase || '').toLowerCase();
+  const normPhase = (
+    ['failed', 'cancelled', 'interrupted'].includes(normStatus)
+      ? (terminationPhase ?? (currentPhase === 'finalize' ? '' : currentPhase))
+      : currentPhase || ''
+  ).toLowerCase();
   const isQueued = normStatus === 'queued';
   const isFailed = normStatus === 'failed';
   const isCancelled =
@@ -118,27 +125,35 @@ export const PhaseProgress: React.FC<PhaseProgressProps> = ({
   currentPhase,
   status,
   executionMode = 'smoke',
+  terminationPhase,
 }) => {
   const isQueued = status.toLowerCase() === 'queued';
   const timeline = computePhaseTimeline({
     currentPhase,
     status,
     executionMode,
+    terminationPhase,
   });
-  const current = PHASES.find((p) => p.key === currentPhase.toLowerCase());
+  const terminated = ['failed', 'cancelled', 'interrupted'].includes(
+    status.toLowerCase(),
+  );
+  const displayedPhase = terminated
+    ? (terminationPhase ?? (currentPhase === 'finalize' ? '' : currentPhase))
+    : currentPhase;
+  const current = PHASES.find((p) => p.key === displayedPhase.toLowerCase());
 
   return (
     <section className="card lqa-phase-card" data-testid="phase-progress-bar">
       <div className="lqa-phase-header">
         <span className="card-title">运行阶段</span>
         <span className="text-xs muted">
-          当前：
+          {terminated ? '终止阶段：' : '当前：'}
           <strong>
             {isQueued
               ? '排队等待 Worker'
               : current
                 ? shortName(current.name)
-                : currentPhase}
+                : displayedPhase || '待确认'}
           </strong>
           {executionMode === 'regression' ? ' · 回归模式' : ''}
         </span>

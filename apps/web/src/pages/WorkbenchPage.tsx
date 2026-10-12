@@ -251,6 +251,29 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
             真实执行后给出。
           </Alert>
         )}
+        {run.status === 'failed' && (
+          <Alert tone="danger" title="运行未完成" testId="failed-run-notice">
+            {tasks.some(
+              (task) =>
+                task.summary === 'auth' &&
+                ['failed', 'interrupted'].includes(task.status),
+            )
+              ? '登录认证未完成，测试用例尚未开始执行。'
+              : '运行提前终止，结果以实际执行记录为准。'}
+            终止原因：
+            {(
+              {
+                setup_failure: '初始化或认证失败',
+                model_failure: '模型调用失败',
+                worker_failure: '执行器中断',
+                budget_limit: '达到预算限制',
+              } as Record<string, string>
+            )[run.terminationReason ?? ''] ??
+              run.terminationReason ??
+              '未知'}
+            。
+          </Alert>
+        )}
 
         <section className="card lqa-run-header">
           <div className="lqa-run-title-row">
@@ -338,6 +361,13 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
           currentPhase={run.phase}
           status={run.status}
           executionMode={run.executionMode}
+          terminationPhase={
+            ['failed', 'cancelled'].includes(run.status)
+              ? tasks.find((task) =>
+                  ['failed', 'interrupted', 'cancelled'].includes(task.status),
+                )?.summary
+              : undefined
+          }
         />
 
         {activeInputRequest && (

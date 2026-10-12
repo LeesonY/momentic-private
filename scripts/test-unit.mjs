@@ -14,6 +14,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const files = [
+  'apps/web/scripts/phaseTermination.test.mjs',
   'packages/contracts/test/contracts.test.mjs',
   'packages/contracts/test/drift.test.mjs',
   'packages/domain/test/domain.test.mjs',
