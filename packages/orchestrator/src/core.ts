@@ -2458,18 +2458,23 @@ export class Coordinator {
         scope,
         proof,
       );
-      await client.query(
-        "UPDATE jobs SET status='succeeded',result=$2,result_hash=$3 WHERE id=$1",
-        [
-          job.id,
-          { ...job.result, ...result },
-          hashPayload({
-            result,
-            results: results ?? null,
-            reason: reason ?? null,
-          }),
-        ],
-      );
+      const finishTime = (
+        await client.query<{
+          started_at: Date | null;
+          finished_at: Date | null;
+        }>(
+          "UPDATE jobs SET status='succeeded',result=$2,result_hash=$3,finished_at=clock_timestamp() WHERE id=$1 RETURNING started_at,finished_at",
+          [
+            job.id,
+            { ...job.result, ...result },
+            hashPayload({
+              result,
+              results: results ?? null,
+              reason: reason ?? null,
+            }),
+          ],
+        )
+      ).rows[0];
       await client.query(
         'UPDATE task_leases SET released_at=clock_timestamp() WHERE task_id=$1 AND fencing_token=$2',
         [job.id, proof.fencingToken],
@@ -2478,6 +2483,17 @@ export class Coordinator {
       await appendEvent(client, scope.projectId, run.id, 'task.updated', {
         ...job.document,
         status: 'succeeded',
+        elapsedSeconds:
+          finishTime?.started_at && finishTime?.finished_at
+            ? Math.max(
+                1,
+                Math.ceil(
+                  (new Date(finishTime.finished_at).getTime() -
+                    new Date(finishTime.started_at).getTime()) /
+                    1000,
+                ),
+              )
+            : 0,
       });
       if (importDeadline) {
         const now = (
