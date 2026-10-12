@@ -316,6 +316,21 @@ export class BrowserManager implements BrowserPort {
       // them is required for the trusted auth origin/redirect network gate.
       serviceWorkers: 'block',
     };
+    if (options.tlsPolicy === 'allow_self_signed') {
+      // Playwright's setting applies to the entire browser context, not to a
+      // single hostname. Only relax trust for an isolated HTTPS context whose
+      // single approved origin is pinned by the server-frozen environment.
+      const origins = options.allowedOrigins ?? [];
+      if (
+        origins.length !== 1 ||
+        !origins[0] ||
+        !origins[0].startsWith('https://') ||
+        new URL(origins[0]).origin !== origins[0]
+      ) {
+        throw new Error('Self-signed TLS requires one exact HTTPS origin');
+      }
+      contextOptions.ignoreHTTPSErrors = true;
+    }
     if (options.userAgent) {
       contextOptions.userAgent = options.userAgent;
     }

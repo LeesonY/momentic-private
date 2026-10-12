@@ -105,6 +105,8 @@ export interface Work {
   task: Task;
   stage: Stage;
   targetUrl: string;
+  /** TLS trust comes only from the run's frozen environment version. */
+  tlsPolicy: 'strict' | 'allow_self_signed';
   contextId: string;
   /** Server-verified current auth state, never supplied by a model or caller. */
   authStateId: string | null;
@@ -1359,6 +1361,38 @@ export class Coordinator {
           [job.id, scope.projectId, contextId],
         );
       }
+      let tlsPolicy: 'strict' | 'allow_self_signed' = 'strict';
+      if (run.effectiveConfig.environmentVersion !== null) {
+        const frozenEnvironment = (
+          await client.query<{ document: unknown }>(
+            `SELECT v.document FROM runs r
+             JOIN environment_versions v
+               ON v.project_id=r.project_id
+                 AND v.environment_id=r.environment_id
+                 AND v.version=r.environment_version
+             WHERE r.project_id=$1 AND r.id=$2`,
+            [scope.projectId, run.id],
+          )
+        ).rows[0];
+        if (!frozenEnvironment) throw new StorageError('NOT_FOUND');
+        const environment = parseContract(
+          'Environment',
+          frozenEnvironment.document,
+        );
+        if (environment.tlsPolicy === 'allow_self_signed') {
+          const origin = new URL(targetUrl).origin;
+          // IgnoreHTTPSErrors is context-wide. Never weaken trust for another
+          // origin, including an IdP or a redirect, or for mutable env settings.
+          if (
+            environment.allowedOrigins.length !== 1 ||
+            environment.allowedOrigins[0] !== origin ||
+            run.effectiveConfig.allowedOrigins.length !== 1 ||
+            run.effectiveConfig.allowedOrigins[0] !== origin
+          )
+            throw new StorageError('TARGET_NOT_ALLOWED');
+          tlsPolicy = 'allow_self_signed';
+        }
+      }
       const session = ['coordinator', 'finalizer'].includes(job.role)
         ? await this.sessions.context(client, run)
         : null;
@@ -1368,6 +1402,7 @@ export class Coordinator {
         task: { ...job.document, status: job.status },
         stage,
         targetUrl,
+        tlsPolicy,
         contextId,
         authStateId,
         attemptId,

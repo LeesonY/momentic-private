@@ -178,6 +178,7 @@ export class Worker {
             profile,
             projectId: work.run.projectId,
             runId: work.run.id,
+            tlsPolicy: work.tlsPolicy,
           },
           signal,
         );
@@ -1175,6 +1176,7 @@ export class Worker {
             profile,
             authStateId: work.authStateId,
             allowedOrigins: work.run.effectiveConfig.allowedOrigins,
+            tlsPolicy: work.tlsPolicy,
             artifactsDir: directory,
             navigationTimeoutMs: 5000,
             onAuthenticated: async (authorized) => {
@@ -1193,6 +1195,7 @@ export class Worker {
         projectId: work.run.projectId,
         runId: work.run.id,
         allowedOrigins: work.run.effectiveConfig.allowedOrigins,
+        tlsPolicy: work.tlsPolicy,
         mode: 'non_submitting',
         artifactsDir: directory,
         enableTrace: false,

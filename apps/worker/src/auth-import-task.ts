@@ -28,6 +28,7 @@ export interface AuthenticatedImportTask {
   authStateId: string;
   /** The run's approved network scope. No widening to the profile's scope. */
   allowedOrigins: readonly string[];
+  tlsPolicy?: 'strict' | 'allow_self_signed';
   artifactsDir?: string;
   navigationTimeoutMs?: number;
   /** The subsequent task must run in this SAME isolated Chromium context. */
@@ -173,6 +174,7 @@ export async function withApprovedBrowserAuth(
       runId: active.runId,
       taskId: active.taskId,
       allowedOrigins: [...taskOrigins],
+      tlsPolicy: options.tlsPolicy ?? 'strict',
       mode: 'non_submitting',
       artifactsDir: options.artifactsDir,
       navigationTimeoutMs: options.navigationTimeoutMs,

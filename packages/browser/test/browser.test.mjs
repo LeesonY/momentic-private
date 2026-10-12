@@ -82,6 +82,48 @@ after(async () => {
   }
 });
 
+describe('Frozen TLS policy is scoped to one approved HTTPS origin', () => {
+  it('keeps certificate validation strict without an explicit environment grant', async () => {
+    const session = await createSession({
+      allowedOrigins: ['https://fixture.example.test'],
+    });
+    try {
+      assert.notEqual(session.getContext()._options.ignoreHTTPSErrors, true);
+    } finally {
+      await session.close();
+    }
+  });
+
+  it('allows a task-isolated self-signed HTTPS context only when explicitly granted', async () => {
+    const session = await createSession({
+      allowedOrigins: ['https://fixture.example.test'],
+      tlsPolicy: 'allow_self_signed',
+    });
+    try {
+      assert.equal(session.getContext()._options.ignoreHTTPSErrors, true);
+    } finally {
+      await session.close();
+    }
+  });
+
+  it('refuses widening certificate exceptions to HTTP or multiple origins', async () => {
+    for (const origins of [
+      [],
+      ['http://fixture.example.test'],
+      ['https://fixture.example.test', 'https://other.example.test'],
+      ['https://fixture.example.test/path'],
+    ]) {
+      await assert.rejects(
+        createSession({
+          allowedOrigins: origins,
+          tlsPolicy: 'allow_self_signed',
+        }),
+        /one exact HTTPS origin/,
+      );
+    }
+  });
+});
+
 describe('T03 Browser Execution Layer Verification', () => {
   describe('1. Task Isolation & Port Cleanliness', () => {
     it('isolates cookies and auth state between separate sessions', async () => {

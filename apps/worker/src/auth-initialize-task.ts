@@ -64,6 +64,7 @@ export async function initializeBrowserAuthentication(
     profile: AuthProfile;
     projectId: string;
     runId: string;
+    tlsPolicy?: 'strict' | 'allow_self_signed';
   },
   signal: AbortSignal,
 ): Promise<AuthFlowOutcome> {
@@ -120,6 +121,7 @@ export async function initializeBrowserAuthentication(
       runId: active.runId,
       taskId: active.taskId,
       allowedOrigins: profile.allowedOrigins,
+      tlsPolicy: options.tlsPolicy ?? 'strict',
       mode: 'non_submitting',
       enableTrace: false,
     });
