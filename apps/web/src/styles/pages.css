@@ -305,7 +305,7 @@
   min-height: 240px;
 }
 
-/* ---- List + side form (environments, models, …) ----------------------------- */
+/* ---- List + side form (knowledge) -------------------------------------------- */
 .lqa-split {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
@@ -323,10 +323,6 @@
   }
 }
 
-.lqa-edit-panel {
-  margin-top: var(--space-4);
-}
-
 .lqa-panel-title {
   font-size: var(--text-md);
 }
@@ -335,56 +331,241 @@
   margin: 2px 0 var(--space-4);
 }
 
-.lqa-form-check {
-  margin-bottom: var(--space-4);
+/* ---- Environments: one card per environment, its credentials inside ------- */
+.lqa-env-summary {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
-.lqa-form-note {
-  margin-bottom: var(--space-4);
+.lqa-env-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
 }
 
-.lqa-locator-grid {
+.lqa-env-heading {
+  min-width: 0;
+}
+
+.lqa-env-url {
+  display: inline-block;
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.lqa-env-url:hover {
+  color: var(--color-text-main);
+  text-decoration: underline;
+}
+
+.lqa-env-facts {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-5);
+  margin: var(--space-4) 0 0;
+}
+
+.lqa-env-facts dt {
+  margin-bottom: 4px;
+  color: var(--color-text-subtle);
+  font-size: var(--text-xs);
+}
+
+.lqa-env-facts dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--color-text-main);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.lqa-env-origins {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.lqa-env-origins code {
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-subtle);
+  font-size: var(--text-xs);
+}
+
+.lqa-env-auth {
+  padding: var(--space-3) var(--space-5) var(--space-2);
+}
+
+.lqa-env-auth-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.lqa-env-auth-head .section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.lqa-env-auth-empty {
+  padding: var(--space-2) 0 var(--space-3);
+  color: var(--color-text-subtle);
+  font-size: var(--text-sm);
+}
+
+.lqa-env-auth-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lqa-env-auth-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.lqa-env-auth-head + .lqa-env-auth-list > .lqa-env-auth-row:first-child {
+  margin-top: var(--space-2);
+}
+
+.lqa-env-card > .lqa-env-auth-list {
+  padding: 0 var(--space-5);
+}
+
+.lqa-env-card > .lqa-env-auth-list > .lqa-env-auth-row:first-child {
+  border-top: 0;
+}
+
+.lqa-env-auth-main {
+  min-width: 0;
+}
+
+.lqa-env-auth-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.lqa-env-auth-main .lqa-model-meta {
+  margin-top: 4px;
+}
+
+/* Dialog details */
+.lqa-env-dialog-url {
+  margin-left: 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.lqa-auth-note {
+  margin: 0;
+}
+
+/* Agent variables: one row each — name, value, note, sensitive, delete. */
+.lqa-auth-vars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lqa-auth-var {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 0.9fr) minmax(0, 1.1fr) minmax(0, 1.1fr)
+    40px 28px;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.lqa-auth-var.is-head {
+  color: var(--color-text-subtle);
+  font-size: var(--text-xs);
+}
+
+.lqa-auth-var-sensitive {
+  justify-content: center;
+  align-items: center;
+}
+
+.lqa-auth-var-sensitive input {
+  margin-top: 0;
+}
+
+.lqa-auth-var-sensitive-label {
+  display: none;
+}
+
+.lqa-auth-var-add {
+  margin-top: var(--space-2);
+}
+
+.lqa-auth-locators {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 0 var(--space-3);
 }
 
-.lqa-success-row {
+.lqa-auth-success {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   gap: var(--space-2);
 }
 
-/* Two rows per variable so names and values stay readable in the side form:
-   name + value, then note + sensitive flag + delete. */
-.lqa-agent-variable {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2);
-  margin-bottom: var(--space-2);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
+@media (max-width: 860px) {
+  .lqa-env-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .lqa-env-facts > div:first-child {
+    grid-column: 1 / -1;
+  }
 }
 
-.lqa-agent-variable-tools {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.lqa-agent-variable-actions {
-  padding-top: 0;
-  margin-bottom: var(--space-4);
-}
-
-.page-column {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  min-width: 0;
+@media (max-width: 640px) {
+  .lqa-env-summary,
+  .lqa-env-auth {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+  .lqa-env-auth-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+  /* Name + value, then note + sensitive + delete. */
+  .lqa-auth-var {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 28px;
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+  .lqa-auth-var.is-head {
+    display: none;
+  }
+  .lqa-auth-var-sensitive {
+    justify-content: flex-start;
+  }
+  .lqa-auth-var-sensitive-label {
+    display: inline;
+  }
+  .lqa-auth-var > :nth-child(2) {
+    grid-column: 2 / -1;
+  }
+  .lqa-auth-success {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* ---- Members & operations ----------------------------------------------------- */

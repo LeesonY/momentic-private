@@ -418,14 +418,14 @@ export class MockApiClient implements ApiClient {
     _projectId: string,
     _query?: PaginationQuery,
   ): Promise<EnvironmentPage> {
-    return { items: this.environments, nextCursor: null };
+    return { items: [...this.environments], nextCursor: null };
   }
 
   public async listEnvironments(
     _projectId: string,
     _query?: PaginationQuery,
   ): Promise<EnvironmentPage> {
-    return { items: this.environments, nextCursor: null };
+    return { items: [...this.environments], nextCursor: null };
   }
 
   public async createEnvironment(
@@ -466,14 +466,14 @@ export class MockApiClient implements ApiClient {
     _projectId: string,
     _query?: PaginationQuery,
   ): Promise<AuthProfilePage> {
-    return { items: this.authProfiles, nextCursor: null };
+    return { items: [...this.authProfiles], nextCursor: null };
   }
 
   public async listAuthProfiles(
     _projectId: string,
     _query?: PaginationQuery,
   ): Promise<AuthProfilePage> {
-    return { items: this.authProfiles, nextCursor: null };
+    return { items: [...this.authProfiles], nextCursor: null };
   }
 
   public async createAuthProfile(
