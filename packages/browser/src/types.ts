@@ -56,6 +56,8 @@ export interface BrowserSessionOptions {
   runId: string;
   taskId: string;
   mode?: ExecutionMode | undefined;
+  /** Frozen server-approved policy. Strict by default; never a model decision. */
+  tlsPolicy?: 'strict' | 'allow_self_signed' | undefined;
   viewport?: ViewportSize | undefined;
   userAgent?: string | undefined;
   locale?: string | undefined;

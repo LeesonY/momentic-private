@@ -9,6 +9,7 @@ import {
   type Finding,
 } from '@localqa/contracts';
 import { sanitizeText } from '@localqa/browser';
+import { DomainError, smokeCase } from '@localqa/domain';
 import { appendEvent, hashPayload, StorageError } from '@localqa/storage';
 import type { Coordinator, JobRow } from './core.js';
 import {
@@ -229,6 +230,7 @@ export class SessionAgent {
     run: Run,
     job: JobRow,
     input: unknown,
+    plannerFailureCode?: string,
   ): Promise<void> {
     if (job.role !== 'coordinator' || job.result?.['stage'] !== 'plan')
       throw new StorageError('FORBIDDEN');
@@ -239,16 +241,84 @@ export class SessionAgent {
     const context = await this.context(client, run);
     if (!context || context.session.round !== job.result['sessionRound'])
       throw new StorageError('VERSION_CONFLICT');
-    const accepted = reviewSessionProposal(input, {
-      ...context,
-      targetUrl: run.targetUrl,
-      allowedOrigins: run.effectiveConfig.allowedOrigins,
-      protectedOrigins: this.coordinator.protectedOrigins,
-      existingCases: context.cases.map((c) => c.definition),
-      exploredUrls: context.session.exploredUrls,
-      imageInput: context.assertionCapabilities.imageInput,
-    });
+    let accepted: ReturnType<typeof reviewSessionProposal>;
+    let fallbackToTechnicalSmoke = false;
+    if (plannerFailureCode !== undefined) {
+      // Failure codes are emitted by the trusted model gateway, not inferred
+      // from model text. Provider/network/billing failures must NOT fall back.
+      if (
+        input !== undefined ||
+        !['MODEL_OUTPUT_TRUNCATED', 'VALIDATION_ERROR'].includes(
+          plannerFailureCode,
+        )
+      )
+        throw new StorageError('VALIDATION_ERROR');
+      fallbackToTechnicalSmoke =
+        context.cases.length === 0 && context.remainingCases > 0;
+      accepted = {
+        action: 'dispatch',
+        rationale: 'AI 规划输出被截断或格式不合法；服务端未采用该输出。',
+        cases: [],
+        exploreTargets: [],
+        coverageGaps: [
+          'AI 规划的结构化输出无效；业务用例未得到确认。',
+          ...(fallbackToTechnicalSmoke
+            ? ['仅执行服务端固定的入口 HTTP/可见性技术冒烟。']
+            : []),
+        ],
+      };
+    } else {
+      try {
+        accepted = reviewSessionProposal(input, {
+          ...context,
+          targetUrl: run.targetUrl,
+          allowedOrigins: run.effectiveConfig.allowedOrigins,
+          protectedOrigins: this.coordinator.protectedOrigins,
+          existingCases: context.cases.map((c) => c.definition),
+          exploredUrls: context.session.exploredUrls,
+          imageInput: context.assertionCapabilities.imageInput,
+        });
+      } catch (error) {
+        // A model's invalid source attribution or unauthorized proposed case
+        // must never become an executable business assertion. Preserve an
+        // explicit coverage gap and use only the server-owned technical smoke
+        // oracle (with immutable FR-013/016 criteria) on the approved entry.
+        const invalidProposal =
+          (error instanceof DomainError || error instanceof StorageError) &&
+          ['VALIDATION_ERROR', 'TARGET_NOT_ALLOWED'].includes(error.code);
+        if (!invalidProposal) throw error;
+        fallbackToTechnicalSmoke =
+          context.cases.length === 0 && context.remainingCases > 0;
+        accepted = {
+          action: 'dispatch',
+          rationale: 'AI 规划不符合源引用或授权约束，已拒绝原方案。',
+          cases: [],
+          exploreTargets: [],
+          coverageGaps: [
+            'AI 规划未通过服务端校验；未执行其业务断言。',
+            ...(fallbackToTechnicalSmoke
+              ? ['仅执行服务端固定的入口 HTTP/可见性技术冒烟。']
+              : []),
+          ],
+        };
+      }
+    }
     const caseIds: string[] = [];
+    if (fallbackToTechnicalSmoke) {
+      const c = smokeCase(run, run.targetUrl);
+      await this.coordinator.insertCase(client, c);
+      await this.coordinator.enqueue(
+        client,
+        run,
+        'executor',
+        'execute',
+        `${c.id}:v${c.version}`,
+        c.id,
+        1,
+        { entryUrl: run.targetUrl },
+      );
+      caseIds.push(c.id);
+    }
     for (const candidate of accepted.cases) {
       const { entryUrl, ...data } = candidate;
       const definition = parseContract('CaseDefinition', {
@@ -293,7 +363,14 @@ export class SessionAgent {
       gaps.push('本次没有可执行用例，不能据此认为目标系统通过测试。');
     const document: SessionReport = {
       ...context.session,
-      status: hasWork ? 'working' : 'finalizing',
+      // An invalid model plan cannot be repaired by repeatedly prompting the
+      // same planner after dispatching the fixed technical fallback. Finish
+      // after its owned executor/reproducer work, retaining the coverage gap.
+      status: fallbackToTechnicalSmoke
+        ? 'finalizing'
+        : hasWork
+          ? 'working'
+          : 'finalizing',
       plan: clean(accepted.rationale),
       caseIds: [...context.session.caseIds, ...caseIds],
       exploredUrls: [
@@ -347,6 +424,18 @@ export class SessionAgent {
   ): Promise<boolean> {
     const session = await this.read(client, run);
     if (!session) return false;
+    // A finalizing session can still have a suspected finding from the
+    // completed technical executor. Offer independent reproduction before
+    // entering finalize, so skipping extra AI planning cannot confirm a bug.
+    if (
+      session.status === 'finalizing' &&
+      run.phase !== 'finalize' &&
+      (await this.coordinator.enqueueReproductions(client, run, jobs))
+    ) {
+      if (run.phase !== 'reproduce')
+        await this.coordinator.change(client, run, 'running', 'reproduce');
+      return true;
+    }
     if (session.status === 'finalizing' || session.status === 'complete') {
       if (run.phase !== 'finalize')
         run = await this.coordinator.change(client, run, 'running', 'finalize');

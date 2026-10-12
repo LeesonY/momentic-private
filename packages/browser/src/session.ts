@@ -262,6 +262,23 @@ export class BrowserSessionImpl implements BrowserSession {
     return this.page;
   }
 
+  public async waitForReadableBody(timeoutMs = 5000): Promise<boolean> {
+    if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 5000)
+      throw new Error('Invalid bounded body wait');
+    if (this.isClosed) return false;
+    try {
+      await this.page
+        .locator('body')
+        .filter({ hasText: /\S/ })
+        .waitFor({ state: 'visible', timeout: timeoutMs });
+      return !this.isClosed;
+    } catch {
+      // The caller must record a fresh snapshot and produce an unknown result
+      // if the page never renders; a timeout is not evidence of success.
+      return false;
+    }
+  }
+
   public getContext(): BrowserContext {
     return this.context;
   }
@@ -316,6 +333,21 @@ export class BrowserManager implements BrowserPort {
       // them is required for the trusted auth origin/redirect network gate.
       serviceWorkers: 'block',
     };
+    if (options.tlsPolicy === 'allow_self_signed') {
+      // Playwright's setting applies to the entire browser context, not to a
+      // single hostname. Only relax trust for an isolated HTTPS context whose
+      // single approved origin is pinned by the server-frozen environment.
+      const origins = options.allowedOrigins ?? [];
+      if (
+        origins.length !== 1 ||
+        !origins[0] ||
+        !origins[0].startsWith('https://') ||
+        new URL(origins[0]).origin !== origins[0]
+      ) {
+        throw new Error('Self-signed TLS requires one exact HTTPS origin');
+      }
+      contextOptions.ignoreHTTPSErrors = true;
+    }
     if (options.userAgent) {
       contextOptions.userAgent = options.userAgent;
     }

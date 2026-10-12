@@ -105,6 +105,8 @@ export interface Work {
   task: Task;
   stage: Stage;
   targetUrl: string;
+  /** TLS trust comes only from the run's frozen environment version. */
+  tlsPolicy: 'strict' | 'allow_self_signed';
   contextId: string;
   /** Server-verified current auth state, never supplied by a model or caller. */
   authStateId: string | null;
@@ -536,6 +538,53 @@ export class Coordinator {
         c.id,
         1,
       );
+    return run;
+  }
+
+  /**
+   * Trusted frozen smoke cases already contain the authoritative assertions.
+   * Avoid redundant AI exploration and planning before executing them.
+   */
+  private async startSmokeAfterAuth(
+    client: PoolClient,
+    run: Run,
+  ): Promise<Run> {
+    const cases = (
+      await client.query<{ document: CaseDefinition }>(
+        'SELECT document FROM run_cases WHERE project_id=$1 AND run_id=$2 ORDER BY id',
+        [run.projectId, run.id],
+      )
+    ).rows.map(({ document }) => document);
+    if (cases.length) {
+      if (cases.some((c) => c.regression))
+        throw new StorageError('VALIDATION_ERROR');
+      run = await this.change(client, run, 'running', 'execute');
+      for (const c of cases) {
+        const entryUrl = c.outline[0]?.startsWith('Navigate ')
+          ? c.outline[0].slice(9)
+          : run.targetUrl;
+        validateTarget(
+          entryUrl,
+          run.effectiveConfig.allowedOrigins,
+          this.protectedOrigins,
+        );
+        await this.enqueue(
+          client,
+          run,
+          'executor',
+          'execute',
+          `${c.id}:v${c.version}`,
+          c.id,
+          1,
+          { entryUrl },
+        );
+      }
+      return run;
+    }
+    run = await this.change(client, run, 'running', 'explore');
+    if (await this.sessions.read(client, run))
+      await this.sessions.advance(client, run, []);
+    else await this.enqueue(client, run, 'explorer', 'explore', 'entry', null);
     return run;
   }
 
@@ -1359,6 +1408,38 @@ export class Coordinator {
           [job.id, scope.projectId, contextId],
         );
       }
+      let tlsPolicy: 'strict' | 'allow_self_signed' = 'strict';
+      if (run.effectiveConfig.environmentVersion !== null) {
+        const frozenEnvironment = (
+          await client.query<{ document: unknown }>(
+            `SELECT v.document FROM runs r
+             JOIN environment_versions v
+               ON v.project_id=r.project_id
+                 AND v.environment_id=r.environment_id
+                 AND v.version=r.environment_version
+             WHERE r.project_id=$1 AND r.id=$2`,
+            [scope.projectId, run.id],
+          )
+        ).rows[0];
+        if (!frozenEnvironment) throw new StorageError('NOT_FOUND');
+        const environment = parseContract(
+          'Environment',
+          frozenEnvironment.document,
+        );
+        if (environment.tlsPolicy === 'allow_self_signed') {
+          const origin = new URL(targetUrl).origin;
+          // IgnoreHTTPSErrors is context-wide. Never weaken trust for another
+          // origin, including an IdP or a redirect, or for mutable env settings.
+          if (
+            environment.allowedOrigins.length !== 1 ||
+            environment.allowedOrigins[0] !== origin ||
+            run.effectiveConfig.allowedOrigins.length !== 1 ||
+            run.effectiveConfig.allowedOrigins[0] !== origin
+          )
+            throw new StorageError('TARGET_NOT_ALLOWED');
+          tlsPolicy = 'allow_self_signed';
+        }
+      }
       const session = ['coordinator', 'finalizer'].includes(job.role)
         ? await this.sessions.context(client, run)
         : null;
@@ -1368,6 +1449,7 @@ export class Coordinator {
         task: { ...job.document, status: job.status },
         stage,
         targetUrl,
+        tlsPolicy,
         contextId,
         authStateId,
         attemptId,
@@ -2051,8 +2133,16 @@ export class Coordinator {
       if (result['stage'] !== job.result?.['stage'])
         throw new StorageError('VALIDATION_ERROR');
       if (await this.sessions.read(client, run)) {
-        if (result['stage'] === 'plan')
-          await this.sessions.applyPlan(client, run, job, result['decision']);
+        if (result['stage'] === 'plan') {
+          const failureCode = result['plannerFailureCode'];
+          await this.sessions.applyPlan(
+            client,
+            run,
+            job,
+            result['decision'],
+            typeof failureCode === 'string' ? failureCode : undefined,
+          );
+        }
         if (result['stage'] === 'finalize')
           await this.sessions.conclude(client, run, result['conclusion']);
       }
@@ -2910,19 +3000,7 @@ export class Coordinator {
             );
           } else {
             run = await this.change(client, run, 'running', 'auth');
-            run = await this.change(client, run, 'running', 'explore');
-            if (await this.sessions.read(client, run))
-              await this.sessions.advance(client, run, []);
-            else {
-              await this.enqueue(
-                client,
-                run,
-                'explorer',
-                'explore',
-                'entry',
-                null,
-              );
-            }
+            run = await this.startSmokeAfterAuth(client, run);
           }
         } else if (run.phase === 'auth' && succeeded('auth')) {
           // finishAuth alone can mark the auth job successful after a real,
@@ -2931,19 +3009,7 @@ export class Coordinator {
           if (run.executionMode === 'regression') {
             run = await this.startApprovedRegression(client, run);
           } else {
-            run = await this.change(client, run, 'running', 'explore');
-            if (await this.sessions.read(client, run))
-              await this.sessions.advance(client, run, []);
-            else {
-              await this.enqueue(
-                client,
-                run,
-                'explorer',
-                'explore',
-                'entry',
-                null,
-              );
-            }
+            run = await this.startSmokeAfterAuth(client, run);
           }
         } else if (run.phase === 'explore' && succeeded('explore')) {
           run = await this.change(client, run, 'running', 'plan');

@@ -35,6 +35,10 @@ import { replayRegression, type ReplayPorts } from './regression-replay.js';
 import { createRegressionAiAction } from './regression-ai.js';
 import { initializeBrowserAuthentication } from './auth-initialize-task.js';
 import { withApprovedBrowserAuth } from './auth-import-task.js';
+import {
+  hasReadableMainContent,
+  isFixedTechnicalSmoke,
+} from './technical-smoke.js';
 export { CandidateVerifier } from './candidate-verifier.js';
 
 export interface WorkerOptions {
@@ -178,6 +182,7 @@ export class Worker {
             profile,
             projectId: work.run.projectId,
             runId: work.run.id,
+            tlsPolicy: work.tlsPolicy,
           },
           signal,
         );
@@ -223,8 +228,23 @@ export class Worker {
             undefined,
             signal,
           );
-          if (!['ok', 'repaired'].includes(record.requestResult))
+          if (!['ok', 'repaired'].includes(record.requestResult)) {
+            // No model-generated business criteria are trusted when the
+            // planner's structured response is truncated or malformed.
+            if (
+              record.requestResult === 'malformed' &&
+              ['MODEL_OUTPUT_TRUNCATED', 'VALIDATION_ERROR'].includes(
+                record.errorCode ?? '',
+              )
+            ) {
+              await this.runtime.finish(proof, {
+                stage: 'plan',
+                plannerFailureCode: record.errorCode,
+              });
+              return true;
+            }
             throw new DomainError(record.errorCode ?? 'MODEL_FAILURE');
+          }
           await this.runtime.finish(proof, {
             stage: 'plan',
             decision: record.data,
@@ -928,6 +948,19 @@ export class Worker {
             navigationStatus === 401 ||
             navigationStatus === 403);
         const role = work.task.role as AgentRole;
+        const fixedTechnicalCase =
+          work.stage === 'execute' && isFixedTechnicalSmoke(work.definition);
+        if (
+          fixedTechnicalCase &&
+          snapshot &&
+          !hasReadableMainContent(snapshot)
+        ) {
+          // SPA entry pages can return HTTP 200 before the first real content
+          // renders. Wait for body text at most once, then record a fresh
+          // policy-audited snapshot. A timeout is NOT a passing assertion.
+          await session!.waitForReadableBody?.(5000);
+          await execute({ name: 'observe', args: {} });
+        }
         const dispatcher = createPolicyDispatcher(
           async (call) => execute(call) as unknown as JsonValue,
         );
@@ -959,7 +992,7 @@ export class Worker {
         for (
           let round = 0;
           round <
-          (unavailableTarget
+          (unavailableTarget || fixedTechnicalCase
             ? 0
             : Math.min(12, work.run.effectiveConfig.budget.maxActionsPerCase));
           round++
@@ -1090,6 +1123,7 @@ export class Worker {
           if (
             unavailableTarget ||
             modelActionDenials > 0 ||
+            criterion.sourceKind === 'generic_smoke' ||
             !['unknown', 'not_evaluated'].includes(results[index]!.result)
           )
             continue;
@@ -1175,6 +1209,7 @@ export class Worker {
             profile,
             authStateId: work.authStateId,
             allowedOrigins: work.run.effectiveConfig.allowedOrigins,
+            tlsPolicy: work.tlsPolicy,
             artifactsDir: directory,
             navigationTimeoutMs: 5000,
             onAuthenticated: async (authorized) => {
@@ -1193,6 +1228,7 @@ export class Worker {
         projectId: work.run.projectId,
         runId: work.run.id,
         allowedOrigins: work.run.effectiveConfig.allowedOrigins,
+        tlsPolicy: work.tlsPolicy,
         mode: 'non_submitting',
         artifactsDir: directory,
         enableTrace: false,
