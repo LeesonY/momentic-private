@@ -52,8 +52,8 @@ for (const [path, methods] of Object.entries(openApi.paths)) {
   }
 }
 
-if (operations.length !== 94) {
-  throw new Error(`Expected 94 public operations, found ${operations.length}`);
+if (operations.length !== 95) {
+  throw new Error(`Expected 95 public operations, found ${operations.length}`);
 }
 
 const opNames = operations.map((op) => op.operationId);
@@ -89,6 +89,7 @@ import type {
   ModelProfileCreate,
   ModelProfilePatch,
   ModelDeleteConfirm,
+  RunDeleteConfirm,
   ConfigDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
@@ -197,6 +198,7 @@ export type {
   ModelProfileCreate,
   ModelProfilePatch,
   ModelDeleteConfirm,
+  RunDeleteConfirm,
   ConfigDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
@@ -362,6 +364,7 @@ export interface ApiClient {
   listRuns(projectIdOrQuery: string | ListRunsQuery): Promise<RunPage>;
   getRun(runId: string): Promise<Run>;
   cancelRun(runId: string): Promise<Run>;
+  deleteRun(runId: string, input: RunDeleteConfirm): Promise<void>;
   sendRunMessage(
     runId: string,
     messageOrInput: string | MessageInput,
@@ -496,6 +499,7 @@ import type {
   ModelProfileCreate,
   ModelProfilePatch,
   ModelDeleteConfirm,
+  RunDeleteConfirm,
   ConfigDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
@@ -1032,6 +1036,10 @@ export class HttpApiClient implements ApiClient {
   // 30. getRun
   public async getRun(runId: string): Promise<Run> {
     return this.request<Run>(\`/runs/\${encodeURIComponent(runId)}\`, { method: 'GET' }, 'Run');
+  }
+
+  public async deleteRun(runId: string, input: RunDeleteConfirm): Promise<void> {
+    await this.request<void>(\`/runs/\${encodeURIComponent(runId)}\`, { method: 'DELETE', body: JSON.stringify(input) });
   }
 
   // 31. cancelRun

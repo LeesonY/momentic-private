@@ -139,6 +139,13 @@ export async function startTrustedSmokeRun(
 }
 
 export function registerRunRoutes(router: Router): void {
+  router.delete('/api/v1/runs/{runId}', async (ctx: RequestContext) => {
+    await requireAuth(ctx);
+    const input = parseContract('RunDeleteConfirm', ctx.body);
+    await ctx.api.runRepo.delete(ctx.actor!, ctx.params.runId!, input);
+    ctx.res.statusCode = 204;
+    ctx.res.end();
+  });
   // POST /api/v1/runs
   router.post('/api/v1/runs', async (ctx: RequestContext) => {
     await requireAuth(ctx);
@@ -181,7 +188,13 @@ export function registerRunRoutes(router: Router): void {
 
       const items: Run[] = [];
       for (const { id } of rows.rows) {
-        items.push(await runDTO(client, projectId, id));
+        try {
+          items.push(await runDTO(client, projectId, id));
+        } catch (error) {
+          if (!(error instanceof StorageError && error.code === 'NOT_FOUND'))
+            throw error;
+          // A concurrent deletion must not fail the whole history list.
+        }
       }
       return items;
     });

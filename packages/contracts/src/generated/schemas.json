@@ -1640,6 +1640,24 @@
         ],
         "additionalProperties": false
       },
+      "RunDeleteConfirm": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "confirmRunId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "confirmRunId"
+        ],
+        "additionalProperties": false
+      },
       "RunConfig": {
         "type": "object",
         "properties": {
@@ -12197,6 +12215,54 @@
               }
             }
           }
+        },
+        "delete": {
+          "operationId": "deleteRun",
+          "tags": [
+            "P0"
+          ],
+          "summary": "deleteRun",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "runId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "204": {
+              "description": "deleteRun"
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDeleteConfirm"
+                }
+              }
+            }
+          }
         }
       },
       "/api/v1/runs/{runId}/cancel": {
@@ -17700,6 +17766,24 @@
           "required": [
             "projectId",
             "targetUrl"
+          ],
+          "additionalProperties": false
+        },
+        "RunDeleteConfirm": {
+          "type": "object",
+          "properties": {
+            "expectedVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "confirmRunId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "expectedVersion",
+            "confirmRunId"
           ],
           "additionalProperties": false
         },

@@ -35,6 +35,7 @@ import type {
   ModelProfilePage,
   ModelProbeResult,
   Run,
+  RunDeleteConfirm,
   RunCreate,
   RunPage,
   RunMessagePage,
@@ -729,6 +730,18 @@ export class MockApiClient implements ApiClient {
       return this.runs[idx];
     }
     return { ...this.runs[0], status: 'cancelled' };
+  }
+  public async deleteRun(
+    runId: string,
+    input: RunDeleteConfirm,
+  ): Promise<void> {
+    const run = this.runs.find((item) => item.id === runId);
+    if (!run) throw new Error('运行记录未找到');
+    if (run.id !== input.confirmRunId || run.version !== input.expectedVersion)
+      throw new Error('运行记录已更新，请刷新后重试');
+    if (!['completed', 'cancelled', 'failed'].includes(run.status))
+      throw new Error('运行尚未结束，请先停止运行后再删除');
+    this.runs = this.runs.filter((item) => item.id !== runId);
   }
 
   public async sendRunMessage(

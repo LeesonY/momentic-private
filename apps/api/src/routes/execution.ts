@@ -169,6 +169,11 @@ export function registerExecutionRoutes(router: Router): void {
     const runId = ctx.params.runId!;
 
     const tasks = await ctx.api.db.actor(ctx.actor!, async (client) => {
+      if (
+        !(await client.query('SELECT 1 FROM runs WHERE id=$1', [runId]))
+          .rowCount
+      )
+        throw new StorageError('NOT_FOUND');
       const rows = await client.query<{
         document: unknown;
         status: Task['status'];
@@ -201,6 +206,11 @@ export function registerExecutionRoutes(router: Router): void {
     const taskId = ctx.params.taskId!;
 
     const steps = await ctx.api.db.actor(ctx.actor!, async (client) => {
+      if (
+        !(await client.query('SELECT 1 FROM jobs WHERE id=$1', [taskId]))
+          .rowCount
+      )
+        throw new StorageError('NOT_FOUND');
       const rows = await client.query<{ document: unknown }>(
         `SELECT document
          FROM steps
@@ -277,6 +287,11 @@ export function registerExecutionRoutes(router: Router): void {
       const { items, nextCursor } = await ctx.api.db.actor(
         ctx.actor!,
         async (client) => {
+          if (
+            !(await client.query('SELECT 1 FROM runs WHERE id=$1', [runId]))
+              .rowCount
+          )
+            throw new StorageError('NOT_FOUND');
           const rows = await client.query<{
             seq: string;
             type: RunEvent['type'];
@@ -324,6 +339,11 @@ export function registerExecutionRoutes(router: Router): void {
     const runId = ctx.params.runId!;
 
     const findings = await ctx.api.db.actor(ctx.actor!, async (client) => {
+      if (
+        !(await client.query('SELECT 1 FROM runs WHERE id=$1', [runId]))
+          .rowCount
+      )
+        throw new StorageError('NOT_FOUND');
       const rows = await client.query<{ document: unknown }>(
         `SELECT document
          FROM findings

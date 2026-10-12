@@ -21,6 +21,7 @@ import type {
   ModelProfilePatch,
   ModelDeleteConfirm,
   Run,
+  RunDeleteConfirm,
   Task,
   CaseDefinition,
   Artifact,
@@ -1509,6 +1510,51 @@ export class RunRepository {
     return this.db.actor(actor, async (client) =>
       runDTO(client, projectId, id),
     );
+  }
+  async delete(
+    actor: Actor,
+    id: string,
+    input: RunDeleteConfirm,
+  ): Promise<void> {
+    const data = parseContract('RunDeleteConfirm', input);
+    await this.db.actor(actor, async (client) => {
+      const project = (
+        await client.query<{ project_id: string }>(
+          'SELECT project_id FROM runs WHERE id=$1',
+          [id],
+        )
+      ).rows[0];
+      if (!project) throw new StorageError('NOT_FOUND');
+      await authorize(client, project.project_id, 'config.write');
+      const row = (
+        await client.query<{
+          project_id: string;
+          status: string;
+          version: number;
+        }>(
+          'SELECT project_id,status,version FROM runs WHERE id=$1 FOR UPDATE',
+          [id],
+        )
+      ).rows[0];
+      if (!row) throw new StorageError('NOT_FOUND');
+      if (data.confirmRunId !== id)
+        throw new StorageError('VALIDATION_ERROR', '确认的运行记录不匹配');
+      if (data.expectedVersion !== row.version)
+        throw new StorageError(
+          'VERSION_CONFLICT',
+          '运行状态已更新，请刷新后重试',
+        );
+      if (!['completed', 'cancelled', 'failed'].includes(row.status))
+        throw new StorageError(
+          'CONFIG_IN_USE',
+          '运行尚未结束，请先停止运行后再删除',
+        );
+      await client.query(
+        'INSERT INTO run_deletions(project_id,run_id,deleted_by) VALUES($1,$2,$3)',
+        [row.project_id, id, actor.userId],
+      );
+      await audit(client, 'run.deleted', id, row.project_id, row.version);
+    });
   }
   async resource<N extends keyof Resources>(
     actor: Actor,

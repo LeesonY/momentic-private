@@ -28,6 +28,7 @@ import type {
   ModelProfileCreate,
   ModelProfilePatch,
   ModelDeleteConfirm,
+  RunDeleteConfirm,
   ConfigDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
@@ -136,6 +137,7 @@ export type {
   ModelProfileCreate,
   ModelProfilePatch,
   ModelDeleteConfirm,
+  RunDeleteConfirm,
   ConfigDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
@@ -250,6 +252,7 @@ export type PublicOperationName =
   | 'createRun'
   | 'listRuns'
   | 'getRun'
+  | 'deleteRun'
   | 'cancelRun'
   | 'sendRunMessage'
   | 'listRunMessages'
@@ -394,6 +397,7 @@ export interface ApiClient {
   listRuns(projectIdOrQuery: string | ListRunsQuery): Promise<RunPage>;
   getRun(runId: string): Promise<Run>;
   cancelRun(runId: string): Promise<Run>;
+  deleteRun(runId: string, input: RunDeleteConfirm): Promise<void>;
   sendRunMessage(
     runId: string,
     messageOrInput: string | MessageInput,

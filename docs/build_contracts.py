@@ -71,6 +71,7 @@ for model_schema in ["ModelProfile", "ModelProfileCreate"]:
 D["ModelProbeResult"] = obj({"profileId": UUID, "capabilities": ref("ModelCapabilities"), "status": enum("ready", "degraded", "disabled"), "notes": arr(text(1000), 20)})
 D["ModelGrantCreate"] = obj({"modelProfileId": UUID}, ["modelProfileId"])
 D["RunCreate"] = obj({"projectId": UUID, "targetUrl": URI, "brief": text(4000), "environmentId": UUID, "authProfileId": UUID, "modelProfileId": UUID, "mode": enum("smoke"), "budget": ref("BudgetOverrides")}, ["projectId", "targetUrl"])
+D["RunDeleteConfirm"] = obj({"expectedVersion": VER, "confirmRunId": UUID})
 D["RunConfig"] = obj({"allowedOrigins": arr(URI, 30, 1), "actionPolicy": enum("non_submitting", "approved_workflows"), "budget": ref("BudgetLimits"), "environmentVersion": nullable(VER), "authProfileVersion": nullable(VER), "modelProfileIds": arr(UUID, 10, 1), "knowledgeVersionIds": arr(UUID, 100)})
 RUN_STATUS = ["draft", "queued", "running", "awaiting_input", "cancelling", "completed", "cancelled", "failed"]
 PHASE = ["preflight", "auth", "explore", "plan", "execute", "reproduce", "finalize"]
@@ -350,6 +351,7 @@ operation(P+"/projects/{projectId}/model-profiles", "post", "grantProjectModel",
 operation(P+"/runs", "post", "createRun", "Run", "RunCreate", 202, idem=True)
 operation(P+"/runs", "get", "listRuns", "RunPage", queries=[("projectId", True, UUID), ("cursor", False, text(2000)), ("limit", False, integer(1, 100)), ("status", False, enum(*RUN_STATUS)), ("environmentId", False, UUID)])
 operation(P+"/runs/{runId}", "get", "getRun", "Run")
+operation(P+"/runs/{runId}", "delete", "deleteRun", body="RunDeleteConfirm", status=204)
 operation(P+"/runs/{runId}/cancel", "post", "cancelRun", "Run", status=202)
 operation(P+"/runs/{runId}/messages", "post", "sendRunMessage", "Run", "MessageInput", 202)
 operation(P+"/runs/{runId}/messages", "get", "listRunMessages", "RunMessagePage", queries=[("cursor", False, text(2000)), ("limit", False, integer(1, 100))])

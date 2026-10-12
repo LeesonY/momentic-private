@@ -29,6 +29,7 @@ import type {
   ModelProfileCreate,
   ModelProfilePatch,
   ModelDeleteConfirm,
+  RunDeleteConfirm,
   ConfigDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
@@ -565,6 +566,10 @@ export class HttpApiClient implements ApiClient {
   // 30. getRun
   public async getRun(runId: string): Promise<Run> {
     return this.request<Run>(`/runs/${encodeURIComponent(runId)}`, { method: 'GET' }, 'Run');
+  }
+
+  public async deleteRun(runId: string, input: RunDeleteConfirm): Promise<void> {
+    await this.request<void>(`/runs/${encodeURIComponent(runId)}`, { method: 'DELETE', body: JSON.stringify(input) });
   }
 
   // 31. cancelRun

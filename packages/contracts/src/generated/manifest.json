@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "sourceHashes": {
-    "domain.schema.json": "ac9f8c8d3fb282a96a5f1b8954c9d4db6cb361f5adcd13eebd6cbe4a777e23ca",
+    "domain.schema.json": "60b57c649e3b0f7386925c871174c1ecca21e48a76c6441edaf89292a3b72162",
     "events.schema.json": "4f91d060f7646033c54189ceaec3a3ac6c3572fa09ea9990489d488c2c3de072",
-    "openapi.json": "7681bbdea87534dcf404c0f4b20e8dca628291e5698a23273a3fdde06d40cd7f",
+    "openapi.json": "ef2fe19e6a6cdc703fe5f31013bb4d84ee68ae2dbf527920595f4707972f56fa",
     "regression.schema.json": "3311ab392986b0253fc833e5eb97eecefd6f612b767ed308fd8edd75a086b39f",
     "report.schema.json": "69ef98178c54e32ea40bc27ff87fa00ee75b3455489103e557313a807a4284d2",
     "tools.schema.json": "bd5d8724c7a644905284bc31eda235225037019864f389c182ab7829f4cae7e3"
@@ -120,6 +120,7 @@
     "Run",
     "RunConfig",
     "RunCreate",
+    "RunDeleteConfirm",
     "RunEvent",
     "RunEventPage",
     "RunMessage",

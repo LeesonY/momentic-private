@@ -12,6 +12,7 @@ import { InputRequestBar } from '../components/workbench/InputRequestBar.tsx';
 import { TaskCaseTabs } from '../components/workbench/TaskCaseTabs.tsx';
 import { StatusBadge } from '../components/ui/Badge.tsx';
 import { ErrorCard } from '../components/ui/ErrorCard.tsx';
+import { Modal } from '../components/ui/Modal.tsx';
 
 export const WorkbenchPage: React.FC = () => {
   const { currentProject, routeParams, setRoute } = useApp();
@@ -73,6 +74,33 @@ export const WorkbenchPage: React.FC = () => {
 const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
   activeRunId,
 }) => {
+  const { currentUser, currentProject, setRoute } = useApp();
+  const [canDeleteRun, setCanDeleteRun] = useState(false);
+  const [showDeleteRun, setShowDeleteRun] = useState(false);
+  const [deletingRun, setDeletingRun] = useState(false);
+  const [deleteRunError, setDeleteRunError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    setCanDeleteRun(currentUser?.globalRole === 'admin');
+    if (currentProject && currentUser?.globalRole !== 'admin') {
+      void defaultApiClient
+        .listMembers(currentProject.id, { limit: 100 })
+        .then((page) => {
+          if (!cancelled)
+            setCanDeleteRun(
+              page.items.some(
+                (m) => m.userId === currentUser?.id && m.role === 'owner',
+              ),
+            );
+        })
+        .catch(() => {
+          if (!cancelled) setCanDeleteRun(false);
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [currentProject?.id, currentUser?.id, currentUser?.globalRole]);
   const {
     run,
     cases,
@@ -90,6 +118,31 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
     retrySse,
     reload,
   } = useRunStore();
+  const deleteRun = async () => {
+    if (
+      !run ||
+      deletingRun ||
+      !canDeleteRun ||
+      run.projectId !== currentProject?.id
+    )
+      return;
+    setDeletingRun(true);
+    setDeleteRunError('');
+    try {
+      await defaultApiClient.deleteRun(run.id, {
+        expectedVersion: run.version,
+        confirmRunId: run.id,
+      });
+      setShowDeleteRun(false);
+      setRoute('home');
+    } catch (error) {
+      setDeleteRunError(
+        error instanceof Error ? error.message : '删除失败，请刷新后重试',
+      );
+    } finally {
+      setDeletingRun(false);
+    }
+  };
 
   const [inputMsg, setInputMsg] = useState('');
   const [sendingMsg, setSendingMsg] = useState(false);
@@ -311,6 +364,21 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
                 停止运行
               </button>
             )}
+            {isCompleted &&
+              canDeleteRun &&
+              run.projectId === currentProject?.id && (
+                <button
+                  type="button"
+                  className="btn btn-danger-outline btn-sm"
+                  data-testid="btn-delete-run"
+                  onClick={() => {
+                    setDeleteRunError('');
+                    setShowDeleteRun(true);
+                  }}
+                >
+                  删除运行记录
+                </button>
+              )}
           </div>
 
           <a
@@ -372,6 +440,52 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
               : undefined
           }
         />
+        {showDeleteRun && (
+          <Modal
+            title="删除运行记录"
+            testId="run-delete-dialog"
+            closeOnOverlay={!deletingRun}
+            onClose={() => {
+              if (!deletingRun) setShowDeleteRun(false);
+            }}
+            footer={
+              <>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={deletingRun}
+                  data-testid="run-delete-cancel"
+                  onClick={() => setShowDeleteRun(false)}
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  disabled={deletingRun}
+                  data-testid="run-delete-confirm"
+                  onClick={() => void deleteRun()}
+                >
+                  {deletingRun ? '删除中…' : '确认删除'}
+                </button>
+              </>
+            }
+          >
+            <p>
+              删除后，这次运行及其报告、执行过程将不再展示。已保存用例和审计记录保留。
+            </p>
+            <p className="text-sm">
+              <code>{run.id}</code>
+              <br />
+              {run.targetUrl}
+            </p>
+            {deleteRunError && (
+              <Alert tone="danger" role="alert" testId="run-delete-error">
+                {deleteRunError}
+              </Alert>
+            )}
+          </Modal>
+        )}
 
         {activeInputRequest && (
           <InputRequestBar

@@ -112,6 +112,7 @@ export type Contract =
   | Run
   | RunConfig
   | RunCreate
+  | RunDeleteConfirm
   | RunEvent
   | RunEventPage
   | RunMessage
@@ -1544,6 +1545,10 @@ export interface RunCreate {
   mode?: "smoke";
   budget?: BudgetOverrides;
 }
+export interface RunDeleteConfirm {
+  expectedVersion: number;
+  confirmRunId: string;
+}
 export interface RunEventPage {
   /**
    * @minItems 0
@@ -1992,6 +1997,7 @@ export interface ContractTypes {
   Run: Run;
   RunConfig: RunConfig;
   RunCreate: RunCreate;
+  RunDeleteConfirm: RunDeleteConfirm;
   RunEvent: RunEvent;
   RunEventPage: RunEventPage;
   RunMessage: RunMessage;
