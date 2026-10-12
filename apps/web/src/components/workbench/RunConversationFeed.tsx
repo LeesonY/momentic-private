@@ -10,6 +10,7 @@ import type { RunMessage } from '../../api/index.ts';
 import { AppIcon } from '../ui/AppIcon.tsx';
 import { StatusBadge } from '../ui/Badge.tsx';
 import {
+  EvidencePreview,
   TaskExecutionDetail,
   taskDurationLabel,
   taskRoleLabel,
@@ -23,6 +24,7 @@ type FeedEntry = {
   text: string;
   kind: 'user' | 'agent' | 'task' | 'case' | 'run';
   taskId?: string;
+  caseId?: string;
   status?: string;
 };
 
@@ -82,6 +84,7 @@ export function buildRunFeed(
         at: event.at,
         label: '验证结果',
         kind: 'case',
+        caseId: record.definition.id,
         status: record.verdict?.status || 'not_run',
         text: `${record.definition?.title || '测试用例'}：${record.verdict?.summary || '尚无可核验的最终判定'}`,
       };
@@ -115,6 +118,7 @@ export const RunConversationFeed: React.FC<{
   const [selectedTask, setSelectedTask] = useState<string | null | undefined>(
     undefined,
   );
+  const [selectedCase, setSelectedCase] = useState<string | null>(null);
   const feed = useMemo(
     () => buildRunFeed(events, messages),
     [events, messages],
@@ -220,6 +224,9 @@ export const RunConversationFeed: React.FC<{
           const task = entry.taskId
             ? tasks.find((item) => item.id === entry.taskId)
             : null;
+          const caseRecord = entry.caseId
+            ? cases.find((record) => record.definition.id === entry.caseId)
+            : null;
           return (
             <div
               className={`mo-feed-entry mo-feed-${entry.kind}`}
@@ -265,6 +272,115 @@ export const RunConversationFeed: React.FC<{
                       size="sm"
                     />
                   </button>
+                ) : caseRecord ? (
+                  <>
+                    <button
+                      className="mo-dispatch-card"
+                      type="button"
+                      onClick={() =>
+                        setSelectedCase((current) =>
+                          current === caseRecord.definition.id
+                            ? null
+                            : caseRecord.definition.id,
+                        )
+                      }
+                      aria-expanded={selectedCase === caseRecord.definition.id}
+                      data-testid={`mo-case-${caseRecord.definition.id}`}
+                    >
+                      <span className="mo-dispatch-copy">
+                        <strong>{caseRecord.definition.title}</strong>
+                        <span>{entry.text}</span>
+                        <span className="text-xs muted">
+                          {caseRecord.verdict?.criterionResults.length ?? 0}{' '}
+                          条断言 · 点击查看验证事实与证据
+                        </span>
+                      </span>
+                      <StatusBadge
+                        status={caseRecord.verdict?.status ?? 'not_run'}
+                        size="sm"
+                      />
+                    </button>
+                    {selectedCase === caseRecord.definition.id && (
+                      <div
+                        className="mo-agent-detail"
+                        data-testid={`mo-case-verifications-${caseRecord.definition.id}`}
+                      >
+                        {caseRecord.verdict ? (
+                          <>
+                            <strong>真实验证结果</strong>
+                            {caseRecord.verdict.criterionResults.map(
+                              (result) => {
+                                const criterion =
+                                  caseRecord.definition.criteria.find(
+                                    (c) => c.id === result.criterionId,
+                                  );
+                                return (
+                                  <div
+                                    className="mo-action-step"
+                                    key={result.criterionId}
+                                  >
+                                    <div className="mo-action-evidence">
+                                      <div className="row row-wrap spread">
+                                        <strong>
+                                          {criterion?.description ||
+                                            result.criterionId}
+                                        </strong>
+                                        <StatusBadge
+                                          status={result.result}
+                                          size="sm"
+                                        />
+                                      </div>
+                                      <p className="text-xs">
+                                        {result.reason || '未记录具体观察事实'}
+                                      </p>
+                                      <p className="text-xs muted">
+                                        判定依据：
+                                        {criterion?.sourceKind ?? '未记录'} ·{' '}
+                                        {criterion?.sourceRef ?? '无引用'}
+                                      </p>
+                                      {result.evidenceRefs.length ? (
+                                        result.evidenceRefs
+                                          .slice(0, 3)
+                                          .map((ref) => (
+                                            <EvidencePreview
+                                              artifactId={ref}
+                                              runId={run.id}
+                                              key={ref}
+                                            />
+                                          ))
+                                      ) : (
+                                        <p className="text-xs muted">
+                                          该断言没有关联证据，不能据此补充证明。
+                                        </p>
+                                      )}
+                                      {result.evidenceRefs.length > 3 && (
+                                        <p className="text-xs muted">
+                                          其余 {result.evidenceRefs.length - 3}{' '}
+                                          个证据请前往用例详情查看。
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              },
+                            )}
+                            {caseRecord.verdict.gaps.length > 0 && (
+                              <div
+                                role="status"
+                                className="alert alert-warning"
+                              >
+                                未覆盖：{caseRecord.verdict.gaps.join('；')}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-xs muted">
+                            尚未生成真实 Verdict，不能显示通过。
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <p>{entry.text}</p>
                 )}
