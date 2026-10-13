@@ -1574,6 +1574,15 @@ a.mo-menu-item {
   height: auto;
 }
 
+.mo-browser-view .mo-live-frame {
+  display: block;
+  max-width: 100%;
+  max-height: 420px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
 .mo-browser-view .mo-evidence code {
   display: none;
 }

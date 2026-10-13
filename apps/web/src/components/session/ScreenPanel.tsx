@@ -117,6 +117,99 @@ const laneOf = (step: Step) => {
 const clock = (iso: string) =>
   new Date(iso).toLocaleTimeString('zh-CN', { hour12: false });
 
+/** Opt-in by capabilities, never by fabricated playback. Live frames only
+ * exist during anonymous, non-submitting tasks; the API enforces project,
+ * run, task, expiry and checksum independently on every request. */
+function useLiveTaskFrame(taskId: string | null, live: boolean) {
+  const [imageUrl, setImageUrl] = useState('');
+  const [ageMs, setAgeMs] = useState<number | null>(null);
+  useEffect(() => {
+    let mounted = true,
+      inFlight = false,
+      lastUrl = '';
+    let lastFrameAt = 0;
+    let unavailable = false;
+    const controller = new AbortController();
+    setImageUrl('');
+    setAgeMs(null);
+    if (!taskId || !live) return;
+    const read = async () => {
+      if (
+        !mounted ||
+        inFlight ||
+        unavailable ||
+        document.visibilityState === 'hidden'
+      )
+        return;
+      inFlight = true;
+      try {
+        const response = await fetch(
+          `/api/v1/tasks/${encodeURIComponent(taskId)}/live-frame`,
+          {
+            credentials: 'include',
+            cache: 'no-store',
+            signal: AbortSignal.any([
+              controller.signal,
+              AbortSignal.timeout(2500),
+            ]),
+          },
+        );
+        if (!mounted) return;
+        if (response.status === 404 || response.status === 401) {
+          unavailable = true;
+          return;
+        }
+        if (response.status === 204) return;
+        if (
+          !response.ok ||
+          !response.headers.get('content-type')?.startsWith('image/jpeg')
+        )
+          return;
+        const size = Number(response.headers.get('content-length') ?? '0');
+        if (size > 250_000) return;
+        const blob = await response.blob();
+        if (!mounted || blob.size < 100 || blob.size > 250_000) return;
+        const fresh = URL.createObjectURL(blob);
+        const old = lastUrl;
+        lastUrl = fresh;
+        lastFrameAt = Date.now();
+        setImageUrl(fresh);
+        const age = Number(response.headers.get('x-capture-age-ms'));
+        setAgeMs(Number.isFinite(age) && age >= 0 ? age : null);
+        if (old) URL.revokeObjectURL(old);
+      } catch {
+        // One failed frame cannot turn the browser task into a failed test.
+      } finally {
+        inFlight = false;
+        // Never keep an expired JPEG on screen with a "live" label when
+        // Worker frames stop arriving (crash, tab disconnect, lease expiry).
+        if (
+          mounted &&
+          lastUrl &&
+          lastFrameAt > 0 &&
+          Date.now() - lastFrameAt > 3500
+        ) {
+          URL.revokeObjectURL(lastUrl);
+          lastUrl = '';
+          setImageUrl('');
+          setAgeMs(null);
+        }
+      }
+    };
+    void read();
+    const timer = window.setInterval(() => {
+      void read();
+    }, 850);
+    return () => {
+      mounted = false;
+      controller.abort();
+      clearInterval(timer);
+      if (lastUrl) URL.revokeObjectURL(lastUrl);
+    };
+  }, [taskId, live]);
+  return { imageUrl, ageMs };
+}
+
 /**
  * Mo's screen, from what the worker actually captured: screenshots stepped
  * through like a replay, with each step's type and time. It is not a video.
@@ -127,6 +220,10 @@ export const ScreenPanel: React.FC<{
   targetUrl: string;
   stepSignal?: number;
 }> = ({ task, live, targetUrl, stepSignal = 0 }) => {
+  const { imageUrl: liveImage, ageMs: liveAge } = useLiveTaskFrame(
+    task?.id ?? null,
+    live,
+  );
   const { steps, error, hasMore } = useTaskSteps(
     task?.id ?? null,
     live,
@@ -167,7 +264,16 @@ export const ScreenPanel: React.FC<{
           {live ? '进行中' : '回放'}
         </span>
         <h3>AI 的画面</h3>
-        <p>根据步骤事件同步已采集截图，断线由轮询补齐；不是实时视频。</p>
+        <p>
+          {liveImage
+            ? '匿名非提交任务：约 1 帧/秒的连续浏览器画面；表单字段已遮挡。不等于完整视频录制。'
+            : '根据步骤事件同步已采集截图，断线由轮询补齐；非实时视频。'}
+        </p>
+        {liveImage && (
+          <p className="text-xs muted" role="status">
+            实时画面帧 · 采集至 API 约 {liveAge ?? '—'} ms · 不作测试通过证据
+          </p>
+        )}
         <p className="text-xs muted" role="status">
           已读取 {steps.length} 步 · 执行中 {pendingCount} 步 · 失败{' '}
           {failedCount} 步
@@ -188,7 +294,13 @@ export const ScreenPanel: React.FC<{
           </span>
         </div>
         <div className="mo-browser-view">
-          {frame ? (
+          {liveImage ? (
+            <img
+              src={liveImage}
+              alt="匿名非提交任务的连续浏览器画面帧，敏感输入控件已遮挡"
+              className="mo-live-frame"
+            />
+          ) : frame ? (
             <EvidencePreview
               artifactId={frame.evidenceRefs[0]!}
               runId={task.runId}

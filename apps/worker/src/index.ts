@@ -34,6 +34,7 @@ import type { AgentRoleName } from '@localqa/orchestrator';
 import { StorageError, hashPayload, type LeaseProof } from '@localqa/storage';
 import { replayRegression, type ReplayPorts } from './regression-replay.js';
 import { suggestLocatorRepair } from './repair-suggestions.js';
+import { startLiveFrameCapture, type LiveFrameCapture } from './live-frame.js';
 import { createRegressionAiAction } from './regression-ai.js';
 import { initializeBrowserAuthentication } from './auth-initialize-task.js';
 import { withApprovedBrowserAuth } from './auth-import-task.js';
@@ -103,6 +104,7 @@ export class Worker {
       ? AbortSignal.any([parent, controller.signal])
       : controller.signal;
     let session: BrowserSession | null = null;
+    let liveFrame: LiveFrameCapture | null = null;
     let beating = false;
     let heartbeatFlight: Promise<void> | null = null;
     const timer = setInterval(() => {
@@ -1271,6 +1273,19 @@ export class Worker {
         enableTrace: false,
         navigationTimeoutMs: 5000,
       });
+      if (
+        work.run.effectiveConfig.actionPolicy === 'non_submitting' &&
+        work.run.effectiveConfig.authProfileVersion === null &&
+        !work.authStateId &&
+        ['explorer', 'executor', 'reproducer'].includes(work.task.role)
+      ) {
+        liveFrame = startLiveFrameCapture(session, {
+          taskId: work.task.id,
+          runId: work.run.id,
+          projectId: work.run.projectId,
+          fencingToken: proof.fencingToken,
+        });
+      }
       // Await work before entering finally. Returning the unresolved promise
       // closes the Chromium Session while replayRegression is still acting,
       // turning a legitimate navigation into "BrowserSession is closed".
@@ -1306,6 +1321,7 @@ export class Worker {
     } finally {
       clearInterval(timer);
       if (heartbeatFlight) await heartbeatFlight;
+      await liveFrame?.stop().catch(() => {});
       await session?.close().catch(() => {});
     }
   }

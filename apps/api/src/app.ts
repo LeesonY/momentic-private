@@ -20,6 +20,7 @@ import { registerScheduleRoutes } from './routes/schedules.js';
 import { registerRepairProposalRoutes } from './routes/repairProposals.js';
 import { registerCandidateVerificationRoutes } from './routes/candidateVerifications.js';
 import { registerLocatorMaintenanceRoutes } from './routes/locatorMaintenance.js';
+import { registerLiveFrameRoutes } from './routes/liveFrame.js';
 import { validateOriginAndCsrf } from './auth.js';
 
 export function createRouter(): Router {
@@ -41,6 +42,7 @@ export function createRouter(): Router {
   registerRepairProposalRoutes(router);
   registerCandidateVerificationRoutes(router);
   registerLocatorMaintenanceRoutes(router);
+  registerLiveFrameRoutes(router);
   return router;
 }
 
