@@ -69,6 +69,9 @@ export function createWorkerModelOptions(input: {
         ...(document.maxOutputTokens !== undefined
           ? { maxOutputTokens: document.maxOutputTokens }
           : {}),
+        ...(document.contextWindowTokens !== undefined
+          ? { contextWindowTokens: document.contextWindowTokens }
+          : {}),
         encryptedApiKey: loaded.apiKey ? slot : null,
         approvedFallbackIds: [],
       };
@@ -94,6 +97,12 @@ function stubProfile(document: ModelProfile): GatewayProfile {
     endpoint: document.endpoint,
     configuredModelId: document.configuredModelId,
     kind: 'stub',
+    ...(document.maxOutputTokens === undefined
+      ? {}
+      : { maxOutputTokens: document.maxOutputTokens }),
+    ...(document.contextWindowTokens === undefined
+      ? {}
+      : { contextWindowTokens: document.contextWindowTokens }),
     dataBoundary: document.dataBoundary,
     capabilities: {
       structuredOutput: true,

@@ -1,4 +1,10 @@
 import type { ModelMessage } from '@localqa/contracts';
+import {
+  MODEL_DEFAULT_INPUT_TOKENS,
+  MODEL_DEFAULT_OUTPUT_TOKENS,
+  MODEL_MIN_OUTPUT_TOKENS,
+  MODEL_MAX_OUTPUT_TOKENS,
+} from '@localqa/contracts';
 import type { OpenAIToolSchema } from './openai.js';
 
 export const FIXTURE = Object.freeze({
@@ -81,6 +87,7 @@ export interface CapabilityProbeInput {
   apiKey: string;
   capability: 'nativeTools' | 'imageInput';
   maxOutputTokens: number;
+  maxInputTokens?: number;
 }
 
 export interface CapabilityProbeResponse {
@@ -93,7 +100,7 @@ export interface CapabilityProbeResponse {
   estimatedInputTokens: number;
 }
 
-export const DEFAULT_INPUT_TOKENS = 12_000;
+export const DEFAULT_INPUT_TOKENS = MODEL_DEFAULT_INPUT_TOKENS;
 /**
  * Output cap for one call when a model profile sets none. Models that reason
  * before answering (MoreSec DeepSeek counts reasoning against max_tokens)
@@ -101,8 +108,8 @@ export const DEFAULT_INPUT_TOKENS = 12_000;
  * early, so a larger ceiling costs only budget reservation, which is settled
  * to actual usage.
  */
-export const DEFAULT_OUTPUT_TOKENS = 4_000;
+export const DEFAULT_OUTPUT_TOKENS = MODEL_DEFAULT_OUTPUT_TOKENS;
 /** Bounds for a profile's configured maxOutputTokens (contract-enforced). */
-export const MIN_OUTPUT_TOKENS = 256;
-export const MAX_OUTPUT_TOKENS = 32_000;
+export const MIN_OUTPUT_TOKENS = MODEL_MIN_OUTPUT_TOKENS;
+export const MAX_OUTPUT_TOKENS = MODEL_MAX_OUTPUT_TOKENS;
 export const REPAIR_MARK = '格式修复';

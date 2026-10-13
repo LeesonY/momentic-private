@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
-import { parseContract } from '@localqa/contracts';
+import { parseContract, validModelTokenBudget } from '@localqa/contracts';
 import type {
   Project,
   ProjectCreate,
@@ -1002,6 +1002,11 @@ export class ConfigurationRepository {
   }
 }
 function modelEndpoint(profile: ModelProfileCreate | ModelProfile): void {
+  if (!validModelTokenBudget(profile))
+    throw new StorageError(
+      'VALIDATION_ERROR',
+      '上下文窗口必须大于单次输出上限',
+    );
   const url = new URL(profile.endpoint);
   if (
     url.username ||
@@ -1033,6 +1038,9 @@ export class ModelRepository {
         ...(data.maxOutputTokens === undefined
           ? {}
           : { maxOutputTokens: data.maxOutputTokens }),
+        ...(data.contextWindowTokens === undefined
+          ? {}
+          : { contextWindowTokens: data.contextWindowTokens }),
         adapter: data.adapter,
         dataBoundary: data.dataBoundary,
         capabilities: {
@@ -1174,10 +1182,8 @@ export class ModelRepository {
     id: string,
     input: ModelProfilePatch,
   ): Promise<ModelProfile> {
-    const { expectedVersion, apiKey, ...patch } = parseContract(
-      'ModelProfilePatch',
-      input,
-    );
+    const { expectedVersion, apiKey, contextWindowTokens, ...patch } =
+      parseContract('ModelProfilePatch', input);
     return this.db.actor(actor, async (client) => {
       const row = (
         await client.query<{
@@ -1192,9 +1198,14 @@ export class ModelRepository {
       await requireAdmin(client);
       if (row.document.version !== expectedVersion)
         throw new StorageError('VERSION_CONFLICT');
+      const previous = { ...row.document };
+      if (contextWindowTokens === null) delete previous.contextWindowTokens;
       const dto = parseContract('ModelProfile', {
-        ...row.document,
+        ...previous,
         ...patch,
+        ...(typeof contextWindowTokens === 'number'
+          ? { contextWindowTokens }
+          : {}),
         ...(apiKey !== undefined ||
         (patch.configuredModelId !== undefined &&
           patch.configuredModelId !== row.document.configuredModelId) ||
