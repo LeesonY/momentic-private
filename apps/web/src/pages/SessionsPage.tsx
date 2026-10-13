@@ -8,13 +8,15 @@ import { Alert } from '../components/ui/Alert.tsx';
 import { AppIcon } from '../components/ui/AppIcon.tsx';
 import {
   isRunActive,
+  runStats,
   relativeTime,
   sessionStatusLabel,
   sessionStatusMeta,
   sessionTitle,
 } from '../components/sessions/sessionMeta.ts';
 
-type StatusFilter = 'all' | 'needs-you' | 'running' | 'review' | 'unfinished';
+type StatusFilter =
+  'all' | 'needs-you' | 'running' | 'review' | 'bugs' | 'unfinished';
 
 const filters: {
   key: StatusFilter;
@@ -43,6 +45,33 @@ const filters: {
     match: (run) => run.status === 'failed' || run.status === 'cancelled',
   },
 ];
+
+/** Passed of all cases as Mo's "1/1" bar, plus bugs when there are any. */
+const SessionProgress: React.FC<{ run: Run }> = ({ run }) => {
+  const stats = runStats(run);
+  if (!stats || stats.cases === 0) return <span />;
+  return (
+    <span
+      className="mo-session-progress"
+      title={`通过 ${stats.passed} / 共 ${stats.cases} 个用例${stats.findings ? `，${stats.findings} 个缺陷` : ''}`}
+    >
+      <span className="mo-mono">
+        {stats.passed}/{stats.cases}
+      </span>
+      <span className="mo-progress-bar">
+        <span
+          className={stats.issues > 0 ? 'is-issue' : ''}
+          style={{
+            width: `${Math.round((stats.passed / stats.cases) * 100)}%`,
+          }}
+        />
+      </span>
+      {stats.findings > 0 && (
+        <span className="mo-session-bugs">{stats.findings} 缺陷</span>
+      )}
+    </span>
+  );
+};
 
 /** Mo's Sessions page: every run of the project, searchable and filtered by
  * what it needs from you. */
@@ -154,19 +183,25 @@ export const SessionsPage: React.FC = () => {
             </label>
           </div>
           <div className="segmented mo-status-tabs" role="tablist">
-            {filters.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                role="tab"
-                aria-selected={status === item.key}
-                className={status === item.key ? 'is-active' : ''}
-                onClick={() => setStatus(item.key)}
-                data-testid={`sessions-filter-${item.key}`}
-              >
-                {item.label}
-              </button>
-            ))}
+            {filters
+              .filter(
+                (item) =>
+                  item.key !== 'bugs' ||
+                  (runs ?? []).some((run) => runStats(run) !== null),
+              )
+              .map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={status === item.key}
+                  className={status === item.key ? 'is-active' : ''}
+                  onClick={() => setStatus(item.key)}
+                  data-testid={`sessions-filter-${item.key}`}
+                >
+                  {item.label}
+                </button>
+              ))}
           </div>
           {error && (
             <Alert tone="danger" role="alert">
@@ -208,6 +243,7 @@ export const SessionsPage: React.FC = () => {
                         <span className={`mo-session-status is-${meta.tone}`}>
                           {sessionStatusLabel(run)}
                         </span>
+                        <SessionProgress run={run} />
                         <span className="mo-session-time">
                           {relativeTime(run.createdAt)}
                         </span>

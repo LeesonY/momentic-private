@@ -45,8 +45,25 @@ export const taskIntentLabel: Record<string, string> = {
   spec: '按规格测试',
 };
 
-/** Runs carry no title yet, so name them by what they test and where. */
+/** Fields the session API adds for Mo's list and header; older servers
+ * leave them out, and the UI falls back to what it can derive. */
+export type RunWithMeta = Run & {
+  title?: string | null;
+  stats?: {
+    cases: number;
+    passed: number;
+    issues: number;
+    blocked: number;
+    findings: number;
+  } | null;
+};
+
+export const runStats = (run: Run) => (run as RunWithMeta).stats ?? null;
+
+/** The AI's title when it gave one, else what is tested and where. */
 export const sessionTitle = (run: Run) => {
+  const title = (run as RunWithMeta).title?.trim();
+  if (title) return title;
   const intent =
     run.executionMode === 'regression'
       ? '回归'

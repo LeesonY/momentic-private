@@ -68,7 +68,15 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
     };
   }, [request.id, request.runId, request.kind, request.version]);
 
-  const handleSubmit = async (override?: 'provide' | 'reject') => {
+  // Answers the AI proposed (newer servers send them); clicking one sends it.
+  const options = (
+    (request as InputRequest & { options?: string[] }).options ?? []
+  ).filter((option) => option.trim());
+
+  const handleSubmit = async (
+    override?: 'provide' | 'reject',
+    textOverride?: string,
+  ) => {
     // 1. Synchronous in-flight guard: blocks same-tick double submits
     if (inFlightRef.current) return;
     inFlightRef.current = true;
@@ -98,9 +106,11 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
     const effectiveText =
       effectiveDecision === 'reject'
         ? undefined
-        : isOtp
-          ? responseText
-          : responseText.trim() || undefined;
+        : textOverride !== undefined
+          ? textOverride
+          : isOtp
+            ? responseText
+            : responseText.trim() || undefined;
 
     setSubmitting(true);
     setError(null);
@@ -184,6 +194,23 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
           AI 会识别登录页；账号密码只走私有认证通道，不进入对话。
         </p>
       )}
+      {!isAuthKind && options.length > 0 && (
+        <div className="mo-ask-options" data-testid="input-request-options">
+          <span className="mo-ask-hint">选一个答案直接发送：</span>
+          {options.map((option) => (
+            <button
+              type="button"
+              key={option}
+              className="mo-ask-option"
+              disabled={submitting}
+              onClick={() => void handleSubmit('provide', option)}
+            >
+              <span>{option}</span>
+              <AppIcon name="arrow-up" size={14} />
+            </button>
+          ))}
+        </div>
+      )}
       <div className="mo-ask-answer">
         {isOtp ? (
           <>
@@ -239,7 +266,9 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
           <>
             <input
               className="form-input"
-              placeholder="写下你的回答…"
+              placeholder={
+                options.length ? '修改选项或写下你的回答…' : '写下你的回答…'
+              }
               aria-label="回答"
               value={responseText}
               onChange={(e) => setResponseText(e.target.value)}

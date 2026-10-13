@@ -123,7 +123,7 @@
 
 .mo-session-row {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) auto 84px;
+  grid-template-columns: 18px minmax(0, 1fr) auto minmax(0, 180px) 84px;
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -170,11 +170,46 @@
   justify-content: center;
 }
 
+.mo-session-progress {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  font-size: var(--text-xs);
+}
+
+.mo-mono {
+  font-family: var(--font-mono);
+}
+
+.mo-progress-bar {
+  width: 64px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-muted);
+  overflow: hidden;
+}
+
+.mo-progress-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--color-success);
+}
+
+.mo-progress-bar > span.is-issue {
+  background: var(--color-warning);
+}
+
+.mo-session-bugs {
+  color: var(--color-danger);
+}
+
 @media (max-width: 640px) {
   .mo-session-row {
     grid-template-columns: 18px minmax(0, 1fr) auto;
   }
-  .mo-session-time {
+  .mo-session-time,
+  .mo-session-progress {
     display: none;
   }
 }
@@ -1785,4 +1820,35 @@ a.mo-menu-item {
   width: 64px;
   height: 28px;
   min-height: 28px;
+}
+
+.mo-ask-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mo-ask-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-main);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mo-ask-option:hover {
+  border-color: var(--color-text-subtle);
+}
+
+.mo-ask-option > svg {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
 }
