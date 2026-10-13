@@ -7,6 +7,7 @@ import type { ContractTypes } from './generated/types.js';
 export type * from './generated/types.js';
 export * from './errors.js';
 export * from './config.js';
+export * from './model-limits.js';
 
 // Validate JSON without coercion, defaults, stripping, or user-data logging.
 const ajv = new Ajv2020({

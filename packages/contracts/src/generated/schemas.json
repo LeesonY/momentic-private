@@ -1470,6 +1470,11 @@
             "type": "integer",
             "minimum": 256,
             "maximum": 32000
+          },
+          "contextWindowTokens": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 2000000
           }
         },
         "required": [
@@ -1535,6 +1540,11 @@
             "type": "integer",
             "minimum": 256,
             "maximum": 32000
+          },
+          "contextWindowTokens": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 2000000
           }
         },
         "required": [
@@ -4611,6 +4621,18 @@
             "type": "integer",
             "minimum": 256,
             "maximum": 32000
+          },
+          "contextWindowTokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1024,
+                "maximum": 2000000
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -17880,6 +17902,11 @@
               "type": "integer",
               "minimum": 256,
               "maximum": 32000
+            },
+            "contextWindowTokens": {
+              "type": "integer",
+              "minimum": 1024,
+              "maximum": 2000000
             }
           },
           "required": [
@@ -17945,6 +17972,11 @@
               "type": "integer",
               "minimum": 256,
               "maximum": 32000
+            },
+            "contextWindowTokens": {
+              "type": "integer",
+              "minimum": 1024,
+              "maximum": 2000000
             }
           },
           "required": [
@@ -21021,6 +21053,18 @@
               "type": "integer",
               "minimum": 256,
               "maximum": 32000
+            },
+            "contextWindowTokens": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1024,
+                  "maximum": 2000000
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [

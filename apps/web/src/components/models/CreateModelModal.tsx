@@ -4,12 +4,16 @@ import { defaultApiClient } from '../../api/index.ts';
 import { Modal } from '../ui/Modal.tsx';
 import { Field } from '../ui/Field.tsx';
 import { Alert } from '../ui/Alert.tsx';
+import { ContextWindowField } from './ContextWindowField.tsx';
 import {
   DEFAULT_OUTPUT_TOKENS,
   MAX_OUTPUT_TOKENS,
   MIN_OUTPUT_TOKENS,
   OUTPUT_TOKENS_RANGE_ERROR,
   parseOutputTokens,
+  parseContextTokens,
+  validateContextBudget,
+  CONTEXT_TOKENS_RANGE_ERROR,
 } from './modelForm.ts';
 
 const emptyModel: ModelProfileCreate = {
@@ -29,6 +33,7 @@ export const CreateModelModal: React.FC<{
 }> = ({ onClose, onCreated }) => {
   const [draft, setDraft] = useState<ModelProfileCreate>(emptyModel);
   const [outputTokens, setOutputTokens] = useState('');
+  const [contextTokens, setContextTokens] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,12 +47,24 @@ export const CreateModelModal: React.FC<{
       setError(OUTPUT_TOKENS_RANGE_ERROR);
       return;
     }
+    const window = contextTokens.trim()
+      ? parseContextTokens(contextTokens)
+      : undefined;
+    if (window === null) {
+      setError(CONTEXT_TOKENS_RANGE_ERROR);
+      return;
+    }
+    if (!validateContextBudget(window, cap)) {
+      setError('上下文窗口必须大于单次输出上限');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
       const created = await defaultApiClient.createModel({
         ...draft,
         ...(cap !== undefined ? { maxOutputTokens: cap } : {}),
+        ...(window !== undefined ? { contextWindowTokens: window } : {}),
         name: draft.name.trim(),
         endpoint: draft.endpoint.trim(),
         configuredModelId: draft.configuredModelId.trim(),
@@ -196,6 +213,13 @@ export const CreateModelModal: React.FC<{
             onChange={(e) => setOutputTokens(e.target.value)}
           />
         </Field>
+        <ContextWindowField
+          id="model-context-window-tokens"
+          value={contextTokens}
+          onChange={setContextTokens}
+          maxOutputTokens={parseOutputTokens(outputTokens) ?? undefined}
+          disabled={saving}
+        />
         {error && (
           <Alert tone="danger" role="alert" className="is-wide">
             {error}

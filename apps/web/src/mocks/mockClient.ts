@@ -601,6 +601,12 @@ export class MockApiClient implements ApiClient {
       name: input.name,
       endpoint: input.endpoint,
       configuredModelId: input.configuredModelId,
+      ...(input.maxOutputTokens === undefined
+        ? {}
+        : { maxOutputTokens: input.maxOutputTokens }),
+      ...(input.contextWindowTokens === undefined
+        ? {}
+        : { contextWindowTokens: input.contextWindowTokens }),
       adapter: input.adapter || 'openai_compatible',
       dataBoundary: input.dataBoundary || 'internal',
       capabilities: {
@@ -627,7 +633,7 @@ export class MockApiClient implements ApiClient {
     if (!found) throw new Error('模型配置未找到');
     if (found.version !== input.expectedVersion)
       throw new Error('模型配置已更新，请刷新后重试');
-    const { expectedVersion, apiKey, ...patch } = input;
+    const { expectedVersion, apiKey, contextWindowTokens, ...patch } = input;
     const connectionChanged =
       apiKey !== undefined ||
       (patch.configuredModelId !== undefined &&
@@ -638,6 +644,9 @@ export class MockApiClient implements ApiClient {
     const updated: ModelProfile = {
       ...found,
       ...patch,
+      ...(typeof contextWindowTokens === 'number'
+        ? { contextWindowTokens }
+        : {}),
       ...(connectionChanged
         ? {
             capabilities: {
@@ -652,6 +661,7 @@ export class MockApiClient implements ApiClient {
         : {}),
       version: expectedVersion + 1,
     };
+    if (contextWindowTokens === null) delete updated.contextWindowTokens;
     this.models = this.models.map((m) => (m.id === updated.id ? updated : m));
     return updated;
   }

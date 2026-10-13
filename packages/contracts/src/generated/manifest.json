@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "sourceHashes": {
-    "domain.schema.json": "480087cd4adffccde7d265b8e1adce04874d6c713beaf63279736b0a87591954",
+    "domain.schema.json": "bb7b7891b8c6a983b218ff3858c5e8f3c423d6f47e33a7b03bfa51a674ad3a51",
     "events.schema.json": "31d3a137af967a2ce3b213c9e7a7670307462bb784a89b98fcfb8cedb83b238a",
-    "openapi.json": "42eafcbf8489e6b038d139eef06e36816342ae4009a945dad29804489ad21eb0",
+    "openapi.json": "ae0d3220b40126ba12bce60bdb5d29389fb88b3e40e2cbc33b72e1dc0a5c9518",
     "regression.schema.json": "3311ab392986b0253fc833e5eb97eecefd6f612b767ed308fd8edd75a086b39f",
     "report.schema.json": "4b392020b287698524d9a5b73e834fe7af91ba96ae11d31e7012c4a044524986",
     "tools.schema.json": "bd5d8724c7a644905284bc31eda235225037019864f389c182ab7829f4cae7e3"

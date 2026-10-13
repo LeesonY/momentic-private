@@ -108,6 +108,14 @@ export async function probeProviderCapability(
           : { response_format: { type: 'json_object' } }),
     };
     result.estimatedInputTokens = estimateTokens(JSON.stringify(body)) ?? 1;
+    if (
+      input.maxInputTokens !== undefined &&
+      result.estimatedInputTokens > input.maxInputTokens
+    ) {
+      result.errorCode = 'BUDGET_EXCEEDED';
+      result.note = `${label}探测的输入与输出预算超过模型上下文窗口。`;
+      return result;
+    }
     result.providerCalls = 1;
     const response = await fetchImpl(endpoint, {
       method: 'POST',

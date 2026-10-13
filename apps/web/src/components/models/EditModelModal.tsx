@@ -4,6 +4,7 @@ import { defaultApiClient } from '../../api/index.ts';
 import { Modal } from '../ui/Modal.tsx';
 import { Field } from '../ui/Field.tsx';
 import { Alert } from '../ui/Alert.tsx';
+import { ContextWindowField } from './ContextWindowField.tsx';
 import {
   DEFAULT_OUTPUT_TOKENS,
   MAX_OUTPUT_TOKENS,
@@ -11,6 +12,9 @@ import {
   OUTPUT_TOKENS_RANGE_ERROR,
   adapterLabels,
   parseOutputTokens,
+  parseContextTokens,
+  validateContextBudget,
+  CONTEXT_TOKENS_RANGE_ERROR,
 } from './modelForm.ts';
 
 /** Admin-only: updates a profile without reading back its stored credential. */
@@ -26,6 +30,11 @@ export const EditModelModal: React.FC<{
     model.maxOutputTokens === undefined ? '' : String(model.maxOutputTokens),
   );
   const [saving, setSaving] = useState(false);
+  const [contextTokens, setContextTokens] = useState(
+    model.contextWindowTokens === undefined
+      ? ''
+      : String(model.contextWindowTokens),
+  );
   const [error, setError] = useState<string | null>(null);
 
   const nameChanged = name.trim() !== model.name;
@@ -34,7 +43,13 @@ export const EditModelModal: React.FC<{
   const capChanged =
     outputTokens.trim() !==
     (model.maxOutputTokens === undefined ? '' : String(model.maxOutputTokens));
-  const changed = nameChanged || modelIdChanged || keyChanged || capChanged;
+  const contextChanged =
+    contextTokens.trim() !==
+    (model.contextWindowTokens === undefined
+      ? ''
+      : String(model.contextWindowTokens));
+  const changed =
+    nameChanged || modelIdChanged || keyChanged || capChanged || contextChanged;
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -55,6 +70,23 @@ export const EditModelModal: React.FC<{
       }
       patch.maxOutputTokens = cap;
     }
+    const window = contextTokens.trim()
+      ? parseContextTokens(contextTokens)
+      : undefined;
+    if (window === null) {
+      setError(CONTEXT_TOKENS_RANGE_ERROR);
+      return;
+    }
+    if (
+      !validateContextBudget(
+        window,
+        patch.maxOutputTokens ?? model.maxOutputTokens,
+      )
+    ) {
+      setError('上下文窗口必须大于单次输出上限');
+      return;
+    }
+    if (contextChanged) patch.contextWindowTokens = window ?? null;
     setSaving(true);
     setError(null);
     try {
@@ -174,6 +206,13 @@ export const EditModelModal: React.FC<{
             onChange={(e) => setOutputTokens(e.target.value)}
           />
         </Field>
+        <ContextWindowField
+          id="edit-model-context-window-tokens"
+          value={contextTokens}
+          onChange={setContextTokens}
+          maxOutputTokens={parseOutputTokens(outputTokens) ?? undefined}
+          disabled={saving}
+        />
         {error && (
           <Alert tone="danger" role="alert">
             {error}

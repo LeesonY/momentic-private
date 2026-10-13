@@ -1133,6 +1133,7 @@ export interface ModelProfile {
   version: number;
   responseFormat?: "json_schema" | "json_object" | "native_tools";
   maxOutputTokens?: number;
+  contextWindowTokens?: number;
 }
 export interface ModelProfileCreate {
   name: string;
@@ -1143,6 +1144,7 @@ export interface ModelProfileCreate {
   apiKey?: string;
   responseFormat?: "json_schema" | "json_object" | "native_tools";
   maxOutputTokens?: number;
+  contextWindowTokens?: number;
 }
 export interface ModelProfilePage {
   /**
@@ -1161,6 +1163,7 @@ export interface ModelProfilePatch {
   status?: "disabled" | "untested";
   responseFormat?: "json_schema" | "json_object" | "native_tools";
   maxOutputTokens?: number;
+  contextWindowTokens?: number | null;
 }
 export interface ModelRequest {
   taskId: string;

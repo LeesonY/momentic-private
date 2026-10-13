@@ -65,9 +65,11 @@ D["ModelProfileCreate"] = obj({"name": text(120, minLength=1), "endpoint": URI, 
 # Per-model output cap for every call (decisions, assertions, probes). Models
 # that reason before answering need room; unset means the gateway default.
 MODEL_OUTPUT_TOKENS = integer(256, 32000)
+MODEL_CONTEXT_TOKENS = integer(1024, 2000000)
 for model_schema in ["ModelProfile", "ModelProfileCreate"]:
     D[model_schema]["properties"]["responseFormat"] = enum("json_schema", "json_object", "native_tools")
     D[model_schema]["properties"]["maxOutputTokens"] = copy.deepcopy(MODEL_OUTPUT_TOKENS)
+    D[model_schema]["properties"]["contextWindowTokens"] = copy.deepcopy(MODEL_CONTEXT_TOKENS)
 D["ModelProbeResult"] = obj({"profileId": UUID, "capabilities": ref("ModelCapabilities"), "status": enum("ready", "degraded", "disabled"), "notes": arr(text(1000), 20)})
 D["ModelGrantCreate"] = obj({"modelProfileId": UUID}, ["modelProfileId"])
 D["RunCreate"] = obj({"projectId": UUID, "targetUrl": URI, "brief": text(4000), "environmentId": UUID, "authProfileId": UUID, "modelProfileId": UUID, "mode": enum("smoke"), "budget": ref("BudgetOverrides")}, ["projectId", "targetUrl"])
@@ -150,6 +152,7 @@ D["ModelDeleteConfirm"] = obj({"expectedVersion": VER, "confirmName": text(120, 
 D["ModelProfilePatch"] = obj({"expectedVersion": VER, "name": text(120), "endpoint": URI, "configuredModelId": text(200), "apiKey": text(1000, writeOnly=True), "status": enum("disabled", "untested")}, ["expectedVersion"])
 D["ModelProfilePatch"]["properties"]["responseFormat"] = enum("json_schema", "json_object", "native_tools")
 D["ModelProfilePatch"]["properties"]["maxOutputTokens"] = copy.deepcopy(MODEL_OUTPUT_TOKENS)
+D["ModelProfilePatch"]["properties"]["contextWindowTokens"] = nullable(copy.deepcopy(MODEL_CONTEXT_TOKENS))
 D["ModelBinding"] = obj({"profileId": UUID, "version": VER})
 D["RoleModels"] = obj({role: ref("ModelBinding") for role in ["coordinator", "explorer", "executor", "assertion", "reproducer"]})
 D["RunConfig"]["properties"].pop("modelProfileIds")
