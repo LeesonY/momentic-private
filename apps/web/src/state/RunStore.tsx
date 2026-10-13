@@ -112,7 +112,9 @@ export function RunStoreProvider({
         defaultApiClient.listRunFindings(runId).catch(() => ({ items: [] })),
         defaultApiClient.getReport(runId).catch(() => null),
         fetchRunMessages('/api/v1', runId),
-        defaultApiClient.listRunInputs(runId),
+        // A failed read must not blank the whole session; pending questions
+        // still arrive over the event stream.
+        defaultApiClient.listRunInputs(runId).catch(() => null),
         defaultApiClient
           .listEventHistory(runId, { limit: 100 })
           .catch(() => null),
@@ -132,7 +134,7 @@ export function RunStoreProvider({
         recordMessageRendered(m.redactedText, m.createdAt);
       }
 
-      setActiveInputRequest(inputs.items[0] ?? null);
+      if (inputs) setActiveInputRequest(inputs.items[0] ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载运行状态失败');
     } finally {
