@@ -82,11 +82,8 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
 
     // Only the dedicated OTP channel permits a sensitive value. It is never
     // sent as an ordinary user message or clarification.
-    const effectiveDecision: 'provide' | 'approve' | 'reject' = isAuth
-      ? isOtp
-        ? (override ?? decision)
-        : (override ?? decision)
-      : decision;
+    const effectiveDecision: 'provide' | 'approve' | 'reject' =
+      override ?? decision;
 
     if (
       (isAuth && !isOtp && effectiveDecision === 'approve') ||
@@ -149,43 +146,49 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
     }
   };
 
+  const title = isOtp
+    ? '需要一次性验证码'
+    : isAuthKind
+      ? '需要选择登录账号'
+      : null;
+
   return (
     <section
-      className={`card lqa-input-request ${isAuthKind ? 'is-danger' : 'is-warning'}`}
+      className={`mo-ask-card ${isAuthKind ? 'is-auth' : ''}`}
       data-testid="input-request-bar"
       data-request-id={request.id}
       data-request-kind={request.kind}
     >
-      <div className="lqa-input-request-head">
-        <AppIcon name={isAuthKind ? 'lock' : 'alert-triangle'} size={17} />
-        <h4>
-          {isOtp
-            ? '等待一次性验证码'
-            : isAuthKind
-              ? '认证受阻：认证执行尚未接入'
-              : '运行已暂停，等待人工输入'}
-        </h4>
-        <span
-          className={`badge badge-sm ${isAuthKind ? 'badge-danger' : 'badge-warning'}`}
-          data-testid="input-request-badge"
+      <div className="mo-ask-head">
+        <div>
+          {title && (
+            <span className="mo-ask-kind" data-testid="input-request-badge">
+              <AppIcon name="lock" size={12} /> {title}
+            </span>
+          )}
+          <p className="mo-ask-question">{request.prompt}</p>
+        </div>
+        <button
+          type="button"
+          className="mo-ask-skip"
+          onClick={() => void handleSubmit('reject')}
+          disabled={submitting}
+          data-testid={isOtp ? 'btn-reject-otp' : 'btn-skip-input'}
         >
-          类型 {request.kind}
-        </span>
+          跳过
+        </button>
       </div>
 
-      <p className="lqa-input-request-prompt">{request.prompt}</p>
-
       {isAuthKind && !isOtp && (
-        <p className="field-hint">
-          选择已配置的登录账号。AI
-          会识别登录页面；账号密码由私有认证通道使用，不进入普通对话。
+        <p className="mo-ask-hint">
+          AI 会识别登录页；账号密码只走私有认证通道，不进入对话。
         </p>
       )}
-      <div className="lqa-input-request-controls">
+      <div className="mo-ask-answer">
         {isOtp ? (
           <>
             <input
-              className="form-input lqa-otp-input"
+              className="form-input"
               type="password"
               autoComplete="one-time-code"
               inputMode="numeric"
@@ -198,20 +201,12 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
               data-testid="input-request-otp"
             />
             <button
-              className="btn btn-primary"
+              className="btn btn-secondary"
               onClick={() => void handleSubmit('provide')}
               disabled={submitting || !/^[A-Za-z0-9]{4,32}$/.test(responseText)}
               data-testid="btn-submit-input-response"
             >
-              {submitting ? '提交中...' : '验证'}
-            </button>
-            <button
-              className="btn btn-danger-outline"
-              onClick={() => void handleSubmit('reject')}
-              disabled={submitting}
-              data-testid="btn-reject-otp"
-            >
-              拒绝
+              {submitting ? '提交中…' : '验证'}
             </button>
           </>
         ) : isAuthKind ? (
@@ -232,72 +227,59 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
               ))}
             </select>
             <button
-              className="btn btn-primary"
+              className="btn btn-secondary"
               onClick={() => void handleSubmit('provide')}
               disabled={submitting || !responseText}
               data-testid="btn-submit-input-response"
             >
-              使用此账号并继续
-            </button>
-            <button
-              className="btn btn-danger-outline"
-              onClick={() => void handleSubmit('reject')}
-              disabled={submitting}
-            >
-              拒绝
+              使用此账号
             </button>
           </>
         ) : (
           <>
-            <select
-              className="form-select lqa-decision-select"
-              aria-label="答复方式"
-              value={decision}
-              onChange={(e) =>
-                setDecision(e.target.value as 'provide' | 'approve' | 'reject')
-              }
-              disabled={submitting}
-              data-testid="input-decision-select"
-            >
-              <option value="provide">提供材料</option>
-              <option value="reject">拒绝</option>
-            </select>
             <input
-              className="form-input grow"
-              placeholder="输入补充说明…"
-              aria-label="补充说明"
+              className="form-input"
+              placeholder="写下你的回答…"
+              aria-label="回答"
               value={responseText}
               onChange={(e) => setResponseText(e.target.value)}
+              onKeyDown={(e) => {
+                if (
+                  e.key === 'Enter' &&
+                  !e.nativeEvent.isComposing &&
+                  responseText.trim()
+                ) {
+                  e.preventDefault();
+                  void handleSubmit('provide');
+                }
+              }}
               disabled={submitting}
               data-testid="input-request-input"
             />
             <button
-              className="btn btn-primary"
-              onClick={() => void handleSubmit()}
-              disabled={submitting}
+              className="btn btn-secondary"
+              onClick={() => void handleSubmit('provide')}
+              disabled={submitting || !responseText.trim()}
               data-testid="btn-submit-input-response"
             >
-              {submitting ? '提交中...' : '提交并恢复执行'}
+              {submitting ? '发送中…' : '发送'}
             </button>
           </>
         )}
       </div>
 
       {error && (
-        <p
-          className="field-error lqa-input-request-error"
-          data-testid="input-request-error"
-        >
+        <p className="field-error" data-testid="input-request-error">
           {error}
         </p>
       )}
 
-      <p className="field-hint lqa-input-request-note">
+      <p className="mo-ask-hint">
         {isOtp
-          ? '验证码只提交到私有认证通道并且一次性有效；超时或会话中断后不能重试原验证码。'
+          ? '验证码只提交到私有认证通道，一次有效。'
           : isAuthKind
-            ? '如没有可用账号，请先在环境与认证中配置，再刷新此页面。'
-            : '输入等待最长 300 秒，超时后系统会保留已有结果并自动退出，不会无限期挂起。'}
+            ? '没有可用账号时，先在“环境与认证”里配置。'
+            : '最多等待 300 秒，超时后保留已有结果并结束。也可以直接在下方输入框回答。'}
       </p>
     </section>
   );
