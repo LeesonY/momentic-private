@@ -13,6 +13,12 @@ export type AppIconName =
   | 'plus'
   | 'chevron-down'
   | 'arrow-right'
+  | 'arrow-up'
+  | 'sliders'
+  | 'maximize'
+  | 'panel-right'
+  | 'more'
+  | 'monitor'
   | 'moon'
   | 'sun'
   | 'menu'
@@ -125,6 +131,35 @@ const content: Record<AppIconName, React.ReactNode> = {
   plus: <path d="M12 5v14M5 12h14" />,
   'chevron-down': <path d="m6 9 6 6 6-6" />,
   'arrow-right': <path d="M5 12h14m-6-6 6 6-6 6" />,
+  'arrow-up': <path d="M12 19V5m-6 6 6-6 6 6" />,
+  sliders: (
+    <>
+      <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" />
+      <circle cx="16" cy="6" r="2" />
+      <circle cx="10" cy="12" r="2" />
+      <circle cx="18" cy="18" r="2" />
+    </>
+  ),
+  maximize: <path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" />,
+  'panel-right': (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M15 4v16" />
+    </>
+  ),
+  more: (
+    <>
+      <circle cx="5" cy="12" r="1.3" />
+      <circle cx="12" cy="12" r="1.3" />
+      <circle cx="19" cy="12" r="1.3" />
+    </>
+  ),
+  monitor: (
+    <>
+      <rect x="3" y="4" width="18" height="12" rx="2" />
+      <path d="M8 20h8M12 16v4" />
+    </>
+  ),
   moon: <path d="M20.8 14.4A8.8 8.8 0 0 1 9.6 3.2 9 9 0 1 0 20.8 14.4Z" />,
   sun: (
     <>

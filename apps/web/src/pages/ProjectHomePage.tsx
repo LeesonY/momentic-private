@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
 import { AppIcon, type AppIconName } from '../components/ui/AppIcon.tsx';
 import { CreateProjectDialog } from '../components/layout/CreateProjectDialog.tsx';
 import { Page } from '../components/layout/Page.tsx';
-import { Field } from '../components/ui/Field.tsx';
+import { Popover } from '../components/ui/Popover.tsx';
 import { Alert } from '../components/ui/Alert.tsx';
 import type {
   Environment,
@@ -33,16 +33,78 @@ function configuredDefaultAuth(
   return profile.id;
 }
 
+type TaskIntent = NonNullable<
+  import('@localqa/contracts').RunConfig['taskIntent']
+>;
+
+/** Mo's "start with a brief" cards: each fills the composer with a request
+ * whose 【】 blanks the user replaces before sending. */
+const BRIEFS: {
+  intent: TaskIntent;
+  icon: AppIconName;
+  tone: 'info' | 'danger' | 'warning' | 'ai' | 'success';
+  title: string;
+  text: string;
+  prompt: string;
+}[] = [
+  {
+    intent: 'flow',
+    icon: 'play',
+    tone: 'info',
+    title: '测试一个流程',
+    text: '给出预发或测试环境，说明要测的流程。',
+    prompt:
+      '测试这个流程：【例如 注册 → 登录 → 下单】。预期：【应该看到的结果】。',
+  },
+  {
+    intent: 'explore',
+    icon: 'bug',
+    tone: 'danger',
+    title: '集中找一片区域的缺陷',
+    text: 'AI 探索一个功能区域并提交缺陷。',
+    prompt: '探索【功能区域】，找出缺陷；不要【需要避开的操作】。',
+  },
+  {
+    intent: 'reproduce',
+    icon: 'target',
+    tone: 'warning',
+    title: '复现一个问题',
+    text: '交给 AI 一份问题描述，由它尝试复现。',
+    prompt: '复现这个问题：【现象】。复现步骤：【步骤】。预期：【正确结果】。',
+  },
+  {
+    intent: 'plan',
+    icon: 'list',
+    tone: 'ai',
+    title: '规划测试用例',
+    text: 'AI 起草要执行的测试用例，先不运行。',
+    prompt: '为【功能或用户旅程】起草测试用例，先不执行。',
+  },
+  {
+    intent: 'changes',
+    icon: 'git-branch',
+    tone: 'success',
+    title: '回归最近的改动',
+    text: '说明改了什么，AI 找出受影响的流程并验证。',
+    prompt: '这次改动：【变更说明或代码差异】。请找出受影响的流程并逐个验证。',
+  },
+  {
+    intent: 'spec',
+    icon: 'file-text',
+    tone: 'info',
+    title: '按规格测试',
+    text: '贴上需求或测试计划，AI 推导用例并执行。',
+    prompt: '按下面的需求推导测试用例并执行：【粘贴需求或验收标准】',
+  },
+];
+
 export const ProjectHomePage: React.FC = () => {
   const { currentProject, currentUser, isMock, setRoute } = useApp();
   const [creatingProject, setCreatingProject] = useState(false);
 
-  const [targetUrl, setTargetUrl] = useState('');
-  const [description, setDescription] = useState('');
-  const [taskIntent, setTaskIntent] =
-    useState<NonNullable<import('@localqa/contracts').RunConfig['taskIntent']>>(
-      'flow',
-    );
+  const [prompt, setPrompt] = useState('');
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const [taskIntent, setTaskIntent] = useState<TaskIntent>('flow');
   const [allowWrites, setAllowWrites] = useState(false);
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [selectedEnvId, setSelectedEnvId] = useState<string>('');
@@ -53,8 +115,7 @@ export const ProjectHomePage: React.FC = () => {
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [optionsError, setOptionsError] = useState<string | null>(null);
 
-  // Advanced Budget Overrides
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  // Budget overrides (session settings popover)
   const [maxCases, setMaxCases] = useState(8);
   const [maxPages, setMaxPages] = useState(6);
   const [maxDepth, setMaxDepth] = useState(2);
@@ -69,7 +130,6 @@ export const ProjectHomePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setTargetUrl('');
     setSelectedEnvId('');
     setSelectedAuthId('');
     setEnvironments([]);
@@ -92,7 +152,6 @@ export const ProjectHomePage: React.FC = () => {
         setEnvironments(envRes.items);
         if (envRes.items.length > 0) {
           setSelectedEnvId(envRes.items[0].id);
-          setTargetUrl(envRes.items[0].baseUrl);
           setSelectedAuthId(
             configuredDefaultAuth(envRes.items[0], authRes.items),
           );
@@ -134,8 +193,24 @@ export const ProjectHomePage: React.FC = () => {
       setError('允许业务操作时，请选择测试环境');
       return;
     }
-    if (!targetUrl.trim()) {
-      setError('请输入有效的被测目标 URL');
+    const text = prompt.trim();
+    if (/【[^】]*】/.test(text)) {
+      setError('请把【】里的内容换成实际信息后再开始。');
+      return;
+    }
+    // Like Mo, the address can be written into the request; otherwise the
+    // selected environment's base URL is where the session starts.
+    const mentioned = text.match(/https?:\/\/[^\s，。；、）)】]+/)?.[0];
+    const targetUrl =
+      mentioned ??
+      environments.find((env) => env.id === selectedEnvId)?.baseUrl;
+    if (!targetUrl) {
+      setError('请在描述里写上要测试的网址，或在“环境”里选择一个测试环境。');
+      return;
+    }
+    const description = text === mentioned ? '' : text;
+    if (['spec', 'changes', 'reproduce'].includes(taskIntent) && !description) {
+      setError('请描述要测试的需求、变更或问题。');
       return;
     }
 
@@ -280,374 +355,392 @@ export const ProjectHomePage: React.FC = () => {
       ? models.find((m) => m.id === selectedModelId)?.dataBoundary ===
         'external'
       : models.some((m) => m.dataBoundary === 'external'));
-
-  const intents: {
-    intent: NonNullable<import('@localqa/contracts').RunConfig['taskIntent']>;
-    icon: AppIconName;
-    title: string;
-    text: string;
-    placeholder: string;
-  }[] = [
-    {
-      intent: 'flow',
-      icon: 'activity',
-      title: '测试一个流程',
-      text: '描述操作步骤和预期，AI 规划并执行。',
-      placeholder: '例如：创建测试组织 → 搜索 → 编辑名称 → 验证保存结果。',
-    },
-    {
-      intent: 'explore',
-      icon: 'globe',
-      title: '探索功能区域',
-      text: '按页面和业务区域发现、执行测试用例。',
-      placeholder: '例如：探索组织管理的筛选、分页、新建和编辑流程。',
-    },
-    {
-      intent: 'reproduce',
-      icon: 'shield',
-      title: '复现一个问题',
-      text: '提供现象与复现条件，独立验证问题。',
-      placeholder: '描述复现步骤、实际结果、预期结果及必要条件。',
-    },
-    {
-      intent: 'plan',
-      icon: 'book',
-      title: '只生成测试计划',
-      text: '根据目标生成用例方案，不操作页面。',
-      placeholder: '描述业务规则、范围和预期，AI 只生成计划。',
-    },
-    {
-      intent: 'changes',
-      icon: 'layers',
-      title: '按变更回归',
-      text: '粘贴变更说明或代码差异，测试影响范围。',
-      placeholder: '粘贴本次变更说明或代码差异，并说明可能影响的页面。',
-    },
-    {
-      intent: 'spec',
-      icon: 'file-text',
-      title: '按规格测试',
-      text: '依据粘贴的需求和验收标准执行测试。',
-      placeholder: '粘贴需求或验收标准，注明可测试的范围和预期。',
-    },
-  ];
-  const activeIntent = intents.find((item) => item.intent === taskIntent)!;
+  const selectedEnv = environments.find((env) => env.id === selectedEnvId);
+  const activeIntent = BRIEFS.find((item) => item.intent === taskIntent)!;
   const usesDefaultAuth =
-    !!selectedAuthId &&
-    environments.find((env) => env.id === selectedEnvId)
-      ?.defaultAuthProfileId === selectedAuthId;
+    !!selectedAuthId && selectedEnv?.defaultAuthProfileId === selectedAuthId;
+  const startDisabled =
+    starting ||
+    optionsLoading ||
+    Boolean(optionsError) ||
+    missingModel ||
+    currentProject.status !== 'active';
+
+  const chooseEnvironment = (envId: string) => {
+    setSelectedEnvId(envId);
+    const env = environments.find((item) => item.id === envId);
+    setSelectedAuthId(configuredDefaultAuth(env, authProfiles));
+    if (!env) setAllowWrites(false);
+  };
 
   return (
     <Page testId="project-home-page" className="lqa-home">
-      <div className="lqa-home-inner">
-        <h1 className="lqa-home-title">这次想测试什么？</h1>
-        <div className="lqa-briefs" data-testid="task-intents">
-          {intents.map((item) => (
-            <button
-              key={item.intent}
-              type="button"
-              className="lqa-brief"
-              aria-pressed={taskIntent === item.intent}
-              data-testid={`task-intent-${item.intent}`}
-              onClick={() => {
-                setTaskIntent(item.intent);
-                if (item.intent === 'plan') setAllowWrites(false);
-              }}
-            >
-              <AppIcon name={item.icon} size={18} />
-              <span className="lqa-brief-title">{item.title}</span>
-              <span className="lqa-brief-text">{item.text}</span>
-            </button>
-          ))}
-        </div>
-
+      <div className="mo-new-session">
         {error && (
           <Alert tone="danger" testId="home-error-banner">
             {error}
           </Alert>
         )}
 
-        <form className="lqa-composer" onSubmit={handleStart}>
-          <input
-            id="input-target-url"
-            type="url"
-            className="lqa-composer-url"
-            aria-label="目标地址"
-            placeholder="输入要测试的网址，例如 https://example.com/"
-            value={targetUrl}
-            onChange={(e) => setTargetUrl(e.target.value)}
-            required
-            data-testid="input-target-url"
-          />
+        <form className="mo-composer is-hero" onSubmit={handleStart}>
           <textarea
-            id="input-run-description"
+            ref={composerRef}
+            className="mo-composer-input"
             rows={2}
             maxLength={4000}
-            className="lqa-composer-note"
-            aria-label="测试说明（可选）"
-            placeholder={activeIntent.placeholder}
-            required={['spec', 'changes', 'reproduce'].includes(taskIntent)}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            data-testid="input-run-description"
+            aria-label="要测试的内容"
+            placeholder="告诉 AI 要测试哪个流程，例如注册或下单…"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (
+                e.key === 'Enter' &&
+                !e.shiftKey &&
+                !e.nativeEvent.isComposing
+              ) {
+                e.preventDefault();
+                if (!startDisabled) e.currentTarget.form?.requestSubmit();
+              }
+            }}
+            data-testid="composer-input"
           />
-
-          {showAdvanced && (
-            <div
-              className="lqa-composer-advanced"
-              data-testid="advanced-budget-panel"
-            >
-              <div className="grid-3">
-                <Field label="最多用例数" hint="1–30">
+          <div className="mo-composer-bar">
+            <div className="mo-composer-tools">
+              <Popover
+                title="会话设置"
+                testId="session-settings-popover"
+                className="mo-settings-popover"
+                trigger={(props) => (
+                  <button
+                    type="button"
+                    {...props}
+                    className="mo-tool-button"
+                    aria-label="会话设置"
+                    title="会话设置"
+                    data-testid="btn-session-settings"
+                  >
+                    <AppIcon name="sliders" size={16} />
+                  </button>
+                )}
+              >
+                <label className="mo-setting-row">
+                  <span>
+                    <AppIcon name="cpu" size={15} /> 模型
+                  </span>
+                  <select
+                    aria-label="本次运行模型"
+                    value={selectedModelId}
+                    onChange={(e) => setSelectedModelId(e.target.value)}
+                    data-testid="select-model-profile"
+                  >
+                    <option value="">
+                      {projectDefaultModel
+                        ? `默认：${projectDefaultModel.name}`
+                        : '项目默认或授权模型'}
+                    </option>
+                    {models
+                      .filter((m) => m.status !== 'disabled')
+                      .map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name}（
+                          {m.dataBoundary === 'external' ? '外部' : '内部'}）
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label className="mo-setting-row">
+                  <span>
+                    <AppIcon name="key" size={15} /> 登录凭据
+                  </span>
+                  <select
+                    aria-label="认证凭据"
+                    value={selectedAuthId}
+                    onChange={(e) => setSelectedAuthId(e.target.value)}
+                    data-testid="select-auth-profile"
+                  >
+                    <option value="">匿名访问</option>
+                    {authOptions.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label
+                  className={`mo-setting-row ${taskIntent === 'plan' || !selectedEnvId ? 'is-disabled' : ''}`}
+                  title={
+                    taskIntent === 'plan'
+                      ? '只生成计划时不操作页面'
+                      : !selectedEnvId
+                        ? '先在“环境”里选择测试环境'
+                        : undefined
+                  }
+                >
+                  <span>
+                    <AppIcon name="edit" size={15} /> 允许业务操作
+                  </span>
                   <input
-                    type="number"
-                    className="form-input"
-                    value={maxCases}
-                    min={1}
-                    max={30}
-                    onChange={(e) => setMaxCases(Number(e.target.value))}
+                    type="checkbox"
+                    checked={allowWrites}
+                    disabled={taskIntent === 'plan' || !selectedEnvId}
+                    onChange={(e) => setAllowWrites(e.target.checked)}
+                    data-testid="allow-business-writes"
                   />
-                </Field>
-                <Field label="最多探索页面数" hint="1–30">
+                </label>
+                <p
+                  className="mo-setting-hint"
+                  data-testid="smoke-action-policy"
+                >
+                  {allowWrites
+                    ? '可以在所选测试环境中创建、修改和清理测试数据。'
+                    : '只浏览、填写和检查，不提交业务数据。'}
+                </p>
+                <details className="mo-setting-budget">
+                  <summary>额度</summary>
+                  <div className="mo-setting-grid">
+                    {(
+                      [
+                        ['最多用例', maxCases, setMaxCases, 1, 30],
+                        ['最多页面', maxPages, setMaxPages, 1, 30],
+                        ['探索深度', maxDepth, setMaxDepth, 0, 5],
+                        [
+                          '最长秒数',
+                          maxActiveSeconds,
+                          setMaxActiveSeconds,
+                          60,
+                          3600,
+                        ],
+                        ['最多步数', maxActions, setMaxActions, 10, 1000],
+                        [
+                          '单用例步数',
+                          maxActionsPerCase,
+                          setMaxActionsPerCase,
+                          1,
+                          100,
+                        ],
+                      ] as const
+                    ).map(([label, value, setter, min, max]) => (
+                      <label key={label}>
+                        <span>{label}</span>
+                        <input
+                          type="number"
+                          className="form-input"
+                          min={min}
+                          max={max}
+                          value={value}
+                          onChange={(e) => setter(Number(e.target.value))}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </details>
+              </Popover>
+              <Popover
+                title="并发代理"
+                testId="agents-popover"
+                trigger={(props) => (
+                  <button
+                    type="button"
+                    {...props}
+                    className="mo-tool-button is-labeled"
+                    aria-label="最多并发代理"
+                    data-testid="btn-agents"
+                  >
+                    <AppIcon name="users" size={16} />
+                    <span>代理</span>
+                    <span className="mo-tool-value">{concurrency}</span>
+                  </button>
+                )}
+              >
+                <div className="mo-range">
                   <input
-                    type="number"
-                    className="form-input"
-                    value={maxPages}
-                    min={1}
-                    max={30}
-                    onChange={(e) => setMaxPages(Number(e.target.value))}
-                  />
-                </Field>
-                <Field label="探索深度" hint="0–5">
-                  <input
-                    type="number"
-                    className="form-input"
-                    value={maxDepth}
-                    min={0}
-                    max={5}
-                    onChange={(e) => setMaxDepth(Number(e.target.value))}
-                  />
-                </Field>
-                <Field label="最长执行时间（秒）" hint="60–3600">
-                  <input
-                    type="number"
-                    className="form-input"
-                    value={maxActiveSeconds}
-                    min={60}
-                    max={3600}
-                    onChange={(e) =>
-                      setMaxActiveSeconds(Number(e.target.value))
-                    }
-                  />
-                </Field>
-                <Field label="最多操作步数" hint="10–1000">
-                  <input
-                    type="number"
-                    className="form-input"
-                    value={maxActions}
-                    min={10}
-                    max={1000}
-                    onChange={(e) => setMaxActions(Number(e.target.value))}
-                  />
-                </Field>
-                <Field label="单用例最多操作" hint="1–100，仍受总操作额度限制">
-                  <input
-                    type="number"
-                    className="form-input"
-                    min={1}
-                    max={100}
-                    value={maxActionsPerCase}
-                    onChange={(e) =>
-                      setMaxActionsPerCase(Number(e.target.value))
-                    }
-                  />
-                </Field>
-                <Field label="并发任务数" hint="1–16，实际执行受平台配额限制">
-                  <input
-                    type="number"
-                    className="form-input"
+                    type="range"
                     min={1}
                     max={16}
                     value={concurrency}
                     onChange={(e) => setConcurrency(Number(e.target.value))}
+                    aria-label="并发代理数"
                   />
-                </Field>
-                <Field label="动作策略">
-                  <p className="field-hint" data-testid="smoke-action-policy">
-                    {allowWrites
-                      ? '允许所选测试环境全部页面的业务操作'
-                      : '浏览、填写与检查，不提交业务数据'}
-                  </p>
-                </Field>
-              </div>
-            </div>
-          )}
-
-          {taskIntent !== 'plan' && (
-            <div className="lqa-composer-advanced">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={allowWrites}
-                  data-testid="allow-business-writes"
-                  onChange={(e) => setAllowWrites(e.target.checked)}
-                />{' '}
-                允许在测试环境中创建、修改和清理测试数据
-              </label>
-              {allowWrites && (
-                <p
-                  className="field-hint"
-                  data-testid="business-write-all-pages"
-                >
-                  允许在所选测试环境的全部页面创建、修改和清理测试数据。
-                </p>
+                  <div className="mo-range-scale">
+                    <span>1</span>
+                    <span>16</span>
+                  </div>
+                  <p className="mo-setting-hint">实际并发还受平台配额限制。</p>
+                </div>
+              </Popover>
+              <Popover
+                title="环境"
+                testId="environment-popover"
+                className="mo-env-popover"
+                trigger={(props) => (
+                  <button
+                    type="button"
+                    {...props}
+                    className="mo-tool-button is-labeled"
+                    aria-label="运行环境"
+                    data-env-id={selectedEnvId}
+                    data-testid="btn-environment"
+                  >
+                    <AppIcon name="shield" size={16} />
+                    <span className="mo-tool-env">
+                      {selectedEnv?.name ?? '环境'}
+                    </span>
+                  </button>
+                )}
+              >
+                {(close) => (
+                  <>
+                    {environments.length === 0 ? (
+                      <p className="mo-popover-empty">还没有配置环境。</p>
+                    ) : (
+                      <div role="listbox" aria-label="选择环境">
+                        {[
+                          { id: '', name: '不指定环境', baseUrl: '' },
+                          ...environments,
+                        ].map((env) => (
+                          <button
+                            key={env.id || 'none'}
+                            type="button"
+                            role="option"
+                            aria-selected={selectedEnvId === env.id}
+                            className="mo-menu-item"
+                            onClick={() => {
+                              chooseEnvironment(env.id);
+                              close();
+                            }}
+                            data-testid={`env-option-${env.id || 'none'}`}
+                          >
+                            <span className="mo-menu-item-text">
+                              <span>{env.name}</span>
+                              {env.baseUrl && (
+                                <span className="mo-menu-item-sub">
+                                  {env.baseUrl}
+                                </span>
+                              )}
+                            </span>
+                            {selectedEnvId === env.id && (
+                              <AppIcon name="check" size={14} />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      className="mo-menu-footer"
+                      onClick={() => setRoute('environments')}
+                    >
+                      管理环境
+                    </button>
+                  </>
+                )}
+              </Popover>
+              {taskIntent !== 'flow' && (
+                <span className="mo-intent-chip" data-testid="active-intent">
+                  {activeIntent.title}
+                  <button
+                    type="button"
+                    aria-label="改回测试一个流程"
+                    onClick={() => setTaskIntent('flow')}
+                  >
+                    <AppIcon name="close" size={12} />
+                  </button>
+                </span>
               )}
             </div>
-          )}
-          <div className="lqa-composer-toolbar">
-            <label className="lqa-composer-chip" title="运行环境">
-              <AppIcon name="globe" size={15} />
-              <select
-                id="select-environment"
-                aria-label="运行环境"
-                value={selectedEnvId}
-                onChange={(e) => {
-                  setSelectedEnvId(e.target.value);
-                  const env = environments.find(
-                    (item) => item.id === e.target.value,
-                  );
-                  setSelectedAuthId(configuredDefaultAuth(env, authProfiles));
-                  if (env) setTargetUrl(env.baseUrl);
-                }}
-                data-testid="select-environment"
-              >
-                <option value="">不指定环境</option>
-                {environments.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.name}（{e.baseUrl}）
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="lqa-composer-chip" title="认证凭据">
-              <AppIcon name="key" size={15} />
-              <select
-                id="select-auth-profile"
-                aria-label="认证凭据"
-                value={selectedAuthId}
-                onChange={(e) => setSelectedAuthId(e.target.value)}
-                data-testid="select-auth-profile"
-              >
-                <option value="">匿名访问</option>
-                {authOptions.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}（{a.mode}）
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="lqa-composer-chip" title="本次运行模型">
-              <AppIcon name="cpu" size={15} />
-              <select
-                id="select-model-profile"
-                aria-label="本次运行模型"
-                value={selectedModelId}
-                onChange={(e) => setSelectedModelId(e.target.value)}
-                data-testid="select-model-profile"
-              >
-                <option value="">
-                  {projectDefaultModel
-                    ? `默认模型：${projectDefaultModel.name}`
-                    : '项目默认或授权模型'}
-                </option>
-                {models
-                  .filter((m) => m.status !== 'disabled')
-                  .map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}（
-                      {m.dataBoundary === 'external' ? '外部服务' : '内部服务'}
-                      ）
-                    </option>
-                  ))}
-              </select>
-            </label>
-            <button
-              type="button"
-              className={`lqa-composer-chip ${showAdvanced ? 'is-active' : ''}`}
-              aria-expanded={showAdvanced}
-              aria-label="高级额度与策略"
-              title="高级额度与策略"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              data-testid="btn-toggle-advanced-budget"
-            >
-              <AppIcon name="settings" size={15} />
-            </button>
             <button
               type="submit"
-              className="btn btn-primary lqa-composer-submit"
-              disabled={
-                starting ||
-                optionsLoading ||
-                Boolean(optionsError) ||
-                missingModel ||
-                currentProject.status !== 'active'
-              }
+              className="mo-send-button"
+              aria-label="开始会话"
+              title="开始会话（Enter）"
+              disabled={startDisabled}
               data-testid="btn-start-smoke-run"
             >
-              <AppIcon name="play" size={14} />
-              {starting ? '正在建立运行...' : '开始冒烟测试'}
+              {starting ? (
+                <span className="mo-send-spinner" />
+              ) : (
+                <AppIcon name="arrow-up" size={16} />
+              )}
             </button>
           </div>
         </form>
 
-        <div className="lqa-composer-hints">
-          <span>
-            主 AI
-            将据此规划用例、派工和补测。请写明预期结果和禁止操作，登录凭据放在环境与认证中。
-          </span>
-          <span>
-            冒烟测试只做导航、观察和截图，不会提交表单或写入业务数据。
-          </span>
-          {usesDefaultAuth && (
-            <span data-testid="default-auth-notice">
-              已选择环境默认认证；可手动切换为匿名访问。
-            </span>
-          )}
-          <span data-testid="configured-model-notice">
-            手动选择的模型须已授权给本项目。{' '}
-            <button
-              type="button"
-              className="btn btn-link text-xs"
-              onClick={() => setRoute('models')}
-            >
-              查看模型配置
-            </button>
-          </span>
-        </div>
+        {(usesDefaultAuth || !selectedEnv) && (
+          <div className="mo-composer-notes">
+            {usesDefaultAuth && (
+              <span data-testid="default-auth-notice">
+                使用环境默认登录：
+                {authProfiles.find((a) => a.id === selectedAuthId)?.name}
+              </span>
+            )}
+            {!selectedEnv && (
+              <span>没有选择环境时，请在描述里写上要测试的网址。</span>
+            )}
+          </div>
+        )}
 
         {!isMock && (optionsLoading || optionsError || missingModel) && (
           <Alert
             tone="warning"
-            title="暂时不能启动真实模型冒烟"
+            title="暂时不能开始会话"
             testId="model-unconfigured-notice"
           >
             {optionsLoading
               ? '正在加载项目配置…'
               : optionsError
                 ? `配置读取失败：${optionsError}`
-                : '当前没有可用模型。请由管理员在“模型管理”中完成配置与项目授权，系统不会自动使用模拟模型。'}
+                : '当前没有可用模型。请由管理员在“设置 → 模型管理”中完成配置与项目授权，系统不会自动使用模拟模型。'}
           </Alert>
         )}
         {showExternalNotice && (
-          <Alert
-            tone="warning"
-            title="外部模型数据去向"
-            testId="external-model-notice"
-          >
-            已配置的模型中包含外部商业服务。若本次运行绑定外部模型，脱敏后的
-            DOM、可访问名称及获准截图可能传输到相应服务商。请在项目模型配置中确认实际绑定的数据去向。
-          </Alert>
+          <p className="mo-composer-notes" data-testid="external-model-notice">
+            使用外部模型时，脱敏后的页面结构和获准截图会发送给对应服务商。
+          </p>
         )}
+
+        <div className="mo-briefs-divider">
+          <span>或者从一个模板开始</span>
+        </div>
+        <div className="mo-briefs" data-testid="task-intents">
+          {BRIEFS.map((item) => (
+            <button
+              key={item.intent}
+              type="button"
+              className="mo-brief"
+              aria-pressed={taskIntent === item.intent}
+              data-testid={`task-intent-${item.intent}`}
+              onClick={() => {
+                setTaskIntent(item.intent);
+                if (item.intent === 'plan') setAllowWrites(false);
+                setPrompt(item.prompt);
+                setError(null);
+                window.requestAnimationFrame(() => {
+                  const box = composerRef.current;
+                  if (!box) return;
+                  box.focus();
+                  const blank = item.prompt.indexOf('【');
+                  if (blank >= 0)
+                    box.setSelectionRange(
+                      blank,
+                      item.prompt.indexOf('】', blank) + 1,
+                    );
+                });
+              }}
+            >
+              <AppIcon
+                name={item.icon}
+                size={18}
+                className={`mo-brief-icon is-${item.tone}`}
+              />
+              <span className="mo-brief-title">{item.title}</span>
+              <span className="mo-brief-text">{item.text}</span>
+              <span className="mo-brief-prompt">
+                <AppIcon name="play" size={12} />
+                <span>{item.prompt}</span>
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
     </Page>
   );
