@@ -159,18 +159,38 @@ export class CandidateVerifier {
               project_status: string;
               user_disabled: boolean;
               hash: string;
-              proposal_status: string;
+              proposal_status: string | null;
+              maintenance_id: string | null;
+              maintenance_source_id: string | null;
+              maintenance_source_sha256: string | null;
+              source_id: string | null;
+              source_status: string | null;
+              source_sha256: string | null;
             }>(
               `SELECT s.review_status AS status,p.status AS project_status,
                       u.disabled AS user_disabled,s.sha256 AS hash,
-                      q.status AS proposal_status
+                      q.status AS proposal_status,
+                      lm.id AS maintenance_id,
+                      lm.source_version_id AS maintenance_source_id,
+                      lm.source_sha256 AS maintenance_source_sha256,
+                      c.current_approved_version_id AS source_id,
+                      src.review_status AS source_status,
+                      src.sha256 AS source_sha256
                FROM repair_candidate_verifications v
                JOIN saved_case_versions s ON s.project_id=v.project_id
                  AND s.id=v.case_version_id
                JOIN projects p ON p.id=v.project_id
                JOIN users u ON u.id=v.requested_by
-               JOIN repair_proposals q ON q.project_id=v.project_id
+               LEFT JOIN repair_proposals q ON q.project_id=v.project_id
                  AND q.id=v.proposal_id
+               LEFT JOIN locator_maintenance_drafts lm
+                 ON lm.project_id=v.project_id AND lm.id=v.maintenance_id
+                 AND lm.case_id=v.case_id AND lm.case_version_id=v.case_version_id
+                 AND lm.candidate_sha256=v.candidate_sha256
+               LEFT JOIN saved_cases c
+                 ON c.project_id=lm.project_id AND c.id=lm.case_id
+               LEFT JOIN saved_case_versions src
+                 ON src.project_id=lm.project_id AND src.id=lm.source_version_id
                WHERE v.id=$1`,
               [item.id],
             )
@@ -179,7 +199,12 @@ export class CandidateVerifier {
             row?.status === 'draft' &&
             row.project_status === 'active' &&
             !row.user_disabled &&
-            row.proposal_status === 'approved' &&
+            (row.proposal_status === 'approved' ||
+              (row.maintenance_id !== null &&
+                row.maintenance_source_id !== null &&
+                row.source_id === row.maintenance_source_id &&
+                row.source_status === 'approved' &&
+                row.source_sha256 === row.maintenance_source_sha256)) &&
             row.hash === item.candidate_sha256
           );
         },

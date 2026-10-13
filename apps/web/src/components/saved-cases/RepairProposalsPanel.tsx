@@ -14,6 +14,7 @@ import {
   previewLocatorMaintenance,
   type LocatorMaintenancePreview,
 } from './locatorMaintenanceDraft.ts';
+import { createLocatorMaintenanceDraft } from '../../api/locatorMaintenance.ts';
 
 interface Props {
   caseId: string;
@@ -307,10 +308,11 @@ export const RepairProposalsPanel: React.FC<Props> = ({
         JSON.stringify(maintenance.preview.document)
       )
         throw new Error('维护候选与最新观察不一致，请重新预览');
-      const created = await defaultApiClient.createSavedCaseVersion(caseId, {
-        expectedVersion: caseVersion,
-        document: current.document,
-      });
+      const created = await createLocatorMaintenanceDraft(
+        caseId,
+        selected.taskId,
+        caseVersion,
+      );
       setMaintenance(null);
       setMaintenanceConfirmed(false);
       await onCandidateCreated(created.id);

@@ -19,6 +19,7 @@ import { registerApiKeyRoutes } from './routes/apiKeys.js';
 import { registerScheduleRoutes } from './routes/schedules.js';
 import { registerRepairProposalRoutes } from './routes/repairProposals.js';
 import { registerCandidateVerificationRoutes } from './routes/candidateVerifications.js';
+import { registerLocatorMaintenanceRoutes } from './routes/locatorMaintenance.js';
 import { validateOriginAndCsrf } from './auth.js';
 
 export function createRouter(): Router {
@@ -39,6 +40,7 @@ export function createRouter(): Router {
   registerScheduleRoutes(router);
   registerRepairProposalRoutes(router);
   registerCandidateVerificationRoutes(router);
+  registerLocatorMaintenanceRoutes(router);
   return router;
 }
 

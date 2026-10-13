@@ -8,6 +8,7 @@ export type * from './generated/types.js';
 export * from './errors.js';
 export * from './config.js';
 export * from './model-limits.js';
+export * from './locator-maintenance.js';
 
 // Validate JSON without coercion, defaults, stripping, or user-data logging.
 const ajv = new Ajv2020({

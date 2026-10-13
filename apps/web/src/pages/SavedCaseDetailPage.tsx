@@ -15,6 +15,7 @@ import { RegressionRunModal } from '../components/saved-cases/RegressionRunModal
 import { SavedCaseYamlExportModal } from '../components/saved-cases/SavedCaseYamlExportModal.tsx';
 import { SavedCaseDuplicateModal } from '../components/saved-cases/SavedCaseDuplicateModal.tsx';
 import { RepairProposalsPanel } from '../components/saved-cases/RepairProposalsPanel.tsx';
+import { LocatorMaintenancePanel } from '../components/saved-cases/LocatorMaintenancePanel.tsx';
 import {
   LifecycleScopeGuard,
   findCaseAcrossPages,
@@ -478,6 +479,17 @@ export const SavedCaseDetailPage: React.FC = () => {
               </dd>
             </dl>
           </section>
+
+          <LocatorMaintenancePanel
+            key={activeVersion.id}
+            versionId={activeVersion.id}
+            canRun={isOwnerOrOperator}
+            canReview={
+              currentMember?.role === 'owner' ||
+              currentUser?.globalRole === 'admin'
+            }
+            archived={isArchived}
+          />
 
           <div className="grid-2 lqa-doc-grid">
             <Section
