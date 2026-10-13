@@ -2,52 +2,18 @@ import React, { useEffect, useState } from 'react';
 import type { Run } from '@localqa/contracts';
 import { defaultApiClient } from '../../api/index.ts';
 import { useApp } from '../../state/AppContext.tsx';
-import { AppIcon, type AppIconName } from '../ui/AppIcon.tsx';
+import { AppIcon } from '../ui/AppIcon.tsx';
+import {
+  isRunActive,
+  relativeTime,
+  sessionStatusLabel,
+  sessionStatusMeta,
+  sessionTitle,
+} from '../sessions/sessionMeta.ts';
 
 type Filter = 'all' | 'active' | 'finished';
 
-const ACTIVE: Run['status'][] = [
-  'queued',
-  'running',
-  'awaiting_input',
-  'cancelling',
-];
 const POLL_MS = 15000;
-
-const statusMeta: Record<
-  Run['status'],
-  { label: string; icon: AppIconName; tone: string }
-> = {
-  draft: { label: '草稿', icon: 'file-text', tone: 'is-muted' },
-  queued: { label: '排队中', icon: 'clock', tone: 'is-muted' },
-  running: { label: '执行中', icon: 'activity', tone: 'is-info' },
-  awaiting_input: { label: '等待输入', icon: 'alert-circle', tone: 'is-ai' },
-  cancelling: { label: '取消中', icon: 'clock', tone: 'is-warning' },
-  completed: { label: '已完成', icon: 'check-circle', tone: 'is-success' },
-  cancelled: { label: '已取消', icon: 'x-circle', tone: 'is-warning' },
-  failed: { label: '失败', icon: 'x-circle', tone: 'is-danger' },
-};
-
-const relativeTime = (iso: string) => {
-  const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  if (!Number.isFinite(minutes) || minutes < 1) return '刚刚';
-  if (minutes < 60) return `${minutes} 分钟前`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} 小时前`;
-  return `${Math.round(hours / 24)} 天前`;
-};
-
-// Runs usually share one host, so lead with the path; the full URL is in
-// the tooltip.
-const runTitle = (run: Run) => {
-  try {
-    const url = new URL(run.targetUrl);
-    const path = `${url.pathname}${url.search}`;
-    return path === '/' ? url.host : path;
-  } catch {
-    return run.targetUrl || run.id;
-  }
-};
 
 /**
  * Sidebar list of the current project's runs, like Mo's "My sessions". It
@@ -61,7 +27,7 @@ export const RecentRuns: React.FC<{ onNavigate: () => void }> = ({
   const [hasMore, setHasMore] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
   const projectId = currentProject?.id;
-  const anyActive = runs?.some((run) => ACTIVE.includes(run.status)) ?? false;
+  const anyActive = runs?.some(isRunActive) ?? false;
 
   useEffect(() => {
     if (!projectId) {
@@ -94,21 +60,21 @@ export const RecentRuns: React.FC<{ onNavigate: () => void }> = ({
     filter === 'all'
       ? true
       : filter === 'active'
-        ? ACTIVE.includes(run.status)
-        : !ACTIVE.includes(run.status),
+        ? isRunActive(run)
+        : !isRunActive(run),
   );
 
   return (
     <section
       className="lqa-recent-runs"
-      aria-label="运行记录"
+      aria-label="会话记录"
       data-testid="sidebar-runs"
     >
       <div className="lqa-recent-runs-head">
-        <span>运行记录</span>
+        <span>会话</span>
         <select
           className="lqa-recent-runs-filter"
-          aria-label="按状态筛选运行"
+          aria-label="按状态筛选会话"
           value={filter}
           onChange={(e) => setFilter(e.target.value as Filter)}
           data-testid="sidebar-runs-filter"
@@ -122,12 +88,12 @@ export const RecentRuns: React.FC<{ onNavigate: () => void }> = ({
         <p className="lqa-recent-runs-empty">正在读取…</p>
       ) : visible.length === 0 ? (
         <p className="lqa-recent-runs-empty">
-          {runs.length === 0 ? '还没有运行' : '没有符合条件的运行'}
+          {runs.length === 0 ? '还没有会话' : '没有符合条件的会话'}
         </p>
       ) : (
         <ul>
           {visible.map((run) => {
-            const meta = statusMeta[run.status];
+            const meta = sessionStatusMeta[run.status];
             const active =
               currentRoute === 'workbench' && routeParams.runId === run.id;
             return (
@@ -146,18 +112,15 @@ export const RecentRuns: React.FC<{ onNavigate: () => void }> = ({
                   <AppIcon
                     name={meta.icon}
                     size={15}
-                    className={`lqa-recent-run-icon ${meta.tone}`}
+                    className={`lqa-recent-run-icon is-${meta.tone}`}
                   />
                   <span className="lqa-recent-run-text">
                     <span className="lqa-recent-run-title">
-                      {runTitle(run)}
+                      {sessionTitle(run)}
                     </span>
                     <span className="lqa-recent-run-meta">
-                      <span className={meta.tone}>
-                        {run.completion === 'partial' &&
-                        run.status === 'completed'
-                          ? '部分完成'
-                          : meta.label}
+                      <span className={`is-${meta.tone}`}>
+                        {sessionStatusLabel(run)}
                       </span>
                       <span>{relativeTime(run.createdAt)}</span>
                     </span>
@@ -168,7 +131,7 @@ export const RecentRuns: React.FC<{ onNavigate: () => void }> = ({
           })}
           {runs.length > 0 && (
             <li className="lqa-recent-runs-end">
-              {hasMore ? '仅显示最近的运行' : '已显示全部运行'}
+              {hasMore ? '仅显示最近的会话' : '已显示全部会话'}
             </li>
           )}
         </ul>

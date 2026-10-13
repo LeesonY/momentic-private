@@ -6,29 +6,38 @@ import { ThemeToggle } from '../ui/ThemeToggle.tsx';
 import { CreateProjectDialog } from './CreateProjectDialog.tsx';
 import { RecentRuns } from './RecentRuns.tsx';
 
-// One flat list like Mo's sidebar; groups are separated by spacing only.
-const navGroups: { key: AppRoute; label: string; icon: AppIconName }[][] = [
-  [
-    { key: 'home', label: '新建测试', icon: 'plus' },
-    { key: 'workbench', label: '运行工作台', icon: 'activity' },
-  ],
-  [
-    { key: 'saved-cases', label: '用例库', icon: 'layers' },
-    { key: 'schedules', label: '定时回归', icon: 'calendar' },
-    { key: 'modules', label: '模块库', icon: 'boxes' },
-  ],
-  [
-    { key: 'environments', label: '环境与认证', icon: 'shield' },
-    { key: 'knowledge', label: '项目知识', icon: 'book' },
-    { key: 'models', label: '模型管理', icon: 'cpu' },
-    { key: 'members-ops', label: '成员与运维', icon: 'users' },
-  ],
+type NavItem = { key: AppRoute; label: string; icon: AppIconName };
+
+// One flat list in Mo's order; models and members live under Settings.
+const mainNav: NavItem[] = [
+  { key: 'home', label: '新建会话', icon: 'plus' },
+  { key: 'sessions', label: '会话', icon: 'activity' },
+  { key: 'schedules', label: '定时回归', icon: 'calendar' },
+  { key: 'saved-cases', label: '用例库', icon: 'layers' },
+  { key: 'modules', label: '模块库', icon: 'boxes' },
+  { key: 'environments', label: '环境与认证', icon: 'shield' },
+  { key: 'knowledge', label: '知识库', icon: 'book' },
 ];
+
+const settingsNav: { label: string; items: NavItem[] }[] = [
+  {
+    label: '项目',
+    items: [{ key: 'members-ops', label: '成员与运维', icon: 'users' }],
+  },
+  {
+    label: '平台',
+    items: [{ key: 'models', label: '模型管理', icon: 'cpu' }],
+  },
+];
+const settingsRoutes = new Set<AppRoute>(
+  settingsNav.flatMap((group) => group.items.map((item) => item.key)),
+);
 
 // Detail pages highlight the list they were opened from.
 const parentRoute: Partial<Record<AppRoute, AppRoute>> = {
-  'case-detail': 'workbench',
-  'finding-detail': 'workbench',
+  workbench: 'sessions',
+  'case-detail': 'sessions',
+  'finding-detail': 'sessions',
   'saved-case-detail': 'saved-cases',
 };
 
@@ -49,6 +58,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({
     logout,
   } = useApp();
   const activeRoute = parentRoute[currentRoute] ?? currentRoute;
+  const inSettings = settingsRoutes.has(activeRoute);
 
   useEffect(() => setMenuOpen(false), [currentRoute]);
 
@@ -125,14 +135,48 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({
         </div>
 
         <div id="lqa-sidebar-panel" className="lqa-sidebar-panel">
-          <nav
-            className="lqa-sidebar-nav"
-            aria-label="主导航"
-            data-testid="main-navigation"
-          >
-            {navGroups.map((group, index) => (
-              <div className="lqa-nav-group" key={index}>
-                {group.map(({ key, label, icon }) => (
+          {inSettings ? (
+            <nav
+              className="lqa-sidebar-nav lqa-settings-nav"
+              aria-label="设置导航"
+              data-testid="settings-navigation"
+            >
+              <button
+                type="button"
+                className="lqa-nav-link lqa-nav-back"
+                onClick={() => navigate('home')}
+                data-testid="nav-back-to-app"
+              >
+                <AppIcon name="chevron-left" size={16} />
+                <span>返回应用</span>
+              </button>
+              {settingsNav.map((group) => (
+                <div className="lqa-nav-group" key={group.label}>
+                  <div className="lqa-nav-group-label">{group.label}</div>
+                  {group.items.map(({ key, label, icon }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`lqa-nav-link ${activeRoute === key ? 'is-active' : ''}`}
+                      aria-current={activeRoute === key ? 'page' : undefined}
+                      onClick={() => navigate(key)}
+                      data-testid={`nav-${key}`}
+                    >
+                      <AppIcon name={icon} size={16} />
+                      <span>{label}</span>
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </nav>
+          ) : (
+            <nav
+              className="lqa-sidebar-nav"
+              aria-label="主导航"
+              data-testid="main-navigation"
+            >
+              <div className="lqa-nav-group">
+                {mainNav.map(({ key, label, icon }) => (
                   <button
                     key={key}
                     type="button"
@@ -145,11 +189,22 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({
                     <span>{label}</span>
                   </button>
                 ))}
+                <button
+                  type="button"
+                  className="lqa-nav-link"
+                  onClick={() => navigate('members-ops')}
+                  data-testid="nav-settings"
+                >
+                  <AppIcon name="settings" size={16} />
+                  <span>设置</span>
+                </button>
               </div>
-            ))}
-          </nav>
+            </nav>
+          )}
 
-          {currentUser && <RecentRuns onNavigate={() => setMenuOpen(false)} />}
+          {currentUser && !inSettings && (
+            <RecentRuns onNavigate={() => setMenuOpen(false)} />
+          )}
 
           <div className="lqa-sidebar-footer">
             <div className="lqa-sidebar-controls">

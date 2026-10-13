@@ -1,0 +1,180 @@
+/* Mo interaction patterns: sessions, composer, session page, side pane. */
+
+/* ---- Status tones ----------------------------------------------------------- */
+.mo-status-icon.is-muted,
+.mo-session-status.is-muted {
+  color: var(--color-text-muted);
+}
+.mo-status-icon.is-info,
+.mo-session-status.is-info {
+  color: var(--color-info);
+}
+.mo-status-icon.is-ai,
+.mo-session-status.is-ai {
+  color: var(--color-warning);
+}
+.mo-status-icon.is-success,
+.mo-session-status.is-success {
+  color: var(--color-success);
+}
+.mo-status-icon.is-warning,
+.mo-session-status.is-warning {
+  color: var(--color-warning);
+}
+.mo-status-icon.is-danger,
+.mo-session-status.is-danger {
+  color: var(--color-danger);
+}
+
+/* ---- Settings sidebar ---------------------------------------------------------- */
+.lqa-settings-nav .lqa-nav-group-label {
+  padding: var(--space-2) 8px 4px;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.lqa-nav-back {
+  color: var(--color-text-main);
+}
+
+/* ---- List pages (sessions) ------------------------------------------------------ */
+.mo-list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.mo-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: min(100%, 256px);
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--color-input-border, var(--color-border));
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-muted);
+}
+
+.mo-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-text-main);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.mo-filter-chip {
+  display: inline-flex;
+  align-items: stretch;
+  height: 32px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  font-size: var(--text-sm);
+  overflow: hidden;
+}
+
+.mo-filter-chip > svg {
+  align-self: center;
+  margin-left: 10px;
+  color: var(--color-text-muted);
+}
+
+.mo-filter-chip > span,
+.mo-filter-chip > select {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+}
+
+.mo-filter-chip > span + span,
+.mo-filter-chip > span + select {
+  border-left: 1px solid var(--color-border);
+}
+
+.mo-filter-chip-op {
+  color: var(--color-text-muted);
+}
+
+.mo-filter-chip > select {
+  border: 0;
+  border-left: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-main);
+  font: inherit;
+  cursor: pointer;
+}
+
+.mo-status-tabs {
+  align-self: flex-start;
+}
+
+.mo-session-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mo-session-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto 84px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-main);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mo-session-row:hover {
+  background: var(--color-bg-muted);
+}
+
+.mo-session-title {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mo-session-status {
+  font-size: var(--text-sm);
+}
+
+.mo-session-time {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  text-align: right;
+}
+
+.mo-list-count {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.mo-list-more {
+  display: flex;
+  justify-content: center;
+}
+
+@media (max-width: 640px) {
+  .mo-session-row {
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+  }
+  .mo-session-time {
+    display: none;
+  }
+}

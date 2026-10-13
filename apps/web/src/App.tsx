@@ -14,9 +14,11 @@ import { SavedCasesPage } from './pages/SavedCasesPage.tsx';
 import { SavedCaseDetailPage } from './pages/SavedCaseDetailPage.tsx';
 import { ModulesPage } from './pages/ModulesPage.tsx';
 import { SchedulesPage } from './pages/SchedulesPage.tsx';
+import { SessionsPage } from './pages/SessionsPage.tsx';
 
 const pages: Record<Exclude<AppRoute, 'login'>, React.FC> = {
   home: ProjectHomePage,
+  sessions: SessionsPage,
   workbench: WorkbenchPage,
   'case-detail': CaseDetailPage,
   'finding-detail': FindingDetailPage,
