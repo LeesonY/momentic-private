@@ -1,0 +1,51 @@
+{
+  "id": "T48-66-live-maintenance-e2e",
+  "date": "2026-10-13",
+  "environment": "192.168.111.66",
+  "result": "passed",
+  "revision": "780efd8a5412d1e63f115be71aa183b7a17244f2",
+  "fixture": "isolated single-origin, non-submitting Chromium fixture on private Docker network",
+  "source": {
+    "projectId": "bbe568e5-7be1-428f-8072-70be2abd156b",
+    "caseId": "6029dcca-19d1-472c-b5b1-17e0fe9e637d",
+    "sourceVersionId": "a41f809e-8a9d-4605-b6c2-5ab3848feccc",
+    "originalRunId": "be563392-fd8f-4d89-a7e4-c0763596eeef",
+    "failedExecutorTaskId": "8ee55bbc-5624-4fcf-a8f7-815648d64e7f"
+  },
+  "repair": {
+    "originalLocatorName": "Proceed NOW",
+    "proposedLocatorName": "Proceed Now",
+    "originalReasonCode": "LOCATOR_NOT_FOUND",
+    "candidateVersionId": "d710568e-4b2d-40d1-b487-c1335e4ef06e",
+    "verificationId": "96d8bf9e-14e2-47bc-8dff-bea07fe415ad",
+    "outcome": "completed / passed / fullyVerified=true",
+    "evidenceSteps": 3,
+    "screenshotBackedPassingCriteria": 1,
+    "screenshotPngAndSha256Verified": true,
+    "approvedBaselineUpdated": true,
+    "postApprovalRunId": "efa9967a-2061-4e57-a856-2385cc303616",
+    "postApprovalRegressionReplay": "completed"
+  },
+  "checksPassed": [
+    "actual authenticated HTTP login",
+    "create case and approve initial version through two-phase review",
+    "actual normal regression emits one review-only repair suggestion",
+    "server creates only a minimum locator patch retaining the original oracle",
+    "actual independent Worker Chromium returns passed and screenshot evidence",
+    "real HTTP screenshot PNG bytes match recorded SHA256",
+    "evidence-gated reviewer approval changes the formal baseline",
+    "normal regression on approved new baseline completes"
+  ],
+  "cleanup": {
+    "ephemeralAccountsDisabled": 4,
+    "ephemeralSessionsRevoked": 4,
+    "hostTestPortClosed": true,
+    "sampleProjectAndEvidenceRetainedOn66": true,
+    "privateDockerFixtureRetained": true
+  },
+  "limits": [
+    "This is one isolated real full business flow, not arbitrary third-party websites.",
+    "Review used live authenticated HTTP API, not a manual GUI walkthrough.",
+    "LLM self-healing, live video and high concurrency are not yet validated."
+  ]
+}
