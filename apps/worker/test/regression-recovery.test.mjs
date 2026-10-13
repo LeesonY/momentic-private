@@ -44,6 +44,73 @@ function compiled() {
 }
 const missing = () =>
   Object.assign(new Error('hidden DOM details'), { code: 'LOCATOR_NOT_FOUND' });
+const staleSnapshot = () =>
+  Object.assign(new Error('stale snapshot details'), {
+    code: 'LOCATOR_SNAPSHOT_STALE',
+  });
+
+test('stale but uniquely live control is re-observed before one click, never executed from the stale snapshot', async () => {
+  const operations = [];
+  let resolutions = 0;
+  const result = await replayRegression(
+    compiled(),
+    {
+      async executeTool(call) {
+        operations.push(call.name);
+        return { status: 'succeeded' };
+      },
+      async resolveTarget() {
+        resolutions++;
+        if (resolutions === 1) throw staleSnapshot();
+        return {
+          snapshotId: '00000000-0000-4000-8000-000000000001',
+          pageId: '00000000-0000-4000-8000-000000000002',
+          nodeId: 'fresh-owned-node',
+        };
+      },
+      async evaluateCriterion() {
+        throw new Error('unreachable');
+      },
+    },
+    new AbortController().signal,
+  );
+  assert.equal(result.status, 'completed');
+  assert.deepEqual(result.steps[1].recoveryCodes, ['LOCATOR_SNAPSHOT_STALE']);
+  assert.equal(result.steps[1].resolutionAttempts, 2);
+  assert.deepEqual(operations, ['navigate', 'click', 'type_text']);
+});
+
+test('persistently stale snapshot fails before any browser mutation', async () => {
+  const operations = [];
+  const result = await replayRegression(
+    compiled(),
+    {
+      async executeTool(call) {
+        operations.push(call.name);
+        return { status: 'succeeded' };
+      },
+      async resolveTarget() {
+        throw staleSnapshot();
+      },
+      async evaluateCriterion() {
+        throw new Error('unreachable');
+      },
+    },
+    new AbortController().signal,
+  );
+  assert.equal(result.status, 'failed');
+  assert.equal(result.reasonCode, 'LOCATOR_SNAPSHOT_STALE');
+  assert.equal(result.steps[1].resolutionAttempts, 3);
+  assert.deepEqual(result.steps[1].recoveryCodes, [
+    'LOCATOR_SNAPSHOT_STALE',
+    'LOCATOR_SNAPSHOT_STALE',
+  ]);
+  assert.deepEqual(operations, ['navigate']);
+  assert.equal(
+    JSON.stringify(result).includes('stale snapshot details'),
+    false,
+  );
+});
 
 test('delayed DOM recovers before action without repeating an already executed click', async () => {
   const operations = [];

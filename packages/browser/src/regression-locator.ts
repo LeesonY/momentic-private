@@ -63,6 +63,11 @@ export async function resolveRegressionLocator(
       )
         targets.push(target);
     }
+    // A unique live element may appear after the budgeted snapshot was taken.
+    // Do NOT mint a NodeTarget from live DOM alone. Signal the replay loop to
+    // re-observe under its existing bounded *pre-action* retry budget.
+    if (targets.length === 0)
+      throw new RegressionLocatorError('LOCATOR_SNAPSHOT_STALE');
     if (targets.length !== 1)
       throw new RegressionLocatorError('LOCATOR_NOT_OWNED_OR_AMBIGUOUS');
     return parseContract('NodeTarget', targets[0]);

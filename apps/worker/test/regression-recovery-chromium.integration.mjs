@@ -23,7 +23,7 @@ test(
         <h1>Checkout fixture</h1>
         <script>
           window.clickCount = 0;
-          setTimeout(() => {
+          window.installNext = () => {
             const next = document.createElement('button');
             next.setAttribute('aria-label', 'Next');
             next.textContent = 'Next';
@@ -36,7 +36,7 @@ test(
               document.body.append(label);
             });
             document.body.append(next);
-          }, 400);
+          };
         </script>
       `);
       const plan = compileRegression(
@@ -78,6 +78,7 @@ test(
         },
       );
       const signal = new AbortController().signal;
+      let installed = false;
       const result = await replayRegression(
         plan,
         {
@@ -87,6 +88,14 @@ test(
               { signal: operationSignal },
             );
             assert.equal(observed.status, 'succeeded');
+            // Reproduce the 66 timing race deterministically: the button
+            // appears AFTER budgeted capture but BEFORE live locator lookup.
+            // It cannot be clicked from the stale snapshot. Recovery must
+            // capture its new owned identity before the sole click.
+            if (!installed) {
+              installed = true;
+              await page.evaluate(() => window.installNext());
+            }
             return session.resolveRegressionLocator(locator, operationSignal);
           },
           async executeTool(call, _source, operationSignal) {
@@ -113,6 +122,9 @@ test(
       assert.equal(result.status, 'completed', JSON.stringify(result));
       assert.ok(result.steps[0].resolutionAttempts > 1);
       assert.ok(result.steps[0].resolutionAttempts <= 3);
+      assert.deepEqual(result.steps[0].recoveryCodes, [
+        'LOCATOR_SNAPSHOT_STALE',
+      ]);
       assert.equal(result.steps[0].tools.length, 1);
       assert.equal(result.steps[1].tools.length, 1);
       assert.equal(result.steps[2].criterionResults[0].result, 'passed');

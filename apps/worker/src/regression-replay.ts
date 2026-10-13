@@ -225,7 +225,8 @@ export async function replayRegression(
         await execute({ name: 'navigate', args: { url: step.url } });
       else if (step.kind === 'click' || step.kind === 'type_text') {
         let target: NodeTarget | undefined;
-        // Bounded pre-action recovery for asynchronously appearing elements.
+        // Bounded pre-action recovery for asynchronously appearing elements
+        // and a uniquely matched live element omitted by a stale snapshot.
         // The injected resolver obtains a *new* budgeted browser observation
         // every time. Never retry a click/type whose execution may be unknown,
         // an ambiguous locator, a policy denial or an assertion failure.
@@ -243,9 +244,14 @@ export async function replayRegression(
               error && typeof error === 'object' && 'code' in error
                 ? error.code
                 : null;
-            if (signal.aborted || code !== 'LOCATOR_NOT_FOUND' || attempt === 3)
+            if (
+              signal.aborted ||
+              (code !== 'LOCATOR_NOT_FOUND' &&
+                code !== 'LOCATOR_SNAPSHOT_STALE') ||
+              attempt === 3
+            )
               throw error;
-            record.recoveryCodes.push('LOCATOR_NOT_FOUND');
+            record.recoveryCodes.push(code);
             await delay(attempt * 250, undefined, { signal });
           }
         }

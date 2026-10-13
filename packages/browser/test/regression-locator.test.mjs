@@ -81,7 +81,7 @@ test('mock DOM: missing/ambiguous/unowned/cancelled locators have stable machine
   for (const [count, nodes, code] of [
     [0, 1, 'LOCATOR_NOT_FOUND'],
     [2, 1, 'LOCATOR_NOT_UNIQUE'],
-    [1, 0, 'LOCATOR_NOT_OWNED_OR_AMBIGUOUS'],
+    [1, 0, 'LOCATOR_SNAPSHOT_STALE'],
     [1, 2, 'LOCATOR_NOT_OWNED_OR_AMBIGUOUS'],
   ]) {
     const { page, snapshot } = await fixture(count, nodes);
@@ -122,6 +122,6 @@ test('mock DOM: a DOM change after capture fails closed instead of binding', asy
   await assert.rejects(
     () =>
       resolveRegressionLocator(page, { by: 'css', value: 'input' }, snapshot),
-    (error) => error.code === 'LOCATOR_NOT_OWNED_OR_AMBIGUOUS',
+    (error) => error.code === 'LOCATOR_SNAPSHOT_STALE',
   );
 });
