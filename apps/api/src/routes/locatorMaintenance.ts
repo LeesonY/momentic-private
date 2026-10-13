@@ -7,11 +7,17 @@ import type { Router } from '../router.js';
 import type { RequestContext } from '../types.js';
 import { parseRegressionPayload } from './savedCases.js';
 
-function versionInput(body: unknown): number {
+function versionInput(body: unknown): {
+  expectedVersion: number;
+  suggestionIndex: number;
+} {
   if (
     !body ||
     typeof body !== 'object' ||
-    Object.keys(body).length !== 1 ||
+    Array.isArray(body) ||
+    Object.keys(body).some(
+      (key) => !['expectedVersion', 'suggestionIndex'].includes(key),
+    ) ||
     !('expectedVersion' in body)
   )
     throw new StorageError('VALIDATION_ERROR');
@@ -23,7 +29,10 @@ function versionInput(body: unknown): number {
     n > 2147483647
   )
     throw new StorageError('VALIDATION_ERROR');
-  return n;
+  const idx = 'suggestionIndex' in body ? body.suggestionIndex : 0;
+  if (typeof idx !== 'number' || !Number.isInteger(idx) || idx < 0 || idx > 2)
+    throw new StorageError('VALIDATION_ERROR');
+  return { expectedVersion: n, suggestionIndex: idx };
 }
 
 function allowedVerificationDocument(
@@ -112,7 +121,9 @@ export function registerLocatorMaintenanceRoutes(router: Router): void {
     '/api/v1/saved-cases/{caseId}/locator-maintenance/{taskId}/draft',
     async (ctx: RequestContext) => {
       await requireAuth(ctx);
-      const expected = versionInput(ctx.body);
+      const { expectedVersion: expected, suggestionIndex } = versionInput(
+        ctx.body,
+      );
       const result = await ctx.api.db.actor(ctx.actor!, async (client) => {
         const saved = (
           await client.query<{
@@ -171,13 +182,18 @@ export function registerLocatorMaintenanceRoutes(router: Router): void {
           saved.current_approved_version_id !== evidence.source_version_id
         )
           throw new StorageError('POLICY_DENIED');
-        if (!Array.isArray(evidence.hints) || evidence.hints.length !== 1)
+        if (
+          !Array.isArray(evidence.hints) ||
+          evidence.hints.length < 1 ||
+          evidence.hints.length > 3 ||
+          !evidence.hints[suggestionIndex]
+        )
           throw new StorageError('VALIDATION_ERROR');
         const suggestion = parseContract('RepairSuggestionRecord', {
           taskId: ctx.params.taskId!,
           runId: evidence.run_id,
           sourceVersionId: evidence.source_version_id,
-          suggestion: evidence.hints[0],
+          suggestion: evidence.hints[suggestionIndex],
         });
         const source = parseContract('SavedCaseVersion', {
           id: evidence.source_version_id,

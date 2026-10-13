@@ -55,10 +55,11 @@ export async function createLocatorMaintenanceDraft(
   caseId: string,
   taskId: string,
   expectedVersion: number,
+  suggestionIndex = 0,
 ): Promise<SavedCaseVersion> {
   const body = await call<unknown>(
     `/saved-cases/${encode(caseId)}/locator-maintenance/${encode(taskId)}/draft`,
-    { expectedVersion },
+    { expectedVersion, suggestionIndex },
   );
   return parseContract('SavedCaseVersion', body);
 }

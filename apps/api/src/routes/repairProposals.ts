@@ -259,7 +259,7 @@ export function registerRepairProposalRoutes(router: Router): void {
             if (!Array.isArray(row.hints)) return [];
             // Fail closed on stale/malformed result JSON. The signed result
             // remains available for audit, but is never made a client DTO.
-            return row.hints.slice(0, 1).flatMap((hint) => {
+            return row.hints.slice(0, 3).flatMap((hint) => {
               try {
                 return [
                   parseContract('RepairSuggestionRecord', {

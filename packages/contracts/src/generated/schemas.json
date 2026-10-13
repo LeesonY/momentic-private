@@ -8036,7 +8036,11 @@
         "type": "object",
         "properties": {
           "kind": {
-            "const": "locator_name_variation"
+            "type": "string",
+            "enum": [
+              "locator_name_variation",
+              "locator_semantic_candidate"
+            ]
           },
           "source": {
             "$ref": "#/$defs/RegressionStepSource"
@@ -24724,7 +24728,11 @@
           "type": "object",
           "properties": {
             "kind": {
-              "const": "locator_name_variation"
+              "type": "string",
+              "enum": [
+                "locator_name_variation",
+                "locator_semantic_candidate"
+              ]
             },
             "source": {
               "$ref": "#/components/schemas/RegressionStepSource"

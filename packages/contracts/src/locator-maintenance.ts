@@ -33,7 +33,9 @@ export function previewLocatorMaintenance(
   if (
     baseline.reviewStatus !== 'approved' ||
     baseline.id !== record.sourceVersionId ||
-    hint.kind !== 'locator_name_variation' ||
+    !['locator_name_variation', 'locator_semantic_candidate'].includes(
+      hint.kind,
+    ) ||
     hint.reasonCode !== 'LOCATOR_NOT_FOUND' ||
     !hint.reviewRequired ||
     hint.verification !== 'not_run' ||
@@ -62,7 +64,9 @@ export function previewLocatorMaintenance(
   if (
     !oldName ||
     normalized(oldName).length < 4 ||
-    normalized(oldName) !== normalized(hint.proposed.name) ||
+    (hint.kind === 'locator_name_variation'
+      ? normalized(oldName) !== normalized(hint.proposed.name)
+      : normalized(oldName) === normalized(hint.proposed.name)) ||
     (actual.by === 'role' && actual.value !== hint.proposed.value) ||
     (actual.by === 'role' &&
       actual.value === hint.proposed.value &&

@@ -34,6 +34,7 @@ import type { AgentRoleName } from '@localqa/orchestrator';
 import { StorageError, hashPayload, type LeaseProof } from '@localqa/storage';
 import { replayRegression, type ReplayPorts } from './regression-replay.js';
 import { suggestLocatorRepair } from './repair-suggestions.js';
+import { suggestSemanticLocatorRepairs } from './ai-locator-suggestions.js';
 import { startLiveFrameCapture, type LiveFrameCapture } from './live-frame.js';
 import { createRegressionAiAction } from './regression-ai.js';
 import { initializeBrowserAuthentication } from './auth-initialize-task.js';
@@ -932,6 +933,55 @@ export class Worker {
                   reasonCode: failedStep.reasonCode,
                 })
               : null;
+          // The deterministic variation remains the first (and cheapest)
+          // option. Only unresolved semantic drift asks the frozen executor
+          // model for a finite read-only selection from redacted DOM IDs.
+          // Model failure/cost/abstention never changes the replay verdict.
+          const semanticCandidates =
+            !repairSuggestion &&
+            failedStep &&
+            (failedStep.compiled.step.kind === 'click' ||
+              failedStep.compiled.step.kind === 'type_text')
+              ? await suggestSemanticLocatorRepairs({
+                  locator: failedStep.compiled.step.locator,
+                  source: parseContract('RegressionStepSource', {
+                    ...failedStep.compiled.source,
+                    modulePath: [...failedStep.compiled.source.modulePath],
+                  }),
+                  snapshot,
+                  reasonCode: failedStep.reasonCode,
+                  signal,
+                  verifyCandidate: async (proposed, verifySignal) => {
+                    if (verifySignal.aborted) return false;
+                    try {
+                      return !!(await session?.resolveRegressionLocator?.(
+                        proposed,
+                        verifySignal,
+                      ));
+                    } catch {
+                      return false;
+                    }
+                  },
+                  decide: async (messages, outputSchema, modelSignal) => {
+                    const response = await this.runtime.model(
+                      proof,
+                      'executor',
+                      {
+                        purpose: 'decide',
+                        messages,
+                        outputSchema,
+                        maxOutputTokens: 180,
+                      },
+                      undefined,
+                      modelSignal,
+                    );
+                    return {
+                      requestResult: response.requestResult,
+                      data: response.data,
+                    };
+                  },
+                })
+              : [];
           const observed = new Map(
             replay.steps
               .flatMap((step) => step.criterionResults)
@@ -955,7 +1005,9 @@ export class Worker {
             {
               stage: work.stage,
               regressionReplay: replay,
-              repairSuggestions: repairSuggestion ? [repairSuggestion] : [],
+              repairSuggestions: repairSuggestion
+                ? [repairSuggestion]
+                : semanticCandidates,
               sourceVersionId: work.definition.regression!.sourceVersionId,
               sourceDocumentSha256:
                 work.definition.regression!.sourceDocumentSha256,

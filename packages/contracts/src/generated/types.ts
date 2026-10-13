@@ -1055,7 +1055,7 @@ export interface Task {
   elapsedSeconds: number;
 }
 export interface LocatorRepairSuggestion {
-  kind: "locator_name_variation";
+  kind: "locator_name_variation" | "locator_semantic_candidate";
   source: RegressionStepSource;
   original: Locator;
   proposed: Locator;

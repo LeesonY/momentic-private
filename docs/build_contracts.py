@@ -277,7 +277,7 @@ D["RepairProposal"] = obj({"id": UUID, "caseId": UUID, "findingId": UUID, "propo
 # Evidence-derived locator hints are never approved versions or executable
 # targets. A separate review and candidate verification must precede adoption.
 D["LocatorRepairSuggestion"] = obj({
-    "kind": {"const": "locator_name_variation"},
+    "kind": enum("locator_name_variation", "locator_semantic_candidate"),
     "source": ref("RegressionStepSource"), "original": ref("Locator"),
     "proposed": ref("Locator"), "reasonCode": {"const": "LOCATOR_NOT_FOUND"},
     "snapshotId": UUID, "pageId": UUID,

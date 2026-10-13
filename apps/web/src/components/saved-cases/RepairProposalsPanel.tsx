@@ -53,6 +53,7 @@ export const RepairProposalsPanel: React.FC<Props> = ({
   const [candidateJson, setCandidateJson] = useState('');
   const [maintenance, setMaintenance] = useState<{
     taskId: string;
+    suggestionIndex: number;
     preview: LocatorMaintenancePreview;
   } | null>(null);
   const [maintenanceConfirmed, setMaintenanceConfirmed] = useState(false);
@@ -276,7 +277,11 @@ export const RepairProposalsPanel: React.FC<Props> = ({
     try {
       if (!baselineVersion) throw new Error('尚未取得已批准的基线版本');
       const preview = previewLocatorMaintenance(baselineVersion, record);
-      setMaintenance({ taskId: record.taskId, preview });
+      const suggestionIndex = repairSuggestions
+        .filter((item) => item.taskId === record.taskId)
+        .findIndex((item) => item === record);
+      if (suggestionIndex < 0) throw new Error('维护建议已经失效');
+      setMaintenance({ taskId: record.taskId, suggestionIndex, preview });
     } catch (e) {
       setMaintenance(null);
       setError(e instanceof Error ? e.message : '维护候选无法生成');
@@ -298,9 +303,9 @@ export const RepairProposalsPanel: React.FC<Props> = ({
     try {
       // Recheck immediately before the write: suggestions can go stale while
       // the user reviews them. Backend expectedVersion is a second CAS guard.
-      const selected = repairSuggestions.find(
+      const selected = repairSuggestions.filter(
         (candidate) => candidate.taskId === maintenance.taskId,
-      );
+      )[maintenance.suggestionIndex];
       if (!selected) throw new Error('维护建议已失效，请刷新');
       const current = previewLocatorMaintenance(baselineVersion, selected);
       if (
@@ -312,6 +317,7 @@ export const RepairProposalsPanel: React.FC<Props> = ({
         caseId,
         selected.taskId,
         caseVersion,
+        maintenance.suggestionIndex,
       );
       setMaintenance(null);
       setMaintenanceConfirmed(false);
