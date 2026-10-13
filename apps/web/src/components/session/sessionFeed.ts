@@ -56,6 +56,11 @@ const stepVerb: Record<string, string> = {
   observe: '观察页面',
   snapshot: '读取页面',
   screenshot: '截图',
+  capture: '截图',
+  prepare_auth_state: '准备登录状态',
+  auth: '登录',
+  extract: '读取内容',
+  goto: '打开页面',
   wait: '等待',
   assert: '检查',
 };
@@ -119,6 +124,7 @@ export function buildSessionFeed(input: {
     });
 
   const startedTasks = new Set<string>();
+  const stepActions = new Map<string, FeedAction>();
   let lastPlan = '';
   for (const event of [...events].sort((a, b) => a.seq - b.seq)) {
     const data = event.payload as Record<string, unknown>;
@@ -152,8 +158,27 @@ export function buildSessionFeed(input: {
       case 'step.recorded': {
         const step = data as unknown as Step;
         if (typeof step.toolName !== 'string') break;
-        const chip = step.targetDescription || step.summary;
-        push(`浏览器步骤 · ${stepLabel(step)}`, chip ? [chip] : []);
+        const raw = step.targetDescription || step.summary;
+        // A tool name repeated as its own description says nothing new.
+        const chip =
+          raw && raw.toLowerCase() !== step.toolName.toLowerCase() ? raw : '';
+        const label = `浏览器步骤 · ${stepLabel(step)}${step.status === 'failed' ? '（失败）' : ''}`;
+        // A step is recorded when it starts and again when it settles;
+        // show it once, with its latest state.
+        const seen = step.id ? stepActions.get(step.id) : undefined;
+        if (seen) {
+          seen.label = label;
+          seen.chips = chip ? [chip] : [];
+          break;
+        }
+        const action: FeedAction = {
+          key: event.id,
+          at: event.at,
+          label,
+          chips: chip ? [chip] : [],
+        };
+        if (step.id) stepActions.set(step.id, action);
+        entries.push({ at: event.at, seq: event.seq, action });
         break;
       }
       case 'case.created': {
