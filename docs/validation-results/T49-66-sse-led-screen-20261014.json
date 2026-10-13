@@ -1,0 +1,34 @@
+{
+  "id": "T49-66-sse-led-browser-screen",
+  "date": "2026-10-14",
+  "timezone": "Asia/Singapore",
+  "environment": "192.168.111.66",
+  "deployed_web_commit": "f867c038b0d6ee50a495227cb1f7b83a023f677d",
+  "tested_scope": "Web-only event-driven step refresh using the existing authorized SSE and artifact endpoints",
+  "results": {
+    "web_typescript_and_vite_build_on_66": "passed",
+    "event_filter_sse_reconnect_and_long_step_history_tests": "14/14 passed",
+    "six_containers_healthy_after_web_rollout": "6/6 healthy",
+    "served_html_sha256_matches_deployed_web_image": true,
+    "public_login_screen_real_chromium": "HTTP 200, zero page errors",
+    "authenticated_workbench_real_chromium": {
+      "run_id": "efa9967a-2061-4e57-a856-2385cc303616",
+      "status": 200,
+      "rendered_real_steps": 5,
+      "real_artifact_screenshot_loaded": true,
+      "javascript_errors": 0
+    },
+    "temporary_test_login_revoked": true
+  },
+  "deployment_safety": {
+    "source_symlink": "releases/pr8-locator-780efd8",
+    "backend_services_not_replaced": true,
+    "original_web_image_retained_as": "localqa-test-web:before-f867c03"
+  },
+  "honest_limitations": [
+    "This is step-event-driven near-real-time evidence refresh, not continuous browser video.",
+    "Synthetic bursts test run and task filtering; actual live event-to-picture latency has not been measured quantitatively.",
+    "Authenticated UI smoke used a previously completed real run; it confirms persisted evidence rendering, not ongoing live stream frame rate.",
+    "Does not claim LLM agent self-repair or high-concurrency sustained performance acceptance."
+  ]
+}
