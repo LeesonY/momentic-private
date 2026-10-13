@@ -10,6 +10,10 @@ import type {
 import { defaultApiClient } from '../../api/index.ts';
 import { AppIcon } from '../ui/AppIcon.tsx';
 import { StatusBadge } from '../ui/Badge.tsx';
+import {
+  previewLocatorMaintenance,
+  type LocatorMaintenancePreview,
+} from './locatorMaintenanceDraft.ts';
 
 interface Props {
   caseId: string;
@@ -46,6 +50,11 @@ export const RepairProposalsPanel: React.FC<Props> = ({
   const [reason, setReason] = useState('');
   const [candidateFor, setCandidateFor] = useState<string | null>(null);
   const [candidateJson, setCandidateJson] = useState('');
+  const [maintenance, setMaintenance] = useState<{
+    taskId: string;
+    preview: LocatorMaintenancePreview;
+  } | null>(null);
+  const [maintenanceConfirmed, setMaintenanceConfirmed] = useState(false);
   const [knownCandidates, setKnownCandidates] = useState<
     Record<string, SavedCaseVersion>
   >({});
@@ -63,6 +72,8 @@ export const RepairProposalsPanel: React.FC<Props> = ({
     setCursor(null);
     setReviewId(null);
     setCandidateFor(null);
+    setMaintenance(null);
+    setMaintenanceConfirmed(false);
     setKnownCandidates({});
     setVerificationHistory({});
     setEvidenceHistory({});
@@ -258,6 +269,58 @@ export const RepairProposalsPanel: React.FC<Props> = ({
     }
   }
 
+  function prepareMaintenance(record: RepairSuggestionRecord) {
+    setError(null);
+    setMaintenanceConfirmed(false);
+    try {
+      if (!baselineVersion) throw new Error('尚未取得已批准的基线版本');
+      const preview = previewLocatorMaintenance(baselineVersion, record);
+      setMaintenance({ taskId: record.taskId, preview });
+    } catch (e) {
+      setMaintenance(null);
+      setError(e instanceof Error ? e.message : '维护候选无法生成');
+    }
+  }
+
+  async function saveMaintenance() {
+    if (
+      busy ||
+      archived ||
+      !canCreate ||
+      !maintenanceConfirmed ||
+      !maintenance ||
+      !baselineVersion
+    )
+      return;
+    setBusy(true);
+    setError(null);
+    try {
+      // Recheck immediately before the write: suggestions can go stale while
+      // the user reviews them. Backend expectedVersion is a second CAS guard.
+      const selected = repairSuggestions.find(
+        (candidate) => candidate.taskId === maintenance.taskId,
+      );
+      if (!selected) throw new Error('维护建议已失效，请刷新');
+      const current = previewLocatorMaintenance(baselineVersion, selected);
+      if (
+        JSON.stringify(current.document) !==
+        JSON.stringify(maintenance.preview.document)
+      )
+        throw new Error('维护候选与最新观察不一致，请重新预览');
+      const created = await defaultApiClient.createSavedCaseVersion(caseId, {
+        expectedVersion: caseVersion,
+        document: current.document,
+      });
+      setMaintenance(null);
+      setMaintenanceConfirmed(false);
+      await onCandidateCreated(created.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '维护草稿创建失败');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="card" data-testid="repair-proposals-panel">
       <div className="card-header">
@@ -267,7 +330,7 @@ export const RepairProposalsPanel: React.FC<Props> = ({
             修复建议与人工审核
           </h2>
           <p className="card-description">
-            只接收与该已批准用例相关、经独立复现确认的缺陷。批准建议仅代表人工同意评估，不会修改用例基线，也不证明修复已通过验证。
+            产品缺陷修复提案必须关联独立复现确认的缺陷；定位维护候选则独立预览并生成待审核草稿，不得伪造产品缺陷。批准建议不代表修复验证通过，也不会自动更新正式基线。
           </p>
         </div>
       </div>
@@ -317,31 +380,100 @@ export const RepairProposalsPanel: React.FC<Props> = ({
                 )}
               </pre>
               {canCreate && !archived && (
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() =>
-                    setDiff(
-                      JSON.stringify(
-                        {
-                          evidence: record.suggestion.snapshotId,
-                          sourceVersionId: record.sourceVersionId,
-                          source: record.suggestion.source,
-                          from: record.suggestion.original,
-                          to: record.suggestion.proposed,
-                          reviewRequired: true,
-                        },
-                        null,
-                        2,
-                      ),
-                    )
-                  }
-                >
-                  填入人工提案说明（仍需确认缺陷）
-                </button>
+                <div className="btn-group">
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    disabled={busy || !baselineVersion}
+                    onClick={() => prepareMaintenance(record)}
+                  >
+                    预览最小定位维护草稿
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() =>
+                      setDiff(
+                        JSON.stringify(
+                          {
+                            evidence: record.suggestion.snapshotId,
+                            sourceVersionId: record.sourceVersionId,
+                            source: record.suggestion.source,
+                            from: record.suggestion.original,
+                            to: record.suggestion.proposed,
+                            reviewRequired: true,
+                          },
+                          null,
+                          2,
+                        ),
+                      )
+                    }
+                  >
+                    填入产品缺陷提案说明
+                  </button>
+                </div>
               )}
             </details>
           ))}
+          {maintenance && (
+            <div
+              className="panel lqa-proposal-form"
+              data-testid="locator-maintenance-preview"
+            >
+              <h4>待确认的完整用例草稿</h4>
+              <p className="text-sm muted">
+                仅替换第 {maintenance.preview.stepIndex + 1}{' '}
+                步定位器。所有业务断言、操作顺序、变量与预期结果保持不变。尚未独立验证。
+              </p>
+              <pre className="lqa-diff">
+                {JSON.stringify(
+                  {
+                    original: maintenance.preview.before,
+                    proposed: maintenance.preview.after,
+                  },
+                  null,
+                  2,
+                )}
+              </pre>
+              <details>
+                <summary>查看完整候选 RegressionDocument JSON</summary>
+                <pre className="lqa-diff">
+                  {JSON.stringify(maintenance.preview.document, null, 2)}
+                </pre>
+              </details>
+              <label className="row row-wrap text-sm">
+                <input
+                  type="checkbox"
+                  checked={maintenanceConfirmed}
+                  onChange={(event) =>
+                    setMaintenanceConfirmed(event.target.checked)
+                  }
+                />
+                我已核对定位器的业务等价性，理解此操作只创建待审核草稿，不等于验证通过。
+              </label>
+              <div className="btn-group">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={busy || !maintenanceConfirmed}
+                  onClick={() => void saveMaintenance()}
+                >
+                  创建待审核版本（不更新基线）
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={busy}
+                  onClick={() => {
+                    setMaintenance(null);
+                    setMaintenanceConfirmed(false);
+                  }}
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
       {loading ? (

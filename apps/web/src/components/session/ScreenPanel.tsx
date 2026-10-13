@@ -82,6 +82,14 @@ export const ScreenPanel: React.FC<{
     [steps],
   );
   const [index, setIndex] = useState<number | null>(null);
+  const failedCount = useMemo(
+    () => steps.filter((step) => step.status === 'failed').length,
+    [steps],
+  );
+  const pendingCount = useMemo(
+    () => steps.filter((step) => step.status === 'running').length,
+    [steps],
+  );
   // Follow the newest frame unless the user picked one.
   const current =
     index === null ? frames.length - 1 : Math.min(index, frames.length - 1);
@@ -105,6 +113,12 @@ export const ScreenPanel: React.FC<{
         </span>
         <h3>AI 的画面</h3>
         <p>采集到的截图，按步骤回放；不是实时视频。</p>
+        <p className="text-xs muted" role="status">
+          已读取 {steps.length} 步 · 执行中 {pendingCount} 步 · 失败{' '}
+          {failedCount} 步
+          {frame ? ` · 最近画面 ${clock(frame.createdAt)}` : ' · 暂无画面'}
+          {hasMore ? ' · 历史还在加载' : ''}
+        </p>
       </div>
       <div className="mo-browser">
         <div className="mo-browser-bar">
@@ -147,6 +161,16 @@ export const ScreenPanel: React.FC<{
               <span className="mo-player-count">
                 {current + 1} / {frames.length}
               </span>
+              {index !== null && (
+                <button
+                  type="button"
+                  aria-label="跟随最新画面"
+                  title="解除手动回放，跟随新采集的画面"
+                  onClick={() => setIndex(null)}
+                >
+                  最新
+                </button>
+              )}
               <button
                 type="button"
                 aria-label="下一张"
