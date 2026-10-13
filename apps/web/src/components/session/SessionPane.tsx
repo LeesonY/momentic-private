@@ -4,6 +4,7 @@ import type {
   Finding,
   Report,
   Run,
+  RunEvent,
   Task,
 } from '@localqa/contracts';
 import { useApp } from '../../state/AppContext.tsx';
@@ -18,6 +19,7 @@ import {
 } from './SessionTimeline.tsx';
 import { agentKind, agentTitle, elapsedLabel } from './sessionFeed.ts';
 import { isRunActive } from '../sessions/sessionMeta.ts';
+import { latestTaskStepSignal } from './taskStepSignal.ts';
 
 export type PaneDetail = { type: 'agent' | 'case'; id: string } | null;
 
@@ -432,7 +434,8 @@ const AgentDetail: React.FC<{
   task: Task;
   cases: CaseRecord[];
   run: Run;
-}> = ({ task, cases, run }) => (
+  events: readonly RunEvent[];
+}> = ({ task, cases, run, events }) => (
   <div className="mo-detail" data-testid={`task-detail-${task.id}`}>
     <TaskStatusPill task={task} />
     <h3 className="mo-detail-title">{agentTitle(task, cases)}</h3>
@@ -446,6 +449,7 @@ const AgentDetail: React.FC<{
     {BROWSER_ROLES.includes(task.role) ? (
       <ScreenPanel
         task={task}
+        stepSignal={latestTaskStepSignal(run.id, task.id, events)}
         live={isRunActive(run) && ['running', 'waiting'].includes(task.status)}
         targetUrl={run.targetUrl}
       />
@@ -459,6 +463,7 @@ const AgentDetail: React.FC<{
  * report, plus a tab for whatever agent or case you opened. */
 export const SessionPane: React.FC<{
   run: Run;
+  events: readonly RunEvent[];
   tasks: Task[];
   cases: CaseRecord[];
   findings: Finding[];
@@ -472,6 +477,7 @@ export const SessionPane: React.FC<{
   onRefreshReport: () => void;
 }> = ({
   run,
+  events,
   tasks,
   cases,
   findings,
@@ -607,6 +613,11 @@ export const SessionPane: React.FC<{
         {tab === 'screen' && (
           <ScreenPanel
             task={browserTask}
+            stepSignal={latestTaskStepSignal(
+              run.id,
+              browserTask?.id ?? null,
+              events,
+            )}
             live={
               isRunActive(run) &&
               !!browserTask &&
@@ -626,7 +637,12 @@ export const SessionPane: React.FC<{
         )}
         {tab === 'detail' &&
           (detailTask ? (
-            <AgentDetail task={detailTask} cases={cases} run={run} />
+            <AgentDetail
+              task={detailTask}
+              cases={cases}
+              run={run}
+              events={events}
+            />
           ) : detailCase ? (
             <CaseDetail record={detailCase} runId={run.id} />
           ) : (

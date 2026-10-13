@@ -25,6 +25,7 @@ const files = [
   'apps/web/scripts/sseNamedEvents.test.mjs',
   'apps/web/scripts/testTaskStepHistoryOffline.mjs',
   'apps/web/scripts/locatorMaintenanceDraft.test.mjs',
+  'apps/web/scripts/testTaskStepSignal.mjs',
   'packages/contracts/test/contracts.test.mjs',
   'packages/contracts/test/drift.test.mjs',
   'packages/domain/test/domain.test.mjs',

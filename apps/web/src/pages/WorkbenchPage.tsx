@@ -539,6 +539,7 @@ const WorkbenchContent: React.FC = () => {
         {paneOpen && (
           <SessionPane
             run={run}
+            events={events}
             tasks={tasks}
             cases={cases}
             findings={findings}

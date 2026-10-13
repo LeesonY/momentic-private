@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Step, Task } from '@localqa/contracts';
 import { defaultApiClient } from '../../api/index.ts';
 import { AppIcon } from '../ui/AppIcon.tsx';
@@ -10,22 +10,55 @@ import {
   type TaskStepHistory,
 } from './taskStepHistory.ts';
 
-/** Steps of one agent, re-read every few seconds while it is running. */
-export function useTaskSteps(taskId: string | null, active: boolean) {
+/** Event-led, bounded screenshot step refresh; periodic polling is a fallback. */
+export function useTaskSteps(
+  taskId: string | null,
+  active: boolean,
+  stepSignal = 0,
+) {
   const [steps, setSteps] = useState<Step[]>([]);
   const [error, setError] = useState('');
   const [hasMore, setHasMore] = useState(false);
+  const refreshRef = useRef<(() => void) | null>(null);
+  const activeRef = useRef(active);
+  activeRef.current = active;
   useEffect(() => {
     let mounted = true;
     let inFlight = false;
+    let dirty = false;
+    let pendingTimer: number | null = null;
+    let lastStarted = 0;
     let history: TaskStepHistory | undefined;
     setSteps([]);
     setError('');
     setHasMore(false);
-    if (!taskId) return;
+    if (!taskId) {
+      refreshRef.current = null;
+      return;
+    }
+    const schedule = () => {
+      if (!mounted) return;
+      if (inFlight) {
+        dirty = true;
+        return;
+      }
+      if (pendingTimer !== null) return;
+      // At most two event-triggered reads per second for one visible panel.
+      // A burst during one in-flight query is represented by one trailing read.
+      const wait = Math.max(180, 500 - (Date.now() - lastStarted));
+      pendingTimer = window.setTimeout(() => {
+        pendingTimer = null;
+        void load();
+      }, wait);
+    };
     const load = async () => {
-      if (inFlight) return;
+      if (!mounted) return;
+      if (inFlight) {
+        dirty = true;
+        return;
+      }
       inFlight = true;
+      lastStarted = Date.now();
       try {
         const page = await readTaskStepHistory(
           (query) => defaultApiClient.listTaskSteps(taskId, query),
@@ -40,18 +73,35 @@ export function useTaskSteps(taskId: string | null, active: boolean) {
         if (mounted) setError(e instanceof Error ? e.message : '步骤读取失败');
       } finally {
         inFlight = false;
+        if (dirty && mounted) {
+          dirty = false;
+          schedule();
+        }
       }
     };
+    refreshRef.current = schedule;
     void load();
     // Finished long runs still need to drain historical pages past the
     // bounded initial load. Once caught up, stop polling completed tasks.
     const timer = window.setInterval(() => {
-      if (active || history?.hasMore) void load();
+      if (activeRef.current || history?.hasMore) schedule();
     }, 2500);
     return () => {
       mounted = false;
       window.clearInterval(timer);
+      if (pendingTimer !== null) window.clearTimeout(pendingTimer);
+      if (refreshRef.current === schedule) refreshRef.current = null;
     };
+  }, [taskId]);
+  // All events originate in the existing run-authenticated SSE stream. They
+  // only invalidate cached steps, never supply unverified screenshot URLs.
+  useEffect(() => {
+    if (stepSignal > 0) refreshRef.current?.();
+  }, [taskId, stepSignal]);
+  // A terminal task update must request one last page, even if SSE step
+  // events arrive late or its last screenshot was not yet persisted.
+  useEffect(() => {
+    if (!active) refreshRef.current?.();
   }, [taskId, active]);
   return { steps, error, hasMore };
 }
@@ -75,8 +125,13 @@ export const ScreenPanel: React.FC<{
   task: Task | null;
   live: boolean;
   targetUrl: string;
-}> = ({ task, live, targetUrl }) => {
-  const { steps, error, hasMore } = useTaskSteps(task?.id ?? null, live);
+  stepSignal?: number;
+}> = ({ task, live, targetUrl, stepSignal = 0 }) => {
+  const { steps, error, hasMore } = useTaskSteps(
+    task?.id ?? null,
+    live,
+    stepSignal,
+  );
   const frames = useMemo(
     () => steps.filter((step) => step.evidenceRefs.length > 0),
     [steps],
@@ -112,7 +167,7 @@ export const ScreenPanel: React.FC<{
           {live ? '进行中' : '回放'}
         </span>
         <h3>AI 的画面</h3>
-        <p>采集到的截图，按步骤回放；不是实时视频。</p>
+        <p>根据步骤事件同步已采集截图，断线由轮询补齐；不是实时视频。</p>
         <p className="text-xs muted" role="status">
           已读取 {steps.length} 步 · 执行中 {pendingCount} 步 · 失败{' '}
           {failedCount} 步
