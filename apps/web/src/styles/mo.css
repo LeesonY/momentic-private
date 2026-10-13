@@ -1736,6 +1736,30 @@ a.mo-menu-item {
   white-space: nowrap;
 }
 
+.mo-log-detail {
+  min-width: 0;
+}
+
+.mo-log-detail summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.mo-log-detail details[open] summary {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.mo-log-detail details p,
+.mo-log-detail details > span {
+  display: block;
+  margin: 4px 0 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .mo-log-row.is-failed {
   color: var(--color-danger);
 }

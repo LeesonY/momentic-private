@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import type { RepairSuggestionRecord } from '@localqa/contracts';
 import type {
   RepairProposal,
   RepairCandidateVerification,
@@ -31,6 +32,9 @@ export const RepairProposalsPanel: React.FC<Props> = ({
   onCandidateCreated,
 }) => {
   const [proposals, setProposals] = useState<RepairProposal[]>([]);
+  const [repairSuggestions, setRepairSuggestions] = useState<
+    RepairSuggestionRecord[]
+  >([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -55,6 +59,7 @@ export const RepairProposalsPanel: React.FC<Props> = ({
   useEffect(() => {
     let active = true;
     setProposals([]);
+    setRepairSuggestions([]);
     setCursor(null);
     setReviewId(null);
     setCandidateFor(null);
@@ -68,6 +73,7 @@ export const RepairProposalsPanel: React.FC<Props> = ({
       .then((page) => {
         if (!active) return;
         setProposals(page.items);
+        setRepairSuggestions(page.repairSuggestions ?? []);
         setCursor(page.nextCursor);
       })
       .catch((e: unknown) => {
@@ -87,6 +93,7 @@ export const RepairProposalsPanel: React.FC<Props> = ({
       limit: 20,
     });
     setProposals(page.items);
+    setRepairSuggestions(page.repairSuggestions ?? []);
     setCursor(page.nextCursor);
   }
 
@@ -268,6 +275,74 @@ export const RepairProposalsPanel: React.FC<Props> = ({
         <p className="text-sm text-danger lqa-repair-error" role="alert">
           {error}
         </p>
+      )}
+      {!loading && repairSuggestions.length > 0 && (
+        <div className="lqa-card-list" data-testid="locator-repair-suggestions">
+          <h3>执行器发现的定位修复候选（未验证）</h3>
+          <p className="text-sm muted">
+            这些记录来自已审核版本的真实浏览器观察，不是已确认的产品
+            Bug，也不是可直接执行的修复。
+            需要人工判断业务等价性，另行验证候选版本并通过正式审核。
+          </p>
+          {repairSuggestions.map((record) => (
+            <details
+              key={`${record.taskId}:${record.suggestion.source.stepIndex}`}
+              className="lqa-item-card"
+            >
+              <summary>
+                步骤 {record.suggestion.source.stepIndex + 1} ·{' '}
+                {record.suggestion.original.name ??
+                  record.suggestion.original.value}
+                {' → '}
+                {record.suggestion.proposed.name ??
+                  record.suggestion.proposed.value}
+              </summary>
+              <p className="text-xs muted">
+                运行 {record.runId} · 已审核来源版本 {record.sourceVersionId}
+              </p>
+              <p className="text-xs muted">
+                诊断 {record.suggestion.reasonCode} · 快照{' '}
+                {record.suggestion.snapshotId} · 验证：尚未运行
+              </p>
+              <pre className="lqa-diff">
+                {JSON.stringify(
+                  {
+                    source: record.suggestion.source,
+                    original: record.suggestion.original,
+                    proposed: record.suggestion.proposed,
+                    observedOrigin: record.suggestion.observedOrigin,
+                  },
+                  null,
+                  2,
+                )}
+              </pre>
+              {canCreate && !archived && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() =>
+                    setDiff(
+                      JSON.stringify(
+                        {
+                          evidence: record.suggestion.snapshotId,
+                          sourceVersionId: record.sourceVersionId,
+                          source: record.suggestion.source,
+                          from: record.suggestion.original,
+                          to: record.suggestion.proposed,
+                          reviewRequired: true,
+                        },
+                        null,
+                        2,
+                      ),
+                    )
+                  }
+                >
+                  填入人工提案说明（仍需确认缺陷）
+                </button>
+              )}
+            </details>
+          ))}
+        </div>
       )}
       {loading ? (
         <p className="muted text-sm">正在加载建议…</p>

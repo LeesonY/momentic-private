@@ -6,6 +6,10 @@ import { requireAuth } from '../auth.js';
 import type { Router } from '../router.js';
 import type { RequestContext } from '../types.js';
 
+// Bound database reads during both initial replay and live tailing. A long
+// business run must not deserialize its entire retained event history at once.
+const SSE_BATCH_SIZE = 200;
+
 export function registerSseRoutes(router: Router): void {
   // GET /api/v1/runs/{runId}/events
   router.get('/api/v1/runs/{runId}/events', async (ctx: RequestContext) => {
@@ -82,99 +86,96 @@ export function registerSseRoutes(router: Router): void {
 
     let currentSeq = lastSeq;
     let closed = false;
+    const timers: {
+      ping?: ReturnType<typeof setInterval>;
+      poll?: ReturnType<typeof setInterval>;
+    } = {};
+    // Poll intervals can overlap under database load. An older query must
+    // never replay an already flushed event or race the event cursor.
+    let pollInFlight = false;
 
-    // Fetch and send historical events
-    const historical = await ctx.api.db.actor(ctx.actor!, async (client) => {
-      const rows = await client.query<{
-        seq: string;
-        type: RunEvent['type'];
-        payload: unknown;
-        created_at: Date;
-      }>(
-        `SELECT seq, type, payload, created_at
-         FROM run_events
-         WHERE project_id = $1 AND run_id = $2 AND seq > $3
-         ORDER BY seq ASC`,
-        [projectId, runId, currentSeq],
-      );
-
-      return rows.rows.map((r) =>
-        parseContract('RunEvent', {
-          schemaVersion: 1,
-          id: String(r.seq),
-          runId,
-          seq: Number(r.seq),
-          type: r.type,
-          at: r.created_at.toISOString(),
-          payload: r.payload,
-        }),
-      );
+    // IncomingMessage.close means that the request body has completed on
+    // modern Node; it is not reliable evidence of an SSE disconnection.
+    // Only the response's close event releases the live stream.
+    ctx.res.on('close', () => {
+      closed = true;
+      if (timers.ping) clearInterval(timers.ping);
+      if (timers.poll) clearInterval(timers.poll);
     });
 
-    for (const ev of historical) {
-      if (closed) break;
-      writeEvent(ev);
-      if (ev.seq > currentSeq) {
+    const readBatch = async (afterSeq: number): Promise<RunEvent[]> =>
+      ctx.api.db.actor(ctx.actor!, async (client) => {
+        const rows = await client.query<{
+          seq: string;
+          type: RunEvent['type'];
+          payload: unknown;
+          created_at: Date;
+        }>(
+          `SELECT seq, type, payload, created_at
+         FROM run_events
+         WHERE project_id = $1 AND run_id = $2 AND seq > $3
+         ORDER BY seq ASC LIMIT $4`,
+          [projectId, runId, afterSeq, SSE_BATCH_SIZE],
+        );
+
+        return rows.rows.map((r) =>
+          parseContract('RunEvent', {
+            schemaVersion: 1,
+            id: String(r.seq),
+            runId,
+            seq: Number(r.seq),
+            type: r.type,
+            at: r.created_at.toISOString(),
+            payload: r.payload,
+          }),
+        );
+      });
+
+    const flushEvents = (events: readonly RunEvent[]) => {
+      for (const ev of events) {
+        if (closed) break;
+        if (ev.seq <= currentSeq) continue;
+        writeEvent(ev);
         currentSeq = ev.seq;
       }
+    };
+
+    // Historical replay is ordered and exhaustive, but each query and its
+    // decoded payload are bounded. New commits after the final batch are
+    // picked up by the poller from the same monotonic cursor.
+    while (!closed) {
+      const events = await readBatch(currentSeq);
+      flushEvents(events);
+      if (events.length < SSE_BATCH_SIZE) break;
     }
+    if (closed) return undefined;
 
     // 15-second heartbeat ping
-    const pingTimer = setInterval(() => {
+    timers.ping = setInterval(() => {
       if (closed) return;
       ctx.res.write(': ping\n\n');
     }, 15000);
-    pingTimer.unref();
+    timers.ping.unref();
 
     // Live polling for newly committed events
-    const pollTimer = setInterval(async () => {
-      if (closed) return;
+    timers.poll = setInterval(async () => {
+      if (closed || pollInFlight) return;
+      pollInFlight = true;
       try {
-        const newEvents = await ctx.api.db.actor(ctx.actor!, async (client) => {
-          const rows = await client.query<{
-            seq: string;
-            type: RunEvent['type'];
-            payload: unknown;
-            created_at: Date;
-          }>(
-            `SELECT seq, type, payload, created_at
-             FROM run_events
-             WHERE project_id = $1 AND run_id = $2 AND seq > $3
-             ORDER BY seq ASC`,
-            [projectId, runId, currentSeq],
-          );
-
-          return rows.rows.map((r) =>
-            parseContract('RunEvent', {
-              schemaVersion: 1,
-              id: String(r.seq),
-              runId,
-              seq: Number(r.seq),
-              type: r.type,
-              at: r.created_at.toISOString(),
-              payload: r.payload,
-            }),
-          );
-        });
-
-        for (const ev of newEvents) {
-          if (closed) break;
-          writeEvent(ev);
-          if (ev.seq > currentSeq) {
-            currentSeq = ev.seq;
-          }
+        // Catch up with bursts without overlapping DB polls. Yield after
+        // ten batches so a busy run cannot monopolize the event loop.
+        for (let batch = 0; batch < 10 && !closed; batch++) {
+          const events = await readBatch(currentSeq);
+          flushEvents(events);
+          if (events.length < SSE_BATCH_SIZE) break;
         }
       } catch {
         // Polling errors do not abort the client connection
+      } finally {
+        pollInFlight = false;
       }
     }, 250);
-    pollTimer.unref();
-
-    ctx.req.on('close', () => {
-      closed = true;
-      clearInterval(pingTimer);
-      clearInterval(pollTimer);
-    });
+    timers.poll.unref();
 
     // Return undefined so the HTTP dispatcher does not close the response stream
     return undefined;

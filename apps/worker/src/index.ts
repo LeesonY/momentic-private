@@ -33,6 +33,7 @@ import {
 import type { AgentRoleName } from '@localqa/orchestrator';
 import { StorageError, hashPayload, type LeaseProof } from '@localqa/storage';
 import { replayRegression, type ReplayPorts } from './regression-replay.js';
+import { suggestLocatorRepair } from './repair-suggestions.js';
 import { createRegressionAiAction } from './regression-ai.js';
 import { initializeBrowserAuthentication } from './auth-initialize-task.js';
 import { withApprovedBrowserAuth } from './auth-import-task.js';
@@ -908,6 +909,27 @@ export class Worker {
           // Authentication rejection is an infrastructure/setup failure,
           // never an independently reproducible application Finding.
           if (authResponseDenied) throw new DomainError('AUTH_FAILED');
+          const failedStep = replay.steps.find(
+            (step) =>
+              step.status === 'failed' &&
+              step.reasonCode === 'LOCATOR_NOT_FOUND' &&
+              (step.compiled.step.kind === 'click' ||
+                step.compiled.step.kind === 'type_text'),
+          );
+          const repairSuggestion =
+            failedStep &&
+            (failedStep.compiled.step.kind === 'click' ||
+              failedStep.compiled.step.kind === 'type_text')
+              ? suggestLocatorRepair({
+                  locator: failedStep.compiled.step.locator,
+                  source: parseContract('RegressionStepSource', {
+                    ...failedStep.compiled.source,
+                    modulePath: [...failedStep.compiled.source.modulePath],
+                  }),
+                  snapshot,
+                  reasonCode: failedStep.reasonCode,
+                })
+              : null;
           const observed = new Map(
             replay.steps
               .flatMap((step) => step.criterionResults)
@@ -931,6 +953,7 @@ export class Worker {
             {
               stage: work.stage,
               regressionReplay: replay,
+              repairSuggestions: repairSuggestion ? [repairSuggestion] : [],
               sourceVersionId: work.definition.regression!.sourceVersionId,
               sourceDocumentSha256:
                 work.definition.regression!.sourceDocumentSha256,

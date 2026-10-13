@@ -57,6 +57,7 @@ export type Contract =
   | KnowledgePatch
   | Lease
   | Locator
+  | LocatorRepairSuggestion
   | LoginInput
   | LoginResult
   | Member
@@ -104,6 +105,7 @@ export type Contract =
   | RepairProposalCreate
   | RepairProposalPage
   | RepairProposalReviewInput
+  | RepairSuggestionRecord
   | ReplayStep
   | Report
   | Reproduction
@@ -1052,6 +1054,18 @@ export interface Task {
   summary: string;
   elapsedSeconds: number;
 }
+export interface LocatorRepairSuggestion {
+  kind: "locator_name_variation";
+  source: RegressionStepSource;
+  original: Locator;
+  proposed: Locator;
+  reasonCode: "LOCATOR_NOT_FOUND";
+  snapshotId: string;
+  pageId: string;
+  observedOrigin: string;
+  reviewRequired: true;
+  verification: "not_run";
+}
 export interface LoginInput {
   email: string;
   password: string;
@@ -1366,6 +1380,17 @@ export interface RepairProposalPage {
    */
   items: RepairProposal[];
   nextCursor: string | null;
+  /**
+   * @minItems 0
+   * @maxItems 10
+   */
+  repairSuggestions?: RepairSuggestionRecord[];
+}
+export interface RepairSuggestionRecord {
+  runId: string;
+  taskId: string;
+  sourceVersionId: string;
+  suggestion: LocatorRepairSuggestion;
 }
 export interface RepairProposalReviewInput {
   decision: "approve" | "reject";
@@ -2002,6 +2027,7 @@ export interface ContractTypes {
   KnowledgePatch: KnowledgePatch;
   Lease: Lease;
   Locator: Locator;
+  LocatorRepairSuggestion: LocatorRepairSuggestion;
   LoginInput: LoginInput;
   LoginResult: LoginResult;
   Member: Member;
@@ -2049,6 +2075,7 @@ export interface ContractTypes {
   RepairProposalCreate: RepairProposalCreate;
   RepairProposalPage: RepairProposalPage;
   RepairProposalReviewInput: RepairProposalReviewInput;
+  RepairSuggestionRecord: RepairSuggestionRecord;
   ReplayStep: ReplayStep;
   Report: Report;
   Reproduction: Reproduction;

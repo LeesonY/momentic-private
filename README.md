@@ -17,6 +17,7 @@ LocalQA 是参考 Momentic 产品工作流的自研私有化 Web 测试平台，
 5. [验收与测试方案](docs/04-validation.md)
 6. [开发 agent 交接与任务分解](docs/05-agent-handoff.md)
 7. [P1 Web 回归、定时与修复细化](docs/06-web-regression-and-scheduling.md)
+8. [执行诊断、保守修复候选与长流程边界](docs/07-runtime-diagnostics-and-repair.md)
 
 机读契约位于 `docs/contracts/`，可用于契约校验的虚构样例位于 `docs/examples/`。开发前应阅读契约及文档优先级。这里的样例和性能指标分别是示例、验收目标，不是已实现结果。
 

@@ -4,6 +4,11 @@ import { defaultApiClient } from '../../api/index.ts';
 import { AppIcon } from '../ui/AppIcon.tsx';
 import { EvidencePreview } from '../workbench/TaskExecutionDetail.tsx';
 import { stepLabel } from './sessionFeed.ts';
+import {
+  MAX_STEP_PAGES,
+  readTaskStepHistory,
+  type TaskStepHistory,
+} from './taskStepHistory.ts';
 
 /** Steps of one agent, re-read every few seconds while it is running. */
 export function useTaskSteps(taskId: string | null, active: boolean) {
@@ -12,29 +17,37 @@ export function useTaskSteps(taskId: string | null, active: boolean) {
   const [hasMore, setHasMore] = useState(false);
   useEffect(() => {
     let mounted = true;
+    let inFlight = false;
+    let history: TaskStepHistory | undefined;
     setSteps([]);
     setError('');
     setHasMore(false);
     if (!taskId) return;
     const load = async () => {
+      if (inFlight) return;
+      inFlight = true;
       try {
-        const page = await defaultApiClient.listTaskSteps(taskId, {
-          limit: 100,
-        });
+        const page = await readTaskStepHistory(
+          (query) => defaultApiClient.listTaskSteps(taskId, query),
+          history,
+        );
         if (!mounted) return;
-        setSteps(page.items);
-        setHasMore(Boolean(page.nextCursor));
+        history = page;
+        setSteps(page.steps);
+        setHasMore(page.hasMore);
         setError('');
       } catch (e) {
         if (mounted) setError(e instanceof Error ? e.message : '步骤读取失败');
+      } finally {
+        inFlight = false;
       }
     };
     void load();
-    if (!active)
-      return () => {
-        mounted = false;
-      };
-    const timer = window.setInterval(() => void load(), 2500);
+    // Finished long runs still need to drain historical pages past the
+    // bounded initial load. Once caught up, stop polling completed tasks.
+    const timer = window.setInterval(() => {
+      if (active || history?.hasMore) void load();
+    }, 2500);
     return () => {
       mounted = false;
       window.clearInterval(timer);
@@ -202,17 +215,33 @@ export const ScreenPanel: React.FC<{
           >
             <span>{clock(step.createdAt)}</span>
             <span>{stepLabel(step)}</span>
-            <span title={step.targetDescription || step.summary}>
-              {step.targetDescription || step.summary || `步骤 ${step.seq}`}
-              {step.status !== 'succeeded' && step.status !== 'running'
-                ? `（${step.status}）`
-                : ''}
-            </span>
+            <div className="mo-log-detail">
+              <details>
+                <summary title={step.targetDescription || step.summary}>
+                  {step.targetDescription || step.summary || `步骤 ${step.seq}`}
+                  {step.status !== 'succeeded' && step.status !== 'running'
+                    ? `（${step.status}）`
+                    : ''}
+                </summary>
+                <span>
+                  步骤 #{step.seq} · {step.toolName} · {step.status}
+                </span>
+                {step.summary && step.summary !== step.targetDescription && (
+                  <p>{step.summary}</p>
+                )}
+                {step.finishedAt && <p>结束：{clock(step.finishedAt)}</p>}
+                {step.regressionSource && (
+                  <p>回归来源：步骤 {step.regressionSource.stepIndex + 1}</p>
+                )}
+                <p>关联截图/证据：{step.evidenceRefs.length} 项</p>
+              </details>
+            </div>
           </div>
         ))}
         {hasMore && (
           <p className="mo-log-note" role="status">
-            步骤超过 100 条，只显示了前 100 条。
+            步骤超过 {MAX_STEP_PAGES * 100}{' '}
+            条或当前历史尚未追平；正在继续分页加载，不能据此判断执行已结束。
           </p>
         )}
       </div>

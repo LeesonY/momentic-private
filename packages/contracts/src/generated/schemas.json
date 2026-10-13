@@ -5835,6 +5835,14 @@
                 "type": "null"
               }
             ]
+          },
+          "repairSuggestions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/RepairSuggestionRecord"
+            },
+            "maxItems": 10,
+            "minItems": 0
           }
         },
         "required": [
@@ -8021,6 +8029,86 @@
           "reviewReason",
           "reviewedBy",
           "reviewedAt"
+        ],
+        "additionalProperties": false
+      },
+      "LocatorRepairSuggestion": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "locator_name_variation"
+          },
+          "source": {
+            "$ref": "#/$defs/RegressionStepSource"
+          },
+          "original": {
+            "$ref": "#/$defs/Locator"
+          },
+          "proposed": {
+            "$ref": "#/$defs/Locator"
+          },
+          "reasonCode": {
+            "const": "LOCATOR_NOT_FOUND"
+          },
+          "snapshotId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "observedOrigin": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 8192,
+            "pattern": "^https?://"
+          },
+          "reviewRequired": {
+            "const": true
+          },
+          "verification": {
+            "const": "not_run"
+          }
+        },
+        "required": [
+          "kind",
+          "source",
+          "original",
+          "proposed",
+          "reasonCode",
+          "snapshotId",
+          "pageId",
+          "observedOrigin",
+          "reviewRequired",
+          "verification"
+        ],
+        "additionalProperties": false
+      },
+      "RepairSuggestionRecord": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "taskId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceVersionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "suggestion": {
+            "$ref": "#/$defs/LocatorRepairSuggestion"
+          }
+        },
+        "required": [
+          "runId",
+          "taskId",
+          "sourceVersionId",
+          "suggestion"
         ],
         "additionalProperties": false
       },
@@ -22435,6 +22523,14 @@
                   "type": "null"
                 }
               ]
+            },
+            "repairSuggestions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/RepairSuggestionRecord"
+              },
+              "maxItems": 10,
+              "minItems": 0
             }
           },
           "required": [
@@ -24621,6 +24717,86 @@
             "reviewReason",
             "reviewedBy",
             "reviewedAt"
+          ],
+          "additionalProperties": false
+        },
+        "LocatorRepairSuggestion": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "locator_name_variation"
+            },
+            "source": {
+              "$ref": "#/components/schemas/RegressionStepSource"
+            },
+            "original": {
+              "$ref": "#/components/schemas/Locator"
+            },
+            "proposed": {
+              "$ref": "#/components/schemas/Locator"
+            },
+            "reasonCode": {
+              "const": "LOCATOR_NOT_FOUND"
+            },
+            "snapshotId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "pageId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "observedOrigin": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 8192,
+              "pattern": "^https?://"
+            },
+            "reviewRequired": {
+              "const": true
+            },
+            "verification": {
+              "const": "not_run"
+            }
+          },
+          "required": [
+            "kind",
+            "source",
+            "original",
+            "proposed",
+            "reasonCode",
+            "snapshotId",
+            "pageId",
+            "observedOrigin",
+            "reviewRequired",
+            "verification"
+          ],
+          "additionalProperties": false
+        },
+        "RepairSuggestionRecord": {
+          "type": "object",
+          "properties": {
+            "runId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "taskId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "sourceVersionId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "suggestion": {
+              "$ref": "#/components/schemas/LocatorRepairSuggestion"
+            }
+          },
+          "required": [
+            "runId",
+            "taskId",
+            "sourceVersionId",
+            "suggestion"
           ],
           "additionalProperties": false
         },

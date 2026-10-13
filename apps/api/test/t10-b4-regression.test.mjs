@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import pg from 'pg';
+import { parseContract } from '@localqa/contracts';
 import {
   Database,
   migrate,
@@ -878,4 +879,125 @@ test('PG module snapshots support sibling reuse with scoped criteria; unknown/un
       ),
     (error) => error.code === '23514',
   );
+});
+
+test('PG/API repair hints require exact immutable executor binding, approved source hash and failed locator', async () => {
+  const sourceA = await saved(
+    document('repair-evidence-a', [
+      { kind: 'navigate', url: 'http://localhost:8080/' },
+      {
+        kind: 'click',
+        locator: { by: 'role', value: 'button', name: 'Complete Order' },
+      },
+      { kind: 'assert', criterionId: 'visible' },
+    ]),
+  );
+  const sourceB = await saved(document('repair-evidence-b'));
+  const admitted = await request(
+    '/regression-runs',
+    { projectId: project.id, caseVersionIds: [sourceA.id, sourceB.id] },
+    randomUUID(),
+  );
+  assert.equal(admitted.status, 202, JSON.stringify(admitted));
+  const boundCases = (
+    await adminQuery(
+      `SELECT id,document->'regression'->>'sourceVersionId' AS version_id
+       FROM run_cases WHERE project_id=$1 AND run_id=$2`,
+      [project.id, admitted.body.id],
+    )
+  ).rows;
+  const caseA = boundCases.find((row) => row.version_id === sourceA.id);
+  const caseB = boundCases.find((row) => row.version_id === sourceB.id);
+  assert.ok(caseA && caseB);
+  const suggestion = {
+    kind: 'locator_name_variation',
+    source: {
+      documentId: 'repair-evidence-a',
+      stepIndex: 1,
+      modulePath: [],
+    },
+    original: { by: 'role', value: 'button', name: 'Complete Order' },
+    proposed: { by: 'role', value: 'button', name: 'COMPLETE ORDER' },
+    reasonCode: 'LOCATOR_NOT_FOUND',
+    snapshotId: randomUUID(),
+    pageId: randomUUID(),
+    observedOrigin: 'http://localhost:8080',
+    reviewRequired: true,
+    verification: 'not_run',
+  };
+  const insertJob = async (
+    caseId,
+    source,
+    replayReason = 'LOCATOR_NOT_FOUND',
+    hint = suggestion,
+    documentSha = source.sha256,
+  ) => {
+    const taskId = randomUUID();
+    await adminQuery(
+      `INSERT INTO jobs(
+         id,project_id,run_id,case_id,unique_key,role,status,document,
+         result,started_at,finished_at
+       ) VALUES($1,$2,$3,$4,$5,'executor','succeeded',$6,$7,
+         clock_timestamp(),clock_timestamp())`,
+      [
+        taskId,
+        project.id,
+        admitted.body.id,
+        caseId,
+        `repair-fixture-${randomUUID()}`,
+        { summary: 'execute', stage: 'execute' },
+        {
+          stage: 'execute',
+          sourceVersionId: source.id,
+          sourceDocumentSha256: documentSha,
+          regressionReplay: {
+            status:
+              replayReason === 'LOCATOR_NOT_FOUND' ? 'failed' : 'completed',
+            reasonCode: replayReason,
+          },
+          repairSuggestions: [hint],
+        },
+      ],
+    );
+    return taskId;
+  };
+  // Each negative row is structurally valid JSON, but has no authoritative
+  // binding to the queried approved case A.
+  await insertJob(caseB.id, sourceA);
+  await insertJob(
+    caseA.id,
+    sourceA,
+    'LOCATOR_NOT_FOUND',
+    suggestion,
+    '0'.repeat(64),
+  );
+  await insertJob(caseA.id, sourceA, 'MODEL_FAILURE');
+  await insertJob(caseA.id, sourceA, 'LOCATOR_NOT_FOUND', {
+    ...suggestion,
+    reviewRequired: false,
+  });
+  const authoritativeTask = await insertJob(caseA.id, sourceA);
+
+  const listed = await request(
+    `/saved-cases/${sourceA.caseId}/repair-proposals`,
+  );
+  assert.equal(listed.status, 200, JSON.stringify(listed));
+  const page = parseContract('RepairProposalPage', listed.body);
+  assert.deepEqual(page.items, []);
+  assert.equal(page.repairSuggestions.length, 1);
+  assert.equal(page.repairSuggestions[0].taskId, authoritativeTask);
+  assert.equal(page.repairSuggestions[0].sourceVersionId, sourceA.id);
+  assert.equal(page.repairSuggestions[0].suggestion.verification, 'not_run');
+  assert.equal(page.repairSuggestions[0].suggestion.reviewRequired, true);
+  assert.equal(
+    JSON.stringify(page).includes('0'.repeat(64)),
+    false,
+    'wrong source hashes must not escape as candidates',
+  );
+  // Asking for B must never attribute A's worker diagnosis to B.
+  const bPage = await request(
+    `/saved-cases/${sourceB.caseId}/repair-proposals`,
+  );
+  assert.equal(bPage.status, 200);
+  assert.deepEqual(bPage.body.repairSuggestions, []);
 });

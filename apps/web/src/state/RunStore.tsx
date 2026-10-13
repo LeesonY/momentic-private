@@ -26,6 +26,7 @@ import {
   recordMessageRendered,
   type RunMessage,
 } from '../api/index.ts';
+import { mergeRunEventHistory } from './runEventHistory.ts';
 
 interface RunState {
   run: Run | null;
@@ -128,7 +129,10 @@ export function RunStoreProvider({
       setReport(repData);
       setSession(repData?.session ?? null);
       setMessages(msgs);
-      if (history) setEvents(history.items);
+      // A live SSE update may arrive before this slower initial REST read.
+      // Never replace the newer observed timeline with stale first-page data.
+      if (history)
+        setEvents((prev) => mergeRunEventHistory(runId, prev, history.items));
 
       for (const m of msgs) {
         recordMessageRendered(m.redactedText, m.createdAt);
@@ -175,10 +179,8 @@ export function RunStoreProvider({
   // 2. Event projection handler
   const handleEvent = useCallback(
     (event: RunEvent) => {
-      setEvents((prev) => {
-        if (prev.some((existing) => existing.id === event.id)) return prev;
-        return [...prev, event].sort((a, b) => a.seq - b.seq).slice(-150);
-      });
+      if (event.runId !== runId) return;
+      setEvents((prev) => mergeRunEventHistory(runId, prev, [event]));
       switch (event.type) {
         case 'run.updated': {
           const payload = event.payload as unknown as Partial<Run>;

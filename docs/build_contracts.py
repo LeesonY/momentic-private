@@ -274,6 +274,21 @@ D["ApiKeyCreate"] = obj({"name": text(120, minLength=1), "scope": arr(ref("ApiKe
 D["ApiKeyCreated"] = obj({"key": ref("ApiKey"), "token": text(2000)})
 D["CacheStats"] = obj({"runId": UUID, "hits": integer(), "misses": integer(), "invalidated": integer(), "resolution": text(200), "savedModelCalls": integer(), "savedMs": integer()})
 D["RepairProposal"] = obj({"id": UUID, "caseId": UUID, "findingId": UUID, "proposedVersion": VER, "diff": text(20000), "verificationRunId": nullable(UUID), "status": enum("draft", "approved", "rejected"), "createdAt": DATE, "reviewReason": nullable(text(2000)), "reviewedBy": nullable(UUID), "reviewedAt": nullable(DATE)})
+# Evidence-derived locator hints are never approved versions or executable
+# targets. A separate review and candidate verification must precede adoption.
+D["LocatorRepairSuggestion"] = obj({
+    "kind": {"const": "locator_name_variation"},
+    "source": ref("RegressionStepSource"), "original": ref("Locator"),
+    "proposed": ref("Locator"), "reasonCode": {"const": "LOCATOR_NOT_FOUND"},
+    "snapshotId": UUID, "pageId": UUID,
+    "observedOrigin": URI,
+    "reviewRequired": {"const": True}, "verification": {"const": "not_run"},
+})
+D["RepairSuggestionRecord"] = obj({
+    "runId": UUID, "taskId": UUID, "sourceVersionId": UUID,
+    "suggestion": ref("LocatorRepairSuggestion"),
+})
+D["RepairProposalPage"]["properties"]["repairSuggestions"] = arr(ref("RepairSuggestionRecord"), 10)
 D["RepairProposalCreate"] = obj({"findingId": UUID, "diff": text(20000, minLength=1)})
 D["RepairProposalReviewInput"] = obj({"decision": enum("approve","reject"), "reason": text(2000, minLength=10)}, ["decision","reason"])
 D["RepairCandidateVerification"] = obj({

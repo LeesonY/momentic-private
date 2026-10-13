@@ -16,6 +16,9 @@ const files = [
   'report.schema.json',
   'tools.schema.json',
 ];
+// Git converts checked-out text to CRLF on Windows; compare the generator's
+// semantic LF text without hiding real generated-content differences.
+const canonicalText = (text) => text.replace(/\r\n/g, '\n');
 for (const file of files)
   docs[file] = JSON.parse(
     await readFile(`${root}docs/contracts/${file}`, 'utf8'),
@@ -44,8 +47,8 @@ try {
   console.log(stdout.trim());
   for (const file of files)
     assert.equal(
-      await readFile(`${staging}/contracts/${file}`, 'utf8'),
-      await readFile(`${root}docs/contracts/${file}`, 'utf8'),
+      canonicalText(await readFile(`${staging}/contracts/${file}`, 'utf8')),
+      canonicalText(await readFile(`${root}docs/contracts/${file}`, 'utf8')),
       `Source generator drift: ${file}`,
     );
   for (const file of [
@@ -56,8 +59,8 @@ try {
     'regression.case.json',
   ])
     assert.equal(
-      await readFile(`${staging}/examples/${file}`, 'utf8'),
-      await readFile(`${root}docs/examples/${file}`, 'utf8'),
+      canonicalText(await readFile(`${staging}/examples/${file}`, 'utf8')),
+      canonicalText(await readFile(`${root}docs/examples/${file}`, 'utf8')),
       `Example generator drift: ${file}`,
     );
 } finally {

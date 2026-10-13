@@ -213,8 +213,8 @@ export function registerExecutionRoutes(router: Router): void {
   router.get('/api/v1/tasks/{taskId}/steps', async (ctx: RequestContext) => {
     await requireAuth(ctx);
     const taskId = ctx.params.taskId!;
-
-    const steps = await ctx.api.db.actor(ctx.actor!, async (client) => {
+    const { limit, offset } = parsePagination(ctx.query);
+    const page = await ctx.api.db.actor(ctx.actor!, async (client) => {
       if (
         !(await client.query('SELECT 1 FROM jobs WHERE id=$1', [taskId]))
           .rowCount
@@ -224,14 +224,20 @@ export function registerExecutionRoutes(router: Router): void {
         `SELECT document
          FROM steps
          WHERE task_id = $1
-         ORDER BY seq, id`,
-        [taskId],
+         ORDER BY seq, id
+         LIMIT $2 OFFSET $3`,
+        [taskId, limit + 1, offset],
       );
-      return rows.rows.map((r) => parseContract('Step', r.document));
+      return {
+        items: rows.rows
+          .slice(0, limit)
+          .map((r) => parseContract('Step', r.document)),
+        nextCursor:
+          rows.rows.length > limit
+            ? Buffer.from(String(offset + limit)).toString('base64url')
+            : null,
+      };
     });
-
-    const { limit, offset } = parsePagination(ctx.query);
-    const page = paginate(steps, limit, offset);
 
     ctx.res.statusCode = 200;
     return parseContract('StepPage', page);

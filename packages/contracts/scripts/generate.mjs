@@ -54,11 +54,23 @@ const outputs = {
       2,
     ) + '\n',
 };
-const out = `${root}packages/contracts/src/generated`;
+// Drift negative tests must not temporarily corrupt the shared generated
+// artifacts while another CI/build checks the same checkout.
+const checkDir = process.argv.find((arg) => arg.startsWith('--check-dir='));
+if (checkDir && !process.argv.includes('--check'))
+  throw new Error('--check-dir requires --check');
+const out = checkDir
+  ? checkDir.slice('--check-dir='.length)
+  : `${root}packages/contracts/src/generated`;
 if (!process.argv.includes('--check')) await mkdir(out, { recursive: true });
 for (const [file, content] of Object.entries(outputs)) {
   if (process.argv.includes('--check')) {
-    if ((await readFile(`${out}/${file}`, 'utf8')) !== content) {
+    // Git commonly checks out text files as CRLF on Windows. Compare the
+    // canonical LF representation, matching the contract source hash policy.
+    if (
+      (await readFile(`${out}/${file}`, 'utf8')).replace(/\r\n/g, '\n') !==
+      content
+    ) {
       throw new Error(
         `Generated file drift: ${file}; run pnpm contracts:generate`,
       );

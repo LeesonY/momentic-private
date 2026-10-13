@@ -8,6 +8,7 @@ import type {
   JsonValue,
 } from '@localqa/contracts';
 import type { CompiledRegressionStep } from '@localqa/orchestrator';
+import { setTimeout as delay } from 'node:timers/promises';
 
 type Source = CompiledRegressionStep['source'];
 type Status =
@@ -50,6 +51,9 @@ export interface ReplayStepRecord {
   compiled: CompiledRegressionStep;
   status: Status;
   reasonCode: string | null;
+  /** Number of pre-action DOM resolutions; never retries a browser mutation. */
+  resolutionAttempts: number;
+  recoveryCodes: string[];
   tools: { call: ToolCall; receipt: ReplayToolReceipt | null }[];
   criterionResults: CriterionResult[];
 }
@@ -125,6 +129,8 @@ export async function replayRegression(
       compiled: item,
       status: 'completed',
       reasonCode: null,
+      resolutionAttempts: 0,
+      recoveryCodes: [],
       tools: [],
       criterionResults: [],
     };
@@ -218,11 +224,33 @@ export async function replayRegression(
       if (step.kind === 'navigate')
         await execute({ name: 'navigate', args: { url: step.url } });
       else if (step.kind === 'click' || step.kind === 'type_text') {
-        const target = parseContract(
-          'NodeTarget',
-          await ports.resolveTarget(step.locator, item.source, signal),
-        );
+        let target: NodeTarget | undefined;
+        // Bounded pre-action recovery for asynchronously appearing elements.
+        // The injected resolver obtains a *new* budgeted browser observation
+        // every time. Never retry a click/type whose execution may be unknown,
+        // an ambiguous locator, a policy denial or an assertion failure.
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          check();
+          record.resolutionAttempts = attempt;
+          try {
+            target = parseContract(
+              'NodeTarget',
+              await ports.resolveTarget(step.locator, item.source, signal),
+            );
+            break;
+          } catch (error) {
+            const code =
+              error && typeof error === 'object' && 'code' in error
+                ? error.code
+                : null;
+            if (signal.aborted || code !== 'LOCATOR_NOT_FOUND' || attempt === 3)
+              throw error;
+            record.recoveryCodes.push('LOCATOR_NOT_FOUND');
+            await delay(attempt * 250, undefined, { signal });
+          }
+        }
         check();
+        if (!target) throw new Stop('failed', 'LOCATOR_NOT_FOUND');
         await execute(
           step.kind === 'click'
             ? { name: 'click', args: { target } }

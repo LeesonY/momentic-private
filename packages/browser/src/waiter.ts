@@ -117,7 +117,34 @@ export class WaitAndRecoveryManager {
    * Calculates a structural page fingerprint to detect loops.
    */
   public computeFingerprint(snapshot: BrowserSnapshot): string {
-    const raw = `${snapshot.displayUrl}|${snapshot.title}|${snapshot.nodes.length}`;
+    // The previous URL/title/node-count fingerprint treated a wizard's
+    // successive buttons as identical whenever each DOM replacement kept
+    // the same number of nodes. Node IDs can also be reused across fresh
+    // snapshots. Hash stable *semantic structure* instead of ephemeral IDs,
+    // timestamps or screenshot bytes; no raw labels leave this process.
+    const controls = snapshot.nodes
+      .filter(
+        (node) =>
+          node.visible &&
+          !node.sensitive &&
+          node.role !== 'generic' &&
+          node.name.length > 0,
+      )
+      .map((node) =>
+        JSON.stringify([
+          node.frameId,
+          node.role,
+          node.name.slice(0, 160),
+          node.enabled,
+        ]),
+      )
+      .sort();
+    const raw = JSON.stringify([
+      snapshot.displayUrl,
+      snapshot.title,
+      snapshot.nodes.length,
+      controls,
+    ]);
     return createHash('sha256').update(raw).digest('hex').slice(0, 16);
   }
 
@@ -125,6 +152,21 @@ export class WaitAndRecoveryManager {
    * Records an action execution and checks for infinite loop repetitions.
    */
   public recordAction(
+    actionName: string,
+    targetKey: string,
+    fingerprint: string,
+  ): void {
+    this.assertActionPermitted(actionName, targetKey, fingerprint);
+    const actionKey = `${actionName}:${targetKey}`;
+    this.actionHistory.push({ actionKey, fingerprint });
+    if (this.actionHistory.length > 50) {
+      this.actionHistory.shift();
+    }
+  }
+
+  /** Reject loops before potentially mutating browser actions are dispatched.
+   * A post-click failure cannot retroactively undo the browser side effect. */
+  public assertActionPermitted(
     actionName: string,
     targetKey: string,
     fingerprint: string,
@@ -140,11 +182,6 @@ export class WaitAndRecoveryManager {
       } else {
         break;
       }
-    }
-
-    this.actionHistory.push({ actionKey, fingerprint });
-    if (this.actionHistory.length > 50) {
-      this.actionHistory.shift();
     }
 
     if (consecutiveCount >= this.maxRepeatedActions) {

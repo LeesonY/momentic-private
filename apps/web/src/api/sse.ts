@@ -44,6 +44,15 @@ export class SseClient {
 
   public connect(): void {
     if (this.isManuallyClosed) return;
+    // A retry may be requested while the previous EventSource is still
+    // connected. Own exactly one stream at a time; obsolete callbacks must
+    // never close the new connection or move its event cursor.
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.eventSource?.close();
+    this.eventSource = null;
     this.setStatus(this.reconnectAttempt > 0 ? 'reconnecting' : 'connecting');
 
     const url = new URL(
@@ -55,18 +64,27 @@ export class SseClient {
     }
 
     try {
-      this.eventSource = new EventSource(url.toString(), {
+      const stream = new EventSource(url.toString(), {
         withCredentials: true,
       });
+      this.eventSource = stream;
 
-      this.eventSource.onopen = () => {
+      stream.onopen = () => {
+        if (this.eventSource !== stream || this.isManuallyClosed) return;
         this.reconnectAttempt = 0;
         this.setStatus('connected');
       };
 
       const onMessage = (e: MessageEvent) => {
+        if (this.eventSource !== stream || this.isManuallyClosed) return;
         try {
           const rawEvent = JSON.parse(e.data) as RunEvent;
+          if (
+            rawEvent.runId !== this.runId ||
+            !Number.isSafeInteger(rawEvent.seq) ||
+            rawEvent.seq < 1
+          )
+            return;
           // 1. Strict seq deduplication
           if (rawEvent.seq <= this.lastSeq) {
             return; // Duplicate or out-of-order event, drop silently
@@ -79,7 +97,7 @@ export class SseClient {
           console.error('[SSE] Failed to parse event payload:', parseErr);
         }
       };
-      this.eventSource.onmessage = onMessage;
+      stream.onmessage = onMessage;
       // API SSE frames use `event: input.requested` (and other explicit
       // names). Native EventSource.onmessage only receives unnamed events:
       // without these listeners the Workbench never sees real OTP prompts.
@@ -87,6 +105,7 @@ export class SseClient {
         'run.updated',
         'phase.changed',
         'task.updated',
+        'session.updated',
         'case.created',
         'case.result',
         'finding.updated',
@@ -99,13 +118,13 @@ export class SseClient {
         'run.finished',
       ];
       for (const eventType of eventTypes)
-        this.eventSource.addEventListener(eventType, (event) =>
+        stream.addEventListener(eventType, (event) =>
           onMessage(event as MessageEvent),
         );
 
-      this.eventSource.onerror = (_err) => {
-        if (this.isManuallyClosed) return;
-        this.eventSource?.close();
+      stream.onerror = (_err) => {
+        if (this.isManuallyClosed || this.eventSource !== stream) return;
+        stream.close();
         this.eventSource = null;
 
         this.reconnectAttempt++;

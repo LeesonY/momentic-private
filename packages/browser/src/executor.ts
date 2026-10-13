@@ -324,6 +324,14 @@ export class ToolExecutor {
           }
 
           try {
+            // Detect inert repeats before dispatch. Previously the third
+            // click happened but was reported failed after the fact.
+            if (ctx.currentSnapshot)
+              ctx.waiter.assertActionPermitted(
+                'click',
+                target.nodeId,
+                ctx.waiter.computeFingerprint(ctx.currentSnapshot),
+              );
             if (ctx.signal?.aborted)
               throw new Error(STABLE_REASON_CODES.USER_CANCELLED);
             await resolved.elementHandle.click({ timeout: 15000 });

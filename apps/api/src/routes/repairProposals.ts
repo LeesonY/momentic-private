@@ -220,8 +220,64 @@ export function registerRepairProposalRoutes(router: Router): void {
             [saved.project_id, saved.id, limit + 1, offset],
           )
         ).rows;
+        // These are read-only execution observations, NOT repair_proposals.
+        // A version id in worker result JSON alone is not authority. Verify
+        // the immutable, DB-guarded run-case regression binding for this exact
+        // executor task, run, source hash and approved saved-case version.
+        // Otherwise a task for case B could be attributed to case A simply by
+        // carrying A's sourceVersionId in its untrusted result payload.
+        const suggestions = (
+          await client.query<{
+            id: string;
+            run_id: string;
+            source_version_id: string;
+            hints: unknown;
+          }>(
+            `SELECT j.id,j.run_id,
+                    j.result->>'sourceVersionId' AS source_version_id,
+                    j.result->'repairSuggestions' AS hints
+             FROM jobs j
+             JOIN run_case_regression_bindings b
+               ON b.project_id=j.project_id
+              AND b.run_id=j.run_id AND b.case_id=j.case_id
+              AND b.source_version_id::text=j.result->>'sourceVersionId'
+              AND b.source_sha256=j.result->>'sourceDocumentSha256'
+             JOIN saved_case_versions v
+               ON v.project_id=b.project_id
+              AND v.id=b.source_version_id AND v.sha256=b.source_sha256
+             WHERE j.project_id=$1 AND v.case_id=$2
+               AND v.review_status='approved' AND j.role='executor'
+               AND j.status='succeeded'
+               AND j.result->'regressionReplay'->>'status'='failed'
+               AND j.result->'regressionReplay'->>'reasonCode'='LOCATOR_NOT_FOUND'
+               AND jsonb_typeof(j.result->'repairSuggestions')='array'
+             ORDER BY j.finished_at DESC NULLS LAST, j.id DESC LIMIT 30`,
+            [saved.project_id, saved.id],
+          )
+        ).rows
+          .flatMap((row) => {
+            if (!Array.isArray(row.hints)) return [];
+            // Fail closed on stale/malformed result JSON. The signed result
+            // remains available for audit, but is never made a client DTO.
+            return row.hints.slice(0, 1).flatMap((hint) => {
+              try {
+                return [
+                  parseContract('RepairSuggestionRecord', {
+                    runId: row.run_id,
+                    taskId: row.id,
+                    sourceVersionId: row.source_version_id,
+                    suggestion: hint,
+                  }),
+                ];
+              } catch {
+                return [];
+              }
+            });
+          })
+          .slice(0, 10);
         return {
           items: rows.slice(0, limit).map(output),
+          repairSuggestions: suggestions,
           nextCursor:
             rows.length > limit
               ? Buffer.from(String(offset + limit)).toString('base64url')

@@ -109,6 +109,7 @@ import type {
   RepairCandidateEvidence,
   RepairCandidateEvidencePage,
   RepairProposalPage,
+  RepairSuggestionRecord,
 } from '../../../../packages/contracts/src/generated/types.ts';
 
 export type {
@@ -217,6 +218,7 @@ export type {
   RepairCandidateEvidence,
   RepairCandidateEvidencePage,
   RepairProposalPage,
+  RepairSuggestionRecord,
 };
 
 export type PublicOperationName =

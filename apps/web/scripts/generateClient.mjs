@@ -170,6 +170,7 @@ import type {
   RepairCandidateEvidence,
   RepairCandidateEvidencePage,
   RepairProposalPage,
+  RepairSuggestionRecord,
 } from '../../../../packages/contracts/src/generated/types.ts';
 
 export type {
@@ -278,6 +279,7 @@ export type {
   RepairCandidateEvidence,
   RepairCandidateEvidencePage,
   RepairProposalPage,
+  RepairSuggestionRecord,
 };
 
 export type PublicOperationName =
@@ -1844,14 +1846,17 @@ const targetTypes = `${root}apps/web/src/api/types.ts`;
 const targetClient = `${root}apps/web/src/api/client.ts`;
 
 if (checkMode) {
-  const currentTypes = await readFile(targetTypes, 'utf8');
-  const currentClient = await readFile(targetClient, 'utf8');
-  if (currentTypes !== typesContent) {
+  // Keep the source generator LF-canonical while allowing Git's Windows CRLF
+  // checkout; a real schema or client change must still fail this gate.
+  const canonicalText = (value) => value.replace(/\r\n/g, '\n');
+  const currentTypes = canonicalText(await readFile(targetTypes, 'utf8'));
+  const currentClient = canonicalText(await readFile(targetClient, 'utf8'));
+  if (currentTypes !== canonicalText(typesContent)) {
     throw new Error(
       'Generated file drift: apps/web/src/api/types.ts; run npm run generate:client',
     );
   }
-  if (currentClient !== clientContent) {
+  if (currentClient !== canonicalText(clientContent)) {
     throw new Error(
       'Generated file drift: apps/web/src/api/client.ts; run npm run generate:client',
     );
