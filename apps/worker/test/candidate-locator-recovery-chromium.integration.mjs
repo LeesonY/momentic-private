@@ -101,7 +101,7 @@ test(
         resolveCandidateLocator(session, locator, a.signal),
         (error) =>
           error instanceof CandidateLocatorFailure &&
-          error.code === 'LOCATOR_NOT_OWNED_OR_AMBIGUOUS',
+          error.code === 'LOCATOR_NOT_UNIQUE',
       );
       assert.equal(await page.getByRole('button', { name: 'Next' }).count(), 2);
     });

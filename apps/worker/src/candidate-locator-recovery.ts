@@ -53,8 +53,9 @@ export async function resolveCandidateLocator(
           : undefined;
       if (typeof code !== 'string' || !retryable.has(code))
         throw new CandidateLocatorFailure(
-          code === 'LOCATOR_NOT_OWNED_OR_AMBIGUOUS'
-            ? 'LOCATOR_NOT_OWNED_OR_AMBIGUOUS'
+          code === 'LOCATOR_NOT_OWNED_OR_AMBIGUOUS' ||
+            code === 'LOCATOR_NOT_UNIQUE'
+            ? code
             : 'VERIFICATION_LOCATOR_FAILED',
         );
       if (attempt === 3) throw new CandidateLocatorFailure(code);
