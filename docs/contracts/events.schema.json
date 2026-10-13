@@ -422,7 +422,7 @@
         "round": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 6
+          "maximum": 64
         },
         "status": {
           "type": "string",
@@ -476,7 +476,7 @@
           "items": {
             "$ref": "#/$defs/SessionRound"
           },
-          "maxItems": 6,
+          "maxItems": 64,
           "minItems": 0
         },
         "messageCursor": {
@@ -489,6 +489,18 @@
               "type": "null"
             }
           ]
+        },
+        "reviewedTaskIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "maxItems": 200,
+          "minItems": 0
+        },
+        "planningStopped": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -510,7 +522,7 @@
         "round": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 6
+          "maximum": 64
         },
         "reason": {
           "type": "string",
@@ -808,7 +820,7 @@
         "concurrency": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 16,
+          "maximum": 25,
           "default": 2
         },
         "maxTotalTokens": {

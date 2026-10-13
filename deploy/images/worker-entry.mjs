@@ -181,9 +181,11 @@ try {
       // Spread each round across projects before offering another slot to one
       // project. Rotate the starting project between rounds to avoid a stable
       // lexicographic winner when total demand exceeds browser capacity.
-      const offers = projectOffers(projects, slots, nextProject++);
+      // Browser capacity limits children. One additional leased control job
+      // keeps planning/reporting responsive while every browser slot is busy.
+      const offers = projectOffers(projects, slots + 1, nextProject++);
       for (const [offered, projectId] of offers.entries()) {
-        if (!running || active.size >= slots) break;
+        if (!running || active.size >= slots + 1) break;
         const runtime = new RuntimeClient(
           coordinator,
           { projectId, workerId: `${workerId}-${offered}` },

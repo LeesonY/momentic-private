@@ -92,14 +92,31 @@ export async function claimTask(
   client: PoolClient,
   scope: WorkerScope,
   leaseSeconds = 45,
+  admission?: { children: boolean; control: boolean },
 ): Promise<Lease | null> {
   duration(leaseSeconds);
   // Run lock serializes a claim with cancellation/archive transitions, while two
   // claimants retain compatible share locks and SKIP LOCKED the same task row.
   const row = (
     await client.query<JobRow>(
-      `SELECT j.*,r.context_version,r.status run_status FROM jobs j JOIN runs r ON r.id=j.run_id WHERE j.project_id=$1 AND j.status='queued' AND j.available_at<=clock_timestamp() AND r.status IN ('queued','running') ORDER BY j.available_at,j.id FOR UPDATE OF j SKIP LOCKED LIMIT 1`,
-      [scope.projectId],
+      `SELECT j.*,r.context_version,r.status run_status FROM jobs j JOIN runs r ON r.id=j.run_id
+       WHERE j.project_id=$1 AND j.status='queued' AND j.available_at<=clock_timestamp() AND r.status IN ('queued','running')
+       ${
+         admission
+           ? `AND (($2::boolean AND j.role IN ('coordinator','finalizer')) OR ($3::boolean AND j.role NOT IN ('coordinator','finalizer')))
+        AND (j.role IN ('coordinator','finalizer') OR
+          (SELECT count(*) FROM budget_reservations b JOIN jobs occupied ON occupied.id=b.task_id
+           WHERE b.run_id=r.id AND b.kind='concurrency' AND b.status='reserved' AND occupied.role NOT IN ('coordinator','finalizer'))
+          < (r.effective_config->'budget'->>'concurrency')::integer)
+        AND (j.role NOT IN ('coordinator','finalizer') OR NOT EXISTS(
+          SELECT 1 FROM budget_reservations b JOIN jobs occupied ON occupied.id=b.task_id
+          WHERE b.run_id=r.id AND b.kind='concurrency' AND b.status='reserved' AND occupied.role IN ('coordinator','finalizer')))`
+           : ''
+       }
+       ORDER BY CASE WHEN j.role IN ('coordinator','finalizer') THEN 0 ELSE 1 END,j.available_at,j.id FOR UPDATE OF j SKIP LOCKED LIMIT 1`,
+      admission
+        ? [scope.projectId, admission.control, admission.children]
+        : [scope.projectId],
     )
   ).rows[0];
   if (!row) return null;

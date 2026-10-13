@@ -1514,10 +1514,16 @@ export interface SessionReport {
   summary: string;
   /**
    * @minItems 0
-   * @maxItems 6
+   * @maxItems 64
    */
   history: SessionRound[];
   messageCursor?: string | null;
+  /**
+   * @minItems 0
+   * @maxItems 200
+   */
+  reviewedTaskIds?: string[];
+  planningStopped?: boolean;
 }
 export interface SessionRound {
   round: number;

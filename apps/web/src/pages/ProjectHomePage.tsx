@@ -39,8 +39,8 @@ type TaskIntent = NonNullable<
 
 /** Mo's "start with a brief" cards: each fills the composer with a request
  * whose 【】 blanks the user replaces before sending. */
-// Concurrent sub-agents a session may run; the contract caps budget.concurrency.
-const MAX_AGENTS = 16;
+// Concurrent sub-agents a session may run; matches budget.concurrency's cap.
+const MAX_AGENTS = 25;
 
 const BRIEFS: {
   intent: TaskIntent;
