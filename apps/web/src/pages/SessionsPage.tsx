@@ -40,6 +40,14 @@ const filters: {
     match: (run) => run.status === 'completed',
   },
   {
+    key: 'bugs',
+    label: '有缺陷',
+    match: (run) => {
+      const stats = runStats(run);
+      return !!stats && (stats.findings > 0 || stats.issues > 0);
+    },
+  },
+  {
     key: 'unfinished',
     label: '未完成',
     match: (run) => run.status === 'failed' || run.status === 'cancelled',
