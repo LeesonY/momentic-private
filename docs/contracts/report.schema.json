@@ -211,6 +211,62 @@
             "smoke",
             "regression"
           ]
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 60
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stats": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "cases": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100000
+                },
+                "passed": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100000
+                },
+                "issues": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100000
+                },
+                "blocked": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100000
+                },
+                "findings": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              "required": [
+                "cases",
+                "passed",
+                "issues",
+                "blocked",
+                "findings"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -286,6 +342,24 @@
           "maxItems": 100,
           "minItems": 0
         },
+        "taskIntent": {
+          "$ref": "#/$defs/TaskIntent"
+        },
+        "writeScope": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 8192,
+            "pattern": "^https?://"
+          },
+          "maxItems": 30,
+          "minItems": 0
+        },
+        "previousRunId": {
+          "type": "string",
+          "format": "uuid"
+        },
         "models": {
           "$ref": "#/$defs/RoleModels"
         }
@@ -355,7 +429,7 @@
         "concurrency": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 16,
+          "maximum": 25,
           "default": 2
         },
         "maxTotalTokens": {
@@ -378,6 +452,17 @@
         "maxTotalTokens"
       ],
       "additionalProperties": false
+    },
+    "TaskIntent": {
+      "type": "string",
+      "enum": [
+        "flow",
+        "explore",
+        "reproduce",
+        "plan",
+        "changes",
+        "spec"
+      ]
     },
     "RoleModels": {
       "type": "object",
@@ -1673,7 +1758,7 @@
         "round": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 6
+          "maximum": 64
         },
         "status": {
           "type": "string",
@@ -1727,8 +1812,42 @@
           "items": {
             "$ref": "#/$defs/SessionRound"
           },
-          "maxItems": 6,
+          "maxItems": 64,
           "minItems": 0
+        },
+        "messageCursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reviewedTaskIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "maxItems": 200,
+          "minItems": 0
+        },
+        "planningStopped": {
+          "type": "boolean"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 60
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -1750,7 +1869,7 @@
         "round": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 6
+          "maximum": 64
         },
         "reason": {
           "type": "string",

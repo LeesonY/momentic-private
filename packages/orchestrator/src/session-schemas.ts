@@ -35,9 +35,10 @@ export function sessionModelContext(
   const result: Record<string, unknown> = {
     session: {
       ...context.session,
+      reviewedTaskIds: undefined,
       objective: brief.slice(0, 1800),
       plan: context.session.plan.slice(0, 500),
-      history: context.session.history.map((round) => ({
+      history: context.session.history.slice(-12).map((round) => ({
         ...round,
         reason: round.reason.slice(0, 200),
       })),
@@ -47,9 +48,13 @@ export function sessionModelContext(
       summary: context.session.summary.slice(0, 1000),
     },
     actionPolicy: context.actionPolicy,
+    taskIntent: context.taskIntent,
+    writeScope: context.writeScope,
     assertionCapabilities: context.assertionCapabilities,
     remainingCases: context.remainingCases,
     remainingPages: context.remainingPages,
+    concurrency: context.concurrency,
+    activeTasks: context.activeTasks,
     sources: context.sources.slice(0, 8).map((source) => ({
       ...source,
       text: source.text.slice(0, source.kind === 'user_spec' ? 2400 : 1000),
@@ -84,7 +89,7 @@ export function sessionModelContext(
       actual: f.actual.slice(0, 200),
     })),
     contextNote:
-      '上下文包含全部用例标识和权威结果，长文本和旧观察经过裁剪；不要把缺少的细节当作已验证。',
+      '上下文包含全部用例标识和权威结果，长文本、旧观察和旧规划轮次经过裁剪。activeTasks 是尚未完成的任务，不要把它们判为失败、重复派工或提前报告完成；只根据新结果追加独立工作。',
   };
   const size = () => Buffer.byteLength(JSON.stringify(result), 'utf8');
   if (size() > 24000) result['observations'] = [];
@@ -110,7 +115,7 @@ export function sessionModelContext(
       round: context.session.round,
       status: context.session.status,
       objective: brief.slice(0, 500),
-      history: context.session.history.map((round) => ({
+      history: context.session.history.slice(-12).map((round) => ({
         round: round.round,
         reason: round.reason.slice(0, 80),
       })),

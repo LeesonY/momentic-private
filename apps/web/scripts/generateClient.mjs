@@ -52,8 +52,8 @@ for (const [path, methods] of Object.entries(openApi.paths)) {
   }
 }
 
-if (operations.length !== 92) {
-  throw new Error(`Expected 92 public operations, found ${operations.length}`);
+if (operations.length !== 97) {
+  throw new Error(`Expected 97 public operations, found ${operations.length}`);
 }
 
 const opNames = operations.map((op) => op.operationId);
@@ -89,6 +89,8 @@ import type {
   ModelProfileCreate,
   ModelProfilePatch,
   ModelDeleteConfirm,
+  RunDeleteConfirm,
+  ConfigDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -98,6 +100,8 @@ import type {
   BudgetOverrides,
   MessageInput,
   InputRequest,
+  InputRequestPage,
+  FollowUpInput,
   InputResponse,
   CaseRecord,
   CaseRecordPage,
@@ -196,6 +200,8 @@ export type {
   ModelProfileCreate,
   ModelProfilePatch,
   ModelDeleteConfirm,
+  RunDeleteConfirm,
+  ConfigDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -205,6 +211,8 @@ export type {
   BudgetOverrides,
   MessageInput,
   InputRequest,
+  InputRequestPage,
+  FollowUpInput,
   InputResponse,
   CaseRecord,
   CaseRecordPage,
@@ -305,6 +313,9 @@ export interface CreateRunInput {
   modelProfileId?: string;
   budgetOverrides?: BudgetOverrides;
   budget?: BudgetOverrides;
+  taskIntent?: RunConfig['taskIntent'];
+  actionPolicy?: RunConfig['actionPolicy'];
+  writeScope?: string[];
   mode?: 'smoke';
   config?: Partial<RunConfig>;
 }
@@ -335,10 +346,12 @@ export interface ApiClient {
   createEnvironment(projectId: string, input: EnvironmentCreate): Promise<Environment>;
   getEnvironment(environmentId: string): Promise<Environment>;
   updateEnvironment(environmentId: string, input: EnvironmentPatch): Promise<Environment>;
+  deleteEnvironment(environmentId: string, input: ConfigDeleteConfirm): Promise<void>;
   listAuthProfile(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage>;
   listAuthProfiles(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage>;
   createAuthProfile(projectId: string, input: AuthProfileCreate): Promise<AuthProfile>;
   updateAuthProfile(authProfileId: string, input: AuthProfilePatch): Promise<AuthProfile>;
+  deleteAuthProfile(authProfileId: string, input: ConfigDeleteConfirm): Promise<void>;
 
   // Knowledge & Models
   listKnowledge(projectId: string, query?: PaginationQuery): Promise<KnowledgePage>;
@@ -358,6 +371,7 @@ export interface ApiClient {
   listRuns(projectIdOrQuery: string | ListRunsQuery): Promise<RunPage>;
   getRun(runId: string): Promise<Run>;
   cancelRun(runId: string): Promise<Run>;
+  deleteRun(runId: string, input: RunDeleteConfirm): Promise<void>;
   sendRunMessage(
     runId: string,
     messageOrInput: string | MessageInput,
@@ -367,6 +381,8 @@ export interface ApiClient {
     runId: string,
     query?: PaginationQuery,
   ): Promise<RunMessagePage>;
+  listRunInputs(runId: string): Promise<InputRequestPage>;
+  continueRun(runId: string, input: FollowUpInput): Promise<Run>;
   respondToInput(
     runId: string,
     inputId: string,
@@ -492,6 +508,8 @@ import type {
   ModelProfileCreate,
   ModelProfilePatch,
   ModelDeleteConfirm,
+  RunDeleteConfirm,
+  ConfigDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -499,6 +517,8 @@ import type {
   RunPage,
   MessageInput,
   InputRequest,
+  InputRequestPage,
+  FollowUpInput,
   InputResponse,
   CaseRecord,
   CaseRecordPage,
@@ -839,6 +859,10 @@ export class HttpApiClient implements ApiClient {
     );
   }
 
+  public async deleteEnvironment(environmentId: string, input: ConfigDeleteConfirm): Promise<void> {
+    await this.request<void>(\`/environments/\${encodeURIComponent(environmentId)}\`, { method: 'DELETE', body: JSON.stringify(input) });
+  }
+
   // 17. listAuthProfile
   public async listAuthProfile(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
@@ -875,6 +899,10 @@ export class HttpApiClient implements ApiClient {
       },
       'AuthProfile',
     );
+  }
+
+  public async deleteAuthProfile(authProfileId: string, input: ConfigDeleteConfirm): Promise<void> {
+    await this.request<void>(\`/auth-profiles/\${encodeURIComponent(authProfileId)}\`, { method: 'DELETE', body: JSON.stringify(input) });
   }
 
   // 20. listKnowledge
@@ -984,6 +1012,9 @@ export class HttpApiClient implements ApiClient {
     if (input.environmentId) payload.environmentId = input.environmentId;
     if (input.authProfileId) payload.authProfileId = input.authProfileId;
     if (input.modelProfileId) payload.modelProfileId = input.modelProfileId;
+    if (input.taskIntent) payload.taskIntent = input.taskIntent;
+    if (input.actionPolicy) payload.actionPolicy = input.actionPolicy;
+    if (input.writeScope) payload.writeScope = input.writeScope;
     const budget = ('budget' in input ? input.budget : undefined) ?? ('budgetOverrides' in input ? input.budgetOverrides : undefined);
     if (budget && Object.keys(budget).length > 0) {
       payload.budget = budget;
@@ -1019,6 +1050,10 @@ export class HttpApiClient implements ApiClient {
   // 30. getRun
   public async getRun(runId: string): Promise<Run> {
     return this.request<Run>(\`/runs/\${encodeURIComponent(runId)}\`, { method: 'GET' }, 'Run');
+  }
+
+  public async deleteRun(runId: string, input: RunDeleteConfirm): Promise<void> {
+    await this.request<void>(\`/runs/\${encodeURIComponent(runId)}\`, { method: 'DELETE', body: JSON.stringify(input) });
   }
 
   // 31. cancelRun
@@ -1061,6 +1096,13 @@ export class HttpApiClient implements ApiClient {
       { method: 'GET' },
       'RunMessagePage',
     );
+  }
+
+  public async listRunInputs(runId: string): Promise<InputRequestPage> {
+    return this.request<InputRequestPage>(\`/runs/\${encodeURIComponent(runId)}/inputs\`, undefined, 'InputRequestPage');
+  }
+  public async continueRun(runId: string, input: FollowUpInput): Promise<Run> {
+    return this.request<Run>(\`/runs/\${encodeURIComponent(runId)}/follow-up\`, { method: 'POST', headers: { 'Idempotency-Key': typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : \`idemp_\${Date.now()}_\${Math.random().toString(36).slice(2)}\` }, body: JSON.stringify(input) }, 'Run');
   }
 
   // 33. respondToInput

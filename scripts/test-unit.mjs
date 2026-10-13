@@ -14,6 +14,12 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const files = [
+  'packages/model-gateway/test/context-window.test.mjs',
+  'packages/orchestrator/test/continuous-scheduling.test.mjs',
+  'packages/orchestrator/test/model-timeout.test.mjs',
+  'packages/model-gateway/test/rate-limit-retry.test.mjs',
+  'apps/worker/test/preflight-model.test.mjs',
+  'apps/web/scripts/phaseTermination.test.mjs',
   'packages/contracts/test/contracts.test.mjs',
   'packages/contracts/test/drift.test.mjs',
   'packages/domain/test/domain.test.mjs',
@@ -30,6 +36,8 @@ const files = [
   'packages/orchestrator/test/boundary.test.mjs',
   'packages/orchestrator/test/auth-ai.test.mjs',
   'packages/orchestrator/test/session-planning.test.mjs',
+  'packages/orchestrator/test/session-title.test.mjs',
+  'packages/orchestrator/test/input-options.test.mjs',
   'packages/orchestrator/test/trusted-smoke.test.mjs',
   'packages/orchestrator/test/g3c-bound-model.test.mjs',
   'packages/orchestrator/test/g3d-process-model.test.mjs',

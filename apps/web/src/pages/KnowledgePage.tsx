@@ -3,192 +3,299 @@ import type { Knowledge } from '@localqa/contracts';
 import { useAppContext } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
 import { Page } from '../components/layout/Page.tsx';
-import { Section } from '../components/ui/Section.tsx';
 import { Field } from '../components/ui/Field.tsx';
 import { Alert } from '../components/ui/Alert.tsx';
-import { EmptyState } from '../components/ui/EmptyState.tsx';
+import { Modal } from '../components/ui/Modal.tsx';
+import { AppIcon } from '../components/ui/AppIcon.tsx';
 
-const kindMeta: Record<Knowledge['kind'], { label: string; badge: string }> = {
-  rule: { label: '业务规则', badge: 'badge-primary' },
-  restriction: { label: '禁止操作', badge: 'badge-danger' },
-  terminology: { label: '业务术语', badge: 'badge-info' },
-  flow: { label: '标准业务流', badge: 'badge-neutral' },
+type Kind = Knowledge['kind'];
+
+/** Each category asks for the fields that describe it, as in Mo. */
+const kindMeta: Record<
+  Kind,
+  {
+    label: string;
+    badge: string;
+    titleLabel: string;
+    titlePlaceholder: string;
+    textLabel: string;
+    textHint: string;
+    textPlaceholder: string;
+  }
+> = {
+  rule: {
+    label: '业务规则',
+    badge: 'badge-primary',
+    titleLabel: '规则名称',
+    titlePlaceholder: '例如：BR-102 订单满 99 元包邮',
+    textLabel: '规则内容与验收标准',
+    textHint: '写清输入条件、预期结果和判定失败的阈值，代理会照原文使用。',
+    textPlaceholder:
+      '例如：订单商品金额满 99 元时运费为 0，否则按地区运费表计算…',
+  },
+  restriction: {
+    label: '禁止操作',
+    badge: 'badge-danger',
+    titleLabel: '禁止的操作',
+    titlePlaceholder: '例如：不要删除生产数据',
+    textLabel: '说明',
+    textHint: '写清在哪些页面、对哪些对象不允许做什么。',
+    textPlaceholder: '例如：在非测试专用页面中，不点击具有删除语义的按钮…',
+  },
+  terminology: {
+    label: '术语',
+    badge: 'badge-info',
+    titleLabel: '规范术语',
+    titlePlaceholder: '例如：结算单',
+    textLabel: '定义',
+    textHint: '说明这个词在本系统里的含义，以及常见的别称。',
+    textPlaceholder: '例如：结算单是订单确认后生成的付款凭证，也叫“账单”…',
+  },
+  flow: {
+    label: '业务流程',
+    badge: 'badge-neutral',
+    titleLabel: '流程名称',
+    titlePlaceholder: '例如：下单与支付',
+    textLabel: '步骤与预期',
+    textHint: '按顺序写出步骤和每一步应看到的结果。',
+    textPlaceholder:
+      '例如：1. 加入购物车 → 2. 填写地址 → 3. 提交订单，应看到订单号…',
+  },
+};
+
+const AddKnowledgeDialog: React.FC<{
+  projectId: string;
+  onClose: () => void;
+  onCreated: (item: Knowledge) => void;
+}> = ({ projectId, onClose, onCreated }) => {
+  const [kind, setKind] = useState<Kind>('rule');
+  const [title, setTitle] = useState('');
+  const [text, setText] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const meta = kindMeta[kind];
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!title.trim() || !text.trim() || saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      onCreated(
+        await defaultApiClient.createKnowledge(projectId, {
+          title: title.trim(),
+          text: text.trim(),
+          kind,
+        }),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '保存失败，请重试');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      title="添加知识"
+      description="知识会影响代理的行为和判定。选择类别，填写对应的内容。"
+      onClose={() => {
+        if (!saving) onClose();
+      }}
+      closeOnOverlay={!saving}
+      testId="knowledge-create-dialog"
+      footer={
+        <>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={saving}
+            onClick={onClose}
+          >
+            取消
+          </button>
+          <button
+            type="submit"
+            form="knowledge-create-form"
+            className="btn btn-primary"
+            disabled={saving || !title.trim() || !text.trim()}
+            data-testid="btn-create-knowledge"
+          >
+            {saving ? '保存中…' : '添加'}
+          </button>
+        </>
+      }
+    >
+      <form id="knowledge-create-form" onSubmit={(e) => void submit(e)}>
+        <Field label="类别" htmlFor="knowledge-kind">
+          <select
+            id="knowledge-kind"
+            className="form-select"
+            value={kind}
+            onChange={(e) => setKind(e.target.value as Kind)}
+          >
+            {(Object.keys(kindMeta) as Kind[]).map((key) => (
+              <option key={key} value={key}>
+                {kindMeta[key].label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label={meta.titleLabel} required htmlFor="knowledge-title">
+          <input
+            id="knowledge-title"
+            className="form-input"
+            placeholder={meta.titlePlaceholder}
+            value={title}
+            maxLength={200}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+          />
+        </Field>
+        <Field
+          label={meta.textLabel}
+          required
+          hint={meta.textHint}
+          htmlFor="knowledge-text"
+        >
+          <textarea
+            id="knowledge-text"
+            className="form-textarea"
+            rows={6}
+            placeholder={meta.textPlaceholder}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            required
+          />
+        </Field>
+        <p className="field-hint">
+          每次会话开始时会冻结当时的知识版本，之后的修改不影响已有会话的判定。
+        </p>
+        {error && (
+          <Alert tone="danger" role="alert">
+            {error}
+          </Alert>
+        )}
+      </form>
+    </Modal>
+  );
 };
 
 export const KnowledgePage: React.FC = () => {
   const { currentProject } = useAppContext();
-  const [knowledgeList, setKnowledgeList] = useState<Knowledge[]>([]);
-  const [title, setTitle] = useState('');
-  const [text, setText] = useState('');
-  const [kind, setKind] = useState<
-    'rule' | 'restriction' | 'terminology' | 'flow'
-  >('rule');
-  const [loading, setLoading] = useState(false);
+  const [items, setItems] = useState<Knowledge[] | null>(null);
+  const [adding, setAdding] = useState(false);
   const [notice, setNotice] = useState('');
 
   useEffect(() => {
+    setItems(null);
     if (!currentProject) return;
-    const projId = currentProject.id;
-    async function load() {
-      try {
-        const res = await defaultApiClient.listKnowledge(projId);
-        setKnowledgeList(res.items);
-      } catch (err) {
-        console.warn('Failed to load knowledge:', err);
-      }
-    }
-    load();
+    let cancelled = false;
+    defaultApiClient
+      .listKnowledge(currentProject.id)
+      .then((res) => {
+        if (!cancelled) setItems(res.items);
+      })
+      .catch(() => {
+        if (!cancelled) setItems([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [currentProject]);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim() || !text.trim() || !currentProject) return;
-    setLoading(true);
-    try {
-      const created = await defaultApiClient.createKnowledge(
-        currentProject.id,
-        {
-          title,
-          text,
-          kind,
-        },
-      );
-      setKnowledgeList([...knowledgeList, created]);
-      setTitle('');
-      setText('');
-      setNotice(`已登记「${created.title}」（v${created.version}）`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const addButton = (
+    <button
+      type="button"
+      className="btn btn-primary"
+      onClick={() => {
+        setNotice('');
+        setAdding(true);
+      }}
+      data-testid="btn-add-knowledge"
+    >
+      <AppIcon name="plus" size={16} />
+      添加知识
+    </button>
+  );
 
   return (
     <Page
       testId="knowledge-page"
       width="wide"
-      title="项目知识"
-      description="维护被测系统专属的业务预期、计算标准、术语和禁止操作边界，供运行时判定参考。"
+      title="知识库"
+      description="告诉代理团队使用的术语、必须遵守的规则和产品的业务流程。"
+      actions={currentProject && items && items.length > 0 ? addButton : null}
     >
-      <Alert tone="info" title="知识快照不会追溯修改">
-        每次运行启动时会冻结当时的项目知识版本；之后新增或修改规则，不会改变历史运行的判定依据。
-      </Alert>
-
-      <div className="lqa-split">
-        <Section icon="book" title="已登记的规则与约束">
-          {knowledgeList.length === 0 ? (
-            <EmptyState
-              compact
-              icon="book"
-              title="暂无项目知识"
-              description="在右侧登记第一条业务规则，运行时会作为判定依据的一部分。"
-            />
-          ) : (
-            <div className="table-container">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>规则</th>
-                    <th>类型</th>
-                    <th>内容与判定标准</th>
-                    <th>状态</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {knowledgeList.map((k) => (
-                    <tr key={k.id} data-testid={`knowledge-row-${k.id}`}>
-                      <td>
-                        <div className="cell-title">{k.title}</div>
-                        <div className="cell-sub mono">
-                          {k.id} · v{k.version}
-                        </div>
-                      </td>
-                      <td>
-                        <span
-                          className={`badge ${kindMeta[k.kind]?.badge ?? 'badge-neutral'}`}
-                        >
-                          {kindMeta[k.kind]?.label ?? k.kind}
-                        </span>
-                      </td>
-                      <td className="text-sm lqa-knowledge-text">{k.text}</td>
-                      <td>
-                        <span
-                          className={`badge ${k.approved ? 'badge-success' : 'badge-warning'}`}
-                        >
-                          {k.approved ? '已批准' : '待审批'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      {notice && (
+        <Alert tone="success" role="status">
+          {notice}
+        </Alert>
+      )}
+      <div className="table-container">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>名称</th>
+              <th>类别</th>
+              <th>版本</th>
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items?.map((k) => (
+              <tr key={k.id} data-testid={`knowledge-row-${k.id}`}>
+                <td>
+                  <div className="cell-title">{k.title}</div>
+                  <div className="cell-sub mo-knowledge-text">{k.text}</div>
+                </td>
+                <td>
+                  <span
+                    className={`badge ${kindMeta[k.kind]?.badge ?? 'badge-neutral'}`}
+                  >
+                    {kindMeta[k.kind]?.label ?? k.kind}
+                  </span>
+                </td>
+                <td className="mono text-sm">v{k.version}</td>
+                <td>
+                  <span
+                    className={`badge ${k.approved ? 'badge-success' : 'badge-warning'}`}
+                  >
+                    {k.approved ? '已启用' : '待审批'}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {items === null ? (
+          <p className="mo-table-empty">正在读取知识…</p>
+        ) : (
+          items.length === 0 && (
+            <div className="mo-table-empty" data-testid="knowledge-empty-state">
+              <span className="mo-empty-icon">
+                <AppIcon name="book" size={18} />
+              </span>
+              <strong>还没有知识</strong>
+              <p>
+                知识告诉代理团队使用的术语、必须遵守的规则，以及描述产品如何运作的流程。
+              </p>
+              <p>添加第一条，说明你的产品是怎么运作的。</p>
+              {currentProject && addButton}
             </div>
-          )}
-        </Section>
-
-        <Section icon="plus" title="登记新规则">
-          <form onSubmit={handleCreate}>
-            <Field label="规则标题" required htmlFor="knowledge-title">
-              <input
-                id="knowledge-title"
-                type="text"
-                className="form-input"
-                placeholder="例如：BR-102 订单满 99 元包邮"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-              />
-            </Field>
-            <Field label="类型" htmlFor="knowledge-kind">
-              <select
-                id="knowledge-kind"
-                className="form-select"
-                value={kind}
-                onChange={(e) =>
-                  setKind(
-                    e.target.value as
-                      'rule' | 'restriction' | 'terminology' | 'flow',
-                  )
-                }
-              >
-                <option value="rule">业务规则</option>
-                <option value="restriction">禁止操作</option>
-                <option value="terminology">业务术语</option>
-                <option value="flow">标准业务流</option>
-              </select>
-            </Field>
-            <Field
-              label="规则内容与验收标准"
-              required
-              hint="说明输入条件、预期计算方式和判定失败的阈值。"
-              htmlFor="knowledge-text"
-            >
-              <textarea
-                id="knowledge-text"
-                className="form-textarea"
-                rows={5}
-                placeholder="例如：订单商品金额满 99 元时运费为 0，否则按地区运费表计算…"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                required
-              />
-            </Field>
-            {notice && (
-              <Alert tone="success" role="status">
-                {notice}
-              </Alert>
-            )}
-            <div className="form-actions">
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={loading}
-              >
-                {loading ? '正在登记...' : '登记规则'}
-              </button>
-            </div>
-          </form>
-        </Section>
+          )
+        )}
       </div>
+      {adding && currentProject && (
+        <AddKnowledgeDialog
+          projectId={currentProject.id}
+          onClose={() => setAdding(false)}
+          onCreated={(created) => {
+            setItems((old) => [...(old ?? []), created]);
+            setAdding(false);
+            setNotice(`已添加「${created.title}」（v${created.version}）`);
+          }}
+        />
+      )}
     </Page>
   );
 };

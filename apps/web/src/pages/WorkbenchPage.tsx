@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
 import { useApp } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
 import { RunStoreProvider, useRunStore } from '../state/RunStore.tsx';
@@ -7,11 +13,23 @@ import { EmptyState } from '../components/ui/EmptyState.tsx';
 import { Alert } from '../components/ui/Alert.tsx';
 import { AppIcon } from '../components/ui/AppIcon.tsx';
 import { ReconnectBanner } from '../components/layout/ReconnectBanner.tsx';
-import { PhaseProgress } from '../components/workbench/PhaseProgress.tsx';
-import { InputRequestBar } from '../components/workbench/InputRequestBar.tsx';
-import { TaskCaseTabs } from '../components/workbench/TaskCaseTabs.tsx';
-import { StatusBadge } from '../components/ui/Badge.tsx';
-import { ErrorCard } from '../components/ui/ErrorCard.tsx';
+import { Modal } from '../components/ui/Modal.tsx';
+import { Popover } from '../components/ui/Popover.tsx';
+import {
+  SessionTimeline,
+  type PaneTab,
+} from '../components/session/SessionTimeline.tsx';
+import {
+  SessionPane,
+  type PaneDetail,
+} from '../components/session/SessionPane.tsx';
+import { buildSessionFeed } from '../components/session/sessionFeed.ts';
+import {
+  isRunActive,
+  sessionStatusLabel,
+  sessionStatusMeta,
+  sessionTitle,
+} from '../components/sessions/sessionMeta.ts';
 
 export const WorkbenchPage: React.FC = () => {
   const { currentProject, routeParams, setRoute } = useApp();
@@ -48,17 +66,17 @@ export const WorkbenchPage: React.FC = () => {
   }, [routeParams.runId]);
 
   return (
-    <Page width="full" testId="workbench-page">
+    <Page width="full" testId="workbench-page" className="mo-session-page">
       {selectedRunId ? (
         <RunStoreProvider runId={selectedRunId} key={selectedRunId}>
-          <WorkbenchContent activeRunId={selectedRunId} />
+          <WorkbenchContent />
         </RunStoreProvider>
       ) : runsLoaded ? (
         <EmptyState
           icon="activity"
-          title="还没有运行记录"
-          description="在项目首页填写目标地址并发起冒烟测试后，运行过程会实时显示在这里。"
-          actionText="去发起测试"
+          title="还没有会话"
+          description="新建一个会话，告诉 AI 要测试哪个流程；过程会实时显示在这里。"
+          actionText="新建会话"
           onAction={() => setRoute('home')}
         />
       ) : (
@@ -70,9 +88,58 @@ export const WorkbenchPage: React.FC = () => {
   );
 };
 
-const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
-  activeRunId,
-}) => {
+const WorkbenchContent: React.FC = () => {
+  const { currentUser, currentProject, setRoute } = useApp();
+  const [canDeleteRun, setCanDeleteRun] = useState(false);
+  const [showDeleteRun, setShowDeleteRun] = useState(false);
+  const [deletingRun, setDeletingRun] = useState(false);
+  const [deleteRunError, setDeleteRunError] = useState('');
+  const [inputProfiles, setInputProfiles] = useState<
+    import('@localqa/contracts').AuthProfile[]
+  >([]);
+  const [messageError, setMessageError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    setInputProfiles([]);
+    if (currentProject)
+      void defaultApiClient
+        .listAuthProfiles(currentProject.id, { limit: 100 })
+        .then((page) => {
+          if (!cancelled)
+            setInputProfiles(
+              page.items.filter(
+                (profile) =>
+                  profile.status === 'active' && profile.mode !== 'none',
+              ),
+            );
+        })
+        .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [currentProject?.id]);
+  useEffect(() => {
+    let cancelled = false;
+    setCanDeleteRun(currentUser?.globalRole === 'admin');
+    if (currentProject && currentUser?.globalRole !== 'admin') {
+      void defaultApiClient
+        .listMembers(currentProject.id, { limit: 100 })
+        .then((page) => {
+          if (!cancelled)
+            setCanDeleteRun(
+              page.items.some(
+                (m) => m.userId === currentUser?.id && m.role === 'owner',
+              ),
+            );
+        })
+        .catch(() => {
+          if (!cancelled) setCanDeleteRun(false);
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [currentProject?.id, currentUser?.id, currentUser?.globalRole]);
   const {
     run,
     cases,
@@ -82,6 +149,7 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
     session,
     activeInputRequest,
     messages,
+    events,
     sseStatus,
     reconnectAttempt,
     cancelRun,
@@ -90,9 +158,39 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
     retrySse,
     reload,
   } = useRunStore();
+  const deleteRun = async () => {
+    if (
+      !run ||
+      deletingRun ||
+      !canDeleteRun ||
+      run.projectId !== currentProject?.id
+    )
+      return;
+    setDeletingRun(true);
+    setDeleteRunError('');
+    try {
+      await defaultApiClient.deleteRun(run.id, {
+        expectedVersion: run.version,
+        confirmRunId: run.id,
+      });
+      setShowDeleteRun(false);
+      setRoute('home');
+    } catch (error) {
+      setDeleteRunError(
+        error instanceof Error ? error.message : '删除失败，请刷新后重试',
+      );
+    } finally {
+      setDeletingRun(false);
+    }
+  };
 
+  const [paneOpen, setPaneOpen] = useState(true);
+  const [paneTab, setPaneTab] = useState<PaneTab | 'detail'>('agents');
+  const [paneDetail, setPaneDetail] = useState<PaneDetail>(null);
+  const [paneExpanded, setPaneExpanded] = useState(false);
   const [inputMsg, setInputMsg] = useState('');
   const [sendingMsg, setSendingMsg] = useState(false);
+  const messageSendingRef = useRef(false);
   const [, setInputResponding] = useState(false);
   const inputRespondingRef = useRef(false);
   const activeInputScopeRef = useRef<{
@@ -132,9 +230,9 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
       // A code may only be sent via the dedicated InputResponse.oneTimeCode.
       if (isAuthKind && activeInputRequest.kind !== 'one_time_code') {
         if (decision !== 'reject') {
-          throw new Error('认证服务当前尚未接线，仅允许拒绝操作');
+          if (decision !== 'provide' || !text)
+            throw new Error('请选择认证配置');
         }
-        text = undefined;
       }
       if (
         activeInputRequest.kind === 'one_time_code' &&
@@ -167,326 +265,341 @@ const WorkbenchContent: React.FC<{ activeRunId: string }> = ({
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMsg.trim()) return;
+    if (!inputMsg.trim() || messageSendingRef.current) return;
+    messageSendingRef.current = true;
     setSendingMsg(true);
+    setMessageError('');
     try {
-      await sendMessage(inputMsg);
+      if (activeInputRequest?.kind === 'clarification') {
+        await handleRespondInput('provide', inputMsg.trim());
+      } else if (
+        run &&
+        ['completed', 'cancelled', 'failed'].includes(run.status)
+      ) {
+        const next = await defaultApiClient.continueRun(run.id, {
+          expectedVersion: run.version,
+          text: inputMsg,
+        });
+        setRoute('workbench', { runId: next.id });
+      } else await sendMessage(inputMsg.trim());
       setInputMsg('');
+    } catch (error) {
+      setMessageError(
+        error instanceof Error ? error.message : '发送失败，请重试',
+      );
     } finally {
+      messageSendingRef.current = false;
       setSendingMsg(false);
     }
   };
 
+  const objective =
+    session?.objective?.trim() || report?.session?.objective?.trim() || '';
+  const feed = useMemo(
+    () => (run ? buildSessionFeed({ run, events, messages, objective }) : []),
+    [run, events, messages, objective],
+  );
+
   if (!run) {
-    return <div className="lqa-session-loading is-inline">加载运行中...</div>;
+    return <div className="lqa-session-loading is-inline">加载会话中…</div>;
   }
 
-  const isCompleted = ['completed', 'cancelled', 'failed'].includes(run.status);
-  const isPartial =
-    run.completion === 'partial' || run.terminationReason === 'budget_limit';
-  const budget = run.effectiveConfig?.budget;
-  const budgetItems: {
-    label: string;
-    used: number;
-    limit: number;
-    unit?: string;
-  }[] = [
-    {
-      label: '执行时长',
-      used: run.budgetUsed.activeSeconds,
-      limit: budget?.maxActiveSeconds || 600,
-      unit: 's',
-    },
-    {
-      label: '动作步数',
-      used: run.budgetUsed.actions,
-      limit: budget?.maxActions || 120,
-    },
-    {
-      label: '模型调用',
-      used: run.budgetUsed.modelCalls,
-      limit: budget?.maxModelCalls || 100,
-    },
-    {
-      label: 'Token',
-      used: run.budgetUsed.totalTokens,
-      limit: budget?.maxTotalTokens || 300000,
-    },
-    {
-      label: '复现次数',
-      used: run.budgetUsed.reproductions,
-      limit: budget?.maxReproductions || 3,
-    },
-  ];
-  const regressionState: Record<string, string> = {
-    queued: '回归排队中，等待 Worker 领取',
-    running: '回归回放执行中',
-    completed: '回归已完成',
-    failed: '回归执行失败',
-    cancelled: '回归已取消',
+  const active = isRunActive(run);
+  const awaitingClarification = activeInputRequest?.kind === 'clarification';
+  const statusMeta = sessionStatusMeta[run.status];
+  const verified = cases.filter(
+    (record) => (record.verdict?.status ?? record.outcome) === 'passed',
+  ).length;
+  const hasBrowserAgent = tasks.some((task) =>
+    ['explorer', 'executor', 'reproducer'].includes(task.role),
+  );
+  const openTab = (next: PaneTab) => {
+    setPaneOpen(true);
+    setPaneTab(next);
   };
 
   return (
-    <div className="workbench-layout" data-testid="workbench-container">
-      <div
-        className="workbench-column workbench-center"
-        data-testid="workbench-center-panel"
-      >
-        <ReconnectBanner
-          status={sseStatus}
-          attempt={reconnectAttempt}
-          onRetry={retrySse}
+    <div className="mo-session" data-testid="workbench-container">
+      <header className="mo-session-head">
+        <AppIcon
+          name={statusMeta.icon}
+          size={16}
+          className={`mo-status-icon is-${statusMeta.tone}`}
         />
-
-        {isPartial && (
-          <ErrorCard
-            type="partial_report"
-            message={`本次运行因触发预算阈值（${run.terminationReason}）提前收尾。未执行的用例与未探索的控件已列入覆盖缺口，不影响已有的通过结论。`}
-          />
+        <h1 className="mo-session-name" title={`${run.targetUrl}\n${run.id}`}>
+          {sessionTitle(run)}
+        </h1>
+        <span className={`mo-session-status is-${statusMeta.tone}`}>
+          {sessionStatusLabel(run)}
+        </span>
+        {run.executionMode === 'regression' && (
+          <span className="mo-chip" data-testid="badge-execution-mode">
+            回归 · {cases.length} 个用例
+          </span>
         )}
-
-        {run.status === 'queued' && (
-          <Alert tone="info" title="运行排队中" testId="queued-run-notice">
-            等待 Worker 节点领取，尚未开始执行。用例结论会在 Worker
-            真实执行后给出。
-          </Alert>
+        <span className="mo-session-head-spacer" />
+        {verified > 0 && (
+          <span className="mo-verified">{verified} 个已验证</span>
         )}
-
-        <section className="card lqa-run-header">
-          <div className="lqa-run-title-row">
-            <div className="lqa-run-title">
-              <h2>
-                运行 <code title={run.id}>{run.id}</code>
-              </h2>
-              <div className="row row-wrap">
-                <StatusBadge status={isPartial ? 'partial' : run.status} />
-                <span
-                  className={`badge ${run.executionMode === 'regression' ? 'badge-primary' : 'badge-info'}`}
-                  data-testid="badge-execution-mode"
-                >
-                  {run.executionMode === 'regression'
-                    ? '回归模式'
-                    : session
-                      ? 'AI 探索测试'
-                      : '冒烟模式'}
-                </span>
-                <span className="badge badge-neutral">
-                  上下文 v{run.contextVersion}
-                </span>
-              </div>
-            </div>
-            {!isCompleted && (
-              <button
-                className="btn btn-danger-outline btn-sm"
-                onClick={cancelRun}
-                data-testid="btn-cancel-run"
+        <span
+          className="mo-usage"
+          title="模型调用 / 浏览器步数 / Token"
+          data-testid="budget-metrics-bar"
+        >
+          {run.budgetUsed.modelCalls} 次调用 · {run.budgetUsed.actions} 步 ·{' '}
+          {(run.budgetUsed.totalTokens / 1000).toFixed(1)}k tokens
+        </span>
+        <Popover
+          align="end"
+          testId="session-actions-menu"
+          trigger={(props) => (
+            <button
+              type="button"
+              {...props}
+              className="mo-icon-button"
+              aria-label="会话操作"
+              title="会话操作"
+            >
+              <AppIcon name="more" size={16} />
+            </button>
+          )}
+        >
+          {(close) => (
+            <>
+              <a
+                className="mo-menu-item"
+                href={run.targetUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={close}
               >
-                <AppIcon name="stop" size={13} />
-                停止运行
+                打开被测网址
+                <AppIcon name="external-link" size={13} />
+              </a>
+              <button
+                type="button"
+                className="mo-menu-item"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(run.id);
+                  close();
+                }}
+              >
+                复制会话 ID
+              </button>
+              {!active &&
+                canDeleteRun &&
+                run.projectId === currentProject?.id && (
+                  <button
+                    type="button"
+                    className="mo-menu-item is-danger"
+                    data-testid="btn-delete-run"
+                    onClick={() => {
+                      close();
+                      setDeleteRunError('');
+                      setShowDeleteRun(true);
+                    }}
+                  >
+                    删除会话
+                  </button>
+                )}
+            </>
+          )}
+        </Popover>
+        <button
+          type="button"
+          className={`mo-icon-button ${paneOpen ? 'is-active' : ''}`}
+          aria-label={paneOpen ? '收起侧栏' : '展开侧栏'}
+          title={paneOpen ? '收起侧栏' : '展开侧栏'}
+          onClick={() => setPaneOpen((open) => !open)}
+          data-testid="btn-toggle-tabs-collapse"
+        >
+          <AppIcon name="panel-right" size={16} />
+        </button>
+      </header>
+
+      <div
+        className={`mo-session-body ${paneOpen ? '' : 'is-pane-hidden'} ${paneExpanded ? 'is-pane-expanded' : ''}`}
+      >
+        <section
+          className="mo-session-main"
+          data-testid="workbench-center-panel"
+        >
+          <div className="mo-session-scroll">
+            <ReconnectBanner
+              status={sseStatus}
+              attempt={reconnectAttempt}
+              onRetry={retrySse}
+            />
+            <SessionTimeline
+              run={run}
+              feed={feed}
+              tasks={tasks}
+              cases={cases}
+              findings={findings}
+              session={session}
+              report={report}
+              activeInputRequest={activeInputRequest}
+              authProfiles={inputProfiles}
+              onRespond={handleRespondInput}
+              onOpenAgent={(taskId) => {
+                setPaneDetail({ type: 'agent', id: taskId });
+                setPaneOpen(true);
+                setPaneTab('detail');
+              }}
+              onOpenTab={openTab}
+            />
+          </div>
+          <div className="mo-session-composer" data-testid="run-messages-card">
+            {hasBrowserAgent && (
+              <button
+                type="button"
+                className="mo-screen-chip"
+                onClick={() => openTab('screen')}
+              >
+                <span className={active ? 'is-live' : ''}>
+                  {active ? '进行中' : '回放'}
+                </span>
+                AI 的画面
+                <AppIcon name="external-link" size={11} />
               </button>
             )}
-          </div>
-
-          <a
-            className="lqa-run-target"
-            href={run.targetUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <AppIcon name="globe" size={14} />
-            <span className="truncate">{run.targetUrl}</span>
-            <AppIcon name="external-link" size={13} />
-          </a>
-
-          {run.executionMode === 'regression' && (
-            <div
-              className="lqa-run-banner"
-              data-testid="workbench-regression-banner"
-            >
-              <span>
-                <strong>{regressionState[run.status] ?? '回归运行'}</strong>
-                ：关联用例都受经审查批准的冻结基线版本约束。
-              </span>
-              <span className="badge badge-primary">
-                {cases.length} 个回归用例
-              </span>
-            </div>
-          )}
-
-          <div
-            className="stat-grid lqa-budget-grid"
-            data-testid="budget-metrics-bar"
-          >
-            {budgetItems.map((item) => (
-              <div className="stat" key={item.label}>
-                <div className="stat-label">{item.label}</div>
-                <div className="stat-value">
-                  {item.used.toLocaleString()}
-                  {item.unit}
-                  <small>
-                    {' '}
-                    / {item.limit.toLocaleString()}
-                    {item.unit}
-                  </small>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <PhaseProgress
-          currentPhase={run.phase}
-          status={run.status}
-          executionMode={run.executionMode}
-        />
-
-        {activeInputRequest && (
-          <InputRequestBar
-            request={activeInputRequest}
-            onRespond={handleRespondInput}
-          />
-        )}
-
-        <section className="card" data-testid="run-messages-card">
-          <div className="card-header">
-            <div className="card-heading">
-              <h3 className="card-title">
-                <AppIcon name="send" size={16} />
-                补充说明
-                <span
-                  className="badge badge-neutral badge-sm"
-                  data-testid="run-messages-count"
-                >
-                  {messages.length}
-                </span>
-              </h3>
-              <p className="card-description">
-                运行过程中补充的业务预期与排除路径，每条消息都会推进上下文版本。
-              </p>
-            </div>
-          </div>
-
-          {messages.length === 0 ? (
-            <div className="lqa-muted-box" data-testid="no-messages-notice">
-              暂无补充消息。需要提供业务预期或排除路径时，请在下方发送。
-            </div>
-          ) : (
-            <div className="lqa-message-list" data-testid="run-messages-list">
-              {messages.map((m) => (
-                <div
-                  key={m.id}
-                  className="lqa-message"
-                  data-testid="run-message-item"
-                  data-message-id={m.id}
-                  data-redacted-text={m.redactedText}
-                  data-context-version={m.contextVersion}
-                  data-created-at={m.createdAt}
-                >
-                  <div className="lqa-message-meta">
-                    <span className="badge badge-info badge-sm">
-                      v{m.contextVersion}
-                    </span>
-                    <span>操作员</span>
-                    <span className="push">
-                      {new Date(m.createdAt).toLocaleTimeString()}
-                    </span>
-                  </div>
-                  <div
-                    className="lqa-message-text"
-                    data-testid="run-message-text"
-                  >
-                    {m.redactedText}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {!isCompleted && (
+            {messageError && (
+              <Alert tone="danger" testId="run-message-error">
+                {messageError}
+              </Alert>
+            )}
             <form
               onSubmit={handleSendMessage}
-              className="lqa-message-form"
+              className="mo-composer"
               data-testid="send-message-box"
             >
-              <input
-                type="text"
-                className="form-input"
-                placeholder="输入补充说明、业务预期或排除路径…"
+              <textarea
+                className="mo-composer-input"
+                rows={1}
+                maxLength={4000}
+                placeholder={
+                  awaitingClarification
+                    ? '回答上面的问题…'
+                    : active
+                      ? '给 AI 补充要求，引导它继续…'
+                      : '继续测试：告诉 AI 下一步要做什么…'
+                }
                 value={inputMsg}
                 onChange={(e) => setInputMsg(e.target.value)}
+                onKeyDown={(e) => {
+                  if (
+                    e.key === 'Enter' &&
+                    !e.shiftKey &&
+                    !e.nativeEvent.isComposing
+                  ) {
+                    e.preventDefault();
+                    e.currentTarget.form?.requestSubmit();
+                  }
+                }}
                 data-testid="input-run-message"
               />
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={sendingMsg}
-                data-testid="btn-send-message"
-              >
-                <AppIcon name="send" size={14} />
-                {sendingMsg ? '发送中...' : '发送'}
-              </button>
+              <div className="mo-composer-bar">
+                <span className="mo-composer-hint">
+                  {active
+                    ? '会沿用本次的环境和操作范围'
+                    : '会作为新一轮测试，沿用本次环境和操作范围'}
+                </span>
+                {active && !inputMsg.trim() ? (
+                  <button
+                    type="button"
+                    className="mo-send-button is-stop"
+                    aria-label="停止会话"
+                    title="停止会话"
+                    disabled={run.status === 'cancelling'}
+                    onClick={() => void cancelRun()}
+                    data-testid="btn-cancel-run"
+                  >
+                    <span className="mo-stop-square" />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    className="mo-send-button"
+                    aria-label={active ? '发送' : '继续测试'}
+                    title={active ? '发送' : '继续测试'}
+                    disabled={sendingMsg || !inputMsg.trim()}
+                    data-testid="btn-send-message"
+                  >
+                    {sendingMsg ? (
+                      <span className="mo-send-spinner" />
+                    ) : (
+                      <AppIcon name="arrow-up" size={16} />
+                    )}
+                  </button>
+                )}
+              </div>
             </form>
-          )}
-        </section>
-
-        <section className="card" data-testid="timeline-card">
-          <div className="card-header">
-            <div className="card-heading">
-              <h3 className="card-title">
-                <AppIcon name="activity" size={16} />
-                执行动态
-              </h3>
-              <p className="card-description">
-                只展示真实发生的任务事实，模型的隐藏推理已过滤。
-              </p>
-            </div>
           </div>
-
-          {tasks.length === 0 ? (
-            <div className="lqa-muted-box">暂无任务事件。</div>
-          ) : (
-            <ol className="lqa-timeline">
-              {tasks.map((task) => (
-                <li
-                  key={task.id}
-                  className={`lqa-timeline-item is-${task.status}`}
-                >
-                  <span className="lqa-timeline-dot" aria-hidden="true" />
-                  <div className="lqa-timeline-body">
-                    <div className="row row-wrap">
-                      <span className="lqa-timeline-role">
-                        {{
-                          coordinator: '主 AI',
-                          explorer: '探索 AI',
-                          executor: '执行 AI',
-                          reproducer: '复现 AI',
-                          finalizer: '总结 AI',
-                        }[task.role] ?? task.role}
-                      </span>
-                      <StatusBadge status={task.status} size="sm" />
-                      <span className="push subtle text-xs nowrap">
-                        {task.elapsedSeconds}s
-                      </span>
-                    </div>
-                    <p>{task.summary || '任务执行中...'}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
         </section>
+        {paneOpen && (
+          <SessionPane
+            run={run}
+            tasks={tasks}
+            cases={cases}
+            findings={findings}
+            report={report}
+            tab={paneTab}
+            onTab={setPaneTab}
+            detail={paneDetail}
+            onDetail={setPaneDetail}
+            expanded={paneExpanded}
+            onToggleExpanded={() => setPaneExpanded((value) => !value)}
+            onRefreshReport={() => void reload()}
+          />
+        )}
       </div>
 
-      <TaskCaseTabs
-        cases={cases}
-        findings={findings}
-        tasks={tasks}
-        report={report}
-        session={session}
-        runId={activeRunId}
-        run={run}
-        onRefreshReport={() => void reload()}
-      />
+      {showDeleteRun && (
+        <Modal
+          title="删除会话"
+          testId="run-delete-dialog"
+          closeOnOverlay={!deletingRun}
+          onClose={() => {
+            if (!deletingRun) setShowDeleteRun(false);
+          }}
+          footer={
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={deletingRun}
+                data-testid="run-delete-cancel"
+                onClick={() => setShowDeleteRun(false)}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={deletingRun}
+                data-testid="run-delete-confirm"
+                onClick={() => void deleteRun()}
+              >
+                {deletingRun ? '删除中…' : '确认删除'}
+              </button>
+            </>
+          }
+        >
+          <p>
+            删除后，这次会话及其报告、执行过程将不再展示。已保存用例和审计记录保留。
+          </p>
+          <p className="text-sm">
+            <code>{run.id}</code>
+            <br />
+            {run.targetUrl}
+          </p>
+          {deleteRunError && (
+            <Alert tone="danger" role="alert" testId="run-delete-error">
+              {deleteRunError}
+            </Alert>
+          )}
+        </Modal>
+      )}
     </div>
   );
 };

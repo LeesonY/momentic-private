@@ -1,8 +1,12 @@
 import { Ajv } from 'ajv';
+import { setTimeout as retryDelay } from 'node:timers/promises';
 import formatsPlugin from 'ajv-formats';
 import {
   parseContract,
   validateContract,
+  modelOutputTokenLimit,
+  modelContextTokenLimit,
+  validModelTokenBudget,
   type ModelMessage,
   type ModelProbeResult,
   type Criterion,
@@ -11,9 +15,6 @@ import {
 } from '@localqa/contracts';
 import {
   DEFAULT_INPUT_TOKENS,
-  DEFAULT_OUTPUT_TOKENS,
-  MAX_OUTPUT_TOKENS,
-  MIN_OUTPUT_TOKENS,
   FIXTURE,
   REPAIR_MARK,
   type NormalizedCall,
@@ -187,6 +188,8 @@ export interface GatewayProfile {
   status?: 'untested' | 'ready' | 'degraded' | 'disabled';
   /** Per-call output cap from the model profile; omitted uses the default. */
   maxOutputTokens?: number;
+  /** Total input + reserved output tokens for this frozen model version. */
+  contextWindowTokens?: number;
   encryptedApiKey: string | null;
   approvedFallbackIds: readonly string[];
 }
@@ -196,13 +199,7 @@ export interface GatewayProfile {
  * ask for less (an explicit request ceiling), never for more.
  */
 export function outputTokenLimit(profile: GatewayProfile | undefined): number {
-  const configured = profile?.maxOutputTokens;
-  return typeof configured === 'number' &&
-    Number.isSafeInteger(configured) &&
-    configured >= MIN_OUTPUT_TOKENS &&
-    configured <= MAX_OUTPUT_TOKENS
-    ? configured
-    : DEFAULT_OUTPUT_TOKENS;
+  return modelOutputTokenLimit(profile);
 }
 
 export type ResolvedArtifact =
@@ -549,6 +546,8 @@ export function createGateway(options: {
   profiles: readonly GatewayProfile[];
   decryptKey: (profileId: string, ciphertext: string) => string;
   adapter: ProviderAdapter;
+  /** Opt-in for runtime calls; probes keep their existing single-attempt behavior. */
+  rateLimitRetry?: { delaysMs: readonly number[]; signal?: AbortSignal };
   /**
    * Turns an approved artifact id into bytes or an https URL.
    * Absent means an approved image cannot be sent.
@@ -712,22 +711,71 @@ export function createGateway(options: {
         providerCalls: 0,
       });
     }
+    if (!validModelTokenBudget(profile))
+      return failure({
+        method,
+        profileId: profile.id,
+        profileVersion: profile.version,
+        modelId: profile.configuredModelId,
+        adapterVersion: options.adapter.version,
+        promptVersion: input.promptVersion,
+        role: input.role,
+        purpose: input.purpose,
+        requestResult: 'not_configured',
+        errorCode: 'VALIDATION_ERROR',
+        providerCalls: 0,
+        latencyMs: Date.now() - started,
+      });
+    const limit = outputTokenLimit(profile);
+    const maxOutput =
+      input.maxOutputTokens === undefined
+        ? limit
+        : Math.min(input.maxOutputTokens, limit);
+    const contextInput = modelContextTokenLimit(profile) - maxOutput;
+    const maxInput =
+      profile.contextWindowTokens === undefined
+        ? (input.maxInputTokens ?? DEFAULT_INPUT_TOKENS)
+        : Math.min(input.maxInputTokens ?? contextInput, contextInput);
     let messages = redacted.messages;
-    const maxInput = input.maxInputTokens ?? DEFAULT_INPUT_TOKENS;
+    // Preserve the instruction and newest task. A small configured window must
+    // fail explicitly instead of silently removing the request being tested.
+    const pinned = new Set([messages[0], messages.at(-1)]);
+    const dropHistory = (current: typeof messages) => {
+      const index = current.findIndex((message) => !pinned.has(message));
+      return index < 0 ? null : current.filter((_, i) => i !== index);
+    };
     let inputEstimate = estimateTokens(JSON.stringify(messages)) ?? 1;
+    const trimConfiguredHistory = () => {
+      if (profile.contextWindowTokens === undefined) return;
+      while (inputEstimate > maxInput) {
+        const next = dropHistory(messages);
+        if (!next) break;
+        messages = next;
+        inputEstimate = estimateTokens(JSON.stringify(messages)) ?? 1;
+      }
+    };
     while (inputEstimate > maxInput && messages.length > 1) {
-      const system = messages[0];
-      messages = [system!, ...messages.slice(2)];
+      if (profile.contextWindowTokens !== undefined) {
+        const next = dropHistory(messages);
+        if (!next) break;
+        messages = next;
+      } else {
+        const system = messages[0];
+        messages = [system!, ...messages.slice(2)];
+      }
       inputEstimate = estimateTokens(JSON.stringify(messages)) ?? 1;
     }
     if (input.purpose === 'assert') {
       const frozen = canonicalCriterion(input.criterion);
       if (frozen) {
-        messages = [
-          ...messages,
-          messageFromText('user', `frozenCriterion ${JSON.stringify(frozen)}`),
-        ];
+        const message = messageFromText(
+          'user',
+          `frozenCriterion ${JSON.stringify(frozen)}`,
+        );
+        pinned.add(message);
+        messages = [...messages, message];
         inputEstimate = estimateTokens(JSON.stringify(messages)) ?? 1;
+        trimConfiguredHistory();
       }
     }
     if (inputEstimate > maxInput || messages.length === 0) {
@@ -755,11 +803,11 @@ export function createGateway(options: {
         ? (profile.responseFormat ?? 'json_schema')
         : selectStructuredOutput(profile);
     if (outputMode === 'json_object' && input.purpose !== 'probe') {
-      messages = [
-        ...messages,
-        messageFromText('user', jsonObjectConstraint(input)),
-      ];
+      const message = messageFromText('user', jsonObjectConstraint(input));
+      pinned.add(message);
+      messages = [...messages, message];
       inputEstimate = estimateTokens(JSON.stringify(messages)) ?? 1;
+      trimConfiguredHistory();
       if (inputEstimate > maxInput) {
         return failure({
           method,
@@ -883,7 +931,6 @@ export function createGateway(options: {
         }
         imageUrls[artifactId] = url;
       }
-      const maxInput = input.maxInputTokens ?? DEFAULT_INPUT_TOKENS;
       const imageTokens =
         estimateTokens(Object.values(imageUrls).join('')) ?? 0;
       if (inputEstimate + imageTokens > maxInput) {
@@ -900,19 +947,15 @@ export function createGateway(options: {
     const outbound: string[] = [];
     let providerCalls = 0;
     let repairCount = 0;
+    let rateLimitRetries = 0;
     const outputShapeTrace: NonNullable<CallRecord['outputShapeTrace']> = [];
     let visualTransmitted = false;
     let reportedModelId: string | null = null;
-    const limit = outputTokenLimit(profile);
-    const maxOutput =
-      input.maxOutputTokens === undefined
-        ? limit
-        : Math.min(input.maxOutputTokens, limit);
 
     const sendOnce = async (
       current: readonly ModelMessage[],
     ): Promise<ProviderResponse> => {
-      const normalized: NormalizedCall = {
+      let normalized: NormalizedCall = {
         endpoint: profile.endpoint,
         model: profile.configuredModelId,
         purpose: input.purpose,
@@ -923,7 +966,22 @@ export function createGateway(options: {
         ...(outputMode === 'unsupported' ? {} : { responseFormat: outputMode }),
         imageUrls,
       };
-      const built = options.adapter.build(normalized);
+      let built = options.adapter.build(normalized);
+      if (profile.contextWindowTokens !== undefined) {
+        let currentMessages = [...current];
+        // The wire payload includes schema/tool definitions and resolved images.
+        // Check every provider request, including repair and rate-limit retries.
+        while ((estimateTokens(JSON.stringify(built.body)) ?? 1) > maxInput) {
+          const next = dropHistory(currentMessages);
+          if (!next)
+            throw Object.assign(new Error('MODEL_CONTEXT_EXCEEDED'), {
+              code: 'BUDGET_EXCEEDED',
+            });
+          currentMessages = next;
+          normalized = { ...normalized, messages: currentMessages };
+          built = options.adapter.build(normalized);
+        }
+      }
       if (visual && !transmittedImage(built.body, imageUrls)) {
         throw Object.assign(new Error('VISUAL_IMAGE_ABSENT'), {
           code: 'VISUAL_IMAGE_ABSENT',
@@ -937,7 +995,12 @@ export function createGateway(options: {
       outbound.push(outboundText);
       providerCalls += 1;
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), input.timeoutMs);
+      const timeout = input.timeoutMs - (Date.now() - started);
+      if (timeout <= 0)
+        throw Object.assign(new Error('MODEL_TIMEOUT'), {
+          code: 'MODEL_TIMEOUT',
+        });
+      const timer = setTimeout(() => controller.abort(), timeout);
       try {
         return await options.adapter.send(
           {
@@ -948,6 +1011,12 @@ export function createGateway(options: {
           },
           controller.signal,
         );
+      } catch (error) {
+        if (controller.signal.aborted)
+          throw Object.assign(new Error('MODEL_TIMEOUT'), {
+            code: 'MODEL_TIMEOUT',
+          });
+        throw error;
       } finally {
         clearTimeout(timer);
       }
@@ -1050,11 +1119,37 @@ export function createGateway(options: {
       response.errorCode
         ? response
         : { ...response, raw: unwrapProviderOutput(response.raw) };
+    const sendWithUsage = async (current: readonly ModelMessage[]) => {
+      const delays = (options.rateLimitRetry?.delaysMs ?? []).slice(0, 2);
+      let response = present(await sendOnce(current));
+      noteUsage(response, JSON.stringify(current));
+      while (
+        response.httpStatus === 429 &&
+        response.errorCode === 'RATE_LIMITED' &&
+        rateLimitRetries < delays.length
+      ) {
+        const wait = delays[rateLimitRetries]!;
+        if (
+          !Number.isSafeInteger(wait) ||
+          wait < 0 ||
+          wait > 10000 ||
+          Date.now() - started + wait >= input.timeoutMs
+        )
+          break;
+        rateLimitRetries++;
+        await retryDelay(wait, undefined, {
+          signal: options.rateLimitRetry?.signal,
+        });
+        response = present(await sendOnce(current));
+        noteUsage(response, JSON.stringify(current));
+      }
+      return response;
+    };
 
     try {
       let response: ProviderResponse;
       try {
-        response = present(await sendOnce(messages));
+        response = await sendWithUsage(messages);
       } catch (error) {
         if (
           typeof error === 'object' &&
@@ -1074,7 +1169,6 @@ export function createGateway(options: {
         }
         throw error;
       }
-      noteUsage(response, JSON.stringify(messages));
       const stopped = stopForProvider(response);
       if (stopped) return stopped;
       if (input.purpose === 'probe') {
@@ -1089,9 +1183,9 @@ export function createGateway(options: {
           'user',
           formatRepairInstruction(input, parsed.kind),
         );
+        pinned.add(repair);
         messages = [...messages, repair];
-        response = present(await sendOnce(messages));
-        noteUsage(response, JSON.stringify(messages));
+        response = await sendWithUsage(messages);
         const repairedStop = stopForProvider(response);
         if (repairedStop) return repairedStop;
         parsed = parseWithSchema(response.raw, validator);
@@ -1144,11 +1238,12 @@ export function createGateway(options: {
           : '';
       const outcome = mapProviderCode(code);
       const requestText = JSON.stringify(messages);
-      attempts.push({
-        source: 'estimated',
-        inputTokens: estimateTokens(requestText) ?? inputEstimate,
-        outputTokens: null,
-      });
+      if (providerCalls > attempts.length)
+        attempts.push({
+          source: 'estimated',
+          inputTokens: estimateTokens(requestText) ?? inputEstimate,
+          outputTokens: null,
+        });
       return finish(outcome.requestResult, outcome.errorCode, null, null);
     }
   }
@@ -1316,6 +1411,13 @@ export function createGateway(options: {
                 apiKey,
                 capability,
                 maxOutputTokens: outputTokenLimit(profile),
+                ...(profile.contextWindowTokens === undefined
+                  ? {}
+                  : {
+                      maxInputTokens:
+                        modelContextTokenLimit(profile) -
+                        outputTokenLimit(profile),
+                    }),
               },
               controller.signal,
             );

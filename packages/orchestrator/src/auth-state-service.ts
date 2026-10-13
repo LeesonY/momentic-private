@@ -621,10 +621,12 @@ export class AuthStateService {
     await this.coordinator.pulse(client, scope.projectId, auth.run.id);
     await this.coordinator.releaseSlots(client, scope.projectId, proof.taskId);
     const deadline = await this.live(client, proof, auth, grant);
-    await client.query(
-      "UPDATE jobs SET status='succeeded',result=$2,result_hash=$3 WHERE id=$1",
-      [proof.taskId, result, hashPayload(result)],
-    );
+    const finishTime = (
+      await client.query<{ started_at: Date | null; finished_at: Date | null }>(
+        "UPDATE jobs SET status='succeeded',result=$2,result_hash=$3,finished_at=clock_timestamp() WHERE id=$1 RETURNING started_at,finished_at",
+        [proof.taskId, result, hashPayload(result)],
+      )
+    ).rows[0];
     await client.query(
       'UPDATE task_leases SET released_at=clock_timestamp() WHERE task_id=$1 AND fencing_token=$2',
       [proof.taskId, proof.fencingToken],
@@ -637,6 +639,17 @@ export class AuthStateService {
     await appendEvent(client, scope.projectId, auth.run.id, 'task.updated', {
       ...auth.job.document,
       status: 'succeeded',
+      elapsedSeconds:
+        finishTime?.started_at && finishTime?.finished_at
+          ? Math.max(
+              1,
+              Math.ceil(
+                (new Date(finishTime.finished_at).getTime() -
+                  new Date(finishTime.started_at).getTime()) /
+                  1000,
+              ),
+            )
+          : 0,
     });
     const time = (
       await client.query<{ now: Date }>('SELECT clock_timestamp() AS now')

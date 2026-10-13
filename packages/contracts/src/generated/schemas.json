@@ -295,7 +295,7 @@
           "concurrency": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 16,
+            "maximum": 25,
             "default": 2
           },
           "maxTotalTokens": {
@@ -373,7 +373,7 @@
           "concurrency": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 16,
+            "maximum": 25,
             "default": 2
           },
           "maxTotalTokens": {
@@ -614,6 +614,25 @@
         },
         "required": [
           "expectedVersion"
+        ],
+        "additionalProperties": false
+      },
+      "ConfigDeleteConfirm": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "confirmName": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "confirmName"
         ],
         "additionalProperties": false
       },
@@ -1451,6 +1470,11 @@
             "type": "integer",
             "minimum": 256,
             "maximum": 32000
+          },
+          "contextWindowTokens": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 2000000
           }
         },
         "required": [
@@ -1516,6 +1540,11 @@
             "type": "integer",
             "minimum": 256,
             "maximum": 32000
+          },
+          "contextWindowTokens": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 2000000
           }
         },
         "required": [
@@ -1613,11 +1642,80 @@
           },
           "budget": {
             "$ref": "#/$defs/BudgetOverrides"
+          },
+          "taskIntent": {
+            "$ref": "#/$defs/TaskIntent"
+          },
+          "writeScope": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 8192,
+              "pattern": "^https?://"
+            },
+            "maxItems": 30,
+            "minItems": 0
+          },
+          "actionPolicy": {
+            "type": "string",
+            "enum": [
+              "non_submitting",
+              "approved_workflows"
+            ]
           }
         },
         "required": [
           "projectId",
           "targetUrl"
+        ],
+        "additionalProperties": false
+      },
+      "RunDeleteConfirm": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "confirmRunId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "confirmRunId"
+        ],
+        "additionalProperties": false
+      },
+      "TaskIntent": {
+        "type": "string",
+        "enum": [
+          "flow",
+          "explore",
+          "reproduce",
+          "plan",
+          "changes",
+          "spec"
+        ]
+      },
+      "FollowUpInput": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "text"
         ],
         "additionalProperties": false
       },
@@ -1675,6 +1773,24 @@
             },
             "maxItems": 100,
             "minItems": 0
+          },
+          "taskIntent": {
+            "$ref": "#/$defs/TaskIntent"
+          },
+          "writeScope": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 8192,
+              "pattern": "^https?://"
+            },
+            "maxItems": 30,
+            "minItems": 0
+          },
+          "previousRunId": {
+            "type": "string",
+            "format": "uuid"
           },
           "models": {
             "$ref": "#/$defs/RoleModels"
@@ -1791,6 +1907,62 @@
             "enum": [
               "smoke",
               "regression"
+            ]
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stats": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "cases": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000
+                  },
+                  "passed": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000
+                  },
+                  "issues": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000
+                  },
+                  "blocked": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000
+                  },
+                  "findings": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000
+                  }
+                },
+                "required": [
+                  "cases",
+                  "passed",
+                  "issues",
+                  "blocked",
+                  "findings"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
             ]
           }
         },
@@ -2833,7 +3005,8 @@
             "type": "string",
             "enum": [
               "dispatch",
-              "finish"
+              "finish",
+              "ask"
             ]
           },
           "rationale": {
@@ -2867,6 +3040,25 @@
               "maxLength": 1000
             },
             "maxItems": 20,
+            "minItems": 0
+          },
+          "question": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1
+            },
+            "maxItems": 4,
             "minItems": 0
           }
         },
@@ -2933,7 +3125,7 @@
           "round": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 6
+            "maximum": 64
           },
           "reason": {
             "type": "string",
@@ -2978,7 +3170,7 @@
           "round": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 6
+            "maximum": 64
           },
           "status": {
             "type": "string",
@@ -3032,8 +3224,42 @@
             "items": {
               "$ref": "#/$defs/SessionRound"
             },
-            "maxItems": 6,
+            "maxItems": 64,
             "minItems": 0
+          },
+          "messageCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewedTaskIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 200,
+            "minItems": 0
+          },
+          "planningStopped": {
+            "type": "boolean"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -3090,6 +3316,16 @@
           "version": {
             "type": "integer",
             "minimum": 1
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1
+            },
+            "maxItems": 4,
+            "minItems": 0
           }
         },
         "required": [
@@ -3100,6 +3336,23 @@
           "prompt",
           "expiresAt",
           "version"
+        ],
+        "additionalProperties": false
+      },
+      "InputRequestPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/InputRequest"
+            },
+            "maxItems": 100,
+            "minItems": 0
+          }
+        },
+        "required": [
+          "items"
         ],
         "additionalProperties": false
       },
@@ -4459,6 +4712,18 @@
             "type": "integer",
             "minimum": 256,
             "maximum": 32000
+          },
+          "contextWindowTokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1024,
+                "maximum": 2000000
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -8657,7 +8922,7 @@
           "round": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 6
+            "maximum": 64
           },
           "status": {
             "type": "string",
@@ -8711,8 +8976,42 @@
             "items": {
               "$ref": "#/$defs/SessionRound"
             },
-            "maxItems": 6,
+            "maxItems": 64,
             "minItems": 0
+          },
+          "messageCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewedTaskIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 200,
+            "minItems": 0
+          },
+          "planningStopped": {
+            "type": "boolean"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -8734,7 +9033,7 @@
           "round": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 6
+            "maximum": 64
           },
           "reason": {
             "type": "string",
@@ -8870,6 +9169,62 @@
               "smoke",
               "regression"
             ]
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stats": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "cases": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000
+                  },
+                  "passed": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000
+                  },
+                  "issues": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000
+                  },
+                  "blocked": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000
+                  },
+                  "findings": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000
+                  }
+                },
+                "required": [
+                  "cases",
+                  "passed",
+                  "issues",
+                  "blocked",
+                  "findings"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -8945,6 +9300,24 @@
             "maxItems": 100,
             "minItems": 0
           },
+          "taskIntent": {
+            "$ref": "#/$defs/TaskIntent"
+          },
+          "writeScope": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 8192,
+              "pattern": "^https?://"
+            },
+            "maxItems": 30,
+            "minItems": 0
+          },
+          "previousRunId": {
+            "type": "string",
+            "format": "uuid"
+          },
           "models": {
             "$ref": "#/$defs/RoleModels"
           }
@@ -9014,7 +9387,7 @@
           "concurrency": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 16,
+            "maximum": 25,
             "default": 2
           },
           "maxTotalTokens": {
@@ -9037,6 +9410,17 @@
           "maxTotalTokens"
         ],
         "additionalProperties": false
+      },
+      "TaskIntent": {
+        "type": "string",
+        "enum": [
+          "flow",
+          "explore",
+          "reproduce",
+          "plan",
+          "changes",
+          "spec"
+        ]
       },
       "RoleModels": {
         "type": "object",
@@ -10197,6 +10581,16 @@
           "version": {
             "type": "integer",
             "minimum": 1
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1
+            },
+            "maxItems": 4,
+            "minItems": 0
           }
         },
         "required": [
@@ -11372,6 +11766,54 @@
               }
             }
           }
+        },
+        "delete": {
+          "operationId": "deleteEnvironment",
+          "tags": [
+            "P0"
+          ],
+          "summary": "deleteEnvironment",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "environmentId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "204": {
+              "description": "deleteEnvironment"
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigDeleteConfirm"
+                }
+              }
+            }
+          }
         }
       },
       "/api/v1/auth-profiles/{authProfileId}": {
@@ -11425,6 +11867,54 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuthProfilePatch"
+                }
+              }
+            }
+          }
+        },
+        "delete": {
+          "operationId": "deleteAuthProfile",
+          "tags": [
+            "P0"
+          ],
+          "summary": "deleteAuthProfile",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "authProfileId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "204": {
+              "description": "deleteAuthProfile"
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigDeleteConfirm"
                 }
               }
             }
@@ -12082,6 +12572,54 @@
               }
             }
           }
+        },
+        "delete": {
+          "operationId": "deleteRun",
+          "tags": [
+            "P0"
+          ],
+          "summary": "deleteRun",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "runId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "204": {
+              "description": "deleteRun"
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDeleteConfirm"
+                }
+              }
+            }
+          }
         }
       },
       "/api/v1/runs/{runId}/cancel": {
@@ -12246,6 +12784,120 @@
                   "schema": {
                     "$ref": "#/components/schemas/Error"
                   }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/runs/{runId}/inputs": {
+        "get": {
+          "operationId": "listRunInputs",
+          "tags": [
+            "P0"
+          ],
+          "summary": "listRunInputs",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "runId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "listRunInputs",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/InputRequestPage"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/runs/{runId}/follow-up": {
+        "post": {
+          "operationId": "continueRun",
+          "tags": [
+            "P0"
+          ],
+          "summary": "continueRun",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "runId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            {
+              "name": "Idempotency-Key",
+              "in": "header",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              }
+            }
+          ],
+          "responses": {
+            "202": {
+              "description": "continueRun",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Run"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          },
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowUpInput"
                 }
               }
             }
@@ -16243,7 +16895,7 @@
             "concurrency": {
               "type": "integer",
               "minimum": 1,
-              "maximum": 16,
+              "maximum": 25,
               "default": 2
             },
             "maxTotalTokens": {
@@ -16321,7 +16973,7 @@
             "concurrency": {
               "type": "integer",
               "minimum": 1,
-              "maximum": 16,
+              "maximum": 25,
               "default": 2
             },
             "maxTotalTokens": {
@@ -16562,6 +17214,25 @@
           },
           "required": [
             "expectedVersion"
+          ],
+          "additionalProperties": false
+        },
+        "ConfigDeleteConfirm": {
+          "type": "object",
+          "properties": {
+            "expectedVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "confirmName": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1
+            }
+          },
+          "required": [
+            "expectedVersion",
+            "confirmName"
           ],
           "additionalProperties": false
         },
@@ -17399,6 +18070,11 @@
               "type": "integer",
               "minimum": 256,
               "maximum": 32000
+            },
+            "contextWindowTokens": {
+              "type": "integer",
+              "minimum": 1024,
+              "maximum": 2000000
             }
           },
           "required": [
@@ -17464,6 +18140,11 @@
               "type": "integer",
               "minimum": 256,
               "maximum": 32000
+            },
+            "contextWindowTokens": {
+              "type": "integer",
+              "minimum": 1024,
+              "maximum": 2000000
             }
           },
           "required": [
@@ -17561,11 +18242,80 @@
             },
             "budget": {
               "$ref": "#/components/schemas/BudgetOverrides"
+            },
+            "taskIntent": {
+              "$ref": "#/components/schemas/TaskIntent"
+            },
+            "writeScope": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uri",
+                "maxLength": 8192,
+                "pattern": "^https?://"
+              },
+              "maxItems": 30,
+              "minItems": 0
+            },
+            "actionPolicy": {
+              "type": "string",
+              "enum": [
+                "non_submitting",
+                "approved_workflows"
+              ]
             }
           },
           "required": [
             "projectId",
             "targetUrl"
+          ],
+          "additionalProperties": false
+        },
+        "RunDeleteConfirm": {
+          "type": "object",
+          "properties": {
+            "expectedVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "confirmRunId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "expectedVersion",
+            "confirmRunId"
+          ],
+          "additionalProperties": false
+        },
+        "TaskIntent": {
+          "type": "string",
+          "enum": [
+            "flow",
+            "explore",
+            "reproduce",
+            "plan",
+            "changes",
+            "spec"
+          ]
+        },
+        "FollowUpInput": {
+          "type": "object",
+          "properties": {
+            "expectedVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "text": {
+              "type": "string",
+              "maxLength": 4000,
+              "minLength": 1
+            }
+          },
+          "required": [
+            "expectedVersion",
+            "text"
           ],
           "additionalProperties": false
         },
@@ -17623,6 +18373,24 @@
               },
               "maxItems": 100,
               "minItems": 0
+            },
+            "taskIntent": {
+              "$ref": "#/components/schemas/TaskIntent"
+            },
+            "writeScope": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uri",
+                "maxLength": 8192,
+                "pattern": "^https?://"
+              },
+              "maxItems": 30,
+              "minItems": 0
+            },
+            "previousRunId": {
+              "type": "string",
+              "format": "uuid"
             },
             "models": {
               "$ref": "#/components/schemas/RoleModels"
@@ -17739,6 +18507,62 @@
               "enum": [
                 "smoke",
                 "regression"
+              ]
+            },
+            "title": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 60
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "stats": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "cases": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100000
+                    },
+                    "passed": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100000
+                    },
+                    "issues": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100000
+                    },
+                    "blocked": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100000
+                    },
+                    "findings": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100000
+                    }
+                  },
+                  "required": [
+                    "cases",
+                    "passed",
+                    "issues",
+                    "blocked",
+                    "findings"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
               ]
             }
           },
@@ -18781,7 +19605,8 @@
               "type": "string",
               "enum": [
                 "dispatch",
-                "finish"
+                "finish",
+                "ask"
               ]
             },
             "rationale": {
@@ -18815,6 +19640,25 @@
                 "maxLength": 1000
               },
               "maxItems": 20,
+              "minItems": 0
+            },
+            "question": {
+              "type": "string",
+              "maxLength": 2000,
+              "minLength": 1
+            },
+            "title": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "options": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              "maxItems": 4,
               "minItems": 0
             }
           },
@@ -18881,7 +19725,7 @@
             "round": {
               "type": "integer",
               "minimum": 1,
-              "maximum": 6
+              "maximum": 64
             },
             "reason": {
               "type": "string",
@@ -18926,7 +19770,7 @@
             "round": {
               "type": "integer",
               "minimum": 0,
-              "maximum": 6
+              "maximum": 64
             },
             "status": {
               "type": "string",
@@ -18980,8 +19824,42 @@
               "items": {
                 "$ref": "#/components/schemas/SessionRound"
               },
-              "maxItems": 6,
+              "maxItems": 64,
               "minItems": 0
+            },
+            "messageCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "reviewedTaskIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "maxItems": 200,
+              "minItems": 0
+            },
+            "planningStopped": {
+              "type": "boolean"
+            },
+            "title": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 60
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -19038,6 +19916,16 @@
             "version": {
               "type": "integer",
               "minimum": 1
+            },
+            "options": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              "maxItems": 4,
+              "minItems": 0
             }
           },
           "required": [
@@ -19048,6 +19936,23 @@
             "prompt",
             "expiresAt",
             "version"
+          ],
+          "additionalProperties": false
+        },
+        "InputRequestPage": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/InputRequest"
+              },
+              "maxItems": 100,
+              "minItems": 0
+            }
+          },
+          "required": [
+            "items"
           ],
           "additionalProperties": false
         },
@@ -20407,6 +21312,18 @@
               "type": "integer",
               "minimum": 256,
               "maximum": 32000
+            },
+            "contextWindowTokens": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1024,
+                  "maximum": 2000000
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -24799,6 +25716,62 @@
               "smoke",
               "regression"
             ]
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stats": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "cases": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000
+                  },
+                  "passed": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000
+                  },
+                  "issues": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000
+                  },
+                  "blocked": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000
+                  },
+                  "findings": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000
+                  }
+                },
+                "required": [
+                  "cases",
+                  "passed",
+                  "issues",
+                  "blocked",
+                  "findings"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -24874,6 +25847,24 @@
             "maxItems": 100,
             "minItems": 0
           },
+          "taskIntent": {
+            "$ref": "#/$defs/TaskIntent"
+          },
+          "writeScope": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 8192,
+              "pattern": "^https?://"
+            },
+            "maxItems": 30,
+            "minItems": 0
+          },
+          "previousRunId": {
+            "type": "string",
+            "format": "uuid"
+          },
           "models": {
             "$ref": "#/$defs/RoleModels"
           }
@@ -24943,7 +25934,7 @@
           "concurrency": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 16,
+            "maximum": 25,
             "default": 2
           },
           "maxTotalTokens": {
@@ -24966,6 +25957,17 @@
           "maxTotalTokens"
         ],
         "additionalProperties": false
+      },
+      "TaskIntent": {
+        "type": "string",
+        "enum": [
+          "flow",
+          "explore",
+          "reproduce",
+          "plan",
+          "changes",
+          "spec"
+        ]
       },
       "RoleModels": {
         "type": "object",
@@ -26261,7 +27263,7 @@
           "round": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 6
+            "maximum": 64
           },
           "status": {
             "type": "string",
@@ -26315,8 +27317,42 @@
             "items": {
               "$ref": "#/$defs/SessionRound"
             },
-            "maxItems": 6,
+            "maxItems": 64,
             "minItems": 0
+          },
+          "messageCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewedTaskIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 200,
+            "minItems": 0
+          },
+          "planningStopped": {
+            "type": "boolean"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -26338,7 +27374,7 @@
           "round": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 6
+            "maximum": 64
           },
           "reason": {
             "type": "string",
@@ -28449,6 +29485,16 @@
           "version": {
             "type": "integer",
             "minimum": 1
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1
+            },
+            "maxItems": 4,
+            "minItems": 0
           }
         },
         "required": [

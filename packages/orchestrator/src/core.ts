@@ -1,3 +1,4 @@
+import { withinWriteScope } from '@localqa/browser';
 import { randomUUID } from 'node:crypto';
 import { SessionAgent, type SessionContext } from './session-agent.js';
 import { createRegressionPlan } from './regression-plan.js';
@@ -261,7 +262,7 @@ export class Coordinator {
       await client.query('SELECT pg_advisory_xact_lock(741005)');
       const slots = (
         await client.query<{ total: number; project: number }>(
-          "SELECT count(*)::integer AS total,count(*) FILTER(WHERE project_id=$1)::integer AS project FROM budget_reservations WHERE kind='concurrency' AND status='reserved'",
+          "SELECT count(*)::integer AS total,count(*) FILTER(WHERE b.project_id=$1)::integer AS project FROM budget_reservations b JOIN jobs j ON j.id=b.task_id WHERE b.kind='concurrency' AND b.status='reserved' AND j.role NOT IN ('coordinator','finalizer')",
           [data.projectId],
         )
       ).rows[0]!;
@@ -272,7 +273,7 @@ export class Coordinator {
         throw new StorageError('RATE_LIMITED');
       const id = trustedCases[0]?.runId ?? randomUUID();
       const now = new Date().toISOString();
-      const run = parseContract('Run', {
+      let run = parseContract('Run', {
         id,
         projectId: data.projectId,
         creatorId: actor.userId,
@@ -402,15 +403,20 @@ export class Coordinator {
       }
       if (executionMode === 'smoke' && !trustedCases.length)
         await this.sessions.initialize(client, run, data.brief ?? '');
-      await this.enqueue(
-        client,
-        run,
-        'coordinator',
-        'preflight',
-        'prepare',
-        null,
-        1,
-      );
+      if (effective.taskIntent === 'plan') {
+        run = await this.change(client, run, 'running', 'plan');
+        await this.sessions.advance(client, run, []);
+      } else {
+        await this.enqueue(
+          client,
+          run,
+          'coordinator',
+          'preflight',
+          'prepare',
+          null,
+          1,
+        );
+      }
       await audit(client, 'run.created', id, data.projectId);
       await client.query(
         "INSERT INTO request_idempotency(project_id,actor_id,route,key,body_hash,result_id,expires_at) VALUES($1,$2,'T05/run',$3,$4,$5,clock_timestamp()+interval '24 hours')",
@@ -665,21 +671,24 @@ export class Coordinator {
       let lease = null;
       await this.tx(async (client) => {
         await client.query('SELECT pg_advisory_xact_lock(741005)');
-        lease = await claimTask(client, scope, seconds);
+        const slots = (
+          await client.query<{
+            children: number;
+            project: number;
+            control: number;
+          }>(
+            "SELECT count(*) FILTER(WHERE j.role NOT IN ('coordinator','finalizer'))::int children,count(*) FILTER(WHERE j.role NOT IN ('coordinator','finalizer') AND b.project_id=$1)::int project,count(*) FILTER(WHERE j.role IN ('coordinator','finalizer'))::int control FROM budget_reservations b JOIN jobs j ON j.id=b.task_id WHERE b.kind='concurrency' AND b.status='reserved'",
+            [scope.projectId],
+          )
+        ).rows[0]!;
+        lease = await claimTask(client, scope, seconds, {
+          children:
+            slots.children < this.platformSlots &&
+            slots.project < this.projectSlots,
+          control: slots.control < 1,
+        });
         if (!lease) return;
         const run = await runDTO(client, scope.projectId, lease.task.runId);
-        const counts = (
-          await client.query(
-            "SELECT count(*)::integer total,count(*) FILTER(WHERE project_id=$1)::integer project,count(*) FILTER(WHERE run_id=$2)::integer run FROM budget_reservations WHERE kind='concurrency' AND status='reserved'",
-            [scope.projectId, run.id],
-          )
-        ).rows[0];
-        if (
-          counts.total >= this.platformSlots ||
-          counts.project >= this.projectSlots ||
-          counts.run >= run.effectiveConfig.budget.concurrency
-        )
-          throw new StorageError('RATE_LIMITED');
         if (run.status === 'queued') await this.change(client, run, 'running');
         await client.query(
           "INSERT INTO budget_reservations(id,project_id,run_id,task_id,request_id,fencing_token,kind,reserved,status) VALUES($1,$2,$3,$4,$5,$6,'concurrency','{}','reserved')",
@@ -1737,12 +1746,18 @@ export class Coordinator {
         if (
           node.sensitive ||
           ['password', 'hidden'].includes(node.inputType ?? node.role) ||
-          (call.name === 'press' && call.args.key === 'Enter') ||
-          (call.name === 'click' &&
-            (node.inputType === 'submit' ||
-              /删除|新增|新建|创建|保存|提交|发送|购买|支付|启用|停用|禁用|授权|重置|发布|\b(delete|remove|create|save|submit|send|purchase|enable|disable|reset|publish)\b/i.test(
-                `${node.name} ${node.text}`,
-              )))
+          (!withinWriteScope(
+            owned!.displayUrl,
+            run.effectiveConfig.actionPolicy === 'approved_workflows'
+              ? (run.effectiveConfig.writeScope ?? [])
+              : [],
+          ) &&
+            ((call.name === 'press' && call.args.key === 'Enter') ||
+              (call.name === 'click' &&
+                (node.inputType === 'submit' ||
+                  /删除|新增|新建|创建|保存|提交|发送|购买|支付|启用|停用|禁用|授权|重置|发布|\b(delete|remove|create|save|submit|send|purchase|enable|disable|reset|publish)\b/i.test(
+                    `${node.name} ${node.text}`,
+                  )))))
         )
           throw new StorageError('POLICY_DENIED');
       }
@@ -2446,18 +2461,23 @@ export class Coordinator {
         scope,
         proof,
       );
-      await client.query(
-        "UPDATE jobs SET status='succeeded',result=$2,result_hash=$3 WHERE id=$1",
-        [
-          job.id,
-          { ...job.result, ...result },
-          hashPayload({
-            result,
-            results: results ?? null,
-            reason: reason ?? null,
-          }),
-        ],
-      );
+      const finishTime = (
+        await client.query<{
+          started_at: Date | null;
+          finished_at: Date | null;
+        }>(
+          "UPDATE jobs SET status='succeeded',result=$2,result_hash=$3,finished_at=clock_timestamp() WHERE id=$1 RETURNING started_at,finished_at",
+          [
+            job.id,
+            { ...job.result, ...result },
+            hashPayload({
+              result,
+              results: results ?? null,
+              reason: reason ?? null,
+            }),
+          ],
+        )
+      ).rows[0];
       await client.query(
         'UPDATE task_leases SET released_at=clock_timestamp() WHERE task_id=$1 AND fencing_token=$2',
         [job.id, proof.fencingToken],
@@ -2466,12 +2486,51 @@ export class Coordinator {
       await appendEvent(client, scope.projectId, run.id, 'task.updated', {
         ...job.document,
         status: 'succeeded',
+        elapsedSeconds:
+          finishTime?.started_at && finishTime?.finished_at
+            ? Math.max(
+                1,
+                Math.ceil(
+                  (new Date(finishTime.finished_at).getTime() -
+                    new Date(finishTime.started_at).getTime()) /
+                    1000,
+                ),
+              )
+            : 0,
       });
       if (importDeadline) {
         const now = (
           await client.query<{ now: Date }>('SELECT clock_timestamp() AS now')
         ).rows[0]!.now;
         if (now >= importDeadline) throw new StorageError('LEASE_EXPIRED');
+      }
+      if (
+        ['explore', 'execute', 'reproduce', 'recover'].includes(
+          String(result['stage']),
+        )
+      ) {
+        const current = await runDTO(client, scope.projectId, run.id);
+        if (
+          current.status === 'running' &&
+          ![
+            'budget_limit',
+            'input_timeout',
+            'model_failure',
+            'setup_failure',
+          ].includes(current.terminationReason ?? '') &&
+          current.budgetUsed.activeSeconds <
+            current.effectiveConfig.budget.maxActiveSeconds
+        ) {
+          const jobs = (
+            await client.query<JobRow>(
+              'SELECT * FROM jobs WHERE project_id=$1 AND run_id=$2',
+              [scope.projectId, run.id],
+            )
+          ).rows;
+          // Dispatch is committed with the result. The manager's model call
+          // remains a separately leased job, outside this transaction.
+          await this.sessions.advance(client, current, jobs);
+        }
       }
     });
   }
@@ -2544,6 +2603,7 @@ export class Coordinator {
     kind: InputRequest['kind'],
     prompt: string,
     expiresMs = 60000,
+    options?: string[],
   ): Promise<InputRequest> {
     return this.tx(async (client) => {
       const { job, run } = await this.validateLease(client, scope, proof);
@@ -2561,6 +2621,7 @@ export class Coordinator {
         prompt,
         expiresAt: new Date(Date.now() + expiresMs).toISOString(),
         version: 1,
+        ...(options?.length ? { options } : {}),
       });
       await client.query(
         'INSERT INTO input_requests(id,project_id,run_id,version,document) VALUES($1,$2,$3,1,$4)',
@@ -2604,6 +2665,8 @@ export class Coordinator {
     projectId: string,
     inputId: string,
     expectedVersion: number,
+    text?: string,
+    decision: 'provide' | 'approve' | 'reject' = 'provide',
   ): Promise<InputRequest> {
     return this.db.actor(actor, async (client) => {
       await authorize(client, projectId, 'run');
@@ -2646,23 +2709,44 @@ export class Coordinator {
         throw new StorageError('VALIDATION_ERROR');
       const updated = {
         ...input,
-        status: 'resolved',
+        status: decision === 'reject' ? 'rejected' : 'resolved',
         version: input.version + 1,
       };
+      if (decision !== 'reject' && text?.trim())
+        await client.query(
+          'INSERT INTO run_messages(id,project_id,run_id,actor_id,context_version,redacted_text) VALUES($1,$2,$3,$4,$5,$6)',
+          [
+            randomUUID(),
+            projectId,
+            run.id,
+            actor.userId,
+            run.contextVersion,
+            text.trim(),
+          ],
+        );
       await client.query(
         'UPDATE input_requests SET document=$2,version=version+1,actor_id=actor_id() WHERE id=$1',
         [inputId, updated],
       );
       for (const job of jobs) {
         if (job.status !== 'waiting') continue;
+        if (decision === 'reject') {
+          await this.interrupt(client, run, job, 'cancelled');
+          continue;
+        }
         const acted = (
           await client.query(
             'SELECT 1 FROM action_intents WHERE project_id=$1 AND task_id=$2 LIMIT 1',
             [projectId, job.id],
           )
         ).rowCount;
-        if (acted) await this.interrupt(client, run, job, 'interrupted');
-        else {
+        if (acted) {
+          await client.query(
+            'UPDATE jobs SET result=result||\'{"interruptionReason":"user_input"}\'::jsonb WHERE id=$1',
+            [job.id],
+          );
+          await this.interrupt(client, run, job, 'interrupted');
+        } else {
           await client.query(
             "UPDATE case_attempts SET status='interrupted',finished_at=clock_timestamp() WHERE project_id=$1 AND task_id=$2 AND status='running'",
             [projectId, job.id],
@@ -2679,6 +2763,19 @@ export class Coordinator {
       }
       if (run.status === 'awaiting_input')
         await this.change(client, run, 'running', run.phase);
+      if (decision === 'reject') {
+        const session = await this.sessions.read(client, run);
+        if (session)
+          await this.sessions.write(client, run, {
+            ...session,
+            status: 'finalizing',
+            planningStopped: true,
+            coverageGaps: [
+              ...session.coverageGaps,
+              '用户拒绝补充信息，未完成的范围保留在报告中。',
+            ].slice(0, 100),
+          });
+      }
       await appendEvent(client, projectId, run.id, 'input.resolved', updated);
       await audit(
         client,
@@ -2844,7 +2941,10 @@ export class Coordinator {
               j.document.attempt + 1,
               { previousTaskId: j.id },
             );
-            if (!run.terminationReason)
+            if (
+              !run.terminationReason &&
+              j.result?.['interruptionReason'] !== 'user_input'
+            )
               run = await this.change(
                 client,
                 run,
@@ -2863,8 +2963,8 @@ export class Coordinator {
         const active = refreshed.some((j) =>
           ['queued', 'running'].includes(j.status),
         );
-        if (active) continue;
         if (
+          !active &&
           refreshed.some((j) => j.status === 'waiting') &&
           pending.some((row) => Date.parse(row.document.expiresAt) > Date.now())
         ) {
@@ -2872,6 +2972,20 @@ export class Coordinator {
             await this.change(client, run, 'awaiting_input');
           continue;
         }
+        if (
+          ![
+            'budget_limit',
+            'input_timeout',
+            'model_failure',
+            'setup_failure',
+          ].includes(run.terminationReason ?? '') &&
+          ['explore', 'plan', 'execute', 'reproduce', 'finalize'].includes(
+            run.phase,
+          ) &&
+          (await this.sessions.advance(client, run, refreshed))
+        )
+          continue;
+        if (active) continue;
         if (
           run.terminationReason &&
           [
@@ -2890,13 +3004,6 @@ export class Coordinator {
               j.status === 'succeeded' &&
               (j.result?.['stage'] ?? j.document.summary) === stage,
           );
-        if (
-          ['explore', 'plan', 'execute', 'reproduce', 'finalize'].includes(
-            run.phase,
-          ) &&
-          (await this.sessions.advance(client, run, refreshed))
-        )
-          continue;
         if (
           run.phase === 'auth' &&
           !succeeded('auth') &&
@@ -3109,7 +3216,7 @@ export class Coordinator {
   ): Promise<number> {
     const findings = (
       await client.query(
-        "SELECT * FROM findings WHERE project_id=$1 AND run_id=$2 AND status='suspected' ORDER BY id",
+        "SELECT f.* FROM findings f JOIN case_attempts a ON a.id=f.original_attempt_id AND a.project_id=f.project_id WHERE f.project_id=$1 AND f.run_id=$2 AND f.status='suspected' AND a.finished_at IS NOT NULL ORDER BY f.id",
         [run.projectId, run.id],
       )
     ).rows;
@@ -3252,7 +3359,7 @@ export class Coordinator {
       );
     }
     await client.query(
-      'UPDATE jobs SET status=$2, lease_until=NULL WHERE id=$1',
+      'UPDATE jobs SET status=$2, lease_until=NULL, finished_at=clock_timestamp() WHERE id=$1',
       [job.id, status],
     );
     await client.query(

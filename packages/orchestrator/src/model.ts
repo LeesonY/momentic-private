@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { validateContract } from '@localqa/contracts';
+import { validateContract, isErrorCode } from '@localqa/contracts';
 import {
   createGateway,
   estimateTokens,
@@ -47,6 +47,12 @@ export type DecisionPayload = Pick<
   CallInput,
   'purpose' | 'messages' | 'outputSchema' | 'maxOutputTokens'
 >;
+
+export function modelCallTimeoutMs(
+  purpose: DecisionPayload['purpose'],
+): number {
+  return purpose === 'plan' || purpose === 'summarize' ? 120000 : 60000;
+}
 export function roleToolSchemas(
   role: AgentRoleName,
 ): { name: string; parameters: Record<string, unknown> }[] {
@@ -329,6 +335,7 @@ export class BoundModel {
     profile: GatewayProfile,
     budgetDenied: { current: boolean },
     signal?: AbortSignal,
+    timeoutMs = modelCallTimeoutMs('decide'),
   ): ProviderAdapter {
     const metadata = new WeakMap<
       object,
@@ -385,6 +392,8 @@ export class BoundModel {
                   role,
                   profileId: profile.id,
                   profileVersion: profile.version,
+                  configuredModelId: profile.configuredModelId,
+                  timeoutMs,
                   usageSource: 'unknown',
                 },
               ],
@@ -399,6 +408,7 @@ export class BoundModel {
               budgetDenied.current = true;
             throw error;
           });
+        const started = Date.now();
         try {
           const response = await delegate.send(
             input,
@@ -445,6 +455,8 @@ export class BoundModel {
                     : tokens - meta.inputTokens,
                   configuredModelId: input.model,
                   reportedModelId: response.reportedModelId,
+                  httpStatus: response.httpStatus,
+                  errorCode: response.errorCode,
                 }),
                 scope.projectId,
                 alreadyUnknown ? 'unknown' : 'settled',
@@ -453,14 +465,37 @@ export class BoundModel {
           });
           return response;
         } catch (error) {
-          await coordinator.settle(
-            scope,
-            proof,
-            reservation.id,
-            reservation.amount,
-            'unknown',
-          );
-          throw error;
+          const errorCode = signal?.aborted
+            ? 'CANCELLED'
+            : providerSignal.aborted
+              ? 'MODEL_TIMEOUT'
+              : typeof error === 'object' &&
+                  error !== null &&
+                  'code' in error &&
+                  isErrorCode(error.code)
+                ? error.code
+                : 'SERVICE_UNAVAILABLE';
+          await coordinator
+            .settle(scope, proof, reservation.id, reservation.amount, 'unknown')
+            .catch(() => {});
+          await coordinator
+            .tx((client) =>
+              client.query(
+                "UPDATE model_requests SET status='unknown',redacted_diagnostic=redacted_diagnostic||$2::jsonb WHERE request_id=$1 AND project_id=$3",
+                [
+                  reservation.requestId,
+                  JSON.stringify({
+                    errorCode,
+                    timeoutMs,
+                    latencyMs: Date.now() - started,
+                    usageSource: 'unknown',
+                  }),
+                  scope.projectId,
+                ],
+              ),
+            )
+            .catch(() => {});
+          throw Object.assign(new Error(errorCode), { code: errorCode });
         }
       },
     };
@@ -525,6 +560,7 @@ export class BoundModel {
     const images = await this.materializeImages(bound);
     const budgetDenied = { current: false };
     const gateway = createGateway({
+      rateLimitRetry: { delaysMs: [2000, 4000], ...(signal ? { signal } : {}) },
       profiles: [bound.profile],
       decryptKey: this.options.decryptKey,
       resolveArtifact: (artifactId) => images.get(artifactId) ?? null,
@@ -534,6 +570,7 @@ export class BoundModel {
         bound.profile,
         budgetDenied,
         signal,
+        modelCallTimeoutMs(payload.purpose),
       ),
     });
     const prompt =
@@ -547,10 +584,9 @@ export class BoundModel {
       promptVersion: prompt.version,
       approvedImageIds: bound.images.map((image) => image.id),
       toolSchemas: roleToolSchemas(role),
-      // Real hosted models routinely need more than one second to return a
-      // structured answer. Keep a finite upper bound, aligned with the
-      // already-public complete() path, while honouring lease cancellation.
-      timeoutMs: 30000,
+      // Longer planning/summaries share one bounded deadline across retries.
+      // Lease heartbeats, cancellation and run budgets remain authoritative.
+      timeoutMs: modelCallTimeoutMs(payload.purpose),
       // json_object mode appends the *canonical* output schema to the prompt;
       // 4k truncated otherwise valid coordinator/planner inputs before any
       // provider call. Use the gateway's still-bounded 12k input allowance.
@@ -606,6 +642,7 @@ export class BoundModel {
       throw new StorageError('VALIDATION_ERROR');
     const budgetDenied = { current: false };
     const gateway = createGateway({
+      rateLimitRetry: { delaysMs: [2000, 4000], ...(signal ? { signal } : {}) },
       profiles: [bound.profile],
       decryptKey: this.options.decryptKey,
       adapter: this.budgetAdapter(
@@ -625,7 +662,7 @@ export class BoundModel {
       promptVersion: 'auth.ai.1',
       approvedImageIds: [],
       toolSchemas: [],
-      timeoutMs: 30000,
+      timeoutMs: modelCallTimeoutMs(payload.purpose),
       maxInputTokens: 12000,
     });
     return this.finish(proof, budgetDenied, record);
@@ -652,6 +689,7 @@ export class BoundModel {
     const images = await this.materializeImages(bound);
     const budgetDenied = { current: false };
     const gateway = createGateway({
+      rateLimitRetry: { delaysMs: [2000, 4000], ...(signal ? { signal } : {}) },
       profiles: [bound.profile],
       decryptKey: this.options.decryptKey,
       resolveArtifact: (artifactId) => images.get(artifactId) ?? null,
@@ -661,6 +699,7 @@ export class BoundModel {
         bound.profile,
         budgetDenied,
         signal,
+        modelCallTimeoutMs(request.purpose),
       ),
     });
     const record = await gateway.complete(request, {
@@ -668,7 +707,7 @@ export class BoundModel {
       promptVersion: '1.0',
       approvedImageIds: bound.images.map((image) => image.id),
       toolSchemas: roleToolSchemas(bound.role),
-      timeoutMs: 30000,
+      timeoutMs: modelCallTimeoutMs(request.purpose),
       knownEvidenceIds: bound.evidence,
       ...(bound.criterion ? { criterion: bound.criterion } : {}),
     });

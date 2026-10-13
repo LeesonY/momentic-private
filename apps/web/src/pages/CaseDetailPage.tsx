@@ -9,6 +9,7 @@ import { Section } from '../components/ui/Section.tsx';
 import { AppIcon } from '../components/ui/AppIcon.tsx';
 import { SaveToLibraryModal } from '../components/saved-cases/SaveToLibraryModal.tsx';
 import { getRegressionProvenanceStatus } from '../utils/provenance.ts';
+import { EvidencePreview } from '../components/workbench/TaskExecutionDetail.tsx';
 
 export const CaseDetailPage: React.FC = () => {
   const { routeParams, setRoute, currentProject } = useAppContext();
@@ -21,6 +22,7 @@ export const CaseDetailPage: React.FC = () => {
   const [run, setRun] = useState<Run | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [stepError, setStepError] = useState<string | null>(null);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [openEvidence, setOpenEvidence] = useState<Set<string>>(new Set());
 
@@ -30,19 +32,50 @@ export const CaseDetailPage: React.FC = () => {
     let mounted = true;
     setLoading(true);
     setError(null);
+    setStepError(null);
 
     Promise.all([
       defaultApiClient.getCase(caseId),
-      defaultApiClient.listTaskSteps(caseId).catch(() => ({ items: [] })),
-      defaultApiClient.listCaseAttempts(caseId).catch(() => ({ items: [] })),
+      defaultApiClient.listCaseAttempts(caseId, { limit: 100 }),
       runId
         ? defaultApiClient.getRun(runId).catch(() => null)
         : Promise.resolve(null),
     ])
-      .then(([c, st, att, r]) => {
+      .then(async ([c, att, r]) => {
+        // The step API is scoped by TASK ID, not by CASE ID. Collect the
+        // matching executor/reproducer tasks and keep API failures visible.
+        let matchingSteps: Step[] = [];
+        let loadError: string | null = null;
+        if (runId) {
+          try {
+            const taskPage = await defaultApiClient.listRunTasks(runId, {
+              limit: 100,
+            });
+            const related = taskPage.items.filter((t) => t.caseId === caseId);
+            const pages = await Promise.all(
+              related.map((t) =>
+                defaultApiClient.listTaskSteps(t.id, { limit: 100 }),
+              ),
+            );
+            matchingSteps = pages
+              .flatMap((page) => page.items)
+              .sort((a, b) =>
+                a.taskId === b.taskId
+                  ? a.seq - b.seq
+                  : a.createdAt.localeCompare(b.createdAt),
+              );
+            if (taskPage.nextCursor || pages.some((page) => page.nextCursor))
+              loadError = '步骤过多，当前仅展示已加载部分，剩余步骤尚未核验。';
+          } catch (err) {
+            loadError = err instanceof Error ? err.message : '步骤加载失败';
+          }
+        } else {
+          loadError = '缺少运行 ID，无法关联真实执行任务与步骤。';
+        }
         if (!mounted) return;
         setCaseRecord(c);
-        setSteps(st.items);
+        setSteps(matchingSteps);
+        setStepError(loadError);
         setAttempts(att.items);
         setRun(r);
       })
@@ -342,6 +375,7 @@ export const CaseDetailPage: React.FC = () => {
                 <th>判定要求</th>
                 <th>依据来源</th>
                 <th>单项判定</th>
+                <th>实际观察与证据</th>
               </tr>
             </thead>
             <tbody>
@@ -368,6 +402,37 @@ export const CaseDetailPage: React.FC = () => {
                     <td>
                       <StatusBadge status={criterionStatus} size="sm" />
                     </td>
+                    <td>
+                      {result ? (
+                        <div className="stack stack-sm">
+                          <p
+                            className="text-sm"
+                            data-testid={`criterion-fact-${cr.id}`}
+                          >
+                            {result.reason || '未记录具体观察事实'}
+                          </p>
+                          {result.evidenceRefs.length > 0 ? (
+                            <div className="row row-wrap">
+                              {result.evidenceRefs.map((id) => (
+                                <EvidencePreview
+                                  key={id}
+                                  artifactId={id}
+                                  runId={caseRecord.definition.runId}
+                                />
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs muted">
+                              无关联证据引用
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs muted">
+                          未执行验证，缺少实际观察与证据
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
@@ -385,11 +450,23 @@ export const CaseDetailPage: React.FC = () => {
             : `共 ${steps.length} 步`
         }
       >
+        {stepError && (
+          <div
+            role="alert"
+            className="alert alert-warning"
+            data-testid="case-steps-load-error"
+          >
+            <AppIcon name="alert-triangle" size={15} />
+            步骤证据未完整加载：{stepError}
+          </div>
+        )}
         {steps.length === 0 ? (
           <div className="lqa-muted-box" data-testid="no-steps-placeholder">
-            {isNotRun
-              ? '该用例处于排队或未执行状态，等待 Worker 节点领取并执行回放。'
-              : '该用例没有记录任何步骤动作。'}
+            {stepError
+              ? '步骤读取失败，不能据此认为用例没有执行。'
+              : isNotRun
+                ? '该用例处于排队或未执行状态，等待 Worker 节点领取并执行回放。'
+                : '该用例没有记录任何步骤动作。'}
           </div>
         ) : (
           <div className="lqa-card-list">
@@ -425,7 +502,11 @@ export const CaseDetailPage: React.FC = () => {
                 {openEvidence.has(st.id) && (
                   <div className="row row-wrap text-xs">
                     {st.evidenceRefs.map((ref) => (
-                      <code key={ref}>{ref}</code>
+                      <EvidencePreview
+                        artifactId={ref}
+                        runId={st.runId}
+                        key={ref}
+                      />
                     ))}
                   </div>
                 )}

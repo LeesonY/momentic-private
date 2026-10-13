@@ -84,6 +84,7 @@ export class BrowserSessionImpl implements BrowserSession {
       mode: options.mode,
       allowedOrigins: options.allowedOrigins,
       restrictedPaths: options.restrictedPaths,
+      writeScope: options.writeScope,
     });
 
     this.recorder = new SessionRecorder({
@@ -289,17 +290,24 @@ export class BrowserSessionImpl implements BrowserSession {
  */
 export class BrowserManager implements BrowserPort {
   private browser: Browser | null = null;
+  private browserFlight: Promise<Browser> | null = null;
   private readonly sessions = new Map<string, BrowserSessionImpl>();
 
   private async ensureBrowser(): Promise<Browser> {
-    if (!this.browser) {
-      this.browser = await chromium.launch({
-        headless: true,
-        chromiumSandbox: true,
-        args: [], // DO NOT pass --no-sandbox
-      });
+    if (this.browser) return this.browser;
+    // Concurrent agents share one launch, while keeping separate contexts.
+    // Without this promise each first caller can launch an untracked process.
+    const flight = (this.browserFlight ??= chromium.launch({
+      headless: true,
+      chromiumSandbox: true,
+      args: [], // DO NOT pass --no-sandbox
+    }));
+    try {
+      this.browser = await flight;
+      return this.browser;
+    } finally {
+      if (this.browserFlight === flight) this.browserFlight = null;
     }
-    return this.browser;
   }
 
   public async createSession(
@@ -397,6 +405,7 @@ export class BrowserManager implements BrowserPort {
   }
 
   public async close(): Promise<void> {
+    await this.browserFlight?.catch(() => {});
     for (const session of this.sessions.values()) {
       await session.close().catch(() => {});
     }

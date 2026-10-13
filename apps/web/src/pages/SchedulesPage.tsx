@@ -15,7 +15,7 @@ import type {
 import { useApp } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
 import { Page } from '../components/layout/Page.tsx';
-import { Section } from '../components/ui/Section.tsx';
+import { Modal } from '../components/ui/Modal.tsx';
 import { Field } from '../components/ui/Field.tsx';
 import { Alert } from '../components/ui/Alert.tsx';
 import { EmptyState } from '../components/ui/EmptyState.tsx';
@@ -76,6 +76,14 @@ function errorText(error: unknown): string {
   if (e?.status === 403) return '无权操作该项目的定时任务。';
   return e?.message || '操作失败，请检查输入或网络连接。';
 }
+
+// Mo's schedule presets; anything else stays a custom cron.
+const CRON_PRESETS = [
+  { cron: '0 * * * *', label: '每小时', text: '每小时整点执行' },
+  { cron: '0 9 * * *', label: '每天', text: '每天 09:00 执行' },
+  { cron: '0 9 * * 1-5', label: '工作日', text: '周一至周五 09:00 执行' },
+  { cron: '0 9 * * 1', label: '每周', text: '每周一 09:00 执行' },
+];
 
 export const SchedulesPage: React.FC = () => {
   const { currentProject, currentUser, setRoute, isMock } = useApp();
@@ -362,12 +370,36 @@ export const SchedulesPage: React.FC = () => {
       )}
 
       {editor && (
-        <Section
-          icon={editing ? 'edit' : 'plus'}
+        <Modal
           title={editing ? '编辑定时计划' : '新建定时计划'}
+          size="lg"
           testId="schedule-editor"
+          closeOnOverlay={!busy}
+          onClose={() => {
+            if (!busy) setEditor(false);
+          }}
+          footer={
+            <>
+              <button
+                className="btn btn-ghost"
+                type="button"
+                disabled={busy}
+                onClick={() => setEditor(false)}
+              >
+                取消
+              </button>
+              <button
+                className="btn btn-primary"
+                type="submit"
+                form="schedule-editor-form"
+                disabled={busy}
+              >
+                {busy ? '保存中…' : editing ? '保存计划' : '创建计划'}
+              </button>
+            </>
+          }
         >
-          <form onSubmit={(e) => void save(e)}>
+          <form id="schedule-editor-form" onSubmit={(e) => void save(e)}>
             <div className="grid-2">
               <Field label="名称" required htmlFor="schedule-name">
                 <input
@@ -397,10 +429,33 @@ export const SchedulesPage: React.FC = () => {
                   <option value="regression">已批准用例回归</option>
                 </select>
               </Field>
+              <Field label="频率" htmlFor="schedule-preset">
+                <select
+                  id="schedule-preset"
+                  className="form-select"
+                  value={
+                    CRON_PRESETS.find((p) => p.cron === draft.cron)?.cron ?? ''
+                  }
+                  onChange={(e) => {
+                    if (e.target.value)
+                      setDraft((d) => ({ ...d, cron: e.target.value }));
+                  }}
+                >
+                  {CRON_PRESETS.map((preset) => (
+                    <option key={preset.cron} value={preset.cron}>
+                      {preset.label}
+                    </option>
+                  ))}
+                  <option value="">自定义</option>
+                </select>
+              </Field>
               <Field
                 label="Cron（5 段）"
                 required
-                hint="例如 0 9 * * 1-5：工作日每天 9:00"
+                hint={
+                  CRON_PRESETS.find((p) => p.cron === draft.cron)?.text ??
+                  '自定义时间：分 时 日 月 周'
+                }
                 htmlFor="schedule-cron"
               >
                 <input
@@ -577,21 +632,8 @@ export const SchedulesPage: React.FC = () => {
               />
               保存后立即启用
             </label>
-            <div className="form-actions">
-              <button
-                className="btn btn-ghost"
-                type="button"
-                disabled={busy}
-                onClick={() => setEditor(false)}
-              >
-                取消
-              </button>
-              <button className="btn btn-primary" type="submit" disabled={busy}>
-                {busy ? '保存中…' : '保存计划'}
-              </button>
-            </div>
           </form>
-        </Section>
+        </Modal>
       )}
 
       {loading ? (

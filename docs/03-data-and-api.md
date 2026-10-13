@@ -196,6 +196,7 @@ payload 为各 type 对应资源摘要；UI 从这些摘要更新状态，并按
 | NOT_FOUND | 404；跨项目 ID 不泄露存在性 |
 | VALIDATION_ERROR / TARGET_NOT_ALLOWED | 422 |
 | MODEL_NOT_CONFIGURED / PROJECT_ARCHIVED | 409；派发前失败 |
+| CONFIG_IN_USE | 409；配置仍被运行、环境或认证引用，禁止直接删除 |
 | MODEL_BILLING_REQUIRED | 402；上游模型账户欠费/余额不足/需要计费授权，非 JSON 格式错误；不自动重试或使用其他模型 |
 | IDEMPOTENCY_CONFLICT / VERSION_CONFLICT | 409 |
 | EVENTS_EXPIRED | 410；重新取得快照 |

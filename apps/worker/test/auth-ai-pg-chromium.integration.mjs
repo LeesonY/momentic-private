@@ -35,7 +35,16 @@ import { loadProtectedKek } from '../../../deploy/images/kek.mjs';
 const real = process.env.AUTH_AI_REAL_MODEL === '1';
 const ui = process.env.AUTH_AI_UI === '1';
 const scenario = process.env.AUTH_AI_SCENARIO ?? 'ordinary';
-assert.ok(['ordinary', 'two_step', 'wrong_password', 'otp'].includes(scenario));
+assert.ok(
+  [
+    'ordinary',
+    'two_step',
+    'wrong_password',
+    'otp',
+    'late_dom',
+    'busy_once',
+  ].includes(scenario),
+);
 
 test(
   `AI login: ${scenario} (${real ? 'real provider' : 'wire fixture'})`,
@@ -61,7 +70,8 @@ test(
     const password = `fixture-pass-${randomBytes(8).toString('hex')}`;
     const otp = randomBytes(4).toString('hex');
     let dashboardViews = 0,
-      loginPosts = 0;
+      loginPosts = 0,
+      usernameRecognitions = 0;
     try {
       let sourceModel;
       if (real) {
@@ -219,6 +229,16 @@ test(
           'known auth material must not reach provider',
         );
         modelCalls++;
+        if (scenario === 'busy_once' && modelCalls === 1)
+          return new Response(
+            JSON.stringify({
+              error: {
+                code: 'channel:sticky_key_busy',
+                message: 'Key busy fixture',
+              },
+            }),
+            { status: 429 },
+          );
         if (real) return globalThis.fetch(url, init);
         const body = JSON.parse(wire);
         const system =
@@ -343,6 +363,8 @@ test(
         assert.equal(login.status(), 200);
         const page = await context.newPage();
         await page.goto(`${uiProxy.origin}/#/environments`);
+        await page.getByTestId(`btn-add-auth-${environment.id}`).click();
+        await page.getByTestId('auth-profile-mode').selectOption('form');
         await page.getByTestId('auth-ai-guidance').waitFor();
         assert.equal(
           await page.locator('#auth-profile-name').getAttribute('required'),
@@ -386,6 +408,8 @@ test(
         const switched = await (await patch).json();
         assert.equal(switched.formConfig.detectionMode, 'ai');
         assert.equal(switched.hasSecret, true);
+        await page.getByTestId(`btn-add-auth-${environment.id}`).click();
+        await page.getByTestId('auth-profile-mode').selectOption('form');
         await page.locator('#auth-login-url').fill(`${origin}/login`);
         await page.locator('#auth-username').fill(username);
         await page.locator('#auth-password').fill(password);
@@ -477,6 +501,7 @@ test(
       );
       const recognize = runtime.recognizeAuth.bind(runtime);
       runtime.recognizeAuth = async (...args) => {
+        if (args[3] === 'username') usernameRecognitions++;
         if (args[3] === 'username') {
           await assert.rejects(
             () =>
@@ -495,6 +520,19 @@ test(
           );
         }
         const result = await recognize(...args);
+        if (
+          scenario === 'late_dom' &&
+          args[3] === 'username' &&
+          usernameRecognitions === 1
+        ) {
+          // Deterministically reproduce the loading animation changing the
+          // document while the AI recognition response is in flight.
+          await browser.authSession.getPage().evaluate(() => {
+            globalThis.document.body.classList.add(
+              'loading-animation-finished',
+            );
+          });
+        }
         console.log(
           JSON.stringify({
             recognition: args[3],
@@ -525,7 +563,13 @@ test(
         },
         { stage: 'preflight', checked: true },
       );
-      browser = new BrowserManager();
+      browser = new (class extends BrowserManager {
+        async createSession(options) {
+          const session = await super.createSession(options);
+          this.authSession = session;
+          return session;
+        }
+      })();
       await coordinator.tick(project.id);
       const worker = new Worker({
         runtime,
@@ -617,18 +661,56 @@ test(
         assert.equal(auth.gates, 1);
         assert.ok(modelCalls >= 5);
         assert.equal(loginPosts, 1);
+        if (scenario === 'late_dom') {
+          assert.equal(
+            usernameRecognitions,
+            2,
+            'One fresh identification replaces the stale proposal',
+          );
+          assert.equal(
+            auth.actions.filter((a) => a.action === 'fill_credential').length,
+            2,
+            'Stale recognition never issues a credential action',
+          );
+        }
         if (scenario === 'two_step')
           assert.equal(
             auth.actions.filter((a) => a.action === 'submit_auth').length,
             2,
           );
-        const viewsBefore = dashboardViews;
-        await coordinator.tick(project.id);
-        assert.equal(await worker.once(), true);
-        assert.ok(
-          dashboardViews > viewsBefore,
-          'next testing context must reuse the captured login',
-        );
+        if (scenario === 'busy_once') {
+          const diagnostics = await coordinator.tx(
+            async (c) =>
+              (
+                await c.query(
+                  'SELECT redacted_diagnostic FROM model_requests WHERE run_id=$1',
+                  [run.id],
+                )
+              ).rows,
+          );
+          assert.equal(
+            diagnostics.length,
+            modelCalls,
+            'Each retry is charged and recorded',
+          );
+          assert.equal(
+            diagnostics.filter(
+              (r) =>
+                r.redacted_diagnostic.httpStatus === 429 &&
+                r.redacted_diagnostic.errorCode === 'RATE_LIMITED',
+            ).length,
+            1,
+          );
+        }
+        if (!['late_dom', 'busy_once'].includes(scenario)) {
+          const viewsBefore = dashboardViews;
+          await coordinator.tick(project.id);
+          assert.equal(await worker.once(), true);
+          assert.ok(
+            dashboardViews > viewsBefore,
+            'next testing context must reuse the captured login',
+          );
+        }
       }
     } finally {
       await uiBrowser?.close();

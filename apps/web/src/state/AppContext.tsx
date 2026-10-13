@@ -4,6 +4,7 @@ import { defaultApiClient, isUsingMock, setUseMock } from '../api/index.ts';
 
 export type AppRoute =
   | 'home'
+  | 'sessions'
   | 'workbench'
   | 'case-detail'
   | 'finding-detail'

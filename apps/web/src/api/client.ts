@@ -29,6 +29,8 @@ import type {
   ModelProfileCreate,
   ModelProfilePatch,
   ModelDeleteConfirm,
+  RunDeleteConfirm,
+  ConfigDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -36,6 +38,8 @@ import type {
   RunPage,
   MessageInput,
   InputRequest,
+  InputRequestPage,
+  FollowUpInput,
   InputResponse,
   CaseRecord,
   CaseRecordPage,
@@ -376,6 +380,10 @@ export class HttpApiClient implements ApiClient {
     );
   }
 
+  public async deleteEnvironment(environmentId: string, input: ConfigDeleteConfirm): Promise<void> {
+    await this.request<void>(`/environments/${encodeURIComponent(environmentId)}`, { method: 'DELETE', body: JSON.stringify(input) });
+  }
+
   // 17. listAuthProfile
   public async listAuthProfile(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage> {
     const qs = this.buildQuery(query as Record<string, string | number>);
@@ -412,6 +420,10 @@ export class HttpApiClient implements ApiClient {
       },
       'AuthProfile',
     );
+  }
+
+  public async deleteAuthProfile(authProfileId: string, input: ConfigDeleteConfirm): Promise<void> {
+    await this.request<void>(`/auth-profiles/${encodeURIComponent(authProfileId)}`, { method: 'DELETE', body: JSON.stringify(input) });
   }
 
   // 20. listKnowledge
@@ -521,6 +533,9 @@ export class HttpApiClient implements ApiClient {
     if (input.environmentId) payload.environmentId = input.environmentId;
     if (input.authProfileId) payload.authProfileId = input.authProfileId;
     if (input.modelProfileId) payload.modelProfileId = input.modelProfileId;
+    if (input.taskIntent) payload.taskIntent = input.taskIntent;
+    if (input.actionPolicy) payload.actionPolicy = input.actionPolicy;
+    if (input.writeScope) payload.writeScope = input.writeScope;
     const budget = ('budget' in input ? input.budget : undefined) ?? ('budgetOverrides' in input ? input.budgetOverrides : undefined);
     if (budget && Object.keys(budget).length > 0) {
       payload.budget = budget;
@@ -556,6 +571,10 @@ export class HttpApiClient implements ApiClient {
   // 30. getRun
   public async getRun(runId: string): Promise<Run> {
     return this.request<Run>(`/runs/${encodeURIComponent(runId)}`, { method: 'GET' }, 'Run');
+  }
+
+  public async deleteRun(runId: string, input: RunDeleteConfirm): Promise<void> {
+    await this.request<void>(`/runs/${encodeURIComponent(runId)}`, { method: 'DELETE', body: JSON.stringify(input) });
   }
 
   // 31. cancelRun
@@ -598,6 +617,13 @@ export class HttpApiClient implements ApiClient {
       { method: 'GET' },
       'RunMessagePage',
     );
+  }
+
+  public async listRunInputs(runId: string): Promise<InputRequestPage> {
+    return this.request<InputRequestPage>(`/runs/${encodeURIComponent(runId)}/inputs`, undefined, 'InputRequestPage');
+  }
+  public async continueRun(runId: string, input: FollowUpInput): Promise<Run> {
+    return this.request<Run>(`/runs/${encodeURIComponent(runId)}/follow-up`, { method: 'POST', headers: { 'Idempotency-Key': typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `idemp_${Date.now()}_${Math.random().toString(36).slice(2)}` }, body: JSON.stringify(input) }, 'Run');
   }
 
   // 33. respondToInput

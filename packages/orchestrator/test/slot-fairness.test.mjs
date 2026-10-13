@@ -136,13 +136,30 @@ test('concurrent claim at slot limit admits exactly one worker', async () => {
         cases,
       );
       runs.push(run);
+      await db.actor({ userId: admin.id }, (client) =>
+        coordinator.enqueue(
+          client,
+          run,
+          'explorer',
+          'explore',
+          'slot-test',
+          null,
+        ),
+      );
     }
+    // Control work has its own reserved slot; the race below concerns children.
+    const control = await coordinator.claim(
+      { projectId: project.id, workerId: 'worker-control' },
+      45,
+    );
+    assert.equal(control.task.role, 'coordinator');
     // Simulate reserved=limit-1 by occupying one slot via a worker claim.
     const first = await coordinator.claim(
       { projectId: project.id, workerId: 'worker-a' },
       45,
     );
     assert.ok(first, 'first claim succeeds');
+    assert.equal(first.task.role, 'explorer');
     // Now reserved=1, limit=2 -> exactly one slot left. Two workers race for it.
     const [w1, w2] = await Promise.all([
       coordinator.claim({ projectId: project.id, workerId: 'worker-b' }, 45),

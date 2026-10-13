@@ -40,17 +40,27 @@ function clientFixture({
   };
 }
 
-test('T39 client contract accepts explicit model profile while excluding executable action-policy overrides', () => {
+test('T39 client contract accepts explicit model profile and only enumerated scoped action policies', () => {
   const input = parseContract('RunCreate', {
     projectId,
     targetUrl: 'https://fixture.example.test/path?x=1',
     modelProfileId: approved,
   });
   assert.equal(input.modelProfileId, approved);
-  assert.throws(() =>
+  // Approved business workflows were added after T39. Authorization is
+  // checked at run creation and by the frozen execution policy, not rejected
+  // by the OpenAPI shape itself.
+  assert.equal(
     parseContract('RunCreate', {
       ...input,
       actionPolicy: 'approved_workflows',
+    }).actionPolicy,
+    'approved_workflows',
+  );
+  assert.throws(() =>
+    parseContract('RunCreate', {
+      ...input,
+      actionPolicy: 'unrestricted_actions',
     }),
   );
 });

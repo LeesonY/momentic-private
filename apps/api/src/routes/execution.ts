@@ -4,6 +4,7 @@ import {
   LocalVolumeArtifactStore,
   ExportService,
   validateEvidenceReferences,
+  resolveCleanupStatus,
 } from '@localqa/report';
 import { parseContract, getApiValidator } from '@localqa/contracts';
 import type {
@@ -169,11 +170,23 @@ export function registerExecutionRoutes(router: Router): void {
     const runId = ctx.params.runId!;
 
     const tasks = await ctx.api.db.actor(ctx.actor!, async (client) => {
+      if (
+        !(await client.query('SELECT 1 FROM runs WHERE id=$1', [runId]))
+          .rowCount
+      )
+        throw new StorageError('NOT_FOUND');
       const rows = await client.query<{
         document: unknown;
         status: Task['status'];
+        elapsed_seconds: number;
       }>(
-        `SELECT document, status
+        `SELECT document, status,
+             CASE WHEN started_at IS NULL
+                    OR (status IN ('succeeded','failed','cancelled','interrupted')
+                        AND finished_at IS NULL) THEN 0
+               ELSE GREATEST(1, CEIL(EXTRACT(EPOCH FROM
+                 (COALESCE(finished_at,clock_timestamp())-started_at))))::integer
+             END AS elapsed_seconds
          FROM jobs
          WHERE run_id = $1
          ORDER BY available_at, id`,
@@ -184,6 +197,7 @@ export function registerExecutionRoutes(router: Router): void {
         parseContract('Task', {
           ...(r.document as Record<string, unknown>),
           status: r.status,
+          elapsedSeconds: r.elapsed_seconds,
         }),
       );
     });
@@ -201,6 +215,11 @@ export function registerExecutionRoutes(router: Router): void {
     const taskId = ctx.params.taskId!;
 
     const steps = await ctx.api.db.actor(ctx.actor!, async (client) => {
+      if (
+        !(await client.query('SELECT 1 FROM jobs WHERE id=$1', [taskId]))
+          .rowCount
+      )
+        throw new StorageError('NOT_FOUND');
       const rows = await client.query<{ document: unknown }>(
         `SELECT document
          FROM steps
@@ -277,6 +296,11 @@ export function registerExecutionRoutes(router: Router): void {
       const { items, nextCursor } = await ctx.api.db.actor(
         ctx.actor!,
         async (client) => {
+          if (
+            !(await client.query('SELECT 1 FROM runs WHERE id=$1', [runId]))
+              .rowCount
+          )
+            throw new StorageError('NOT_FOUND');
           const rows = await client.query<{
             seq: string;
             type: RunEvent['type'];
@@ -324,6 +348,11 @@ export function registerExecutionRoutes(router: Router): void {
     const runId = ctx.params.runId!;
 
     const findings = await ctx.api.db.actor(ctx.actor!, async (client) => {
+      if (
+        !(await client.query('SELECT 1 FROM runs WHERE id=$1', [runId]))
+          .rowCount
+      )
+        throw new StorageError('NOT_FOUND');
       const rows = await client.query<{ document: unknown }>(
         `SELECT document
          FROM findings
@@ -729,6 +758,21 @@ export function registerExecutionRoutes(router: Router): void {
       const session = sessionRow
         ? parseContract('SessionReport', sessionRow.document)
         : null;
+      const cleanupRows = (
+        await client.query<{ status: string | null }>(
+          "SELECT result->>'cleanupStatus' AS status FROM jobs WHERE project_id=$1 AND run_id=$2 AND role='finalizer'",
+          [projectId, runId],
+        )
+      ).rows;
+      const resolvedCleanup = resolveCleanupStatus(
+        run.status,
+        cleanupRows.map((row) => row.status),
+      ).status;
+      const businessCleanupUnverified =
+        run.effectiveConfig.actionPolicy === 'approved_workflows' &&
+        ['not_required', 'succeeded', 'manual_required'].includes(
+          resolvedCleanup,
+        );
       return parseContract('Report', {
         schemaVersion: 1,
         example: false,
@@ -742,8 +786,54 @@ export function registerExecutionRoutes(router: Router): void {
         modelUsage,
         ...(session ? { session } : {}),
         coverageGaps: session?.coverageGaps ?? [],
-        cleanupStatus: 'succeeded',
-        warnings: [],
+        cleanupStatus: businessCleanupUnverified
+          ? 'manual_required'
+          : resolvedCleanup,
+        warnings: [
+          ...(businessCleanupUnverified
+            ? [
+                '本次允许业务操作，尚无独立的测试数据清理证据，请核对并清理测试数据。',
+              ]
+            : []),
+          ...(run.terminationReason === 'model_failure'
+            ? [
+                ...new Set(
+                  usageRows.rows.flatMap(({ diagnostic }) => {
+                    const code = diagnostic['errorCode'];
+                    if (code === 'MODEL_TIMEOUT') {
+                      const timeout = diagnostic['timeoutMs'];
+                      const seconds =
+                        typeof timeout === 'number' &&
+                        Number.isFinite(timeout) &&
+                        timeout > 0
+                          ? ` ${timeout / 1000} 秒`
+                          : '';
+                      return [
+                        `MODEL_TIMEOUT：模型请求超过${seconds}响应等待上限，请稍后重试或检查服务商响应速度。`,
+                      ];
+                    }
+                    if (code === 'SERVICE_UNAVAILABLE')
+                      return [
+                        'SERVICE_UNAVAILABLE：模型服务未能完成响应，请检查服务商连接状态。',
+                      ];
+                    if (code === 'RATE_LIMITED')
+                      return [
+                        'RATE_LIMITED：模型服务商返回 HTTP 429，渠道繁忙或请求受到限流，请稍后重试或检查服务商并发额度。',
+                      ];
+                    if (code === 'MODEL_NOT_CONFIGURED')
+                      return [
+                        'MODEL_NOT_CONFIGURED：模型服务商拒绝认证，请检查 API Key 和模型权限。',
+                      ];
+                    if (code === 'MODEL_BILLING_REQUIRED')
+                      return [
+                        'MODEL_BILLING_REQUIRED：模型服务商提示余额或计费异常。',
+                      ];
+                    return [];
+                  }),
+                ),
+              ]
+            : []),
+        ],
       });
     });
 

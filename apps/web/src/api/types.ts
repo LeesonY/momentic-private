@@ -28,6 +28,8 @@ import type {
   ModelProfileCreate,
   ModelProfilePatch,
   ModelDeleteConfirm,
+  RunDeleteConfirm,
+  ConfigDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -37,6 +39,8 @@ import type {
   BudgetOverrides,
   MessageInput,
   InputRequest,
+  InputRequestPage,
+  FollowUpInput,
   InputResponse,
   CaseRecord,
   CaseRecordPage,
@@ -135,6 +139,8 @@ export type {
   ModelProfileCreate,
   ModelProfilePatch,
   ModelDeleteConfirm,
+  RunDeleteConfirm,
+  ConfigDeleteConfirm,
   ModelProfilePage,
   ModelProbeResult,
   Run,
@@ -144,6 +150,8 @@ export type {
   BudgetOverrides,
   MessageInput,
   InputRequest,
+  InputRequestPage,
+  FollowUpInput,
   InputResponse,
   CaseRecord,
   CaseRecordPage,
@@ -233,7 +241,9 @@ export type PublicOperationName =
   | 'createKnowledge'
   | 'getEnvironment'
   | 'updateEnvironment'
+  | 'deleteEnvironment'
   | 'updateAuthProfile'
+  | 'deleteAuthProfile'
   | 'updateKnowledge'
   | 'listModels'
   | 'createModel'
@@ -246,9 +256,12 @@ export type PublicOperationName =
   | 'createRun'
   | 'listRuns'
   | 'getRun'
+  | 'deleteRun'
   | 'cancelRun'
   | 'sendRunMessage'
   | 'listRunMessages'
+  | 'listRunInputs'
+  | 'continueRun'
   | 'respondToInput'
   | 'streamEvents'
   | 'listRunCases'
@@ -335,6 +348,9 @@ export interface CreateRunInput {
   modelProfileId?: string;
   budgetOverrides?: BudgetOverrides;
   budget?: BudgetOverrides;
+  taskIntent?: RunConfig['taskIntent'];
+  actionPolicy?: RunConfig['actionPolicy'];
+  writeScope?: string[];
   mode?: 'smoke';
   config?: Partial<RunConfig>;
 }
@@ -365,10 +381,12 @@ export interface ApiClient {
   createEnvironment(projectId: string, input: EnvironmentCreate): Promise<Environment>;
   getEnvironment(environmentId: string): Promise<Environment>;
   updateEnvironment(environmentId: string, input: EnvironmentPatch): Promise<Environment>;
+  deleteEnvironment(environmentId: string, input: ConfigDeleteConfirm): Promise<void>;
   listAuthProfile(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage>;
   listAuthProfiles(projectId: string, query?: PaginationQuery): Promise<AuthProfilePage>;
   createAuthProfile(projectId: string, input: AuthProfileCreate): Promise<AuthProfile>;
   updateAuthProfile(authProfileId: string, input: AuthProfilePatch): Promise<AuthProfile>;
+  deleteAuthProfile(authProfileId: string, input: ConfigDeleteConfirm): Promise<void>;
 
   // Knowledge & Models
   listKnowledge(projectId: string, query?: PaginationQuery): Promise<KnowledgePage>;
@@ -388,6 +406,7 @@ export interface ApiClient {
   listRuns(projectIdOrQuery: string | ListRunsQuery): Promise<RunPage>;
   getRun(runId: string): Promise<Run>;
   cancelRun(runId: string): Promise<Run>;
+  deleteRun(runId: string, input: RunDeleteConfirm): Promise<void>;
   sendRunMessage(
     runId: string,
     messageOrInput: string | MessageInput,
@@ -397,6 +416,8 @@ export interface ApiClient {
     runId: string,
     query?: PaginationQuery,
   ): Promise<RunMessagePage>;
+  listRunInputs(runId: string): Promise<InputRequestPage>;
+  continueRun(runId: string, input: FollowUpInput): Promise<Run>;
   respondToInput(
     runId: string,
     inputId: string,

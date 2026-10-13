@@ -280,6 +280,8 @@ try {
     await page.getByTestId('btn-start-smoke-run').isDisabled(),
     true,
   );
+  // Models and members live under Settings, as in Mo.
+  await page.getByTestId('nav-settings').click();
   await page.getByTestId('nav-models').click();
   await page.getByTestId('project-model-settings').waitFor();
   await page.getByTestId('grant-model-select').selectOption(modelId);
@@ -297,9 +299,11 @@ try {
   );
   assert.equal(savedDefault, true);
   assert.equal(grantCount, 1);
+  await page.getByTestId('nav-back-to-app').click();
   await page.getByTestId('nav-environments').click();
   await page.getByTestId('environments-page').waitFor();
   await page.getByTestId('environments-empty-state').waitFor();
+  await page.getByTestId('btn-add-environment').click();
   await page.getByTestId('environment-name').fill(environment.name);
   await page.getByTestId('environment-base-url').fill(environment.baseUrl);
   await page
@@ -321,6 +325,7 @@ try {
   await page.getByTestId('btn-create-environment').click();
   await page.getByTestId(`env-row-${environmentId}`).waitFor();
   assert.equal(envCreated, true);
+  await page.getByTestId(`btn-add-auth-${environmentId}`).click();
   await page.getByTestId('auth-profile-name').fill(anonymousAuth.name);
   await page.getByTestId('auth-profile-mode').selectOption('none');
   await page
@@ -372,26 +377,21 @@ try {
     .waitFor();
   await page.getByTestId('nav-home').click();
   await page.getByTestId('project-home-page').waitFor();
+  // The composer starts empty; the environment chip carries the base URL.
   await page.waitForFunction(
     (id) =>
-      globalThis.document.querySelector('[data-testid="select-environment"]')
-        ?.value === id,
+      globalThis.document.querySelector('[data-testid="btn-environment"]')
+        ?.dataset.envId === id,
     environmentId,
   );
-  assert.equal(
-    await page.getByTestId('select-environment').inputValue(),
-    environmentId,
-  );
-  assert.equal(
-    await page.getByTestId('input-target-url').inputValue(),
-    environment.baseUrl,
-  );
+  assert.equal(await page.getByTestId('composer-input').inputValue(), '');
+  await page.getByTestId('default-auth-notice').waitFor();
+  await page.getByTestId('btn-session-settings').click();
   assert.equal(
     await page.getByTestId('select-auth-profile').inputValue(),
     authProfileId,
     'active default authentication must be selected from the saved environment',
   );
-  await page.getByTestId('default-auth-notice').waitFor();
   await page.getByTestId('select-auth-profile').selectOption('');
   assert.equal(
     await page.getByTestId('select-auth-profile').inputValue(),
@@ -401,7 +401,8 @@ try {
   await page.getByTestId('select-model-profile').selectOption(modelId);
   await page.getByTestId('select-auth-profile').selectOption(authProfileId);
   const targetUrl = 'https://fixture.example.test/checkout?region=cn';
-  await page.getByTestId('input-target-url').fill(targetUrl);
+  await page.keyboard.press('Escape');
+  await page.getByTestId('composer-input').fill(targetUrl);
   await page.getByTestId('btn-start-smoke-run').click();
   await page.waitForURL((url) =>
     url.hash.includes(`/workbench?runId=${runId}`),
@@ -413,6 +414,7 @@ try {
   assert.equal(runPayload?.targetUrl, targetUrl);
   assert.equal(runPayload?.config, undefined);
   assert.ok(idempotency, 'each browser run sends an idempotency key');
+  await page.getByTestId('nav-settings').click();
   await page.getByTestId('nav-members-ops').click();
   await page.getByTestId('members-editor').waitFor();
   await page.getByTestId('audit-unavailable-notice').waitFor();

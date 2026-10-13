@@ -355,7 +355,18 @@ export class ReportBuilder {
       run.status,
       cleanupRows.map((row) => row.cleanup_status),
     );
-    const cleanupStatus = resolvedCleanup.status;
+    const cleanupStatus =
+      run.effectiveConfig.actionPolicy === 'approved_workflows' &&
+      ['not_required', 'succeeded'].includes(resolvedCleanup.status)
+        ? 'manual_required'
+        : resolvedCleanup.status;
+    if (
+      cleanupStatus === 'manual_required' &&
+      run.effectiveConfig.actionPolicy === 'approved_workflows'
+    )
+      warnings.push(
+        '本次允许业务操作，尚无独立的测试数据清理证据，请核对并清理测试数据。',
+      );
     for (const value of resolvedCleanup.unrecognized) {
       warnings.push(
         `Finalizer cleanup status "${value}" is not a report cleanup status; recorded as manual_required`,

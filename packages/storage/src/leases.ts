@@ -66,10 +66,24 @@ type JobRow = {
   document: Task;
   context_version: number;
   run_status: string;
+  started_at?: Date | null;
+  finished_at?: Date | null;
   lease_active?: boolean;
 };
-const dto = (row: JobRow): Task =>
-  parseContract('Task', { ...row.document, status: row.status });
+const dto = (row: JobRow): Task => {
+  const started = row.started_at ? new Date(row.started_at).getTime() : null;
+  const ended = row.finished_at
+    ? new Date(row.finished_at).getTime()
+    : Date.now();
+  return parseContract('Task', {
+    ...row.document,
+    status: row.status,
+    elapsedSeconds:
+      started !== null && Number.isFinite(started) && ended >= started
+        ? Math.max(1, Math.ceil((ended - started) / 1000))
+        : 0,
+  });
+};
 function duration(seconds: number): void {
   if (!Number.isSafeInteger(seconds) || seconds < 1 || seconds > 45)
     throw new StorageError('VALIDATION_ERROR');
@@ -78,14 +92,31 @@ export async function claimTask(
   client: PoolClient,
   scope: WorkerScope,
   leaseSeconds = 45,
+  admission?: { children: boolean; control: boolean },
 ): Promise<Lease | null> {
   duration(leaseSeconds);
   // Run lock serializes a claim with cancellation/archive transitions, while two
   // claimants retain compatible share locks and SKIP LOCKED the same task row.
   const row = (
     await client.query<JobRow>(
-      `SELECT j.*,r.context_version,r.status run_status FROM jobs j JOIN runs r ON r.id=j.run_id WHERE j.project_id=$1 AND j.status='queued' AND j.available_at<=clock_timestamp() AND r.status IN ('queued','running') ORDER BY j.available_at,j.id FOR UPDATE OF j SKIP LOCKED LIMIT 1`,
-      [scope.projectId],
+      `SELECT j.*,r.context_version,r.status run_status FROM jobs j JOIN runs r ON r.id=j.run_id
+       WHERE j.project_id=$1 AND j.status='queued' AND j.available_at<=clock_timestamp() AND r.status IN ('queued','running')
+       ${
+         admission
+           ? `AND (($2::boolean AND j.role IN ('coordinator','finalizer')) OR ($3::boolean AND j.role NOT IN ('coordinator','finalizer')))
+        AND (j.role IN ('coordinator','finalizer') OR
+          (SELECT count(*) FROM budget_reservations b JOIN jobs occupied ON occupied.id=b.task_id
+           WHERE b.run_id=r.id AND b.kind='concurrency' AND b.status='reserved' AND occupied.role NOT IN ('coordinator','finalizer'))
+          < (r.effective_config->'budget'->>'concurrency')::integer)
+        AND (j.role NOT IN ('coordinator','finalizer') OR NOT EXISTS(
+          SELECT 1 FROM budget_reservations b JOIN jobs occupied ON occupied.id=b.task_id
+          WHERE b.run_id=r.id AND b.kind='concurrency' AND b.status='reserved' AND occupied.role IN ('coordinator','finalizer')))`
+           : ''
+       }
+       ORDER BY CASE WHEN j.role IN ('coordinator','finalizer') THEN 0 ELSE 1 END,j.available_at,j.id FOR UPDATE OF j SKIP LOCKED LIMIT 1`,
+      admission
+        ? [scope.projectId, admission.control, admission.children]
+        : [scope.projectId],
     )
   ).rows[0];
   if (!row) return null;
@@ -98,7 +129,7 @@ export async function claimTask(
   if (!run || !['queued', 'running'].includes(run.status)) return null;
   const updated = (
     await client.query<JobRow>(
-      `UPDATE jobs SET status='running',worker_id=$2,lease_until=clock_timestamp()+$3::integer*interval '1 second',fencing_token=fencing_token+1 WHERE id=$1 AND status='queued' RETURNING *`,
+      `UPDATE jobs SET status='running',started_at=COALESCE(started_at,clock_timestamp()),finished_at=NULL,worker_id=$2,lease_until=clock_timestamp()+$3::integer*interval '1 second',fencing_token=fencing_token+1 WHERE id=$1 AND status='queued' RETURNING *`,
       [row.id, scope.workerId, leaseSeconds],
     )
   ).rows[0]!;
@@ -235,7 +266,7 @@ export class LeaseRepository {
       // Structured role-specific result validation/atomic verdict submission is T05.
       const updated = (
         await client.query<JobRow>(
-          'UPDATE jobs SET status=$2,result_hash=$3,result=$4 WHERE id=$1 RETURNING *',
+          'UPDATE jobs SET status=$2,result_hash=$3,result=$4,finished_at=clock_timestamp() WHERE id=$1 RETURNING *',
           [job.id, data.status, data.resultHash, data.result],
         )
       ).rows[0]!;
@@ -343,7 +374,7 @@ export class LeaseRepository {
       const canRetry =
         !isAuthTask && !acted && ['queued', 'running'].includes(job.run_status);
       await client.query(
-        'UPDATE jobs SET status=$2,worker_id=NULL,lease_until=NULL WHERE id=$1',
+        "UPDATE jobs SET status=$2,worker_id=NULL,lease_until=NULL,started_at=CASE WHEN $2='queued' THEN NULL ELSE started_at END,finished_at=CASE WHEN $2='queued' THEN NULL ELSE clock_timestamp() END WHERE id=$1",
         [job.id, canRetry ? 'queued' : 'interrupted'],
       );
       await client.query(

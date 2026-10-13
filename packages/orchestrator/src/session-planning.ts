@@ -49,6 +49,7 @@ export interface AcceptedSessionDecision {
   cases: PlannedSessionCase[];
   exploreTargets: string[];
   coverageGaps: string[];
+  title?: string;
 }
 /** Proposal validation never gives the model database IDs or permission to change an old case. */
 export function reviewSessionProposal(
@@ -183,5 +184,8 @@ export function reviewSessionProposal(
     cases,
     exploreTargets,
     coverageGaps: [...new Set(coverageGaps)].slice(0, 100),
+    ...(typeof proposal.title === 'string' && proposal.title.trim()
+      ? { title: proposal.title.trim() }
+      : {}),
   };
 }

@@ -295,12 +295,16 @@ export class ToolExecutor {
           }
 
           // Policy check on target
-          const policyCheck = ctx.policy.checkAction(toolCall, {
-            nodeId: resolved.node.nodeId,
-            role: resolved.node.role,
-            name: resolved.node.name,
-            text: resolved.node.text,
-          });
+          const policyCheck = ctx.policy.checkAction(
+            toolCall,
+            {
+              nodeId: resolved.node.nodeId,
+              role: resolved.node.role,
+              name: resolved.node.name,
+              text: resolved.node.text,
+            },
+            targetPage.url(),
+          );
 
           if (!policyCheck.allowed) {
             await resolved.elementHandle.dispose().catch(() => undefined);
@@ -392,11 +396,15 @@ export class ToolExecutor {
             );
           }
 
-          const policyCheck = ctx.policy.checkAction(toolCall, {
-            nodeId: resolved.node.nodeId,
-            role: resolved.node.role,
-            name: resolved.node.name,
-          });
+          const policyCheck = ctx.policy.checkAction(
+            toolCall,
+            {
+              nodeId: resolved.node.nodeId,
+              role: resolved.node.role,
+              name: resolved.node.name,
+            },
+            targetPage.url(),
+          );
 
           if (!policyCheck.allowed) {
             await resolved.elementHandle.dispose().catch(() => undefined);

@@ -41,6 +41,9 @@ export function createFrozenGateway(
         ...(document.maxOutputTokens !== undefined
           ? { maxOutputTokens: document.maxOutputTokens }
           : {}),
+        ...(document.contextWindowTokens !== undefined
+          ? { contextWindowTokens: document.contextWindowTokens }
+          : {}),
         encryptedApiKey: frozen.apiKey ? 'set' : null,
         approvedFallbackIds: [],
       },

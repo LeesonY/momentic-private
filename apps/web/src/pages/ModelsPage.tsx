@@ -11,6 +11,7 @@ import { CreateModelModal } from '../components/models/CreateModelModal.tsx';
 import { EditModelModal } from '../components/models/EditModelModal.tsx';
 import {
   DEFAULT_OUTPUT_TOKENS,
+  modelContextTokenLimit,
   adapterLabels,
   statusMeta,
 } from '../components/models/modelForm.ts';
@@ -514,6 +515,12 @@ export const ModelsPage: React.FC = () => {
                         {m.maxOutputTokens ??
                           `${DEFAULT_OUTPUT_TOKENS}（默认）`}
                       </span>
+                      <span aria-hidden="true">·</span>
+                      <span data-testid={`model-context-window-${m.id}`}>
+                        上下文{' '}
+                        {modelContextTokenLimit(m).toLocaleString('en-US')}
+                        {m.contextWindowTokens === undefined ? '（默认）' : ''}
+                      </span>
                     </div>
                   </div>
 
@@ -613,6 +620,16 @@ export const ModelsPage: React.FC = () => {
           onClose={() => setEditing(null)}
           onSaved={(updated) => {
             replaceModel(updated);
+            setProbeErrors((previous) => {
+              const next = { ...previous };
+              delete next[updated.id];
+              return next;
+            });
+            setProbeNotes((previous) => {
+              const next = { ...previous };
+              delete next[updated.id];
+              return next;
+            });
             setEditing(null);
           }}
         />

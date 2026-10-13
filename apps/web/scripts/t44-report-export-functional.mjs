@@ -118,6 +118,8 @@ try {
       return route.fulfill(json({ items: report.findings, nextCursor: null }));
     if (pathname === `/api/v1/runs/${runId}/messages`)
       return route.fulfill(json({ items: [], nextCursor: null }));
+    if (pathname === `/api/v1/runs/${runId}/inputs`)
+      return route.fulfill(json({ items: [] }));
     if (pathname === `/api/v1/runs/${runId}/events`)
       return route.fulfill({
         status: 200,

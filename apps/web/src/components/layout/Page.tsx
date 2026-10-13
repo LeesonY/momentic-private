@@ -55,8 +55,16 @@ export const Page: React.FC<PageProps> = ({
         )}
         <div className="page-heading">
           {eyebrow && <div className="page-eyebrow">{eyebrow}</div>}
-          {title && <h1 className="page-title">{title}</h1>}
-          {description && <p className="page-description">{description}</p>}
+          {/* Mo's top bar carries only the title; the description stays
+              available as a tooltip. */}
+          {title && (
+            <h1
+              className="page-title"
+              title={typeof description === 'string' ? description : undefined}
+            >
+              {title}
+            </h1>
+          )}
         </div>
         {actions && <div className="page-actions">{actions}</div>}
       </header>

@@ -26,7 +26,8 @@ export const STABLE_REASON_CODES = Object.freeze({
 export type StableReasonCode =
   (typeof STABLE_REASON_CODES)[keyof typeof STABLE_REASON_CODES];
 
-export type ExecutionMode = 'non_submitting' | 'exploration' | 'full';
+export type ExecutionMode =
+  'non_submitting' | 'approved_workflows' | 'exploration' | 'full';
 
 export interface ViewportSize {
   width: number;
@@ -56,6 +57,7 @@ export interface BrowserSessionOptions {
   runId: string;
   taskId: string;
   mode?: ExecutionMode | undefined;
+  writeScope?: readonly string[] | undefined;
   /** Frozen server-approved policy. Strict by default; never a model decision. */
   tlsPolicy?: 'strict' | 'allow_self_signed' | undefined;
   viewport?: ViewportSize | undefined;

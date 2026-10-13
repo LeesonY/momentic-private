@@ -20,6 +20,16 @@ export function mapDatabaseError(error: unknown): never {
   if (db.message === 'LEASE_EXPIRED') throw new StorageError('LEASE_EXPIRED');
   if (db.message === 'PROJECT_ARCHIVED')
     throw new StorageError('PROJECT_ARCHIVED');
+  if (db.message === 'TARGET_NOT_ALLOWED')
+    throw new StorageError(
+      'TARGET_NOT_ALLOWED',
+      '环境已删除或不可用，请重新选择环境',
+    );
+  if (db.message === 'AUTH_REVOKED')
+    throw new StorageError(
+      'FORBIDDEN',
+      '认证配置已删除或吊销，请重新选择认证配置',
+    );
   if (db.message === 'MODEL_NOT_CONFIGURED')
     throw new StorageError(
       'MODEL_NOT_CONFIGURED',

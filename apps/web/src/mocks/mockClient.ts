@@ -23,6 +23,7 @@ import type {
   AuthProfileCreate,
   AuthProfilePatch,
   AuthProfilePage,
+  ConfigDeleteConfirm,
   Knowledge,
   KnowledgeCreate,
   KnowledgePatch,
@@ -34,6 +35,7 @@ import type {
   ModelProfilePage,
   ModelProbeResult,
   Run,
+  RunDeleteConfirm,
   RunCreate,
   RunPage,
   RunMessagePage,
@@ -55,6 +57,8 @@ import type {
   TriagePreview,
   TriageCommit,
   InputRequest,
+  InputRequestPage,
+  FollowUpInput,
   InputResponse,
   Export,
   ExportInput,
@@ -418,14 +422,14 @@ export class MockApiClient implements ApiClient {
     _projectId: string,
     _query?: PaginationQuery,
   ): Promise<EnvironmentPage> {
-    return { items: this.environments, nextCursor: null };
+    return { items: [...this.environments], nextCursor: null };
   }
 
   public async listEnvironments(
     _projectId: string,
     _query?: PaginationQuery,
   ): Promise<EnvironmentPage> {
-    return { items: this.environments, nextCursor: null };
+    return { items: [...this.environments], nextCursor: null };
   }
 
   public async createEnvironment(
@@ -452,6 +456,38 @@ export class MockApiClient implements ApiClient {
     if (!found) throw new Error('环境未找到');
     return found;
   }
+  public async deleteEnvironment(
+    environmentId: string,
+    input: ConfigDeleteConfirm,
+  ): Promise<void> {
+    const current = await this.getEnvironment(environmentId);
+    if (
+      current.version !== input.expectedVersion ||
+      current.name !== input.confirmName
+    )
+      throw new Error('配置版本或名称不匹配，请刷新后重试');
+    if (this.authProfiles.some((a) => a.environmentId === environmentId))
+      throw new Error('环境下仍有认证配置，请先删除这些认证配置');
+    this.environments = this.environments.filter((e) => e.id !== environmentId);
+  }
+  public async deleteAuthProfile(
+    authProfileId: string,
+    input: ConfigDeleteConfirm,
+  ): Promise<void> {
+    const current = this.authProfiles.find((a) => a.id === authProfileId);
+    if (!current) throw new Error('认证配置未找到');
+    if (
+      current.version !== input.expectedVersion ||
+      current.name !== input.confirmName
+    )
+      throw new Error('配置版本或名称不匹配，请刷新后重试');
+    this.authProfiles = this.authProfiles.filter((a) => a.id !== authProfileId);
+    this.environments = this.environments.map((e) =>
+      e.defaultAuthProfileId === authProfileId
+        ? { ...e, defaultAuthProfileId: null, version: e.version + 1 }
+        : e,
+    );
+  }
 
   public async updateEnvironment(
     environmentId: string,
@@ -466,14 +502,14 @@ export class MockApiClient implements ApiClient {
     _projectId: string,
     _query?: PaginationQuery,
   ): Promise<AuthProfilePage> {
-    return { items: this.authProfiles, nextCursor: null };
+    return { items: [...this.authProfiles], nextCursor: null };
   }
 
   public async listAuthProfiles(
     _projectId: string,
     _query?: PaginationQuery,
   ): Promise<AuthProfilePage> {
-    return { items: this.authProfiles, nextCursor: null };
+    return { items: [...this.authProfiles], nextCursor: null };
   }
 
   public async createAuthProfile(
@@ -565,6 +601,12 @@ export class MockApiClient implements ApiClient {
       name: input.name,
       endpoint: input.endpoint,
       configuredModelId: input.configuredModelId,
+      ...(input.maxOutputTokens === undefined
+        ? {}
+        : { maxOutputTokens: input.maxOutputTokens }),
+      ...(input.contextWindowTokens === undefined
+        ? {}
+        : { contextWindowTokens: input.contextWindowTokens }),
       adapter: input.adapter || 'openai_compatible',
       dataBoundary: input.dataBoundary || 'internal',
       capabilities: {
@@ -589,7 +631,39 @@ export class MockApiClient implements ApiClient {
   ): Promise<ModelProfile> {
     const found = this.models.find((m) => m.id === modelProfileId);
     if (!found) throw new Error('模型配置未找到');
-    return { ...found, ...input };
+    if (found.version !== input.expectedVersion)
+      throw new Error('模型配置已更新，请刷新后重试');
+    const { expectedVersion, apiKey, contextWindowTokens, ...patch } = input;
+    const connectionChanged =
+      apiKey !== undefined ||
+      (patch.configuredModelId !== undefined &&
+        patch.configuredModelId !== found.configuredModelId) ||
+      (patch.endpoint !== undefined && patch.endpoint !== found.endpoint) ||
+      (patch.responseFormat !== undefined &&
+        patch.responseFormat !== (found.responseFormat ?? 'json_schema'));
+    const updated: ModelProfile = {
+      ...found,
+      ...patch,
+      ...(typeof contextWindowTokens === 'number'
+        ? { contextWindowTokens }
+        : {}),
+      ...(connectionChanged
+        ? {
+            capabilities: {
+              structuredOutput: false,
+              nativeTools: false,
+              imageInput: false,
+            },
+            status:
+              patch.status ??
+              (found.status === 'disabled' ? 'disabled' : 'untested'),
+          }
+        : {}),
+      version: expectedVersion + 1,
+    };
+    if (contextWindowTokens === null) delete updated.contextWindowTokens;
+    this.models = this.models.map((m) => (m.id === updated.id ? updated : m));
+    return updated;
   }
 
   public async deleteModel(
@@ -669,6 +743,18 @@ export class MockApiClient implements ApiClient {
     }
     return { ...this.runs[0], status: 'cancelled' };
   }
+  public async deleteRun(
+    runId: string,
+    input: RunDeleteConfirm,
+  ): Promise<void> {
+    const run = this.runs.find((item) => item.id === runId);
+    if (!run) throw new Error('运行记录未找到');
+    if (run.id !== input.confirmRunId || run.version !== input.expectedVersion)
+      throw new Error('运行记录已更新，请刷新后重试');
+    if (!['completed', 'cancelled', 'failed'].includes(run.status))
+      throw new Error('运行尚未结束，请先停止运行后再删除');
+    this.runs = this.runs.filter((item) => item.id !== runId);
+  }
 
   public async sendRunMessage(
     runId: string,
@@ -686,6 +772,18 @@ export class MockApiClient implements ApiClient {
     return { items: [], nextCursor: null };
   }
 
+  public async listRunInputs(_runId: string): Promise<InputRequestPage> {
+    return { items: [] };
+  }
+  public async continueRun(runId: string, input: FollowUpInput): Promise<Run> {
+    const parent = this.runs.find((run) => run.id === runId);
+    if (!parent) throw new Error('运行记录未找到');
+    return this.createRun({
+      projectId: parent.projectId,
+      targetUrl: parent.targetUrl,
+      description: input.text,
+    });
+  }
   public async respondToInput(
     _runId: string,
     _inputId: string,

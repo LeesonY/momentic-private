@@ -140,7 +140,7 @@ export async function startTrustedRegressionRun(
     const environmentRow = input.environmentId
       ? (
           await client.query(
-            'SELECT v.document FROM environments e JOIN environment_versions v ON v.project_id=e.project_id AND v.environment_id=e.id AND v.version=e.version WHERE e.project_id=$1 AND e.id=$2',
+            'SELECT v.document FROM environments e JOIN environment_versions v ON v.project_id=e.project_id AND v.environment_id=e.id AND v.version=e.version WHERE e.project_id=$1 AND e.id=$2 AND e.deleted_at IS NULL',
             [input.projectId, input.environmentId],
           )
         ).rows[0]

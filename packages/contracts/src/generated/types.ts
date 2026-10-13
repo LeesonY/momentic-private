@@ -29,6 +29,7 @@ export type Contract =
   | CaseDefinition
   | CaseRecord
   | CaseRecordPage
+  | ConfigDeleteConfirm
   | CredentialMaterial
   | Criterion
   | CriterionResult
@@ -41,11 +42,13 @@ export type Contract =
   | ExportInput
   | Finding
   | FindingPage
+  | FollowUpInput
   | FormConfig
   | Health
   | HeartbeatInput
   | HeartbeatResult
   | InputRequest
+  | InputRequestPage
   | InputResponse
   | JsonValue
   | Knowledge
@@ -111,6 +114,7 @@ export type Contract =
   | Run
   | RunConfig
   | RunCreate
+  | RunDeleteConfirm
   | RunEvent
   | RunEventPage
   | RunMessage
@@ -147,6 +151,7 @@ export type Contract =
   | Summary
   | Task
   | TaskComplete
+  | TaskIntent
   | TaskPage
   | ToolCall
   | ToolResult
@@ -423,6 +428,7 @@ export type ModelPart =
       type: "image";
       artifactId: string;
     };
+export type TaskIntent = "flow" | "explore" | "reproduce" | "plan" | "changes" | "spec";
 export type RunEvent = {
   schemaVersion: 1;
   id: string;
@@ -852,6 +858,10 @@ export interface CaseRecordPage {
   items: CaseRecord[];
   nextCursor: string | null;
 }
+export interface ConfigDeleteConfirm {
+  expectedVersion: number;
+  confirmName: string;
+}
 export interface CredentialMaterial {
   mode: "none" | "form" | "storage_state" | "agent";
   material: {
@@ -947,6 +957,10 @@ export interface FindingPage {
   items: Finding[];
   nextCursor: string | null;
 }
+export interface FollowUpInput {
+  expectedVersion: number;
+  text: string;
+}
 export interface Health {
   status: "ok" | "not_ready";
   version: string;
@@ -968,6 +982,18 @@ export interface InputRequest {
   prompt: string;
   expiresAt: string;
   version: number;
+  /**
+   * @minItems 0
+   * @maxItems 4
+   */
+  options?: string[];
+}
+export interface InputRequestPage {
+  /**
+   * @minItems 0
+   * @maxItems 100
+   */
+  items: InputRequest[];
 }
 export interface InputResponse {
   expectedVersion: number;
@@ -1112,6 +1138,7 @@ export interface ModelProfile {
   version: number;
   responseFormat?: "json_schema" | "json_object" | "native_tools";
   maxOutputTokens?: number;
+  contextWindowTokens?: number;
 }
 export interface ModelProfileCreate {
   name: string;
@@ -1122,6 +1149,7 @@ export interface ModelProfileCreate {
   apiKey?: string;
   responseFormat?: "json_schema" | "json_object" | "native_tools";
   maxOutputTokens?: number;
+  contextWindowTokens?: number;
 }
 export interface ModelProfilePage {
   /**
@@ -1140,6 +1168,7 @@ export interface ModelProfilePatch {
   status?: "disabled" | "untested";
   responseFormat?: "json_schema" | "json_object" | "native_tools";
   maxOutputTokens?: number;
+  contextWindowTokens?: number | null;
 }
 export interface ModelRequest {
   taskId: string;
@@ -1412,6 +1441,14 @@ export interface Run {
   updatedAt: string;
   version: number;
   executionMode?: "smoke" | "regression";
+  title?: string | null;
+  stats?: {
+    cases: number;
+    passed: number;
+    issues: number;
+    blocked: number;
+    findings: number;
+  } | null;
 }
 export interface RunConfig {
   /**
@@ -1428,6 +1465,13 @@ export interface RunConfig {
    * @maxItems 100
    */
   knowledgeVersionIds: string[];
+  taskIntent?: TaskIntent;
+  /**
+   * @minItems 0
+   * @maxItems 30
+   */
+  writeScope?: string[];
+  previousRunId?: string;
   models: RoleModels;
 }
 export interface RoleModels {
@@ -1486,9 +1530,17 @@ export interface SessionReport {
   summary: string;
   /**
    * @minItems 0
-   * @maxItems 6
+   * @maxItems 64
    */
   history: SessionRound[];
+  messageCursor?: string | null;
+  /**
+   * @minItems 0
+   * @maxItems 200
+   */
+  reviewedTaskIds?: string[];
+  planningStopped?: boolean;
+  title?: string | null;
 }
 export interface SessionRound {
   round: number;
@@ -1538,6 +1590,17 @@ export interface RunCreate {
   modelProfileId?: string;
   mode?: "smoke";
   budget?: BudgetOverrides;
+  taskIntent?: TaskIntent;
+  /**
+   * @minItems 0
+   * @maxItems 30
+   */
+  writeScope?: string[];
+  actionPolicy?: "non_submitting" | "approved_workflows";
+}
+export interface RunDeleteConfirm {
+  expectedVersion: number;
+  confirmRunId: string;
 }
 export interface RunEventPage {
   /**
@@ -1755,7 +1818,7 @@ export interface SessionConclusion {
   coverageGaps: string[];
 }
 export interface SessionDecision {
-  action: "dispatch" | "finish";
+  action: "dispatch" | "finish" | "ask";
   rationale: string;
   /**
    * @minItems 0
@@ -1772,6 +1835,13 @@ export interface SessionDecision {
    * @maxItems 20
    */
   coverageGaps: string[];
+  question?: string;
+  title?: string;
+  /**
+   * @minItems 0
+   * @maxItems 4
+   */
+  options?: string[];
 }
 export interface Step {
   id: string;
@@ -1904,6 +1974,7 @@ export interface ContractTypes {
   CaseDefinition: CaseDefinition;
   CaseRecord: CaseRecord;
   CaseRecordPage: CaseRecordPage;
+  ConfigDeleteConfirm: ConfigDeleteConfirm;
   CredentialMaterial: CredentialMaterial;
   Criterion: Criterion;
   CriterionResult: CriterionResult;
@@ -1916,11 +1987,13 @@ export interface ContractTypes {
   ExportInput: ExportInput;
   Finding: Finding;
   FindingPage: FindingPage;
+  FollowUpInput: FollowUpInput;
   FormConfig: FormConfig;
   Health: Health;
   HeartbeatInput: HeartbeatInput;
   HeartbeatResult: HeartbeatResult;
   InputRequest: InputRequest;
+  InputRequestPage: InputRequestPage;
   InputResponse: InputResponse;
   JsonValue: JsonValue;
   Knowledge: Knowledge;
@@ -1986,6 +2059,7 @@ export interface ContractTypes {
   Run: Run;
   RunConfig: RunConfig;
   RunCreate: RunCreate;
+  RunDeleteConfirm: RunDeleteConfirm;
   RunEvent: RunEvent;
   RunEventPage: RunEventPage;
   RunMessage: RunMessage;
@@ -2022,6 +2096,7 @@ export interface ContractTypes {
   Summary: Summary;
   Task: Task;
   TaskComplete: TaskComplete;
+  TaskIntent: TaskIntent;
   TaskPage: TaskPage;
   ToolCall: ToolCall;
   ToolResult: ToolResult;

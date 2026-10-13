@@ -271,7 +271,7 @@
   color: var(--color-info);
 }
 .lqa-recent-runs .is-ai {
-  color: var(--color-ai);
+  color: var(--color-warning);
 }
 .lqa-recent-runs .is-success {
   color: var(--color-success);
@@ -446,7 +446,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  font-size: var(--text-lg);
+  font-size: var(--text-base);
   font-weight: 500;
   line-height: 24px;
   letter-spacing: 0;
