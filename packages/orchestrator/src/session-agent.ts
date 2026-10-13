@@ -238,65 +238,45 @@ export class SessionAgent {
       ? parseContract('ModelProfile', profile.document).capabilities
       : { structuredOutput: false, nativeTools: false, imageInput: false };
 
-    const resolvedInputs = (
+    // Both run_messages and the input.resolved event are committed in the same
+    // resolveClarification transaction; their created_at columns both use DEFAULT now()
+    // and match identically.
+    const answeredRows = (
       await client.query<{
-        id: string;
         document: { prompt?: string; options?: string[] };
+        redacted_text: string | null;
       }>(
-        `SELECT id, document FROM input_requests
-         WHERE project_id=$1 AND run_id=$2
-           AND document->>'kind'='clarification'
-           AND document->>'status'='resolved'
-         ORDER BY id ASC`,
+        `SELECT i.document, m.redacted_text
+         FROM input_requests i
+         JOIN run_events e ON e.project_id=i.project_id AND e.run_id=i.run_id AND e.type='input.resolved' AND e.payload->>'id'=i.id::text
+         LEFT JOIN run_messages m ON m.project_id=i.project_id AND m.run_id=i.run_id AND m.actor_id IS NOT NULL AND m.created_at=e.created_at
+         WHERE i.project_id=$1 AND i.run_id=$2 AND i.document->>'kind'='clarification' AND i.document->>'status'='resolved'
+         ORDER BY e.seq DESC LIMIT 3`,
         [run.projectId, run.id],
       )
     ).rows;
 
-    const answeredQuestions: AnsweredQuestion[] = [];
-    for (const [i, row] of resolvedInputs.entries()) {
-      const input = row.document;
-      const prompt = clean(input.prompt || '').slice(0, 500);
-      if (!prompt) continue;
-
-      let answerText = '';
-      try {
-        const matched = (
-          await client.query<{ redacted_text: string }>(
-            `SELECT m.redacted_text
-             FROM run_messages m
-             JOIN run_events e ON e.project_id=m.project_id AND e.run_id=m.run_id
-               AND e.type='input.resolved' AND e.payload->>'id'=$3
-             WHERE m.project_id=$1 AND m.run_id=$2
-               AND (m.created_at=e.created_at OR abs(extract(epoch from (m.created_at - e.created_at))) <= 2)
-             ORDER BY m.id DESC LIMIT 1`,
-            [run.projectId, run.id, row.id],
-          )
-        ).rows[0];
-        if (matched?.redacted_text) answerText = matched.redacted_text;
-      } catch {
-        /* Fallback for test fixtures without run_events */
-      }
-
-      if (!answerText) {
-        const fallbackMsg = messages[i];
-        if (fallbackMsg) answerText = fallbackMsg.redacted_text;
-      }
-
-      if (answerText) {
-        answeredQuestions.push({
+    const answeredQuestions: AnsweredQuestion[] = answeredRows
+      .reverse()
+      .map((row) => {
+        const prompt = clean(row.document.prompt || '').slice(0, 500);
+        const answer = row.redacted_text?.trim()
+          ? clean(row.redacted_text.trim())
+          : '（用户已确认，未补充文字）';
+        return {
           question: prompt,
-          ...(Array.isArray(input.options) && input.options.length
-            ? { options: input.options }
+          ...(Array.isArray(row.document.options) && row.document.options.length
+            ? { options: row.document.options }
             : {}),
-          answer: clean(answerText),
-        });
-      }
-    }
+          answer,
+        };
+      })
+      .filter((q) => q.question.length > 0);
 
     return {
       session,
       sources,
-      answeredQuestions: answeredQuestions.slice(-3),
+      answeredQuestions,
       observations,
       cases,
       findings,
@@ -481,11 +461,13 @@ export class SessionAgent {
               ? clean(accepted.title).slice(0, 60)
               : null;
             if (explicit) return { title: explicit };
-            const fallback = (
-              clean(context.session.objective || '').split(/[\r\n]+/)[0] ?? ''
+            const fallback = Array.from(
+              (
+                clean(context.session.objective || '').split(/[\r\n]+/)[0] ?? ''
+              ).trim(),
             )
-              .trim()
-              .slice(0, 20);
+              .slice(0, 20)
+              .join('');
             return fallback ? { title: fallback } : {};
           })()
         : {}),

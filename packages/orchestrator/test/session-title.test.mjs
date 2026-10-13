@@ -239,3 +239,27 @@ test('SessionAgent does not set title when both model title and objective are em
 
   assert.equal(getSessionDoc().title, undefined, 'objective 为空时不写 title');
 });
+
+test('SessionAgent safely slices surrogate pairs (emojis) without breaking Unicode characters', async () => {
+  const emojiObjective =
+    '🔥✨🎉测试一个带特殊Emoji前缀的长文本用于验证Unicode代理对不会损坏';
+  const { run, client, agent, getSessionDoc } = makeTestSetup(emojiObjective);
+
+  const job = {
+    id: randomUUID(),
+    role: 'coordinator',
+    result: { stage: 'plan', sessionRound: 1 },
+  };
+
+  await agent.applyPlan(client, run, job, {
+    action: 'finish',
+    rationale: '首次规划',
+    cases: [],
+    exploreTargets: [],
+    coverageGaps: [],
+  });
+
+  const title = getSessionDoc().title;
+  assert.equal(Array.from(title).length, 20);
+  assert.equal(title, Array.from(emojiObjective).slice(0, 20).join(''));
+});
