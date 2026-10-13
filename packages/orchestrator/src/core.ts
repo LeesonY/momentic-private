@@ -2767,6 +2767,7 @@ export class Coordinator {
           await this.sessions.write(client, run, {
             ...session,
             status: 'finalizing',
+            planningStopped: true,
             coverageGaps: [
               ...session.coverageGaps,
               '用户拒绝补充信息，未完成的范围保留在报告中。',
