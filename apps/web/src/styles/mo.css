@@ -1729,3 +1729,44 @@ a.mo-menu-item {
     display: none;
   }
 }
+
+/* ---- Table pages (knowledge) ------------------------------------------------- */
+.mo-knowledge-text {
+  display: -webkit-box;
+  max-width: 720px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.mo-table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: var(--space-8, 48px) var(--space-5);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.mo-table-empty strong {
+  color: var(--color-text-main);
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+.mo-table-empty p {
+  max-width: 360px;
+}
+
+.mo-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-muted);
+  color: var(--color-text-main);
+}
