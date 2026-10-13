@@ -331,7 +331,7 @@ export function registerLocatorMaintenanceRoutes(router: Router): void {
          FROM locator_maintenance_drafts d
          JOIN saved_case_versions v ON v.project_id=d.project_id AND v.id=d.case_version_id
          JOIN saved_cases c ON c.project_id=d.project_id AND c.id=d.case_id
-         WHERE d.case_version_id=$1 FOR SHARE OF d,v,c`,
+         WHERE d.case_version_id=$1 FOR SHARE OF v,c`,
           [ctx.params.versionId!],
         )
       ).rows[0];
