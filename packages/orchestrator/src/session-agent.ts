@@ -17,7 +17,7 @@ import {
   type SessionSource,
 } from './session-planning.js';
 
-export const SESSION_ROUND_LIMIT = 6;
+export const SESSION_ROUND_LIMIT = 64;
 const clean = (value: string) =>
   sanitizeText(value).replace(
     /((?:密码|口令|password|secret|api[_ -]?key)\s*[:：=]\s*)\S+/gi,
@@ -38,6 +38,14 @@ export interface SessionContext {
   >;
   cases: CaseRecord[];
   findings: Finding[];
+  activeTasks: Array<{
+    id: string;
+    role: JobRow['role'];
+    status: JobRow['status'];
+    caseId: string | null;
+    summary: string;
+  }>;
+  concurrency: number;
   remainingCases: number;
   remainingPages: number;
   actionPolicy: Run['effectiveConfig']['actionPolicy'];
@@ -184,7 +192,7 @@ export class SessionAgent {
         outcome: string;
       }>(
         `SELECT c.document AS definition,v.document AS verdict,COALESCE(v.document->>'status',
-         CASE WHEN EXISTS(SELECT 1 FROM case_attempts a WHERE a.project_id=c.project_id AND a.case_id=c.id) THEN 'inconclusive' ELSE 'not_run' END) AS outcome
+         CASE WHEN EXISTS(SELECT 1 FROM case_attempts a WHERE a.project_id=c.project_id AND a.case_id=c.id AND a.finished_at IS NOT NULL) THEN 'inconclusive' ELSE 'not_run' END) AS outcome
        FROM run_cases c LEFT JOIN final_valid_verdicts v ON v.project_id=c.project_id AND v.case_id=c.id
        WHERE c.project_id=$1 AND c.run_id=$2 ORDER BY c.id`,
         [run.projectId, run.id],
@@ -199,6 +207,18 @@ export class SessionAgent {
         [run.projectId, run.id],
       )
     ).rows.map((row) => parseContract('Finding', row.document));
+    const activeTasks = (
+      await client.query<JobRow>(
+        "SELECT * FROM jobs WHERE project_id=$1 AND run_id=$2 AND role IN ('explorer','executor','reproducer') AND status IN ('queued','running','waiting') ORDER BY available_at,id",
+        [run.projectId, run.id],
+      )
+    ).rows.map((job) => ({
+      id: job.id,
+      role: job.role,
+      status: job.status,
+      caseId: job.case_id,
+      summary: clean(job.document.summary).slice(0, 200),
+    }));
     const binding = run.effectiveConfig.models.assertion;
     const profile = (
       await client.query<{ document: unknown }>(
@@ -215,6 +235,8 @@ export class SessionAgent {
       observations,
       cases,
       findings,
+      activeTasks,
+      concurrency: run.effectiveConfig.budget.concurrency,
       remainingCases: Math.max(
         0,
         run.effectiveConfig.budget.maxCases - cases.length,
@@ -386,6 +408,7 @@ export class SessionAgent {
           : hasWork
             ? 'working'
             : 'finalizing',
+      planningStopped: planningOnly || fallbackToTechnicalSmoke,
       plan: clean(accepted.rationale),
       caseIds: [...context.session.caseIds, ...caseIds],
       exploredUrls: [
@@ -446,99 +469,70 @@ export class SessionAgent {
           [run.projectId, run.id],
         )
       ).rows[0]?.id ?? null;
-    // Text changes no browser/auth authority. Apply it at the next dispatch
-    // boundary; current actions settle once and are never automatically replayed.
+    const pending = (job: JobRow) =>
+      ['queued', 'running', 'waiting'].includes(job.status);
+    // Completion watermarks are consumed only when a manager is enqueued.
+    // Results arriving during its model call remain available for the next
+    // review. Tick/retried finish calls cannot create competing managers.
     if (
-      latestMessage !== (session.messageCursor ?? null) &&
+      jobs.some(
+        (job) =>
+          ['coordinator', 'finalizer'].includes(job.role) && pending(job),
+      )
+    )
+      return true;
+    const children = jobs.filter(
+      (job) =>
+        ['explorer', 'executor', 'reproducer'].includes(job.role) &&
+        ['explore', 'execute', 'reproduce', 'recover'].includes(
+          String(job.result?.['stage'] ?? job.document.summary),
+        ),
+    );
+    const completed = children
+      .filter((job) => !pending(job))
+      .map((job) => job.id);
+    const reviewed = new Set(session.reviewedTaskIds ?? []);
+    const hasNewResult = completed.some((id) => !reviewed.has(id));
+    const hasNewMessage = latestMessage !== (session.messageCursor ?? null);
+    const reproduced =
       run.phase !== 'finalize'
-    ) {
-      session = { ...session, status: 'working' };
-      await this.write(client, run, session);
-    }
-    // A finalizing session can still have a suspected finding from the
-    // completed technical executor. Offer independent reproduction before
-    // entering finalize, so skipping extra AI planning cannot confirm a bug.
-    if (
-      session.status === 'finalizing' &&
-      run.phase !== 'finalize' &&
-      (await this.coordinator.enqueueReproductions(client, run, jobs))
-    ) {
-      if (run.phase !== 'reproduce')
-        await this.coordinator.change(client, run, 'running', 'reproduce');
-      return true;
-    }
-    if (session.status === 'finalizing' || session.status === 'complete') {
-      if (run.phase !== 'finalize')
-        run = await this.coordinator.change(client, run, 'running', 'finalize');
-      if (jobs.some((j) => j.role === 'finalizer' && j.status === 'succeeded'))
-        await this.coordinator.finalize(
-          client,
-          run,
-          run.terminationReason ?? 'normal',
-          'completed',
-        );
-      else
-        await this.coordinator.enqueue(
-          client,
-          run,
-          'finalizer',
-          'finalize',
-          'session-report',
-          null,
-        );
-      return true;
-    }
-    if (
-      session.status === 'working' &&
-      (await this.coordinator.enqueueReproductions(client, run, jobs))
-    ) {
-      if (run.phase !== 'reproduce')
-        await this.coordinator.change(client, run, 'running', 'reproduce');
-      return true;
-    }
+        ? await this.coordinator.enqueueReproductions(client, run, jobs)
+        : 0;
+    if (reproduced && run.phase !== 'reproduce')
+      run = await this.coordinator.change(client, run, 'running', 'reproduce');
+    const childrenPending = reproduced > 0 || children.some(pending);
     if (session.status === 'planning' || session.status === 'reviewing') {
+      const round = session.round;
       const manager = jobs.find(
-        (j) =>
-          j.result?.['sessionRound'] === session.round &&
-          j.role === 'coordinator',
+        (j) => j.result?.['sessionRound'] === round && j.role === 'coordinator',
       );
       if (
         manager &&
         ['interrupted', 'failed', 'cancelled'].includes(manager.status)
       ) {
-        await this.coordinator.finalize(
-          client,
-          run,
-          run.terminationReason ?? 'worker_failure',
-          'completed',
-        );
+        if (!childrenPending)
+          await this.coordinator.finalize(
+            client,
+            run,
+            run.terminationReason ?? 'worker_failure',
+            'completed',
+          );
         return true;
       }
-      if (manager) return true;
     }
-    if (session.round >= SESSION_ROUND_LIMIT) {
-      await this.write(client, run, {
-        ...session,
-        status: 'finalizing',
-        coverageGaps: [
-          ...session.coverageGaps,
-          '规划轮次达到上限，停止继续补测。',
-        ].slice(0, 100),
-      });
-      await this.coordinator.enqueue(
-        client,
-        run,
-        'finalizer',
-        'finalize',
-        'session-report',
-        null,
-      );
-    } else {
-      const next = {
+    if (
+      run.phase !== 'finalize' &&
+      session.status !== 'complete' &&
+      !session.planningStopped &&
+      session.round < SESSION_ROUND_LIMIT &&
+      (session.round === 0 || hasNewResult || hasNewMessage)
+    ) {
+      const next: SessionReport = {
         ...session,
         round: session.round + 1,
         messageCursor: latestMessage,
-        status: session.round ? ('reviewing' as const) : ('planning' as const),
+        reviewedTaskIds: [...new Set([...reviewed, ...completed])],
+        status: session.round ? 'reviewing' : 'planning',
       };
       await this.write(client, run, next);
       await this.coordinator.enqueue(
@@ -551,7 +545,48 @@ export class SessionAgent {
         1,
         { sessionRound: next.round },
       );
+      return true;
     }
+    if (session.round >= SESSION_ROUND_LIMIT && !session.planningStopped) {
+      session = {
+        ...session,
+        status: 'finalizing',
+        planningStopped: true,
+        coverageGaps: [
+          ...session.coverageGaps,
+          '规划轮次达到上限，停止继续补测。',
+        ].slice(0, 100),
+      };
+      await this.write(client, run, session);
+    }
+    // A finish proposal stops adding work until fresh results arrive. Reporting
+    // is allowed only after every browser job (including waiting jobs) settles.
+    if (childrenPending) return true;
+    if (!['finalizing', 'complete'].includes(session.status))
+      await this.write(client, run, {
+        ...session,
+        status: 'finalizing',
+      });
+    if (run.phase !== 'finalize')
+      run = await this.coordinator.change(client, run, 'running', 'finalize');
+    const finalizer = jobs.find((job) => job.role === 'finalizer');
+    if (finalizer && !pending(finalizer))
+      await this.coordinator.finalize(
+        client,
+        run,
+        run.terminationReason ??
+          (finalizer.status === 'succeeded' ? 'normal' : 'worker_failure'),
+        'completed',
+      );
+    else
+      await this.coordinator.enqueue(
+        client,
+        run,
+        'finalizer',
+        'finalize',
+        'session-report',
+        null,
+      );
     return true;
   }
   async finishRun(client: PoolClient, run: Run, reason: string): Promise<void> {

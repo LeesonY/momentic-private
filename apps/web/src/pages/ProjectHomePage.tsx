@@ -6,6 +6,7 @@ import { CreateProjectDialog } from '../components/layout/CreateProjectDialog.ts
 import { Page } from '../components/layout/Page.tsx';
 import { Field } from '../components/ui/Field.tsx';
 import { Alert } from '../components/ui/Alert.tsx';
+import { AgentConcurrencyPicker } from '../components/ui/AgentConcurrencyPicker.tsx';
 import type {
   Environment,
   AuthProfile,
@@ -462,16 +463,6 @@ export const ProjectHomePage: React.FC = () => {
                     }
                   />
                 </Field>
-                <Field label="并发任务数" hint="1–16，实际执行受平台配额限制">
-                  <input
-                    type="number"
-                    className="form-input"
-                    min={1}
-                    max={16}
-                    value={concurrency}
-                    onChange={(e) => setConcurrency(Number(e.target.value))}
-                  />
-                </Field>
                 <Field label="动作策略">
                   <p className="field-hint" data-testid="smoke-action-policy">
                     {allowWrites
@@ -505,6 +496,11 @@ export const ProjectHomePage: React.FC = () => {
             </div>
           )}
           <div className="lqa-composer-toolbar">
+            <AgentConcurrencyPicker
+              value={concurrency}
+              onChange={setConcurrency}
+              disabled={starting}
+            />
             <label className="lqa-composer-chip" title="运行环境">
               <AppIcon name="globe" size={15} />
               <select

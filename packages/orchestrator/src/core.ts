@@ -262,7 +262,7 @@ export class Coordinator {
       await client.query('SELECT pg_advisory_xact_lock(741005)');
       const slots = (
         await client.query<{ total: number; project: number }>(
-          "SELECT count(*)::integer AS total,count(*) FILTER(WHERE project_id=$1)::integer AS project FROM budget_reservations WHERE kind='concurrency' AND status='reserved'",
+          "SELECT count(*)::integer AS total,count(*) FILTER(WHERE b.project_id=$1)::integer AS project FROM budget_reservations b JOIN jobs j ON j.id=b.task_id WHERE b.kind='concurrency' AND b.status='reserved' AND j.role NOT IN ('coordinator','finalizer')",
           [data.projectId],
         )
       ).rows[0]!;
@@ -671,21 +671,24 @@ export class Coordinator {
       let lease = null;
       await this.tx(async (client) => {
         await client.query('SELECT pg_advisory_xact_lock(741005)');
-        lease = await claimTask(client, scope, seconds);
+        const slots = (
+          await client.query<{
+            children: number;
+            project: number;
+            control: number;
+          }>(
+            "SELECT count(*) FILTER(WHERE j.role NOT IN ('coordinator','finalizer'))::int children,count(*) FILTER(WHERE j.role NOT IN ('coordinator','finalizer') AND b.project_id=$1)::int project,count(*) FILTER(WHERE j.role IN ('coordinator','finalizer'))::int control FROM budget_reservations b JOIN jobs j ON j.id=b.task_id WHERE b.kind='concurrency' AND b.status='reserved'",
+            [scope.projectId],
+          )
+        ).rows[0]!;
+        lease = await claimTask(client, scope, seconds, {
+          children:
+            slots.children < this.platformSlots &&
+            slots.project < this.projectSlots,
+          control: slots.control < 1,
+        });
         if (!lease) return;
         const run = await runDTO(client, scope.projectId, lease.task.runId);
-        const counts = (
-          await client.query(
-            "SELECT count(*)::integer total,count(*) FILTER(WHERE project_id=$1)::integer project,count(*) FILTER(WHERE run_id=$2)::integer run FROM budget_reservations WHERE kind='concurrency' AND status='reserved'",
-            [scope.projectId, run.id],
-          )
-        ).rows[0];
-        if (
-          counts.total >= this.platformSlots ||
-          counts.project >= this.projectSlots ||
-          counts.run >= run.effectiveConfig.budget.concurrency
-        )
-          throw new StorageError('RATE_LIMITED');
         if (run.status === 'queued') await this.change(client, run, 'running');
         await client.query(
           "INSERT INTO budget_reservations(id,project_id,run_id,task_id,request_id,fencing_token,kind,reserved,status) VALUES($1,$2,$3,$4,$5,$6,'concurrency','{}','reserved')",
@@ -2501,6 +2504,34 @@ export class Coordinator {
         ).rows[0]!.now;
         if (now >= importDeadline) throw new StorageError('LEASE_EXPIRED');
       }
+      if (
+        ['explore', 'execute', 'reproduce', 'recover'].includes(
+          String(result['stage']),
+        )
+      ) {
+        const current = await runDTO(client, scope.projectId, run.id);
+        if (
+          current.status === 'running' &&
+          ![
+            'budget_limit',
+            'input_timeout',
+            'model_failure',
+            'setup_failure',
+          ].includes(current.terminationReason ?? '') &&
+          current.budgetUsed.activeSeconds <
+            current.effectiveConfig.budget.maxActiveSeconds
+        ) {
+          const jobs = (
+            await client.query<JobRow>(
+              'SELECT * FROM jobs WHERE project_id=$1 AND run_id=$2',
+              [scope.projectId, run.id],
+            )
+          ).rows;
+          // Dispatch is committed with the result. The manager's model call
+          // remains a separately leased job, outside this transaction.
+          await this.sessions.advance(client, current, jobs);
+        }
+      }
     });
   }
   async pulse(
@@ -2929,8 +2960,8 @@ export class Coordinator {
         const active = refreshed.some((j) =>
           ['queued', 'running'].includes(j.status),
         );
-        if (active) continue;
         if (
+          !active &&
           refreshed.some((j) => j.status === 'waiting') &&
           pending.some((row) => Date.parse(row.document.expiresAt) > Date.now())
         ) {
@@ -2938,6 +2969,20 @@ export class Coordinator {
             await this.change(client, run, 'awaiting_input');
           continue;
         }
+        if (
+          ![
+            'budget_limit',
+            'input_timeout',
+            'model_failure',
+            'setup_failure',
+          ].includes(run.terminationReason ?? '') &&
+          ['explore', 'plan', 'execute', 'reproduce', 'finalize'].includes(
+            run.phase,
+          ) &&
+          (await this.sessions.advance(client, run, refreshed))
+        )
+          continue;
+        if (active) continue;
         if (
           run.terminationReason &&
           [
@@ -2956,13 +3001,6 @@ export class Coordinator {
               j.status === 'succeeded' &&
               (j.result?.['stage'] ?? j.document.summary) === stage,
           );
-        if (
-          ['explore', 'plan', 'execute', 'reproduce', 'finalize'].includes(
-            run.phase,
-          ) &&
-          (await this.sessions.advance(client, run, refreshed))
-        )
-          continue;
         if (
           run.phase === 'auth' &&
           !succeeded('auth') &&
@@ -3175,7 +3213,7 @@ export class Coordinator {
   ): Promise<number> {
     const findings = (
       await client.query(
-        "SELECT * FROM findings WHERE project_id=$1 AND run_id=$2 AND status='suspected' ORDER BY id",
+        "SELECT f.* FROM findings f JOIN case_attempts a ON a.id=f.original_attempt_id AND a.project_id=f.project_id WHERE f.project_id=$1 AND f.run_id=$2 AND f.status='suspected' AND a.finished_at IS NOT NULL ORDER BY f.id",
         [run.projectId, run.id],
       )
     ).rows;

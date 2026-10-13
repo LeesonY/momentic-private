@@ -33,7 +33,7 @@ limits = {
     "maxDepth": integer(0, 5, default=2), "maxActiveSeconds": integer(60, 3600, default=600),
     "maxActionsPerCase": integer(1, 30, default=12), "maxActions": integer(10, 1000, default=120),
     "maxModelCalls": integer(1, 500, default=100), "maxReproductions": integer(0, 10, default=3),
-    "concurrency": integer(1, 16, default=2), "maxTotalTokens": integer(1000, 5000000, default=300000),
+    "concurrency": integer(1, 25, default=2), "maxTotalTokens": integer(1000, 5000000, default=300000),
 }
 D["BudgetLimits"] = obj(limits)
 D["BudgetOverrides"] = obj(copy.deepcopy(limits), [])
@@ -101,9 +101,11 @@ D["SessionCase"] = obj({**copy.deepcopy(D["CandidateCase"]["properties"]), "entr
 D["SessionDecision"] = obj({"action": enum("dispatch", "finish", "ask"), "rationale": text(2000, minLength=1), "exploreTargets": arr(URI, 2), "cases": arr(ref("SessionCase"), 4), "coverageGaps": arr(text(1000), 20)})
 D["SessionDecision"]["properties"]["question"] = text(2000, minLength=1)
 D["SessionConclusion"] = obj({"overview": text(4000, minLength=1), "caseComments": arr(obj({"caseId": UUID, "comment": text(1000)}), 30), "coverageGaps": arr(text(1000), 20)})
-D["SessionRound"] = obj({"round": integer(1, 6), "reason": text(2000), "caseIds": arr(UUID, 30), "exploreTargets": arr(URI, 30)})
-D["SessionReport"] = obj({"objective": text(4000), "round": integer(0, 6), "status": enum("planning", "working", "reviewing", "finalizing", "complete"), "plan": text(2000), "caseIds": arr(UUID, 30), "exploredUrls": arr(URI, 30), "coverageGaps": arr(text(2000), 100), "summary": text(4000), "history": arr(ref("SessionRound"), 6)})
+D["SessionRound"] = obj({"round": integer(1, 64), "reason": text(2000), "caseIds": arr(UUID, 30), "exploreTargets": arr(URI, 30)})
+D["SessionReport"] = obj({"objective": text(4000), "round": integer(0, 64), "status": enum("planning", "working", "reviewing", "finalizing", "complete"), "plan": text(2000), "caseIds": arr(UUID, 30), "exploredUrls": arr(URI, 30), "coverageGaps": arr(text(2000), 100), "summary": text(4000), "history": arr(ref("SessionRound"), 64)})
 D["SessionReport"]["properties"]["messageCursor"] = nullable(UUID)
+D["SessionReport"]["properties"]["reviewedTaskIds"] = arr(UUID, 200)
+D["SessionReport"]["properties"]["planningStopped"] = BOOL
 D["Report"]["properties"]["session"] = ref("SessionReport")
 D["InputRequest"] = obj({"id": UUID, "runId": UUID, "kind": enum("auth_profile", "one_time_code", "clarification", "scope_extension", "write_action"), "status": enum("pending", "resolved", "rejected", "expired"), "prompt": text(2000), "expiresAt": DATE, "version": VER})
 D["InputRequestPage"] = obj({"items": arr(ref("InputRequest"), 100)})
