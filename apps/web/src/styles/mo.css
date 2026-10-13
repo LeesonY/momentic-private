@@ -1770,3 +1770,19 @@ a.mo-menu-item {
   background: var(--color-bg-muted);
   color: var(--color-text-main);
 }
+
+.mo-range-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.mo-range-row input[type='range'] {
+  flex: 1 1 auto;
+}
+
+.mo-range-row .form-input {
+  width: 64px;
+  height: 28px;
+  min-height: 28px;
+}

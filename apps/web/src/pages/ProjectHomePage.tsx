@@ -39,6 +39,9 @@ type TaskIntent = NonNullable<
 
 /** Mo's "start with a brief" cards: each fills the composer with a request
  * whose 【】 blanks the user replaces before sending. */
+// Concurrent sub-agents a session may run; the contract caps budget.concurrency.
+const MAX_AGENTS = 16;
+
 const BRIEFS: {
   intent: TaskIntent;
   icon: AppIconName;
@@ -536,7 +539,7 @@ export const ProjectHomePage: React.FC = () => {
                 </details>
               </Popover>
               <Popover
-                title="并发代理"
+                title="最多并发代理"
                 testId="agents-popover"
                 trigger={(props) => (
                   <button
@@ -544,7 +547,7 @@ export const ProjectHomePage: React.FC = () => {
                     {...props}
                     className="mo-tool-button is-labeled"
                     aria-label="最多并发代理"
-                    data-testid="btn-agents"
+                    data-testid="agent-concurrency-picker"
                   >
                     <AppIcon name="users" size={16} />
                     <span>代理</span>
@@ -553,19 +556,40 @@ export const ProjectHomePage: React.FC = () => {
                 )}
               >
                 <div className="mo-range">
-                  <input
-                    type="range"
-                    min={1}
-                    max={16}
-                    value={concurrency}
-                    onChange={(e) => setConcurrency(Number(e.target.value))}
-                    aria-label="并发代理数"
-                  />
+                  <div className="mo-range-row">
+                    <input
+                      type="range"
+                      min={1}
+                      max={MAX_AGENTS}
+                      value={concurrency}
+                      onChange={(e) => setConcurrency(Number(e.target.value))}
+                      aria-label="并发代理数"
+                      data-testid="agent-concurrency-range"
+                    />
+                    <input
+                      type="number"
+                      className="form-input"
+                      min={1}
+                      max={MAX_AGENTS}
+                      value={concurrency}
+                      onChange={(e) => {
+                        const value = Math.round(Number(e.target.value));
+                        if (Number.isFinite(value))
+                          setConcurrency(
+                            Math.min(MAX_AGENTS, Math.max(1, value)),
+                          );
+                      }}
+                      aria-label="并发代理数"
+                      data-testid="agent-concurrency-number"
+                    />
+                  </div>
                   <div className="mo-range-scale">
                     <span>1</span>
-                    <span>16</span>
+                    <span>{MAX_AGENTS}</span>
                   </div>
-                  <p className="mo-setting-hint">实际并发还受平台配额限制。</p>
+                  <p className="mo-setting-hint">
+                    同时工作的子代理上限，实际并发还受平台配额限制。
+                  </p>
                 </div>
               </Popover>
               <Popover
