@@ -3,6 +3,8 @@ import { test } from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { Coordinator } from '../dist/core.js';
 import { RuntimeClient } from '../dist/runtime.js';
+import { SessionAgent } from '../dist/session-agent.js';
+import { sessionModelContext } from '../dist/session-schemas.js';
 import { parseContract } from '@localqa/contracts';
 
 test('waitForInput preserves options in input_requests document and event', async () => {
@@ -138,4 +140,145 @@ test('TaskRuntime input method forwards options to coordinator', async () => {
   ]);
 
   assert.deepEqual(forwardedOptions, ['选项1', '选项2']);
+});
+
+test('SessionContext and sessionModelContext include answeredQuestions with question, options and answer', async () => {
+  const projectId = randomUUID();
+  const runId = randomUUID();
+  const profileId = randomUUID();
+  const inputId = randomUUID();
+
+  const run = {
+    id: runId,
+    projectId,
+    phase: 'plan',
+    contextVersion: 1,
+    targetUrl: 'https://fixture.test/',
+    effectiveConfig: {
+      allowedOrigins: ['https://fixture.test'],
+      actionPolicy: 'non_submitting',
+      taskIntent: 'flow',
+      budget: { maxCases: 5, maxPages: 5, concurrency: 1 },
+      models: {
+        assertion: { profileId, version: 1 },
+      },
+    },
+  };
+
+  const sessionDoc = {
+    objective: '测试目标流程',
+    round: 1,
+    status: 'planning',
+    plan: '',
+    caseIds: [],
+    exploredUrls: [],
+    coverageGaps: [],
+    summary: '',
+    history: [],
+  };
+
+  const resolvedInput = {
+    id: inputId,
+    kind: 'clarification',
+    runId,
+    prompt: '你希望优先测试哪个业务流程？',
+    status: 'resolved',
+    options: ['流程A：登录与个人中心', '流程B：商品浏览与加购'],
+    version: 2,
+    expiresAt: new Date(Date.now() + 60000).toISOString(),
+  };
+
+  const answerMessage = {
+    id: randomUUID(),
+    redacted_text: '流程A：登录与个人中心',
+    created_at: new Date(),
+  };
+
+  const client = {
+    async query(sql) {
+      if (sql.includes('SELECT document FROM run_sessions')) {
+        return { rows: [{ document: sessionDoc }] };
+      }
+      if (
+        sql.includes('FROM run_messages') &&
+        sql.includes('actor_id IS NOT NULL')
+      ) {
+        return { rows: [answerMessage] };
+      }
+      if (
+        sql.includes('FROM input_requests') &&
+        sql.includes("status'='resolved'")
+      ) {
+        return { rows: [{ id: inputId, document: resolvedInput }] };
+      }
+      if (sql.includes('FROM run_messages m') && sql.includes('run_events e')) {
+        return { rows: [{ redacted_text: answerMessage.redacted_text }] };
+      }
+      if (sql.includes('FROM run_knowledge_bindings')) {
+        return { rows: [] };
+      }
+      if (sql.includes('FROM page_snapshots')) {
+        return { rows: [] };
+      }
+      if (sql.includes('FROM run_cases')) {
+        return { rows: [] };
+      }
+      if (sql.includes('FROM findings')) {
+        return { rows: [] };
+      }
+      if (sql.includes('FROM jobs WHERE') && sql.includes('status IN')) {
+        return { rows: [] };
+      }
+      if (sql.includes('FROM model_profile_versions')) {
+        return {
+          rows: [
+            {
+              document: {
+                id: profileId,
+                name: 'test-model',
+                endpoint: 'https://model.test/v1',
+                configuredModelId: 'test-model',
+                adapter: 'openai_compatible',
+                dataBoundary: 'internal',
+                capabilities: {
+                  structuredOutput: true,
+                  nativeTools: true,
+                  imageInput: false,
+                },
+                status: 'ready',
+                version: 1,
+              },
+            },
+          ],
+        };
+      }
+      return { rows: [] };
+    },
+  };
+
+  const coordinator = new Coordinator({
+    db: {},
+    vault: {},
+    serviceActor: { userId: randomUUID() },
+  });
+  const agent = new SessionAgent(coordinator);
+
+  const context = await agent.context(client, run);
+  assert.ok(context, 'context should not be null');
+  assert.equal(context.answeredQuestions.length, 1);
+  assert.deepEqual(context.answeredQuestions[0], {
+    question: '你希望优先测试哪个业务流程？',
+    options: ['流程A：登录与个人中心', '流程B：商品浏览与加购'],
+    answer: '流程A：登录与个人中心',
+  });
+
+  // 验证 sessionModelContext 将 answeredQuestions 传给模型
+  const modelContext = sessionModelContext(context);
+  assert.ok(Array.isArray(modelContext.answeredQuestions));
+  assert.equal(modelContext.answeredQuestions.length, 1);
+  assert.deepEqual(modelContext.answeredQuestions[0], {
+    question: '你希望优先测试哪个业务流程？',
+    options: ['流程A：登录与个人中心', '流程B：商品浏览与加购'],
+    answer: '流程A：登录与个人中心',
+  });
 });

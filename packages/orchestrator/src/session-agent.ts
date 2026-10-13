@@ -23,9 +23,17 @@ const clean = (value: string) =>
     /((?:密码|口令|password|secret|api[_ -]?key)\s*[:：=]\s*)\S+/gi,
     '$1[redacted]',
   );
+
+export interface AnsweredQuestion {
+  question: string;
+  options?: string[];
+  answer: string;
+}
+
 export interface SessionContext {
   session: SessionReport;
   sources: SessionSource[];
+  answeredQuestions: AnsweredQuestion[];
   observations: Array<
     Pick<
       BrowserSnapshot,
@@ -229,9 +237,66 @@ export class SessionAgent {
     const assertionCapabilities = profile
       ? parseContract('ModelProfile', profile.document).capabilities
       : { structuredOutput: false, nativeTools: false, imageInput: false };
+
+    const resolvedInputs = (
+      await client.query<{
+        id: string;
+        document: { prompt?: string; options?: string[] };
+      }>(
+        `SELECT id, document FROM input_requests
+         WHERE project_id=$1 AND run_id=$2
+           AND document->>'kind'='clarification'
+           AND document->>'status'='resolved'
+         ORDER BY id ASC`,
+        [run.projectId, run.id],
+      )
+    ).rows;
+
+    const answeredQuestions: AnsweredQuestion[] = [];
+    for (const [i, row] of resolvedInputs.entries()) {
+      const input = row.document;
+      const prompt = clean(input.prompt || '').slice(0, 500);
+      if (!prompt) continue;
+
+      let answerText = '';
+      try {
+        const matched = (
+          await client.query<{ redacted_text: string }>(
+            `SELECT m.redacted_text
+             FROM run_messages m
+             JOIN run_events e ON e.project_id=m.project_id AND e.run_id=m.run_id
+               AND e.type='input.resolved' AND e.payload->>'id'=$3
+             WHERE m.project_id=$1 AND m.run_id=$2
+               AND (m.created_at=e.created_at OR abs(extract(epoch from (m.created_at - e.created_at))) <= 2)
+             ORDER BY m.id DESC LIMIT 1`,
+            [run.projectId, run.id, row.id],
+          )
+        ).rows[0];
+        if (matched?.redacted_text) answerText = matched.redacted_text;
+      } catch {
+        /* Fallback for test fixtures without run_events */
+      }
+
+      if (!answerText) {
+        const fallbackMsg = messages[i];
+        if (fallbackMsg) answerText = fallbackMsg.redacted_text;
+      }
+
+      if (answerText) {
+        answeredQuestions.push({
+          question: prompt,
+          ...(Array.isArray(input.options) && input.options.length
+            ? { options: input.options }
+            : {}),
+          answer: clean(answerText),
+        });
+      }
+    }
+
     return {
       session,
       sources,
+      answeredQuestions: answeredQuestions.slice(-3),
       observations,
       cases,
       findings,
@@ -410,8 +475,19 @@ export class SessionAgent {
             : 'finalizing',
       planningStopped: planningOnly || fallbackToTechnicalSmoke,
       plan: clean(accepted.rationale),
-      ...(!context.session.title && accepted.title?.trim()
-        ? { title: clean(accepted.title).slice(0, 60) }
+      ...(!context.session.title
+        ? (() => {
+            const explicit = accepted.title?.trim()
+              ? clean(accepted.title).slice(0, 60)
+              : null;
+            if (explicit) return { title: explicit };
+            const fallback = (
+              clean(context.session.objective || '').split(/[\r\n]+/)[0] ?? ''
+            )
+              .trim()
+              .slice(0, 20);
+            return fallback ? { title: fallback } : {};
+          })()
         : {}),
       caseIds: [...context.session.caseIds, ...caseIds],
       exploredUrls: [

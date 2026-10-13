@@ -26,7 +26,7 @@ test('reviewSessionProposal extracts title and trims whitespace', () => {
   assert.equal(accepted.title, 'TodoMVC 待办流程');
 });
 
-test('SessionAgent writes title on first plan and never overwrites on subsequent plans', async () => {
+function makeTestSetup(objective = '测试 TodoMVC 流程') {
   const projectId = randomUUID();
   const runId = randomUUID();
   const profileId = randomUUID();
@@ -47,7 +47,7 @@ test('SessionAgent writes title on first plan and never overwrites on subsequent
   };
 
   let sessionDoc = {
-    objective: '测试 TodoMVC 流程',
+    objective,
     round: 1,
     status: 'planning',
     plan: '',
@@ -94,6 +94,9 @@ test('SessionAgent writes title on first plan and never overwrites on subsequent
       if (sql.includes('FROM findings')) {
         return { rows: [] };
       }
+      if (sql.includes('FROM input_requests')) {
+        return { rows: [] };
+      }
       if (sql.includes('FROM model_profile_versions')) {
         return {
           rows: [
@@ -132,15 +135,28 @@ test('SessionAgent writes title on first plan and never overwrites on subsequent
   coordinator.insertCase = async () => {};
 
   const agent = new SessionAgent(coordinator);
+  return {
+    run,
+    client,
+    agent,
+    getSessionDoc: () => sessionDoc,
+    setSessionDoc: (d) => {
+      sessionDoc = d;
+    },
+  };
+}
 
-  const jobRound0 = {
+test('SessionAgent writes explicit title on first plan and never overwrites on subsequent plans', async () => {
+  const { run, client, agent, getSessionDoc, setSessionDoc } = makeTestSetup();
+
+  const jobRound1 = {
     id: randomUUID(),
     role: 'coordinator',
     result: { stage: 'plan', sessionRound: 1 },
   };
 
-  // 1. 首次规划：传入 title，应成功写入 sessionDoc.title
-  await agent.applyPlan(client, run, jobRound0, {
+  // 1. 首次规划：传入 explicit title
+  await agent.applyPlan(client, run, jobRound1, {
     action: 'finish',
     rationale: '首次规划完成',
     title: 'TodoMVC 待办流程',
@@ -149,17 +165,20 @@ test('SessionAgent writes title on first plan and never overwrites on subsequent
     coverageGaps: [],
   });
 
-  assert.equal(sessionDoc.title, 'TodoMVC 待办流程');
+  assert.equal(getSessionDoc().title, 'TodoMVC 待办流程');
 
-  // 2. 第二次规划：sessionDoc 已有 title，即使新 proposal 给出新 title，也不覆盖
-  sessionDoc.round = 2;
-  const jobRound1 = {
+  // 2. 第二次规划：已有 title，即使新 proposal 给出不同 title，也不覆盖
+  const doc = getSessionDoc();
+  doc.round = 2;
+  setSessionDoc(doc);
+
+  const jobRound2 = {
     id: randomUUID(),
     role: 'coordinator',
     result: { stage: 'plan', sessionRound: 2 },
   };
 
-  await agent.applyPlan(client, run, jobRound1, {
+  await agent.applyPlan(client, run, jobRound2, {
     action: 'finish',
     rationale: '二次规划完成',
     title: '企图覆盖的全新标题',
@@ -169,8 +188,54 @@ test('SessionAgent writes title on first plan and never overwrites on subsequent
   });
 
   assert.equal(
-    sessionDoc.title,
+    getSessionDoc().title,
     'TodoMVC 待办流程',
     '已有的 title 不应被后续轮次覆盖',
   );
+});
+
+test('SessionAgent falls back to objective (first line, trimmed, capped at 20 chars) when model omits title', async () => {
+  const longObjective =
+    '这是一个超长的用户测试请求说明用于验证兜底标题截取功能正常运作\n第二行额外说明内容';
+  const { run, client, agent, getSessionDoc } = makeTestSetup(longObjective);
+
+  const job = {
+    id: randomUUID(),
+    role: 'coordinator',
+    result: { stage: 'plan', sessionRound: 1 },
+  };
+
+  // 模型未提供 title
+  await agent.applyPlan(client, run, job, {
+    action: 'finish',
+    rationale: '首次规划',
+    cases: [],
+    exploreTargets: [],
+    coverageGaps: [],
+  });
+
+  // 第一行取前 20 字符
+  const expected = longObjective.split('\n')[0].trim().slice(0, 20);
+  assert.equal(getSessionDoc().title, expected);
+  assert.equal(getSessionDoc().title.length, 20);
+});
+
+test('SessionAgent does not set title when both model title and objective are empty', async () => {
+  const { run, client, agent, getSessionDoc } = makeTestSetup('   \n  ');
+
+  const job = {
+    id: randomUUID(),
+    role: 'coordinator',
+    result: { stage: 'plan', sessionRound: 1 },
+  };
+
+  await agent.applyPlan(client, run, job, {
+    action: 'finish',
+    rationale: '首次规划无目标',
+    cases: [],
+    exploreTargets: [],
+    coverageGaps: [],
+  });
+
+  assert.equal(getSessionDoc().title, undefined, 'objective 为空时不写 title');
 });
