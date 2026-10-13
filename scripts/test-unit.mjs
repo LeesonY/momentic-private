@@ -35,6 +35,8 @@ const files = [
   'packages/orchestrator/test/boundary.test.mjs',
   'packages/orchestrator/test/auth-ai.test.mjs',
   'packages/orchestrator/test/session-planning.test.mjs',
+  'packages/orchestrator/test/session-title.test.mjs',
+  'packages/orchestrator/test/input-options.test.mjs',
   'packages/orchestrator/test/trusted-smoke.test.mjs',
   'packages/orchestrator/test/g3c-bound-model.test.mjs',
   'packages/orchestrator/test/g3d-process-model.test.mjs',

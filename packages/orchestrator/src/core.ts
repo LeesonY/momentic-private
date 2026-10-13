@@ -2603,6 +2603,7 @@ export class Coordinator {
     kind: InputRequest['kind'],
     prompt: string,
     expiresMs = 60000,
+    options?: string[],
   ): Promise<InputRequest> {
     return this.tx(async (client) => {
       const { job, run } = await this.validateLease(client, scope, proof);
@@ -2620,6 +2621,7 @@ export class Coordinator {
         prompt,
         expiresAt: new Date(Date.now() + expiresMs).toISOString(),
         version: 1,
+        ...(options?.length ? { options } : {}),
       });
       await client.query(
         'INSERT INTO input_requests(id,project_id,run_id,version,document) VALUES($1,$2,$3,1,$4)',

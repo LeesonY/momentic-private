@@ -2071,6 +2071,16 @@
         "version": {
           "type": "integer",
           "minimum": 1
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "maxItems": 4,
+          "minItems": 0
         }
       },
       "required": [

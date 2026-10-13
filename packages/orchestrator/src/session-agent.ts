@@ -410,6 +410,9 @@ export class SessionAgent {
             : 'finalizing',
       planningStopped: planningOnly || fallbackToTechnicalSmoke,
       plan: clean(accepted.rationale),
+      ...(!context.session.title && accepted.title?.trim()
+        ? { title: clean(accepted.title).slice(0, 60) }
+        : {}),
       caseIds: [...context.session.caseIds, ...caseIds],
       exploredUrls: [
         ...new Set([

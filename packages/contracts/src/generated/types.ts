@@ -982,6 +982,11 @@ export interface InputRequest {
   prompt: string;
   expiresAt: string;
   version: number;
+  /**
+   * @minItems 0
+   * @maxItems 4
+   */
+  options?: string[];
 }
 export interface InputRequestPage {
   /**
@@ -1433,6 +1438,14 @@ export interface Run {
   updatedAt: string;
   version: number;
   executionMode?: "smoke" | "regression";
+  title?: string | null;
+  stats?: {
+    cases: number;
+    passed: number;
+    issues: number;
+    blocked: number;
+    findings: number;
+  } | null;
 }
 export interface RunConfig {
   /**
@@ -1524,6 +1537,7 @@ export interface SessionReport {
    */
   reviewedTaskIds?: string[];
   planningStopped?: boolean;
+  title?: string | null;
 }
 export interface SessionRound {
   round: number;
@@ -1819,6 +1833,12 @@ export interface SessionDecision {
    */
   coverageGaps: string[];
   question?: string;
+  title?: string;
+  /**
+   * @minItems 0
+   * @maxItems 4
+   */
+  options?: string[];
 }
 export interface Step {
   id: string;

@@ -217,6 +217,7 @@ export class RuntimeClient {
     kind: InputRequest['kind'],
     prompt: string,
     expiresMs = 60000,
+    options?: string[],
   ): Promise<InputRequest> {
     return this.#coordinator.waitForInput(
       this.#scope,
@@ -224,6 +225,7 @@ export class RuntimeClient {
       kind,
       prompt,
       expiresMs,
+      options,
     );
   }
   poll(): Promise<void> {

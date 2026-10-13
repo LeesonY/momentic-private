@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "sourceHashes": {
-    "domain.schema.json": "480087cd4adffccde7d265b8e1adce04874d6c713beaf63279736b0a87591954",
-    "events.schema.json": "31d3a137af967a2ce3b213c9e7a7670307462bb784a89b98fcfb8cedb83b238a",
-    "openapi.json": "42eafcbf8489e6b038d139eef06e36816342ae4009a945dad29804489ad21eb0",
+    "domain.schema.json": "8ed25aec8860928dba7383734a1e0f309c78baffd71129c7f3aef23127f16f4e",
+    "events.schema.json": "9cf4d9ac541574862123a09bcfcf6b997941f9e43043b39e5543fb64bd9a67b7",
+    "openapi.json": "bfb11936ff9092301aa4299e3c26c458272b1506921ef03fed00a34fa3e55ac3",
     "regression.schema.json": "3311ab392986b0253fc833e5eb97eecefd6f612b767ed308fd8edd75a086b39f",
-    "report.schema.json": "4b392020b287698524d9a5b73e834fe7af91ba96ae11d31e7012c4a044524986",
-    "tools.schema.json": "bd5d8724c7a644905284bc31eda235225037019864f389c182ab7829f4cae7e3"
+    "report.schema.json": "4a3e177b1e4d0132fe4cc31b7e311766b24f85b71eebe54227eadfc678baaa2a",
+    "tools.schema.json": "9ae0f0fd5711605fb6c763f94d7cff423058ec989567d5fb2052c3597f42e5b6"
   },
   "definitions": [
     "ActionPermit",
