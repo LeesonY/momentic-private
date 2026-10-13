@@ -16,6 +16,10 @@ import {
   type Actor,
   type Database,
 } from '@localqa/storage';
+import {
+  CandidateLocatorFailure,
+  resolveCandidateLocator,
+} from './candidate-locator-recovery.js';
 
 interface QueuedCandidate {
   id: string;
@@ -377,13 +381,23 @@ export class CandidateVerifier {
           });
           httpStatus = snapshot.responseStatus;
         } else if (step.kind === 'click' || step.kind === 'type_text') {
-          await observe();
-          if (!session.resolveRegressionLocator)
-            throw new VerificationBlocked('LOCATOR_UNSUPPORTED');
-          const target: NodeTarget = await session.resolveRegressionLocator(
-            step.locator,
-            deadline,
-          );
+          // The frozen locator is resolved only *before* the action. A DOM
+          // snapshot that pre-dates a uniquely added control can be refreshed
+          // at most twice. Never retry a dispatched browser click or typing.
+          let target: NodeTarget;
+          try {
+            target = await resolveCandidateLocator(
+              session,
+              step.locator,
+              deadline,
+            );
+          } catch (error) {
+            throw new VerificationBlocked(
+              error instanceof CandidateLocatorFailure
+                ? error.code
+                : 'VERIFICATION_LOCATOR_FAILED',
+            );
+          }
           snapshot = await tools(
             step.kind === 'click'
               ? { name: 'click', args: { target } }
