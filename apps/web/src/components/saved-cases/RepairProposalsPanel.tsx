@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { RepairSuggestionRecord } from '@localqa/contracts';
 import type {
   RepairProposal,
@@ -15,6 +15,7 @@ import {
   type LocatorMaintenancePreview,
 } from './locatorMaintenanceDraft.ts';
 import { createLocatorMaintenanceDraft } from '../../api/locatorMaintenance.ts';
+import { rankLocatorMaintenanceCandidates } from './locatorMaintenanceRanking.ts';
 
 interface Props {
   caseId: string;
@@ -66,6 +67,12 @@ export const RepairProposalsPanel: React.FC<Props> = ({
   const [evidenceHistory, setEvidenceHistory] = useState<
     Record<string, RepairCandidateEvidence[]>
   >({});
+  // Read-only structural screening. The backend still validates the original
+  // frozen witness, and only the human-approved candidate can become baseline.
+  const screening = useMemo(
+    () => rankLocatorMaintenanceCandidates(baselineVersion, repairSuggestions),
+    [baselineVersion, repairSuggestions],
+  );
 
   useEffect(() => {
     let active = true;
@@ -351,14 +358,51 @@ export const RepairProposalsPanel: React.FC<Props> = ({
       {!loading && repairSuggestions.length > 0 && (
         <div className="lqa-card-list" data-testid="locator-repair-suggestions">
           <h3>执行器发现的定位修复候选（未验证）</h3>
+          <p className="text-sm" role="status" data-testid="locator-candidate-screening">
+            已自动筛选 {repairSuggestions.length} 条见证建议：
+            可预览 {screening.candidates.length} 条
+            {screening.excludedCount > 0
+              ? ` · 排除过期、重复或不满足安全规则的 ${screening.excludedCount} 条`
+              : ''}
+            。排序只代表结构匹配程度，不代表业务等价或验证通过。
+          </p>
+          {screening.recommended ? (
+            <div className="panel stack stack-sm" data-testid="locator-candidate-recommendation">
+              <strong>优先复核 · 步骤 {screening.recommended.preview.stepIndex + 1}</strong>
+              <p className="text-sm muted">
+                {screening.recommended.rationale}。
+                已优先选择最新失败任务中的唯一高匹配候选；
+                修复前后差异和所有断言仍需人工核对。
+              </p>
+              {canCreate && !archived && (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={busy || !baselineVersion}
+                  onClick={() => prepareMaintenance(screening.recommended!.record)}
+                  data-testid="btn-preview-recommended-repair"
+                >
+                  预览推荐修复并准备独立验证
+                </button>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm muted" data-testid="locator-candidate-review-required">
+              当前不存在唯一的高匹配候选，或最新失败任务的建议已失效。
+              请逐条检查下方有效候选，不会自动猜测业务含义。
+            </p>
+          )}
+          {screening.candidates.length === 0 && (
+            <p className="text-sm muted">当前没有可安全生成维护草稿的建议。</p>
+          )}
           <p className="text-sm muted">
             这些记录来自已审核版本的真实浏览器观察，不是已确认的产品
             Bug，也不是可直接执行的修复。
             需要人工判断业务等价性，另行验证候选版本并通过正式审核。
           </p>
-          {repairSuggestions.map((record) => (
+          {screening.candidates.map(({ record, suggestionIndex, rationale, newestTask }) => (
             <details
-              key={`${record.taskId}:${record.suggestion.source.stepIndex}`}
+              key={`${record.taskId}:${suggestionIndex}`}
               className="lqa-item-card"
             >
               <summary>
@@ -371,6 +415,10 @@ export const RepairProposalsPanel: React.FC<Props> = ({
               </summary>
               <p className="text-xs muted">
                 运行 {record.runId} · 已审核来源版本 {record.sourceVersionId}
+              </p>
+              <p className="text-xs muted">
+                筛选依据：{rationale} · {newestTask ? '最新失败任务' : '历史任务'}
+                · 候选原始序号 {suggestionIndex + 1}
               </p>
               <p className="text-xs muted">
                 诊断 {record.suggestion.reasonCode} · 快照{' '}

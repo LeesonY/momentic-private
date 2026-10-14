@@ -256,23 +256,29 @@ export function registerRepairProposalRoutes(router: Router): void {
           )
         ).rows
           .flatMap((row) => {
-            if (!Array.isArray(row.hints)) return [];
-            // Fail closed on stale/malformed result JSON. The signed result
-            // remains available for audit, but is never made a client DTO.
-            return row.hints.slice(0, 3).flatMap((hint) => {
-              try {
-                return [
-                  parseContract('RepairSuggestionRecord', {
-                    runId: row.run_id,
-                    taskId: row.id,
-                    sourceVersionId: row.source_version_id,
-                    suggestion: hint,
-                  }),
-                ];
-              } catch {
-                return [];
-              }
-            });
+            if (
+              !Array.isArray(row.hints) ||
+              row.hints.length === 0 ||
+              row.hints.length > 3
+            )
+              return [];
+            // Keep the original index of each DB-bound Worker suggestion:
+            // dropping just one invalid entry would shift the index of every
+            // following candidate, causing a clicked candidate to address a
+            // different original witness in the draft-creation API.
+            // In that case fail closed for the *whole task* instead.
+            try {
+              return row.hints.map((hint) =>
+                parseContract('RepairSuggestionRecord', {
+                  runId: row.run_id,
+                  taskId: row.id,
+                  sourceVersionId: row.source_version_id,
+                  suggestion: hint,
+                }),
+              );
+            } catch {
+              return [];
+            }
           })
           .slice(0, 10);
         return {
