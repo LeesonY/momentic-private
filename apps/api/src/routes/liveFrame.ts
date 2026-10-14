@@ -76,15 +76,22 @@ export function registerLiveFrameRoutes(router: Router): void {
         return undefined;
       }
       const end = bytes.indexOf(10);
-      let head: Record<string, unknown> = {};
       if (end < 10 || end > 1024) {
         ctx.res.statusCode = 204;
         ctx.res.end();
         return undefined;
       }
-      try {
-        head = JSON.parse(bytes.subarray(0, end).toString('utf8'));
-      } catch {
+      const head = (() => {
+        try {
+          return JSON.parse(bytes.subarray(0, end).toString('utf8')) as Record<
+            string,
+            unknown
+          >;
+        } catch {
+          return null;
+        }
+      })();
+      if (!head) {
         ctx.res.statusCode = 204;
         ctx.res.end();
         return undefined;

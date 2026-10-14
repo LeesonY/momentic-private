@@ -219,12 +219,7 @@ export async function suggestSemanticLocatorRepairs(input: {
       value: node.role,
       name: node.accessibleName,
     };
-    let verified = false;
-    try {
-      verified = await verifyCandidate(proposed, signal);
-    } catch {
-      verified = false;
-    }
+    const verified = await verifyCandidate(proposed, signal).catch(() => false);
     if (!verified || signal.aborted) continue;
     safe.push({
       kind: 'locator_semantic_candidate' as const,

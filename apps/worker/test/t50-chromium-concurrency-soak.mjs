@@ -20,7 +20,7 @@ const percentile = (q) => {
 };
 try {
   await Promise.all(
-    Array.from({ length: CLIENTS }, async (_, index) => {
+    Array.from({ length: CLIENTS }, async () => {
       for (let round = 0; round < ROUNDS; round++) {
         const start = performance.now();
         const session = await manager.createSession({

@@ -6,8 +6,8 @@ import { suggestSemanticLocatorRepairs } from '../dist/ai-locator-suggestions.js
 
 const URL = 'https://fixture.test/t52-chromium';
 const HTML = `<!doctype html>
-  <button data-testid="t52-inspect" id="inspect">Inspect details</button>
-  <button data-testid="t52-view" id="view">View details</button>
+  <button id="inspect" aria-label="Inspect details">Inspect details</button>
+  <button id="view" aria-label="View details">View details</button>
   <output id="count">0</output>
   <script>document.querySelectorAll('button').forEach(button=>
     button.addEventListener('click',()=>document.querySelector('#count').textContent='1'))</script>`;

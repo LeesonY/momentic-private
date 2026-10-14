@@ -42,12 +42,12 @@ test(
           if (inject && args[0].name === 'observe') {
             inject = false;
             await page.evaluate(() => {
-              const button = document.createElement('button');
+              const button = globalThis.document.createElement('button');
               button.textContent = 'Next';
               button.addEventListener('click', () => {
-                window.clicks = (window.clicks ?? 0) + 1;
+                globalThis.window.clicks = (globalThis.window.clicks ?? 0) + 1;
               });
-              document.body.append(button);
+              globalThis.document.body.append(button);
             });
           }
           return receipt;
@@ -65,7 +65,7 @@ test(
         { signal: new AbortController().signal },
       );
       assert.equal(clicked.status, 'succeeded');
-      assert.equal(await page.evaluate(() => window.clicks ?? 0), 1);
+      assert.equal(await page.evaluate(() => globalThis.window.clicks ?? 0), 1);
       assert.equal(inject, false);
     });
   },
