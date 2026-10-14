@@ -145,6 +145,10 @@ export interface AuthFlowAdapters {
   ): Promise<CriterionResult>;
   /** Fresh read-only observation of the current page (agent mode). */
   observe?(signal: AbortSignal): Promise<BrowserSnapshot>;
+  /** Optional browser-backed check performed *before* requesting a mutating
+   * grant. A stale target is never granted or executed, so it can safely be
+   * re-observed without replaying an unknown credential/submit outcome. */
+  preflightTarget?(target: NodeTarget, signal: AbortSignal): Promise<boolean>;
 }
 
 /** What the agent driver may see: variable names and notes, never values. */
@@ -888,12 +892,15 @@ export async function runAuthFlow(
         .filter((variable) => variable.sensitive)
         .map((variable) => values.get(variable.name)!),
     );
-    let current = requireSnapshot(
-      await perform('navigate_auth', 'login_url', { kind: 'navigate' }),
-    );
+    requireSnapshot(await perform('navigate_auth', 'login_url', { kind: 'navigate' }));
+    // SPA hydration commonly mutates the login form after domcontentloaded.
+    // Observe after the initial settle instead of letting the model act on the
+    // navigation-time snapshot. The first snapshot still records navigation.
+    let current = await observeFresh();
     const history: AgentLoginHistoryEntry[] = [];
     let issue: string | null = null;
     let otpUsed = false;
+    let staleReobservations = 0;
     for (let round = 0; round < AGENT_LOGIN_MAX_DECISIONS; round++) {
       check();
       let decision: AgentLoginDecision;
@@ -946,6 +953,26 @@ export async function runAuthFlow(
         issue = 'TARGET_INVALID';
         continue;
       }
+      // A model decision can take seconds while reactive UI changes. Validate
+      // the exact snapshot-backed target read-only before any auth permit,
+      // reservation or browser mutation. Never retry after a granted action:
+      // it could already have executed even when its outcome is unknown.
+      if (adapters.preflightTarget) {
+        let ready: boolean;
+        try {
+          ready = await adapters.preflightTarget(target, signal);
+        } catch (error) {
+          throw failure(error, 'TARGET_PREFLIGHT_FAILED');
+        }
+        if (!ready) {
+          if (++staleReobservations > 3)
+            throw new Stop('blocked', 'TARGET_STALE');
+          issue = 'TARGET_STALE';
+          current = await observeFresh();
+          continue;
+        }
+      }
+      staleReobservations = 0;
       const label = `${node.role}:${node.name}`.slice(0, 120);
       if (decision.kind === 'fill') {
         const secret = values.get(decision.variable);

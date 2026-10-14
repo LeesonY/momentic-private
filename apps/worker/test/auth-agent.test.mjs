@@ -277,6 +277,7 @@ function run(config = {}) {
     criterion: AGENT_LOGIN_CRITERION,
     ownedEvidence: (observed) => [observed.snapshotId],
   });
+  if (config.preflightTarget) adapters.preflightTarget = config.preflightTarget;
   return {
     browser,
     runtime,
@@ -377,6 +378,39 @@ test('invalid proposals are re-asked without any grant or browser effect', async
   ]);
   assert.equal(runtime.log.grants.length, 4);
   assert.equal(browser.calls.filter((call) => call.kind === 'fill').length, 2);
+});
+
+test('stale AI login target is reobserved before any credential grant', async () => {
+  let probes = 0;
+  const attempt = run({
+    steps: [signIn[0], signIn[0], ...signIn.slice(1)],
+    preflightTarget: async () => ++probes !== 1,
+  });
+  const outcome = await attempt.outcome;
+  assert.equal(outcome.status, 'succeeded', outcome.reasonCode);
+  assert.equal(probes, 4);
+  assert.equal(attempt.runtime.log.grants.length, 4);
+  assert.equal(attempt.browser.calls.filter((x) => x.kind === 'fill').length, 2);
+  const requests = attempt.model.requests.map((x) =>
+    JSON.parse(x.messages[1].content[0].text),
+  );
+  assert.equal(requests[1].issue, 'TARGET_STALE');
+  assert.notEqual(requests[0].observation.url, undefined);
+  assert.ok(!JSON.stringify(requests).includes(secret));
+});
+
+test('persistently changing login DOM blocks without granting or filling', async () => {
+  const attempt = run({
+    steps: [signIn[0]],
+    preflightTarget: async () => false,
+  });
+  const outcome = await attempt.outcome;
+  assert.equal(outcome.status, 'blocked');
+  assert.equal(outcome.reasonCode, 'TARGET_STALE');
+  assert.deepEqual(attempt.runtime.log.grants.map((g) => g.action), ['navigate_auth']);
+  assert.equal(attempt.browser.calls.filter((x) => x.kind === 'fill').length, 0);
+  assert.equal(attempt.runtime.log.finishes.length, 0);
+  assert.equal(attempt.model.requests.length, 4);
 });
 
 test('a model "done" on the sign-in form never passes the oracle', async () => {

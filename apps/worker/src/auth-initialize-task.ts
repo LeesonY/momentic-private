@@ -4,6 +4,7 @@ import {
   BrowserSessionImpl,
   createPrivateAuthPort,
   createTrustedBrowserAuthPrimitives,
+  resolveTarget,
 } from '@localqa/browser';
 import type { AuthSessionBinding } from '@localqa/browser';
 import { authCriterionFor } from '@localqa/domain';
@@ -187,6 +188,22 @@ export async function initializeBrowserAuthentication(
             // ledger; its immutable ID is the supporting evidence for this oracle.
             ownedEvidence: (snapshot) => [snapshot.snapshotId],
           });
+    if (profile.mode === 'agent') {
+      // The browser validates the same immutable target the model selected.
+      // No grant/credential is issued if a reactive page invalidated it.
+      adapters.preflightTarget = async (target, preflightSignal) => {
+        if (preflightSignal.aborted) throw new Error('CANCELLED');
+        const observed = await session!.getSnapshot();
+        if (
+          observed.snapshotId !== target.snapshotId ||
+          observed.pageId !== target.pageId
+        ) return false;
+        const resolved = await resolveTarget(session!.getPage(), target, observed);
+        if (resolved.status !== 'resolved') return false;
+        await resolved.elementHandle.dispose().catch(() => undefined);
+        return !preflightSignal.aborted;
+      };
+    }
     // The auth job runs under the executor lease, so agent sign-in uses the
     // run's frozen executor model binding and its budget.
     const agent =
