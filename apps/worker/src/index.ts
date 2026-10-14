@@ -40,11 +40,19 @@ import { startLiveDiagnostics } from './live-diagnostics.js';
 import { createRegressionAiAction } from './regression-ai.js';
 import { initializeBrowserAuthentication } from './auth-initialize-task.js';
 import { withApprovedBrowserAuth } from './auth-import-task.js';
+import { finishPermissionLockedQuestion } from './session-permission.js';
 import {
   hasReadableMainContent,
   isFixedTechnicalSmoke,
 } from './technical-smoke.js';
 export { CandidateVerifier } from './candidate-verifier.js';
+
+/** Expected failed browser effects are scoped to their job, never the run. */
+class ScopedBrowserActionFailure extends Error {
+  constructor(readonly reasonCode: string) {
+    super('BROWSER_ACTION_FAILED');
+  }
+}
 
 export interface WorkerOptions {
   runtime: RuntimeClient;
@@ -242,6 +250,19 @@ export class Worker {
             throw new DomainError(record.errorCode ?? 'MODEL_FAILURE');
           }
           const decision = parseContract('SessionDecision', record.data);
+          const permissionLocked = finishPermissionLockedQuestion(
+            work.run.effectiveConfig.actionPolicy,
+            decision,
+          );
+          if (permissionLocked) {
+            // A clarification cannot expand a frozen run's write permission.
+            // Persist the gap and finish instead of repeatedly asking/charging.
+            await this.runtime.finish(proof, {
+              stage: 'plan',
+              decision: permissionLocked,
+            });
+            return true;
+          }
           if (decision.action === 'ask') {
             if (
               !decision.question?.trim() ||
@@ -458,7 +479,10 @@ export class Worker {
               result.status === 'cancelled' ? 'cancelled' : 'failed',
               null,
             );
-            throw new DomainError(result.reasonCode ?? 'BROWSER_FAILED');
+            if (result.status === 'cancelled') throw new DomainError('CANCELLED');
+            // A completed, failed browser action belongs to this child job.
+            // Escalating it as setup_failure cancels unrelated active tasks.
+            throw new ScopedBrowserActionFailure(result.reasonCode ?? 'BROWSER_FAILED');
           }
           try {
             if (signal.aborted) throw new DomainError('CANCELLED');
@@ -1285,6 +1309,32 @@ export class Worker {
         );
         return true;
       };
+      const runBrowserWork = async (): Promise<boolean> => {
+        try {
+          return await executeBrowserWork();
+        } catch (error) {
+          if (!(error instanceof ScopedBrowserActionFailure)) throw error;
+          // The failed browser action was already settled in the action ledger.
+          // Do not retry it or turn a single inaccessible control into a
+          // run-wide setup error. Case criteria remain not_evaluated.
+          await this.runtime.finish(
+            proof,
+            {
+              stage: work.stage,
+              browserFailureCode: error.reasonCode,
+              warnings: ['Browser action failed; remaining work was not verified'],
+            },
+            work.definition?.criteria.map((criterion) => ({
+              criterionId: criterion.id,
+              result: 'not_evaluated' as const,
+              reason: error.reasonCode,
+              evidenceRefs: [],
+            })),
+            error.reasonCode,
+          );
+          return true;
+        }
+      };
       if (work.authStateId) {
         const profile = await this.runtime.authProfile(proof);
         if (!profile || !(this.browser instanceof BrowserManager))
@@ -1316,7 +1366,7 @@ export class Worker {
             navigationTimeoutMs: 5000,
             onAuthenticated: async (authorized) => {
               session = authorized;
-              await executeBrowserWork();
+              await runBrowserWork();
             },
           },
           signal,
@@ -1353,7 +1403,7 @@ export class Worker {
       // Await work before entering finally. Returning the unresolved promise
       // closes the Chromium Session while replayRegression is still acting,
       // turning a legitimate navigation into "BrowserSession is closed".
-      return await executeBrowserWork();
+      return await runBrowserWork();
     } catch (error) {
       const code =
         error instanceof StorageError || error instanceof DomainError

@@ -689,6 +689,22 @@ export const ProjectHomePage: React.FC = () => {
           </div>
         </form>
 
+        <div className="mo-composer-notes" data-testid="run-write-policy-notice">
+          <label>
+            <input
+              type="checkbox"
+              checked={allowWrites && taskIntent !== 'plan' && !!selectedEnvId}
+              disabled={taskIntent === 'plan' || !selectedEnvId || starting}
+              onChange={(event) => setAllowWrites(event.target.checked)}
+              data-testid="allow-business-writes-visible"
+            />
+            {' '}
+            {allowWrites && taskIntent !== 'plan' && !!selectedEnvId
+              ? '已启用业务写操作：仅在所选测试环境与授权范围内执行，可能产生测试数据。'
+              : '当前为只读测试：不能提交新建、修改或删除操作。需要测试提交时请明确勾选。'}
+          </label>
+        </div>
+
         {(usesDefaultAuth || !selectedEnv) && (
           <div className="mo-composer-notes">
             {usesDefaultAuth && (
