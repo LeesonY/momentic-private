@@ -1,0 +1,70 @@
+{
+  "id": "T55-66-worker-lease-crash-and-coordinator-recovery",
+  "date": "2026-10-14",
+  "environment": "192.168.111.66",
+  "result": "passed",
+  "testFile": "packages/storage/test/t55-expired-worker-failover.integration.mjs",
+  "testedSourceBase": "94f297b",
+  "execution": {
+    "location": "66 host only",
+    "data": "Disposable PostgreSQL 18 container on a dedicated internal Docker network; fixture database localqa_t55; explicit safety guard against using production hostname or database name",
+    "runner": "Isolated Node 24 image derived from the already deployed Worker t54 image, with only the T55 test script overlaid",
+    "model": "No model or paid provider calls",
+    "limits": {
+      "postgres": "1.5 CPU/1GB RAM, tmpfs 768MB, no host exposed port",
+      "node": "2 CPU/2GB RAM/PID max 128"
+    },
+    "preexistingBusinessDataModified": false,
+    "disposableResourcesRemoved": true
+  },
+  "checks": [
+    {
+      "name": "T55.1 concurrent expired-lease recovery is single-winner, subsequent fencing increment, stale heartbeat/complete denial, successful replacement completion, single recovery audit",
+      "result": "passed"
+    },
+    {
+      "name": "T55.2 action intent with unknown side effect interrupts instead of being requeued, stamps unknown, charges reserved action budget exactly once, denies stale holder",
+      "result": "passed"
+    },
+    {
+      "name": "T55.3 a run already cancelling is not resurrected by expiry reconciliation",
+      "result": "passed"
+    },
+    {
+      "name": "T55.4 real SIGKILL terminates a separate process after it acquires a one-second lease; database requeues only after actual expiry; a fresh process lease takes over and completes",
+      "result": "passed"
+    },
+    {
+      "name": "T55.5 actual Coordinator.cancel and Coordinator.tick converge an expired crashed task to cancelled run, report.ready and run.finished emitted once, repeated tick idempotent and old lease denied",
+      "result": "passed"
+    }
+  ],
+  "lastRun": {
+    "nodeTests": 5,
+    "passed": 5,
+    "failed": 0,
+    "durationMs": 9555
+  },
+  "formatting": "Prettier check passed in an isolated 66 container",
+  "attempts": [
+    "Initial 4-test attempt: T55.1/T55.2 passed, T55.3 failed because the test fixture bypassed a version_guard trigger, and T55.4 was contaminated by that failed fixture. Corrected fixture version increment, reran on a fresh disposable PostgreSQL instance: 4/4 passed.",
+    "First expanded 5-test attempt failed at module loading because the storage test package did not declare @localqa/orchestrator as a dependency; corrected to the explicit relative project entrypoint.",
+    "Expanded 5/5 passed, then formatted on 66 and repeated against fresh isolated database: 5/5 passed."
+  ],
+  "postRun": {
+    "coreContainersHealthy": "6/6",
+    "readyzHTTP": 200,
+    "currentBusinessActiveRuns": 0,
+    "residualTemporaryT55Containers": 0,
+    "residualTemporaryT55Networks": 0,
+    "productionReleaseSymlink": "releases/t54-94f297b",
+    "onlineRuntimeChangedThisBatch": false
+  },
+  "limitations": [
+    "SIGKILL covered a real standalone database lease-holder child process, not a fully configured Worker.once process with a live Chromium session.",
+    "The isolated database tests exercise real PostgreSQL leases and one actual Coordinator.tick cancellation/report convergence but do not run the whole interactive Explorer-Executor-Finalizer model workflow.",
+    "No hours-long soak, multi-instance orchestration, real model recovery, or database network partition was performed.",
+    "No runtime product defect was confirmed in the passing covered cases; this delivery adds regression evidence and test coverage, not a production logic change.",
+    "Full fresh-image Docker build remains blocked by external npm registry reachability on the 66 host; isolated test image reuses prior tested local runtime packages."
+  ]
+}
