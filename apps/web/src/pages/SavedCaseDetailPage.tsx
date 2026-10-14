@@ -16,6 +16,7 @@ import { SavedCaseYamlExportModal } from '../components/saved-cases/SavedCaseYam
 import { SavedCaseDuplicateModal } from '../components/saved-cases/SavedCaseDuplicateModal.tsx';
 import { RepairProposalsPanel } from '../components/saved-cases/RepairProposalsPanel.tsx';
 import { LocatorMaintenancePanel } from '../components/saved-cases/LocatorMaintenancePanel.tsx';
+import { LocatorEffectivenessPanel } from '../components/saved-cases/LocatorEffectivenessPanel.tsx';
 import {
   LifecycleScopeGuard,
   findCaseAcrossPages,
@@ -675,6 +676,25 @@ export const SavedCaseDetailPage: React.FC = () => {
           </div>
         </section>
       )}
+
+
+      <LocatorEffectivenessPanel
+        caseId={caseRecord.id}
+        canReview={
+          currentMember?.role === 'owner' ||
+          currentUser?.globalRole === 'admin'
+        }
+        revisionKey={versions.map(
+          (version) => `${version.id}:${version.reviewStatus}`,
+        ).join('|')}
+        onInspectVersion={(versionId) => {
+          // Do not fall through to an unrelated version if this version is
+          // no longer present in the authoritative paginated version list.
+          if (!versions.some((version) => version.id === versionId)) return;
+          setSelectedVersionId(versionId);
+          setActiveTab('document');
+        }}
+      />
 
       <RepairProposalsPanel
         key={caseRecord.id}

@@ -86,6 +86,53 @@ export function listLocatorCandidateComparison(
     `/saved-cases/${encode(caseId)}/locator-maintenance/${encode(taskId)}/comparison`,
   );
 }
+
+/** Retrospective metrics based only on trusted DB bindings and human reviews.
+ * A 90-day sample, max 100 drafts; not an AI recommendation accuracy score. */
+export interface LocatorMaintenanceEffectiveness {
+  sampleWindowDays: number;
+  sampleLimit: number;
+  truncated: boolean;
+  metrics: {
+    drafts: number;
+    verifiedCompleted: number;
+    verifiedPassed: number;
+    verifiedFailed: number;
+    verifiedInconclusive: number;
+    verificationPending: number;
+    humanReviewed: number;
+    humanApproved: number;
+    humanRejected: number;
+    passedButRejected: number;
+  };
+  byKind: {
+    kind: 'locator_name_variation' | 'locator_semantic_candidate';
+    drafts: number;
+    verifiedPassed: number;
+    humanApproved: number;
+    passedButRejected: number;
+  }[];
+  items: {
+    candidateVersionId: string;
+    version: number;
+    taskId: string;
+    suggestionIndex: number | null;
+    kind: 'locator_name_variation' | 'locator_semantic_candidate' | null;
+    createdAt: string;
+    reviewStatus: 'draft' | 'approved' | 'rejected';
+    reviewedAt: string | null;
+    reviewReason: string | null;
+    verificationStatus: 'queued' | 'running' | 'completed' | null;
+    verificationOutcome: 'passed' | 'failed' | 'inconclusive' | null;
+    verifiedPassed: boolean;
+    screenshotAvailable: boolean;
+  }[];
+}
+export function getLocatorMaintenanceEffectiveness(
+  caseId: string,
+): Promise<LocatorMaintenanceEffectiveness> {
+  return call(`/saved-cases/${encode(caseId)}/locator-maintenance/effectiveness`);
+}
 export function getLocatorMaintenanceInfo(
   versionId: string,
 ): Promise<LocatorMaintenanceInfo> {

@@ -120,6 +120,200 @@ function verificationOutput(row: {
 
 export function registerLocatorMaintenanceRoutes(router: Router): void {
 
+
+  // A bounded, read-only quality sample. Never infer "AI recommendation
+  // accuracy" from a successful locator replay: human review and verified
+  // browser behavior are separate independent observations.
+  router.get(
+    '/api/v1/saved-cases/{caseId}/locator-maintenance/effectiveness',
+    async (ctx: RequestContext) => {
+      await requireAuth(ctx);
+      const summary = await ctx.api.db.actor(ctx.actor!, async (client) => {
+        const saved = (
+          await client.query<{ id: string; project_id: string }>(
+            'SELECT id,project_id FROM saved_cases WHERE id=$1',
+            [ctx.params.caseId!],
+          )
+        ).rows[0];
+        if (!saved) throw new StorageError('NOT_FOUND');
+        await authorize(client, saved.project_id, 'read');
+        const owner = (
+          await client.query<{ allowed: boolean }>(
+            "SELECT can_project($1,'owner') AS allowed",
+            [saved.project_id],
+          )
+        ).rows[0]?.allowed === true;
+        // Reviewer-only: free-text decision reasons and retained evidence
+        // receipts must not leak to project operators or viewers.
+        if (!owner) throw new StorageError('NOT_FOUND');
+        const rows = (
+          await client.query<{
+            case_version_id: string;
+            version: number;
+            task_id: string;
+            suggestion_index: number | null;
+            suggestion_kind: string | null;
+            created_at: Date;
+            review_status: string;
+            reviewed_at: Date | null;
+            reason: string | null;
+            verification_id: string | null;
+            verification_status: string | null;
+            outcome: string | null;
+            fully_verified: boolean;
+            screenshot_witness: boolean;
+            retained_screenshot: boolean;
+          }>(
+            `SELECT d.case_version_id,v.version,d.task_id,d.suggestion_index,
+                    CASE WHEN d.suggestion_index IS NOT NULL
+                         AND jsonb_typeof(j.result->'repairSuggestions')='array'
+                         THEN j.result->'repairSuggestions'->d.suggestion_index->>'kind'
+                         ELSE NULL END AS suggestion_kind,
+                    d.created_at,v.review_status,v.reviewed_at,
+                    CASE WHEN $3::boolean THEN review.approved_body->>'reason'
+                         ELSE NULL END AS reason,
+                    latest.id AS verification_id,
+                    latest.status AS verification_status,latest.outcome,
+                    COALESCE(latest.status='completed'
+                      AND latest.outcome='passed'
+                      AND latest.result->>'fullyVerified'='true'
+                      AND latest.candidate_sha256=d.candidate_sha256
+                      AND latest.worker_id NOT LIKE 't13-legacy-%',false) AS fully_verified,
+                    COALESCE(EXISTS(
+                      SELECT 1 FROM repair_candidate_evidence ev
+                      WHERE ev.project_id=d.project_id
+                        AND ev.verification_id=latest.id
+                        AND ev.case_version_id=d.case_version_id
+                        AND ev.fencing_token=latest.fencing_token
+                        AND ev.criterion_passed=true
+                        AND ev.screenshot_sha256 IS NOT NULL
+                    ) OR EXISTS(
+                      SELECT 1 FROM repair_candidate_evidence_receipts rec
+                      WHERE rec.project_id=d.project_id
+                        AND rec.verification_id=latest.id
+                        AND rec.case_version_id=d.case_version_id
+                        AND rec.criterion_passed=true
+                        AND rec.screenshot_sha256 IS NOT NULL
+                    ),false) AS screenshot_witness,
+                    COALESCE(EXISTS(
+                      SELECT 1 FROM repair_candidate_evidence ev
+                      WHERE ev.project_id=d.project_id
+                        AND ev.verification_id=latest.id
+                        AND ev.case_version_id=d.case_version_id
+                        AND ev.fencing_token=latest.fencing_token
+                        AND ev.criterion_passed=true
+                        AND ev.screenshot_sha256 IS NOT NULL
+                    ),false) AS retained_screenshot
+             FROM locator_maintenance_drafts d
+             JOIN saved_case_versions v
+               ON v.project_id=d.project_id AND v.case_id=d.case_id
+               AND v.id=d.case_version_id
+             LEFT JOIN jobs j
+               ON j.project_id=d.project_id AND j.id=d.task_id
+             LEFT JOIN LATERAL (
+               SELECT rv.id,rv.status,rv.outcome,rv.result,
+                      rv.worker_id,rv.fencing_token,rv.candidate_sha256
+               FROM repair_candidate_verifications rv
+               WHERE rv.project_id=d.project_id
+                 AND rv.maintenance_id=d.id
+                 AND rv.case_version_id=d.case_version_id
+               ORDER BY rv.created_at DESC,rv.id DESC LIMIT 1
+             ) latest ON true
+             LEFT JOIN LATERAL (
+               SELECT p.approved_body
+               FROM saved_case_review_previews p
+               WHERE p.project_id=d.project_id
+                 AND p.version_id=d.case_version_id
+                 AND p.actor_id=v.reviewed_by
+                 AND p.consumed_at IS NOT NULL
+                 AND p.approved_body->>'decision'=CASE
+                   WHEN v.review_status='approved' THEN 'approve'
+                   WHEN v.review_status='rejected' THEN 'reject'
+                   ELSE '__unreviewed__' END
+               ORDER BY p.consumed_at DESC,p.id DESC LIMIT 1
+             ) review ON true
+             WHERE d.project_id=$1 AND d.case_id=$2
+               AND d.created_at>=clock_timestamp()-interval '90 days'
+             ORDER BY d.created_at DESC,d.id DESC LIMIT 101`,
+            [saved.project_id, saved.id, owner],
+          )
+        ).rows;
+        const truncated = rows.length > 100;
+        const sample = rows.slice(0, 100);
+        const reviewed = sample.filter(
+          (row) => row.review_status === 'approved' || row.review_status === 'rejected',
+        );
+        const completed = sample.filter(
+          (row) => row.verification_status === 'completed',
+        );
+        const passed = (row: typeof sample[number]) =>
+          row.fully_verified && row.screenshot_witness;
+        const kinds = ['locator_name_variation', 'locator_semantic_candidate'] as const;
+        return {
+          sampleWindowDays: 90,
+          sampleLimit: 100,
+          truncated,
+          metrics: {
+            drafts: sample.length,
+            verifiedCompleted: completed.length,
+            verifiedPassed: completed.filter(passed).length,
+            verifiedFailed: completed.filter((row) => row.outcome === 'failed').length,
+            verifiedInconclusive: completed.filter(
+              (row) => row.outcome === 'inconclusive',
+            ).length,
+            verificationPending: sample.filter(
+              (row) =>
+                row.verification_status === 'queued' ||
+                row.verification_status === 'running',
+            ).length,
+            humanReviewed: reviewed.length,
+            humanApproved: reviewed.filter(
+              (row) => row.review_status === 'approved',
+            ).length,
+            humanRejected: reviewed.filter(
+              (row) => row.review_status === 'rejected',
+            ).length,
+            passedButRejected: reviewed.filter(
+              (row) => row.review_status === 'rejected' && passed(row),
+            ).length,
+          },
+          byKind: kinds.map((kind) => {
+            const matched = sample.filter((row) => row.suggestion_kind === kind);
+            return {
+              kind,
+              drafts: matched.length,
+              verifiedPassed: matched.filter(passed).length,
+              humanApproved: matched.filter(
+                (row) => row.review_status === 'approved',
+              ).length,
+              passedButRejected: matched.filter(
+                (row) => row.review_status === 'rejected' && passed(row),
+              ).length,
+            };
+          }),
+          items: sample.slice(0, 20).map((row) => ({
+            candidateVersionId: row.case_version_id,
+            version: row.version,
+            taskId: row.task_id,
+            suggestionIndex: row.suggestion_index,
+            kind: kinds.find((kind) => kind === row.suggestion_kind) ?? null,
+            createdAt: row.created_at.toISOString(),
+            reviewStatus: row.review_status,
+            reviewedAt: row.reviewed_at?.toISOString() ?? null,
+            reviewReason: owner && row.reason
+              ? row.reason.trim().slice(0, 300) : null,
+            verificationStatus: row.verification_status,
+            verificationOutcome: row.outcome,
+            verifiedPassed: passed(row),
+            screenshotAvailable: row.retained_screenshot,
+          })),
+        };
+      });
+      ctx.res.setHeader('Cache-Control', 'private, no-store');
+      return summary;
+    },
+  );
+
   // Compare the latest *real Worker* verification for each DB-bound candidate.
   // No caller-supplied outcome, AI score or baseline mutation is accepted.
   router.get(
