@@ -165,19 +165,20 @@ export const EnvironmentDialog: React.FC<{
             id={`${ids}-tls`}
             data-testid={`${ids}-tls`}
             className="form-select"
-            value={isHttpEnvironment ? 'strict' : tlsPolicy}
+            value={tlsPolicy}
             disabled={saving}
             onChange={(event) => setTlsPolicy(event.target.value as TlsPolicy)}
           >
             <option value="strict">严格验证证书（推荐）</option>
-            <option value="allow_self_signed" disabled={isHttpEnvironment}>
+            <option value="allow_self_signed">
               允许自签名证书（仅受控测试环境）
             </option>
           </select>
         </Field>
         {isHttpEnvironment ? (
           <p className="text-sm muted is-wide" role="status">
-            HTTP 地址不需要 TLS 证书校验，保存时自动采用严格模式，无须额外确认。
+            HTTP 地址没有 TLS 证书。即使选择“允许自签名证书”，本表单也会保留你的选择，
+            但创建成功后服务端仍以严格模式保存；如果实际站点是 HTTPS，请填写 HTTPS 基准 URL。
           </p>
         ) : tlsPolicy === 'allow_self_signed' ? (
           <p className="text-sm muted is-wide" role="status">
@@ -200,12 +201,9 @@ export const EnvironmentDialog: React.FC<{
             value={baseUrl}
             onChange={(event) => {
               setBaseUrl(event.target.value);
-              try {
-                const url = new URL(event.target.value);
-                if (url.protocol === 'http:') setTlsPolicy('strict');
-              } catch {
-                /* Wait for complete URL. */
-              }
+              // Preserve the user's TLS selection across URL edits and
+              // failed submissions. The final HTTP effective mode is safely
+              // normalized by validatedEnvironmentInput.
               if (editing || origins.trim()) return;
               try {
                 const url = new URL(event.target.value);
