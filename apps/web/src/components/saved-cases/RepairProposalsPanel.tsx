@@ -17,6 +17,10 @@ import {
 import {
   createLocatorMaintenanceDraft,
   listLocatorCandidateComparison,
+  listLocatorMaintenanceEvidence,
+  locatorMaintenanceScreenshotUrl,
+  startLocatorMaintenanceVerification,
+  type LocatorMaintenanceEvidence,
   type LocatorCandidateComparison,
 } from '../../api/locatorMaintenance.ts';
 import { rankLocatorMaintenanceCandidates } from './locatorMaintenanceRanking.ts';
@@ -30,6 +34,7 @@ interface Props {
   caseVersion: number;
   onCandidateCreated: (versionId: string) => Promise<void>;
   onCandidatesQueued: () => Promise<void>;
+  onRequestCandidateReview: (versionId: string) => Promise<void>;
 }
 
 /** Reviewable suggestions only. This UI cannot change case baselines. */
@@ -42,6 +47,7 @@ export const RepairProposalsPanel: React.FC<Props> = ({
   caseVersion,
   onCandidateCreated,
   onCandidatesQueued,
+  onRequestCandidateReview,
 }) => {
   const [proposals, setProposals] = useState<RepairProposal[]>([]);
   const [repairSuggestions, setRepairSuggestions] = useState<
@@ -87,6 +93,15 @@ export const RepairProposalsPanel: React.FC<Props> = ({
   const [comparisonConfirmed, setComparisonConfirmed] = useState(false);
   const [comparisonError, setComparisonError] = useState<string | null>(null);
   const [comparisonProgress, setComparisonProgress] = useState('');
+  // Evidence is fetched only by an explicitly authorized reviewer, never
+  // during candidate ranking or by the background comparison poll.
+  const [activeEvidenceKey, setActiveEvidenceKey] = useState<string | null>(null);
+  const [evidenceByVerification, setEvidenceByVerification] = useState<
+    Record<string, LocatorMaintenanceEvidence[]>
+  >({});
+  const [evidenceLoadingKey, setEvidenceLoadingKey] = useState<string | null>(null);
+  const [reviewAcknowledgedId, setReviewAcknowledgedId] = useState<string | null>(null);
+
   const compared = comparisonRows.filter(
     (row) => latestCandidates.some((candidate) =>
       candidate.suggestionIndex === row.suggestionIndex,
@@ -96,7 +111,7 @@ export const RepairProposalsPanel: React.FC<Props> = ({
     (row) => row.status === 'queued' || row.status === 'running',
   );
   const allCompared =
-    latestCandidates.length >= 2 &&
+    latestCandidates.length >= 1 &&
     latestCandidates.every((candidate) =>
       compared.some((row) =>
         row.suggestionIndex === candidate.suggestionIndex &&
@@ -126,7 +141,6 @@ export const RepairProposalsPanel: React.FC<Props> = ({
         const result = await listLocatorCandidateComparison(caseId, newestTaskId);
         if (active) {
           setComparisonRows(result.items);
-          setComparisonError(null);
         }
       } catch (cause) {
         if (active)
@@ -146,6 +160,97 @@ export const RepairProposalsPanel: React.FC<Props> = ({
       window.clearInterval(timer);
     };
   }, [caseId, newestTaskId]);
+
+
+  // A fresh comparison must be persisted by the existing verifier before
+  // recommending any draft. Viewing evidence alone never approves a version.
+  async function inspectVerification(row: LocatorCandidateComparison) {
+    if (!canReview || !row.verificationId || busy || evidenceLoadingKey) return;
+    const key = `${row.candidateVersionId}:${row.verificationId}`;
+    if (activeEvidenceKey === key) {
+      setActiveEvidenceKey(null);
+      setReviewAcknowledgedId(null);
+      return;
+    }
+    setActiveEvidenceKey(key);
+    setReviewAcknowledgedId(null);
+    if (evidenceByVerification[key]) return;
+    setEvidenceLoadingKey(key);
+    setComparisonError(null);
+    try {
+      const page = await listLocatorMaintenanceEvidence(
+        row.candidateVersionId,
+        row.verificationId,
+      );
+      setEvidenceByVerification((before) => ({
+        ...before,
+        [key]: page.items,
+      }));
+    } catch (cause) {
+      setActiveEvidenceKey(null);
+      setComparisonError(
+        cause instanceof Error ? cause.message : '无法加载审核证据',
+      );
+    } finally {
+      setEvidenceLoadingKey(null);
+    }
+  }
+
+  async function retryVerification(row: LocatorCandidateComparison) {
+    if (
+      !canCreate || archived || busy || row.reviewStatus !== 'draft' ||
+      row.status === 'queued' || row.status === 'running'
+    ) return;
+    setBusy(true);
+    setComparisonError(null);
+    try {
+      await startLocatorMaintenanceVerification(row.candidateVersionId);
+      setReviewAcknowledgedId(null);
+      setActiveEvidenceKey(null);
+      if (newestTaskId) {
+        const updated = await listLocatorCandidateComparison(caseId, newestTaskId);
+        setComparisonRows(updated.items);
+      }
+      setComparisonProgress('已重新排队隔离 Chromium 验证');
+    } catch (cause) {
+      setComparisonError(
+        cause instanceof Error ? cause.message : '重新验证失败',
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function requestCandidateReview(row: LocatorCandidateComparison) {
+    const key = row.verificationId
+      ? `${row.candidateVersionId}:${row.verificationId}`
+      : '';
+    const evidence = key ? evidenceByVerification[key] : undefined;
+    const hasAvailableProof = evidence?.some(
+      (item) =>
+        item.retention === 'available' &&
+        item.criterionPassed === true &&
+        !!item.screenshotSha256,
+    );
+    if (
+      !canReview || archived || busy || !allCompared ||
+      row.reviewStatus !== 'draft' || row.status !== 'completed' ||
+      row.outcome !== 'passed' || !row.evidenceBacked ||
+      activeEvidenceKey !== key || !hasAvailableProof ||
+      reviewAcknowledgedId !== row.candidateVersionId
+    ) return;
+    setBusy(true);
+    setComparisonError(null);
+    try {
+      await onRequestCandidateReview(row.candidateVersionId);
+    } catch (cause) {
+      setComparisonError(
+        cause instanceof Error ? cause.message : '无法打开候选版本审核',
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function compareLatestCandidates() {
     if (
@@ -494,18 +599,45 @@ export const RepairProposalsPanel: React.FC<Props> = ({
             。排序只代表结构匹配程度，不代表业务等价或验证通过。
           </p>
 
-          {latestCandidates.length >= 2 && (
+          {latestCandidates.length >= 1 && (
             <div className="panel stack stack-sm" data-testid="locator-candidate-comparison">
-              <h4>多个候选 · 独立验证与效果对比</h4>
+              <h4>AI 自愈 · 统一维护决策工作台</h4>
               <p className="text-sm muted">
-                对最新失败任务的 {latestCandidates.length} 个安全候选逐个创建独立草稿，
-                在隔离 Chromium 中运行相同的冻结业务断言。
+                最新失败任务有 {latestCandidates.length} 个结构筛选后的候选，
+                可逐个在隔离 Chromium 中运行原有冻结业务断言。
                 每个草稿独立保留版本及证据；即使全部通过也不会自动更新正式基线。
                 多候选排队按顺序提交，部分失败时已提交任务不会自动撤销。
               </p>
+
+              <div data-testid="locator-maintenance-decision">
+                <strong>统一维护决策</strong>
+                <p className="text-sm">
+                  ① 已从真实失败任务提取 {latestCandidates.length} 个结构安全候选
+                  {' → '}② 已提交 {compared.length}/{latestCandidates.length} 个独立验证
+                  {' → '}③ {allCompared
+                    ? '已获得全部候选结论，等待人工复核'
+                    : comparisonPending
+                      ? 'Chromium 正在执行，结果自动同步'
+                      : '尚未完成全部候选验证'}
+                </p>
+                <p className="text-sm" role="status">
+                  {allCompared
+                    ? verifiedWinner
+                      ? `证据支持的唯一通过候选：v${verifiedWinner.version}。这是技术验证优先项，不是自动批准结论。`
+                      : verifiedPassed.length > 1
+                        ? '存在多个通过候选，业务语义仍有歧义，必须由负责人逐条比较并选择。'
+                        : '暂无符合证据要求的通过候选，不能建议批准。'
+                    : '待所有候选完成验证后，才能比较通过结果和风险。'}
+                </p>
+                <p className="text-xs muted">
+                  风险：冻结断言通过只能证明本次隔离浏览器执行的观察结果，
+                  不能证明所有环境稳定、页面语义等价或没有副作用；
+                  截图可能按留存策略清理。正式审批仍需人工填写依据并二次确认。
+                </p>
+              </div>
               {comparisonError && <p role="alert" className="text-sm text-danger">{comparisonError}</p>}
               {comparisonProgress && <p role="status" className="text-sm">{comparisonProgress}</p>}
-              {canCreate && !archived && (
+              {canCreate && !archived && latestCandidates.length >= 2 && (
                 <label className="row row-wrap text-sm">
                   <input
                     type="checkbox"
@@ -517,7 +649,7 @@ export const RepairProposalsPanel: React.FC<Props> = ({
                   同意分别创建待审版本并执行隔离验证。
                 </label>
               )}
-              {canCreate && !archived && (
+              {canCreate && !archived && latestCandidates.length >= 2 && (
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
@@ -533,6 +665,12 @@ export const RepairProposalsPanel: React.FC<Props> = ({
                     ? '继续验证尚未提交的候选'
                     : '分别验证所有候选并对比结果'}
                 </button>
+              )}
+              {latestCandidates.length === 1 && !compared.length && (
+                <p className="text-sm muted">
+                  单候选可直接使用下方“预览推荐修复”或“预览最小定位维护草稿”；
+                  确认后自动创建草稿并排队独立验证，结果会在这里更新。
+                </p>
               )}
               {compared.length > 0 && (
                 <div className="lqa-card-list">
@@ -567,6 +705,117 @@ export const RepairProposalsPanel: React.FC<Props> = ({
                             审核状态 {row.reviewStatus}
                           </p>
                         )}
+
+                        {row && row.status === 'completed' &&
+                          row.reviewStatus === 'draft' && canCreate && !archived &&
+                          (row.outcome !== 'passed' || !row.evidenceBacked) && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            disabled={busy || comparisonPending}
+                            onClick={() => void retryVerification(row)}
+                          >
+                            重新执行该候选的独立验证
+                          </button>
+                        )}
+                        {row?.verificationId && row.status === 'completed' && canReview && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            disabled={busy || !!evidenceLoadingKey}
+                            onClick={() => void inspectVerification(row)}
+                            data-testid={`btn-inspect-candidate-evidence-${candidate.suggestionIndex}`}
+                          >
+                            {activeEvidenceKey ===
+                            `${row.candidateVersionId}:${row.verificationId}`
+                              ? '收起审核证据'
+                              : '在此查看断言与截图证据'}
+                          </button>
+                        )}
+                        {row?.verificationId &&
+                          activeEvidenceKey ===
+                            `${row.candidateVersionId}:${row.verificationId}` &&
+                          (() => {
+                            const key = `${row.candidateVersionId}:${row.verificationId}`;
+                            const entries = evidenceByVerification[key];
+                            const proofReady = entries?.some(
+                              (item) =>
+                                item.retention === 'available' &&
+                                item.criterionPassed === true &&
+                                !!item.screenshotSha256,
+                            );
+                            return (
+                              <div className="panel stack stack-sm" data-testid="locator-inline-evidence">
+                                <strong>独立验证原始证据</strong>
+                                {evidenceLoadingKey === key && (
+                                  <p role="status" className="text-sm">正在加载受权限保护的审核证据…</p>
+                                )}
+                                {entries && entries.length === 0 && (
+                                  <p className="text-sm muted">未找到可审查的步骤证据。</p>
+                                )}
+                                {entries?.map((entry) => (
+                                  <p className="text-xs" key={entry.id}>
+                                    步骤 {entry.stepIndex + 1} · {entry.stepKind}
+                                    {' · '}断言 {entry.criterionId ?? '—'}
+                                    ：{entry.criterionPassed === null
+                                      ? '未评估'
+                                      : entry.criterionPassed ? '通过' : '失败'}
+                                    {' · '}{entry.retention === 'available' ? '证据保留' : '证据已清理'}
+                                    {entry.retention === 'available' && entry.screenshotSha256 && (
+                                      <>
+                                        {' · '}
+                                        <a
+                                          href={locatorMaintenanceScreenshotUrl(
+                                            row.candidateVersionId, row.verificationId!,
+                                            entry.id,
+                                          )}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                          查看脱敏截图
+                                        </a>
+                                      </>
+                                    )}
+                                  </p>
+                                ))}
+                                {row.evidenceBacked && !proofReady && entries && (
+                                  <p className="text-sm text-danger">
+                                    当前无法查看支持通过结论的截图，不能在此进入审核；请检查证据留存。
+                                  </p>
+                                )}
+                                {proofReady && row.outcome === 'passed' &&
+                                  row.evidenceBacked && row.reviewStatus === 'draft' &&
+                                  allCompared && !archived && (
+                                  <>
+                                    <label className="row row-wrap text-sm">
+                                      <input
+                                        type="checkbox"
+                                        checked={reviewAcknowledgedId === row.candidateVersionId}
+                                        disabled={busy}
+                                        onChange={(event) => setReviewAcknowledgedId(
+                                          event.target.checked ? row.candidateVersionId : null,
+                                        )}
+                                      />
+                                      我已检查该版本的定位差异、原有断言、截图证据和业务等价风险；
+                                      我理解此处仅打开正式审核，不会自动批准。
+                                    </label>
+                                    <button
+                                      type="button"
+                                      className="btn btn-primary btn-sm"
+                                      disabled={
+                                        busy ||
+                                        reviewAcknowledgedId !== row.candidateVersionId
+                                      }
+                                      onClick={() => void requestCandidateReview(row)}
+                                      data-testid={`btn-open-candidate-review-${candidate.suggestionIndex}`}
+                                    >
+                                      进入该候选的两阶段人工审核
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })()}
                         {row && (
                           <button
                             type="button"

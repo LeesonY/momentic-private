@@ -51,6 +51,7 @@ export const SavedCaseDetailPage: React.FC = () => {
 
   // Modals state
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [requestedReviewVersionId, setRequestedReviewVersionId] = useState<string | null>(null);
   const [editorModalOpen, setEditorModalOpen] = useState(false);
   const [regressionModalOpen, setRegressionModalOpen] = useState(false);
   const [yamlExportOpen, setYamlExportOpen] = useState(false);
@@ -167,6 +168,7 @@ export const SavedCaseDetailPage: React.FC = () => {
     setActionLoading(null);
     setReviewModalOpen(false);
     setEditorModalOpen(false);
+    setRequestedReviewVersionId(null);
     setRegressionModalOpen(false);
     setYamlExportOpen(false);
     setDuplicateModalOpen(false);
@@ -185,6 +187,28 @@ export const SavedCaseDetailPage: React.FC = () => {
 
   const activeVersion =
     versions.find((v) => v.id === selectedVersionId) || versions[0] || null;
+  // A comparison-row review request must resolve to the exact chosen draft.
+  // Fail closed if a concurrent version change invalidated that target:
+  // never open the modal on a fallback or previously selected version.
+  useEffect(() => {
+    if (!requestedReviewVersionId || loading) return;
+    const target = versions.find((v) => v.id === requestedReviewVersionId);
+    if (!target || target.reviewStatus !== 'draft') {
+      setReviewModalOpen(false);
+      setRequestedReviewVersionId(null);
+      setError('目标修复草稿已变化或不存在，无法打开人工审核。请刷新后重新检查证据。');
+      return;
+    }
+    if (activeVersion?.id !== target.id) return;
+    setRequestedReviewVersionId(null);
+    setReviewModalOpen(true);
+  }, [
+    requestedReviewVersionId,
+    loading,
+    activeVersion?.id,
+    versions,
+  ]);
+
 
   const back = {
     label: '返回用例库',
@@ -662,6 +686,19 @@ export const SavedCaseDetailPage: React.FC = () => {
           versions.find((v) => v.id === caseRecord.currentApprovedVersionId) ??
           null
         }
+
+        onRequestCandidateReview={async (versionId) => {
+          if (
+            isArchived ||
+            !(currentMember?.role === 'owner' ||
+              currentUser?.globalRole === 'admin')
+          ) throw new Error('当前账户无权审查或用例已归档');
+          setReviewModalOpen(false);
+          setRequestedReviewVersionId(versionId);
+          setSelectedVersionId(versionId);
+          setActiveTab('document');
+          await fetchCaseAndVersions();
+        }}
         onCandidatesQueued={fetchCaseAndVersions}
         onCandidateCreated={async (versionId) => {
           await fetchCaseAndVersions();
