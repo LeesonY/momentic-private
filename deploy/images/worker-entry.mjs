@@ -5,6 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from '../../packages/browser/node_modules/playwright/index.mjs';
 import { BrowserManager } from '../../packages/browser/dist/index.js';
 import { Worker, CandidateVerifier } from '../../apps/worker/dist/index.js';
+import { pruneExpiredLiveFrames } from '../../apps/worker/dist/live-frame.js';
 import { Database } from '../../packages/storage/dist/index.js';
 import { loadProtectedKek } from './kek.mjs';
 import {
@@ -159,6 +160,7 @@ const candidateVerifier = new CandidateVerifier(
 stopCandidateVerifier = () => candidateVerifier.cancelActive();
 let candidateFlight = false;
 const evidenceMaintenanceAt = new Map();
+let lastFrameMaintenanceAt = 0;
 try {
   let capacityAt = 0;
   while (running) {
@@ -169,6 +171,19 @@ try {
       }
       if (!(await readiness()))
         throw new Error('Database/schema/data not ready');
+      // Safe after a prior Worker crash: periodically remove expired live-only
+      // screenshots and temporary captures. Keep it bounded and fail-open for
+      // business execution; active frames have fresh mtimes and are untouched.
+      if (Date.now() - lastFrameMaintenanceAt >= 10 * 60_000) {
+        lastFrameMaintenanceAt = Date.now();
+        try {
+          const cleaned = await pruneExpiredLiveFrames();
+          if (cleaned.removed)
+            console.info('Expired live frames cleaned:', cleaned.removed);
+        } catch (cause) {
+          console.warn('Live frame cleanup skipped:', cause?.code ?? 'io_error');
+        }
+      }
       // Poll and claim using the storage lease/fencing transaction. Worker.once owns
       // heartbeat, action intents, isolated browser contexts and result submission.
       const projects = await db.actor(actor, async (client) =>

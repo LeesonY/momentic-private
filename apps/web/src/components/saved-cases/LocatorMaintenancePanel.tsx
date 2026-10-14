@@ -52,6 +52,39 @@ export function LocatorMaintenancePanel({
     };
   }, [versionId]);
 
+  // A queued verification is completed by a separate Worker. Reflect its
+  // actual persisted result without requiring users to repeatedly press
+  // "Refresh"; stop polling on terminal status, hidden tab or version switch.
+  const verificationPending = items.some(
+    (item) => item.status === 'queued' || item.status === 'running',
+  );
+  useEffect(() => {
+    if (!info || !verificationPending || busy) return;
+    let active = true;
+    let inFlight = false;
+    const poll = async () => {
+      if (!active || inFlight || document.visibilityState === 'hidden') return;
+      inFlight = true;
+      try {
+        const latest = await listLocatorMaintenanceVerifications(versionId);
+        if (active) {
+          setItems(latest.items);
+          setError(null);
+        }
+      } catch (cause) {
+        if (active)
+          setError(cause instanceof Error ? cause.message : '验证状态同步失败');
+      } finally {
+        inFlight = false;
+      }
+    };
+    const timer = window.setInterval(() => void poll(), 3000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [versionId, info?.maintenanceId, verificationPending, busy]);
+
   async function refresh() {
     setBusy(true);
     setError(null);
@@ -112,6 +145,12 @@ export function LocatorMaintenancePanel({
             来源版本 {info.sourceVersionId} · 失败任务 {info.taskId}
           </p>
           <div className="btn-group">
+            {verificationPending && (
+              <p className="text-xs muted" role="status" aria-live="polite">
+                正在自动同步独立验证进度（每 3 秒）；验证完成后可查看证据并提交人工审核。
+              </p>
+            )}
+
             <button
               type="button"
               className="btn btn-primary btn-sm"

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, writeFile, rename, unlink } from 'node:fs/promises';
+import { mkdir, writeFile, rename, unlink, opendir, lstat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { BrowserSession } from '@localqa/browser';
 
@@ -9,6 +9,45 @@ import type { BrowserSession } from '@localqa/browser';
 const ROOT = join(process.env.DATA_DIR ?? '/var/localqa/data', 'live-frames');
 const MAX_BYTES = 250_000;
 const FRAME_PERIOD_MS = 750;
+
+// Browser screenshots are ephemeral telemetry, not retained evidence. If the
+// Worker is SIGKILLed its finalizer cannot unlink the last JPEG or .tmp file.
+// Reclaim only aged, self-identifying frame names. Never traverse directories,
+// follow symlinks, or delete retained artifact/evidence files.
+const STALE_FRAME_MS = 10 * 60 * 1000;
+const FRAME_FILE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?:\.\d+)?\.jpg$/i;
+const TEMP_FILE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.\d+(?:\.\d+)?\.tmp$/i;
+
+/** Bounded per invocation to keep disk hygiene outside the browser hot path. */
+export async function pruneExpiredLiveFrames(): Promise<{
+  examined: number;
+  removed: number;
+}> {
+  let examined = 0;
+  let removed = 0;
+  const dir = await opendir(ROOT).catch((cause: NodeJS.ErrnoException) => {
+    if (cause.code === 'ENOENT') return null;
+    throw cause;
+  });
+  if (!dir) return { examined, removed };
+  for await (const entry of dir) {
+    if (examined >= 512 || removed >= 64) break;
+    examined++;
+    if (!entry.isFile() || !(FRAME_FILE.test(entry.name) || TEMP_FILE.test(entry.name)))
+      continue;
+    const file = join(ROOT, entry.name);
+    try {
+      const stat = await lstat(file);
+      if (!stat.isFile() || Date.now() - stat.mtimeMs < STALE_FRAME_MS)
+        continue;
+      await unlink(file);
+      removed++;
+    } catch (cause) {
+      if ((cause as NodeJS.ErrnoException).code !== 'ENOENT') throw cause;
+    }
+  }
+  return { examined, removed };
+}
 
 export interface LiveFrameCapture {
   stop(): Promise<void>;
