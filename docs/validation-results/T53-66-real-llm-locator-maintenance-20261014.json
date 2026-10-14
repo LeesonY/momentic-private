@@ -1,0 +1,48 @@
+{
+  "id": "T53-66-real-LLM-locator-maintenance-full-e2e",
+  "date": "2026-10-14",
+  "environment": "192.168.111.66",
+  "result": "passed",
+  "source_commits": [
+    "1315b90",
+    "1ffd692",
+    "584a02e"
+  ],
+  "deployed_source": "releases/pr8-ai-t53",
+  "test_type": "Real authenticated HTTP APIs, actual configured LLM invocation, immutable PostgreSQL regression binding, independent Chromium candidate verification, screenshot proof, two-phase human-role approval and replay of approved baseline",
+  "ids": {
+    "project": "06438592-a429-4fa5-a7a3-c532197244f9",
+    "case": "c16e04b3-c949-4348-9aed-e2cb9d7dca44",
+    "originalApprovedVersion": "0339e143-3930-4a77-9769-d7f999235ed0",
+    "originalFailedRun": "352ab79f-52f9-4b2d-b85b-6c1f442cc63a",
+    "failingExecutor": "fdc14ece-d10f-41d5-8999-58f0fc7e0eed",
+    "candidateVersion": "92e9cfc6-9170-40f3-918b-8c5152f380f1",
+    "independentVerification": "7874ddb5-08aa-4d37-b9c8-206373b42ae3",
+    "postApprovalRun": "f6d23f4e-5d8b-4ccc-b60d-841d3f4d87a3"
+  },
+  "checks": {
+    "baselineCreatedAndApprovedViaActualHTTP": "passed",
+    "realChromiumInitialReplay": "failed / LOCATOR_NOT_FOUND",
+    "configuredLLMModelInvocations": 1,
+    "auditedModelRequestStatus": "settled",
+    "semanticLocatorProposal": "Proceed Now",
+    "proposalsReturned": 1,
+    "proposalVerificationBeforeIndependentWorker": "not_run",
+    "independentWorkerVerification": "completed / passed",
+    "originalFrozenCriteriaPassed": "1/1",
+    "verifiedEvidenceSteps": 3,
+    "authenticatedScreenshotPngAndSha256": "passed",
+    "automaticBaselinePromotion": "blocked / none",
+    "twoPhaseAuthenticatedOwnerReview": "approved",
+    "currentApprovedVersionUpdatedToCandidate": true,
+    "postApprovalOrdinaryChromiumRegression": "completed",
+    "ephemeralTestReviewerLoginRevoked": true
+  },
+  "limitations": [
+    "This is one genuine configured-model example with one unique proposal, not proof of accuracy across arbitrary sites or all three possible candidate choices.",
+    "User-role approval was conducted through authenticated two-phase HTTP APIs, not by clicking through the browser UI.",
+    "Verification covers a single-origin, non-submitting, anonymous fixture and frozen result oracle. It does not establish credentialed cross-origin auto-healing.",
+    "Continuous browser images are limited to approved anonymous non-submitting runs and are not 24fps video.",
+    "Existing six-way 3000-session Chromium-layer soak (~349 seconds) does not constitute several hours of full orchestrator/model end-to-end load testing."
+  ]
+}
