@@ -10,13 +10,14 @@ import { parseRegressionPayload } from './savedCases.js';
 function versionInput(body: unknown): {
   expectedVersion: number;
   suggestionIndex: number;
+  autoVerify: boolean;
 } {
   if (
     !body ||
     typeof body !== 'object' ||
     Array.isArray(body) ||
     Object.keys(body).some(
-      (key) => !['expectedVersion', 'suggestionIndex'].includes(key),
+      (key) => !['expectedVersion', 'suggestionIndex', 'autoVerify'].includes(key),
     ) ||
     !('expectedVersion' in body)
   )
@@ -32,7 +33,10 @@ function versionInput(body: unknown): {
   const idx = 'suggestionIndex' in body ? body.suggestionIndex : 0;
   if (typeof idx !== 'number' || !Number.isInteger(idx) || idx < 0 || idx > 2)
     throw new StorageError('VALIDATION_ERROR');
-  return { expectedVersion: n, suggestionIndex: idx };
+  const autoVerify = 'autoVerify' in body ? body.autoVerify : false;
+  if (typeof autoVerify !== 'boolean')
+    throw new StorageError('VALIDATION_ERROR');
+  return { expectedVersion: n, suggestionIndex: idx, autoVerify };
 }
 
 function allowedVerificationDocument(
@@ -121,9 +125,8 @@ export function registerLocatorMaintenanceRoutes(router: Router): void {
     '/api/v1/saved-cases/{caseId}/locator-maintenance/{taskId}/draft',
     async (ctx: RequestContext) => {
       await requireAuth(ctx);
-      const { expectedVersion: expected, suggestionIndex } = versionInput(
-        ctx.body,
-      );
+      const { expectedVersion: expected, suggestionIndex, autoVerify } =
+        versionInput(ctx.body);
       const result = await ctx.api.db.actor(ctx.actor!, async (client) => {
         const saved = (
           await client.query<{
@@ -268,6 +271,35 @@ export function registerLocatorMaintenanceRoutes(router: Router): void {
           saved.project_id,
           next,
         );
+        // One confirmed user action creates a draft AND queues its independent
+        // browser verification atomically. If verification cannot be queued,
+        // the new draft is rolled back rather than becoming an orphan.
+        // The existing DB trigger rejects unsafe verification requests and
+        // still forbids approving an unverified candidate.
+        if (autoVerify) {
+          const verificationId = randomUUID();
+          await client.query(
+            `INSERT INTO repair_candidate_verifications
+              (id,project_id,maintenance_id,case_id,case_version_id,
+               candidate_sha256,requested_by)
+             VALUES($1,$2,$3,$4,$5,$6,$7)`,
+            [
+              verificationId,
+              saved.project_id,
+              maintenanceId,
+              saved.id,
+              id,
+              sha,
+              ctx.actor!.userId,
+            ],
+          );
+          await audit(
+            client,
+            'locator_maintenance.verification_requested',
+            verificationId,
+            saved.project_id,
+          );
+        }
         return parseContract('SavedCaseVersion', {
           id,
           caseId: saved.id,

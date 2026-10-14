@@ -318,6 +318,7 @@ export const RepairProposalsPanel: React.FC<Props> = ({
         selected.taskId,
         caseVersion,
         maintenance.suggestionIndex,
+        true, // Confirmed preview -> atomic draft + independent verification.
       );
       setMaintenance(null);
       setMaintenanceConfirmed(false);
@@ -428,7 +429,7 @@ export const RepairProposalsPanel: React.FC<Props> = ({
               className="panel lqa-proposal-form"
               data-testid="locator-maintenance-preview"
             >
-              <h4>待确认的完整用例草稿</h4>
+              <h4>AI 定位自愈 · 预览并自动验证</h4>
               <p className="text-sm muted">
                 仅替换第 {maintenance.preview.stepIndex + 1}{' '}
                 步定位器。所有业务断言、操作顺序、变量与预期结果保持不变。尚未独立验证。
@@ -457,7 +458,7 @@ export const RepairProposalsPanel: React.FC<Props> = ({
                     setMaintenanceConfirmed(event.target.checked)
                   }
                 />
-                我已核对定位器的业务等价性，理解此操作只创建待审核草稿，不等于验证通过。
+                我已核对定位器的业务等价性，同意创建待审核草稿并自动排队独立 Chromium 验证；验证通过仍须负责人审核后才会生效。
               </label>
               <div className="btn-group">
                 <button
@@ -466,7 +467,7 @@ export const RepairProposalsPanel: React.FC<Props> = ({
                   disabled={busy || !maintenanceConfirmed}
                   onClick={() => void saveMaintenance()}
                 >
-                  创建待审核版本（不更新基线）
+                  创建草稿并自动验证（不更新基线）
                 </button>
                 <button
                   type="button"

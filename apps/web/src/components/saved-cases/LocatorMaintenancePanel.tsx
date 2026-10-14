@@ -15,11 +15,15 @@ export function LocatorMaintenancePanel({
   canRun,
   canReview,
   archived,
+  reviewStatus,
+  onRequestReview,
 }: {
   versionId: string;
   canRun: boolean;
   canReview: boolean;
   archived: boolean;
+  reviewStatus: 'draft' | 'approved' | 'rejected';
+  onRequestReview: () => void;
 }) {
   const [info, setInfo] = useState<LocatorMaintenanceInfo | null>(null);
   const [items, setItems] = useState<LocatorMaintenanceVerification[]>([]);
@@ -84,6 +88,35 @@ export function LocatorMaintenancePanel({
       window.clearInterval(timer);
     };
   }, [versionId, info?.maintenanceId, verificationPending, busy]);
+  const latest = items[0];
+  const passed =
+    latest?.status === 'completed' && latest.outcome === 'passed';
+  // Automatically fetch reviewer evidence after independent verification
+  // passes. This is read-only and subject to the backend's owner-only ACL.
+  useEffect(() => {
+    if (!canReview || !passed || !latest || evidence[latest.id]) return;
+    let active = true;
+    void listLocatorMaintenanceEvidence(versionId, latest.id)
+      .then((result) => {
+        if (active)
+          setEvidence((before) => ({ ...before, [latest.id]: result.items }));
+      })
+      .catch(() => {
+        // Allow manual reload if storage evidence is temporarily unavailable.
+      });
+    return () => {
+      active = false;
+    };
+  }, [versionId, canReview, passed, latest?.id, evidence[latest?.id ?? '']]);
+  const progress = reviewStatus === 'approved'
+    ? '维护版本已获正式批准，成为可执行的基线'
+    : verificationPending
+      ? '独立 Chromium 正在验证原有断言；完成后自动显示结果'
+      : passed
+        ? '独立验证通过；等待负责人查看证据并正式审核'
+        : latest?.status === 'completed'
+          ? '独立验证未通过；请检查诊断结果后重新验证或修订草稿'
+          : '等待独立验证';
 
   async function refresh() {
     setBusy(true);
@@ -144,6 +177,28 @@ export function LocatorMaintenancePanel({
           <p className="text-xs muted">
             来源版本 {info.sourceVersionId} · 失败任务 {info.taskId}
           </p>
+          <div className="panel stack stack-sm" data-testid="locator-maintenance-workflow">
+            <strong>AI 自愈工作流</strong>
+            <p className="text-sm" role="status">
+              ① 修复草稿已创建 → ② {progress}
+              {passed && reviewStatus === 'draft' ? ' → ③ 待人工批准生效' : ''}
+            </p>
+            {passed && reviewStatus === 'draft' && canReview && !archived && (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={onRequestReview}
+                data-testid="btn-maintenance-open-review"
+              >
+                查看修复差异并进入两阶段人工审核
+              </button>
+            )}
+            {passed && reviewStatus === 'draft' && !canReview && (
+              <p className="text-xs muted">
+                修复已验证，需项目负责人审核；当前账户无权批准。
+              </p>
+            )}
+          </div>
           <div className="btn-group">
             {verificationPending && (
               <p className="text-xs muted" role="status" aria-live="polite">
@@ -154,7 +209,7 @@ export function LocatorMaintenancePanel({
             <button
               type="button"
               className="btn btn-primary btn-sm"
-              disabled={!canRun || busy || archived}
+              disabled={!canRun || busy || archived || verificationPending || reviewStatus !== 'draft'}
               onClick={() => void verify()}
             >
               启动独立 Chromium 验证

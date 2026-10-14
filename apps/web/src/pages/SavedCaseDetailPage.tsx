@@ -489,6 +489,8 @@ export const SavedCaseDetailPage: React.FC = () => {
               currentUser?.globalRole === 'admin'
             }
             archived={isArchived}
+            reviewStatus={activeVersion.reviewStatus}
+            onRequestReview={() => setReviewModalOpen(true)}
           />
 
           <div className="grid-2 lqa-doc-grid">
