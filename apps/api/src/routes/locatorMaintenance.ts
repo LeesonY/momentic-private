@@ -119,6 +119,106 @@ function verificationOutput(row: {
 }
 
 export function registerLocatorMaintenanceRoutes(router: Router): void {
+
+  // Compare the latest *real Worker* verification for each DB-bound candidate.
+  // No caller-supplied outcome, AI score or baseline mutation is accepted.
+  router.get(
+    '/api/v1/saved-cases/{caseId}/locator-maintenance/{taskId}/comparison',
+    async (ctx: RequestContext) => {
+      await requireAuth(ctx);
+      const items = await ctx.api.db.actor(ctx.actor!, async (client) => {
+        const saved = (
+          await client.query<{ id: string; project_id: string }>(
+            'SELECT id,project_id FROM saved_cases WHERE id=$1',
+            [ctx.params.caseId!],
+          )
+        ).rows[0];
+        if (!saved) throw new StorageError('NOT_FOUND');
+        await authorize(client, saved.project_id, 'read');
+        // A taskId is not an authorization token: prove the exact run-case
+        // regression binding to this saved case before looking at witnesses.
+        const witness = (
+          await client.query(
+            `SELECT 1 FROM jobs j
+             JOIN run_case_regression_bindings b
+               ON b.project_id=j.project_id
+               AND b.run_id=j.run_id AND b.case_id=j.case_id
+             WHERE j.id=$1 AND j.project_id=$2 AND b.case_id=$3
+               AND j.role='executor' LIMIT 1`,
+            [ctx.params.taskId!, saved.project_id, saved.id],
+          )
+        ).rows[0];
+        if (!witness) throw new StorageError('NOT_FOUND');
+        const rows = (
+          await client.query<{
+            suggestion_index: number | null;
+            case_version_id: string;
+            version: number;
+            review_status: string;
+            verification_id: string | null;
+            status: string | null;
+            outcome: string | null;
+            result: {
+              reasonCode?: string;
+              observedSteps?: number;
+              verifiedCriteria?: number;
+              fullyVerified?: boolean;
+            } | null;
+            evidence_backed: boolean;
+          }>(
+            `SELECT d.suggestion_index,d.case_version_id,
+                    ver.version,ver.review_status,
+                    last.id AS verification_id,last.status,last.outcome,
+                    last.result,
+                    COALESCE(
+                      last.status='completed' AND last.outcome='passed'
+                      AND last.candidate_sha256=d.candidate_sha256
+                      AND last.result->>'fullyVerified'='true'
+                      AND EXISTS(
+                        SELECT 1 FROM repair_candidate_evidence ev
+                        WHERE ev.project_id=last.project_id
+                          AND ev.verification_id=last.id
+                          AND ev.case_version_id=d.case_version_id
+                          AND ev.fencing_token=last.fencing_token
+                          AND ev.criterion_passed=true
+                          AND ev.screenshot_sha256 IS NOT NULL
+                      ), false) AS evidence_backed
+             FROM locator_maintenance_drafts d
+             JOIN saved_case_versions ver
+               ON ver.project_id=d.project_id
+               AND ver.case_id=d.case_id AND ver.id=d.case_version_id
+             LEFT JOIN LATERAL (
+               SELECT v.id,v.project_id,v.fencing_token,v.case_version_id,
+                      v.candidate_sha256,v.status,v.outcome,v.result
+               FROM repair_candidate_verifications v
+               WHERE v.project_id=d.project_id AND v.maintenance_id=d.id
+                 AND v.case_version_id=d.case_version_id
+               ORDER BY v.created_at DESC,v.id DESC LIMIT 1
+             ) last ON true
+             WHERE d.project_id=$1 AND d.case_id=$2 AND d.task_id=$3
+             ORDER BY d.suggestion_index ASC NULLS LAST,ver.version ASC
+             LIMIT 4`,
+            [saved.project_id, saved.id, ctx.params.taskId!],
+          )
+        ).rows;
+        return rows.map((row) => ({
+          suggestionIndex: row.suggestion_index,
+          candidateVersionId: row.case_version_id,
+          version: row.version,
+          reviewStatus: row.review_status,
+          verificationId: row.verification_id,
+          status: row.status,
+          outcome: row.outcome,
+          reasonCode: row.result?.reasonCode ?? null,
+          observedSteps: row.result?.observedSteps ?? 0,
+          verifiedCriteria: row.result?.verifiedCriteria ?? 0,
+          evidenceBacked: row.evidence_backed,
+        }));
+      });
+      ctx.res.setHeader('Cache-Control', 'private, no-store');
+      return { items };
+    },
+  );
   // Creates the ENTIRE candidate from a DB-bound executor witness. The
   // caller is not allowed to supply a free-form document or a source hash.
   router.post(
@@ -224,6 +324,16 @@ export function registerLocatorMaintenanceRoutes(router: Router): void {
         const sha = hashPayload(candidate);
         if (sha === evidence.source_sha256)
           throw new StorageError('VALIDATION_ERROR');
+        // Historic drafts have an unknown index. Never attach a second
+        // suggestion to that task; it cannot be safely cross-referenced.
+        const existing = await client.query(
+          `SELECT 1 FROM locator_maintenance_drafts
+           WHERE project_id=$1 AND case_id=$2 AND task_id=$3
+             AND (suggestion_index=$4 OR suggestion_index IS NULL)
+           LIMIT 1`,
+          [saved.project_id, saved.id, ctx.params.taskId!, suggestionIndex],
+        );
+        if (existing.rowCount) throw new StorageError('VERSION_CONFLICT');
         const id = randomUUID(),
           maintenanceId = randomUUID();
         const next = saved.version + 1;
@@ -246,8 +356,8 @@ export function registerLocatorMaintenanceRoutes(router: Router): void {
         await client.query(
           `INSERT INTO locator_maintenance_drafts
             (id,project_id,case_id,case_version_id,source_version_id,
-             source_sha256,candidate_sha256,task_id,created_by)
-           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+             source_sha256,candidate_sha256,task_id,created_by,suggestion_index)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
           [
             maintenanceId,
             saved.project_id,
@@ -258,6 +368,7 @@ export function registerLocatorMaintenanceRoutes(router: Router): void {
             sha,
             ctx.params.taskId!,
             ctx.actor!.userId,
+            suggestionIndex,
           ],
         );
         await client.query(

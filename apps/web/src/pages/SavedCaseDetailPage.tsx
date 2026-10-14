@@ -662,6 +662,7 @@ export const SavedCaseDetailPage: React.FC = () => {
           versions.find((v) => v.id === caseRecord.currentApprovedVersionId) ??
           null
         }
+        onCandidatesQueued={fetchCaseAndVersions}
         onCandidateCreated={async (versionId) => {
           await fetchCaseAndVersions();
           setSelectedVersionId(versionId);

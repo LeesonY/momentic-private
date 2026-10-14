@@ -14,7 +14,11 @@ import {
   previewLocatorMaintenance,
   type LocatorMaintenancePreview,
 } from './locatorMaintenanceDraft.ts';
-import { createLocatorMaintenanceDraft } from '../../api/locatorMaintenance.ts';
+import {
+  createLocatorMaintenanceDraft,
+  listLocatorCandidateComparison,
+  type LocatorCandidateComparison,
+} from '../../api/locatorMaintenance.ts';
 import { rankLocatorMaintenanceCandidates } from './locatorMaintenanceRanking.ts';
 
 interface Props {
@@ -25,6 +29,7 @@ interface Props {
   baselineVersion: SavedCaseVersion | null;
   caseVersion: number;
   onCandidateCreated: (versionId: string) => Promise<void>;
+  onCandidatesQueued: () => Promise<void>;
 }
 
 /** Reviewable suggestions only. This UI cannot change case baselines. */
@@ -36,6 +41,7 @@ export const RepairProposalsPanel: React.FC<Props> = ({
   baselineVersion,
   caseVersion,
   onCandidateCreated,
+  onCandidatesQueued,
 }) => {
   const [proposals, setProposals] = useState<RepairProposal[]>([]);
   const [repairSuggestions, setRepairSuggestions] = useState<
@@ -73,6 +79,127 @@ export const RepairProposalsPanel: React.FC<Props> = ({
     () => rankLocatorMaintenanceCandidates(baselineVersion, repairSuggestions),
     [baselineVersion, repairSuggestions],
   );
+  const newestTaskId = repairSuggestions[0]?.taskId ?? null;
+  const latestCandidates = screening.candidates.filter(
+    (candidate) => candidate.record.taskId === newestTaskId,
+  );
+  const [comparisonRows, setComparisonRows] = useState<LocatorCandidateComparison[]>([]);
+  const [comparisonConfirmed, setComparisonConfirmed] = useState(false);
+  const [comparisonError, setComparisonError] = useState<string | null>(null);
+  const [comparisonProgress, setComparisonProgress] = useState('');
+  const compared = comparisonRows.filter(
+    (row) => latestCandidates.some((candidate) =>
+      candidate.suggestionIndex === row.suggestionIndex,
+    ),
+  );
+  const comparisonPending = compared.some(
+    (row) => row.status === 'queued' || row.status === 'running',
+  );
+  const allCompared =
+    latestCandidates.length >= 2 &&
+    latestCandidates.every((candidate) =>
+      compared.some((row) =>
+        row.suggestionIndex === candidate.suggestionIndex &&
+        row.status === 'completed',
+      ),
+    );
+  const verifiedPassed = compared.filter(
+    (row) =>
+      row.status === 'completed' &&
+      row.outcome === 'passed' &&
+      row.evidenceBacked,
+  );
+  const verifiedWinner =
+    allCompared && verifiedPassed.length === 1 ? verifiedPassed[0] : null;
+
+  useEffect(() => {
+    let active = true;
+    setComparisonRows([]);
+    setComparisonError(null);
+    setComparisonConfirmed(false);
+    if (!newestTaskId) return;
+    let inFlight = false;
+    const load = async () => {
+      if (!active || inFlight || document.visibilityState === 'hidden') return;
+      inFlight = true;
+      try {
+        const result = await listLocatorCandidateComparison(caseId, newestTaskId);
+        if (active) {
+          setComparisonRows(result.items);
+          setComparisonError(null);
+        }
+      } catch (cause) {
+        if (active)
+          setComparisonError(
+            cause instanceof Error ? cause.message : '无法读取候选验证状态',
+          );
+      } finally {
+        inFlight = false;
+      }
+    };
+    void load();
+    // Poll while this shortlist is visible. Old results are server-persisted
+    // and recover on reload; the browser never invents a passing verdict.
+    const timer = window.setInterval(() => void load(), 3000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [caseId, newestTaskId]);
+
+  async function compareLatestCandidates() {
+    if (
+      busy || archived || !canCreate || !comparisonConfirmed ||
+      !newestTaskId || latestCandidates.length < 2 || latestCandidates.length > 3
+    ) return;
+    setBusy(true);
+    setComparisonError(null);
+    setComparisonProgress('');
+    let createdCount = 0;
+    try {
+      const current = await listLocatorCandidateComparison(caseId, newestTaskId);
+      setComparisonRows(current.items);
+      if (current.items.some((row) => row.suggestionIndex === null))
+        throw new Error('该任务已有旧版单候选草稿，无法安全关联多个原始序号');
+      let expected = caseVersion;
+      // Every candidate produces an independent draft and queued Chromium
+      // verification. Each server call rechecks the frozen Worker witness and
+      // expectedVersion. A conflict leaves earlier legitimate drafts intact.
+      for (const [index, candidate] of latestCandidates.entries()) {
+        if (current.items.some(
+          (row) => row.suggestionIndex === candidate.suggestionIndex,
+        )) continue;
+        setComparisonProgress(
+          `正在排队候选 ${index + 1}/${latestCandidates.length}`,
+        );
+        await createLocatorMaintenanceDraft(
+          caseId, newestTaskId, expected, candidate.suggestionIndex, true,
+        );
+        expected++;
+        createdCount++;
+        const next = await listLocatorCandidateComparison(caseId, newestTaskId);
+        setComparisonRows(next.items);
+      }
+      setComparisonProgress('已提交独立验证；实时读取各候选结论');
+    } catch (cause) {
+      setComparisonError(
+        cause instanceof Error
+          ? `部分候选可能已经排队：${cause.message}。请核对列表后重试，已创建版本不会自动撤销。`
+          : '无法提交全部候选，请刷新并检查当前版本',
+      );
+    } finally {
+      if (createdCount) {
+        await onCandidatesQueued().catch((cause: unknown) => {
+          setComparisonError(
+            cause instanceof Error ? cause.message : '用例版本刷新失败',
+          );
+        });
+      }
+      setBusy(false);
+    }
+  }
+
+
 
   useEffect(() => {
     let active = true;
@@ -366,6 +493,106 @@ export const RepairProposalsPanel: React.FC<Props> = ({
               : ''}
             。排序只代表结构匹配程度，不代表业务等价或验证通过。
           </p>
+
+          {latestCandidates.length >= 2 && (
+            <div className="panel stack stack-sm" data-testid="locator-candidate-comparison">
+              <h4>多个候选 · 独立验证与效果对比</h4>
+              <p className="text-sm muted">
+                对最新失败任务的 {latestCandidates.length} 个安全候选逐个创建独立草稿，
+                在隔离 Chromium 中运行相同的冻结业务断言。
+                每个草稿独立保留版本及证据；即使全部通过也不会自动更新正式基线。
+                多候选排队按顺序提交，部分失败时已提交任务不会自动撤销。
+              </p>
+              {comparisonError && <p role="alert" className="text-sm text-danger">{comparisonError}</p>}
+              {comparisonProgress && <p role="status" className="text-sm">{comparisonProgress}</p>}
+              {canCreate && !archived && (
+                <label className="row row-wrap text-sm">
+                  <input
+                    type="checkbox"
+                    checked={comparisonConfirmed}
+                    disabled={busy}
+                    onChange={(event) => setComparisonConfirmed(event.target.checked)}
+                  />
+                  我已确认这些候选只改变定位器、冻结的业务断言不变；
+                  同意分别创建待审版本并执行隔离验证。
+                </label>
+              )}
+              {canCreate && !archived && (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={
+                    busy || !comparisonConfirmed || comparisonPending ||
+                    (compared.length === latestCandidates.length) ||
+                    !!comparisonRows.some((row) => row.suggestionIndex === null)
+                  }
+                  onClick={() => void compareLatestCandidates()}
+                  data-testid="btn-compare-locator-candidates"
+                >
+                  {compared.length
+                    ? '继续验证尚未提交的候选'
+                    : '分别验证所有候选并对比结果'}
+                </button>
+              )}
+              {compared.length > 0 && (
+                <div className="lqa-card-list">
+                  {latestCandidates.map((candidate) => {
+                    const row = compared.find(
+                      (item) => item.suggestionIndex === candidate.suggestionIndex,
+                    );
+                    return (
+                      <div className="lqa-item-card" key={candidate.suggestionIndex}>
+                        <strong>
+                          候选 {candidate.suggestionIndex + 1} ·
+                          {row ? ` v${row.version}` : ' 尚未提交'}
+                          {verifiedWinner?.candidateVersionId === row?.candidateVersionId
+                            ? ' · 唯一证据充分的通过候选'
+                            : ''}
+                        </strong>
+                        <p className="text-xs muted">
+                          定位器：{candidate.preview.after.value} /
+                          {candidate.preview.after.name ?? '—'}
+                        </p>
+                        <p className="text-sm">
+                          {row
+                            ? `${row.status ?? '未排队'} / ${row.outcome ?? '尚无结论'}`
+                            : '尚未进行独立验证'}
+                          {row?.evidenceBacked ? ' · 已有独立截图及断言证据' : ''}
+                        </p>
+                        {row && (
+                          <p className="text-xs muted">
+                            原有断言验证 {row.verifiedCriteria} 项 ·
+                            观察步骤 {row.observedSteps} ·
+                            原因 {row.reasonCode ?? '无'} ·
+                            审核状态 {row.reviewStatus}
+                          </p>
+                        )}
+                        {row && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            disabled={busy}
+                            onClick={() => void onCandidateCreated(row.candidateVersionId)}
+                          >
+                            查看候选版本及独立验证证据
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {allCompared && (
+                <p role="status" className="text-sm">
+                  {verifiedWinner
+                    ? `全部候选已完成验证，仅 v${verifiedWinner.version} 取得可核查截图支持的通过结果；仍需负责人审核。`
+                    : verifiedPassed.length > 1
+                      ? '多个候选具有独立通过证据，无法仅凭测试结果证明哪一个更符合业务语义，请人工比较。'
+                      : '全部候选已结束，但不存在唯一且具有截图支持的通过候选，不进行自动推荐。'}
+                </p>
+              )}
+            </div>
+          )}
           {screening.recommended ? (
             <div className="panel stack stack-sm" data-testid="locator-candidate-recommendation">
               <strong>优先复核 · 步骤 {screening.recommended.preview.stepIndex + 1}</strong>

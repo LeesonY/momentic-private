@@ -64,6 +64,28 @@ export async function createLocatorMaintenanceDraft(
   );
   return parseContract('SavedCaseVersion', body);
 }
+
+export interface LocatorCandidateComparison {
+  suggestionIndex: number | null;
+  candidateVersionId: string;
+  version: number;
+  reviewStatus: 'draft' | 'approved' | 'rejected';
+  verificationId: string | null;
+  status: 'queued' | 'running' | 'completed' | null;
+  outcome: 'passed' | 'failed' | 'inconclusive' | null;
+  reasonCode: string | null;
+  observedSteps: number;
+  verifiedCriteria: number;
+  evidenceBacked: boolean;
+}
+export function listLocatorCandidateComparison(
+  caseId: string,
+  taskId: string,
+): Promise<{ items: LocatorCandidateComparison[] }> {
+  return call(
+    `/saved-cases/${encode(caseId)}/locator-maintenance/${encode(taskId)}/comparison`,
+  );
+}
 export function getLocatorMaintenanceInfo(
   versionId: string,
 ): Promise<LocatorMaintenanceInfo> {
