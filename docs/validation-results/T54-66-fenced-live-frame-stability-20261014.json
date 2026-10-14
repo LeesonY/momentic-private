@@ -1,0 +1,70 @@
+{
+  "id": "T54-66-fenced-live-frame-lease-stability",
+  "date": "2026-10-14",
+  "environment": "192.168.111.66",
+  "source_commit": "94f297b",
+  "result": "passed_for_scoped_regression",
+  "change": "Live JPEG files and temporary writes now include the task fencing token; API only reads the running task's current fencing generation. Old Worker teardown cannot remove the newer lease's frame.",
+  "release": {
+    "source_symlink": "/data/localqa-test/src -> releases/t54-94f297b",
+    "updated_services": [
+      "api",
+      "worker"
+    ],
+    "untouched_services": [
+      "web",
+      "orchestrator",
+      "gateway",
+      "postgres"
+    ],
+    "api_image": "sha256:8f3c0d828606d547ec5a19e0ffa95bae22c932bc13547fa148da16a20b58e73e",
+    "worker_image": "sha256:15829f45b861e3d3539893532a4cc0c553e9da9cfcf8e0117cf375a5ecc1cb04",
+    "previous_image_tags": [
+      "localqa-test-api:before-t54-94f297b",
+      "localqa-test-worker:before-t54-94f297b"
+    ],
+    "build_method": "Offline Docker overlays on the 66 host using the pre-existing verified API/Worker runtime images as pinned local bases, updated source files from the 94f297b git archive, and TypeScript compilation within each image. This is not a fresh lockfile/full dependency installation.",
+    "standard_build_blocker": "The full worker Dockerfile build could not fetch npm dependencies: registry.npmjs.org timed out on 66; the blocking build job was explicitly stopped."
+  },
+  "acceptance": {
+    "pre_release_running_runs": 0,
+    "pre_release_running_tasks": 0,
+    "api_worker_healthy_after_rollout": true,
+    "six_core_containers_healthy": "6/6",
+    "healthz_http": 200,
+    "readyz_http": 200,
+    "web_http": 200,
+    "unauthenticated_live_frame_http": 401,
+    "isolated_chromium_tests": {
+      "T51_live_capture": "passed; 7 distinct hashes from 7 sampled frames; cleanup verified",
+      "T54_stale_vs_new_fence": "passed; old Worker stop does not remove newer live file",
+      "tests_passed": 2,
+      "tests_failed": 0
+    },
+    "isolated_chromium_concurrency": {
+      "clients": 6,
+      "sessionsAttempted": 108,
+      "succeeded": 108,
+      "failures": 0,
+      "screenshotSamples": 36,
+      "elapsedMs": 23580,
+      "p50Ms": 1265,
+      "p95Ms": 1688,
+      "p99Ms": 1845,
+      "nodeRssFirstMB": 143,
+      "nodeRssLastMB": 176,
+      "nodeRssPeakMB": 176,
+      "resource_limits": "network none, 3 CPUs, 3 GB memory, PID cap 512, 256 MB /dev/shm",
+      "finalBrowserManagerClosed": true
+    },
+    "business_database_data_changes": "none from T51/T54/T50 isolated containers"
+  },
+  "limitations": [
+    "The T50 load is 108 Chromium sessions over 23.6 seconds, not 8 hours or a full live orchestrator/model end-to-end soak.",
+    "The API behavior was checked for anonymous access and health, not a live authorized HTTP frame delivery during a new business run.",
+    "Current anonymity/non-submitting restrictions and imperfect pixel-redaction coverage remain unchanged.",
+    "A hard-killed Worker can leave an expired fence-specific file until a separate bounded garbage-collection policy removes it; expiry and the current-fence API binding prevent serving it.",
+    "Full reproducible Docker builds are still blocked by npm registry connectivity from the 66 host; the offline overlays are test-environment deployment images, not production release qualification.",
+    "Other documented P0 gaps, including failure-injection recovery under concurrent orchestration and broad LLM semantic repair accuracy, remain open."
+  ]
+}
