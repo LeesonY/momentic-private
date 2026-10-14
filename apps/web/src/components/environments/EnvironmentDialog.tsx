@@ -77,12 +77,18 @@ export const EnvironmentDialog: React.FC<{
         throw new Error('服务器返回的环境标识与当前项目不一致');
       onSaved(updated);
     } catch (err) {
+      const sessionExpired =
+        err instanceof Error &&
+        ((err as Error & { status?: number }).status === 401 ||
+          (err as Error & { code?: string }).code === 'UNAUTHENTICATED');
       setError(
-        err instanceof Error
-          ? err.message
-          : editing
-            ? '保存环境失败，请刷新版本后重试'
-            : '创建环境失败',
+        sessionExpired
+          ? '登录状态已失效，请在新标签页重新登录 DCP 后回到本表单重试，已填写内容会保留。'
+          : err instanceof Error
+            ? err.message
+            : editing
+              ? '保存环境失败，请刷新版本后重试'
+              : '创建环境失败',
       );
       setSaving(false);
     }
