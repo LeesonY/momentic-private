@@ -34,12 +34,18 @@ export const EnvironmentDialog: React.FC<{
   const [tlsPolicy, setTlsPolicy] = useState<TlsPolicy>(
     environment?.tlsPolicy ?? 'strict',
   );
-  const [tlsConfirmed, setTlsConfirmed] = useState(false);
   const [defaultAuthId, setDefaultAuthId] = useState(
     environment?.defaultAuthProfileId ?? '',
   );
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const isHttpEnvironment = (() => {
+    try {
+      return new URL(baseUrl.trim()).protocol === 'http:';
+    } catch {
+      return false;
+    }
+  })();
 
   const close = () => {
     if (!saving) onClose();
@@ -57,7 +63,6 @@ export const EnvironmentDialog: React.FC<{
         origins,
         excludedPaths,
         tlsPolicy,
-        tlsConfirmed,
       );
       if (!environment) {
         onSaved(await defaultApiClient.createEnvironment(projectId, input));
@@ -116,8 +121,7 @@ export const EnvironmentDialog: React.FC<{
             disabled={
               saving ||
               !name.trim() ||
-              !baseUrl.trim() ||
-              (tlsPolicy === 'allow_self_signed' && !tlsConfirmed)
+              !baseUrl.trim()
             }
           >
             {saving
@@ -155,31 +159,26 @@ export const EnvironmentDialog: React.FC<{
             id={`${ids}-tls`}
             data-testid={`${ids}-tls`}
             className="form-select"
-            value={tlsPolicy}
+            value={isHttpEnvironment ? 'strict' : tlsPolicy}
             disabled={saving}
-            onChange={(event) => {
-              setTlsPolicy(event.target.value as TlsPolicy);
-              setTlsConfirmed(false);
-            }}
+            onChange={(event) => setTlsPolicy(event.target.value as TlsPolicy)}
           >
             <option value="strict">严格验证证书（推荐）</option>
-            <option value="allow_self_signed">
+            <option value="allow_self_signed" disabled={isHttpEnvironment}>
               允许自签名证书（仅受控测试环境）
             </option>
           </select>
         </Field>
-        {tlsPolicy === 'allow_self_signed' && (
-          <label className="check is-wide">
-            <input
-              type="checkbox"
-              data-testid={`${ids}-tls-confirm`}
-              checked={tlsConfirmed}
-              disabled={saving}
-              onChange={(event) => setTlsConfirmed(event.target.checked)}
-            />
-            我确认该 HTTPS 环境使用受控自签名证书，并理解放宽证书验证的风险。
-          </label>
-        )}
+        {isHttpEnvironment ? (
+          <p className="text-sm muted is-wide" role="status">
+            HTTP 地址不需要 TLS 证书校验，保存时自动采用严格模式，无须额外确认。
+          </p>
+        ) : tlsPolicy === 'allow_self_signed' ? (
+          <p className="text-sm muted is-wide" role="status">
+            注意：允许自签名证书将放宽此测试环境浏览器上下文的 HTTPS 证书错误校验。
+            仅适用于受控测试环境和单一获准 HTTPS Origin；请勿用于不可信网站。
+          </p>
+        ) : null}
         <Field
           label="基准 URL"
           required
@@ -195,6 +194,12 @@ export const EnvironmentDialog: React.FC<{
             value={baseUrl}
             onChange={(event) => {
               setBaseUrl(event.target.value);
+              try {
+                const url = new URL(event.target.value);
+                if (url.protocol === 'http:') setTlsPolicy('strict');
+              } catch {
+                /* Wait for complete URL. */
+              }
               if (editing || origins.trim()) return;
               try {
                 const url = new URL(event.target.value);

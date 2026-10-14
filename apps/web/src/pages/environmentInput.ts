@@ -1,13 +1,12 @@
 import type { EnvironmentCreate } from '@localqa/contracts';
 
-/** Apply the same origin and TLS safeguards when editing an existing target. */
+/** Keep origin restrictions, and treat TLS controls as inapplicable to HTTP. */
 export function validatedEnvironmentInput(
   name: string,
   baseUrl: string,
   originsText: string,
   excludedPathsText: string,
   tlsPolicy: 'strict' | 'allow_self_signed',
-  confirmedInsecureTls: boolean,
 ): EnvironmentCreate {
   const base = new URL(baseUrl.trim());
   if (
@@ -44,11 +43,11 @@ export function validatedEnvironmentInput(
     .filter(Boolean);
   if (excludedPaths.some((s) => !s.startsWith('/') || s.length > 300))
     throw new Error('排除路径必须以 / 开头且不超过 300 字符');
-  if (
-    tlsPolicy === 'allow_self_signed' &&
-    (!confirmedInsecureTls || base.protocol !== 'https:')
-  )
-    throw new Error('放宽 TLS 校验必须使用 HTTPS 并明确确认证书风险');
+  // HTTP has no server certificate; do not persist a meaningless bypass
+  // that could become dangerous if the environment URL later changes.
+  // For HTTPS, selecting 'allow_self_signed' explicitly is the user's choice;
+  // show the risk notice in the form rather than requiring a second checkbox.
+  const effectiveTlsPolicy = base.protocol === 'https:' ? tlsPolicy : 'strict';
   if (!name.trim()) throw new Error('环境名称不能为空');
   return {
     name: name.trim(),
@@ -58,6 +57,6 @@ export function validatedEnvironmentInput(
       ...new Set(normalizedOrigins.filter((origin) => origin !== base.origin)),
     ],
     excludedPaths: [...new Set(excludedPaths)],
-    tlsPolicy,
+    tlsPolicy: effectiveTlsPolicy,
   };
 }
