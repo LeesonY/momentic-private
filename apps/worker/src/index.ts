@@ -36,6 +36,7 @@ import { replayRegression, type ReplayPorts } from './regression-replay.js';
 import { suggestLocatorRepair } from './repair-suggestions.js';
 import { suggestSemanticLocatorRepairs } from './ai-locator-suggestions.js';
 import { startLiveFrameCapture, type LiveFrameCapture } from './live-frame.js';
+import { startLiveDiagnostics } from './live-diagnostics.js';
 import { createRegressionAiAction } from './regression-ai.js';
 import { initializeBrowserAuthentication } from './auth-initialize-task.js';
 import { withApprovedBrowserAuth } from './auth-import-task.js';
@@ -106,6 +107,7 @@ export class Worker {
       : controller.signal;
     let session: BrowserSession | null = null;
     let liveFrame: LiveFrameCapture | null = null;
+    const liveDiagnosticsRef: { current: { stop(): Promise<void> } | null } = { current: null };
     let beating = false;
     let heartbeatFlight: Promise<void> | null = null;
     const timer = setInterval(() => {
@@ -374,6 +376,16 @@ export class Worker {
       let approvedLoginTestIds: readonly string[] | null = null;
       let intentionalLoginPage = false;
       const executeBrowserWork = async (): Promise<boolean> => {
+        // Metadata-only Console/Network diagnostics are safe even in
+        // authenticated flows: no page text, URLs or secrets leave the worker.
+        if (session && !liveDiagnosticsRef.current) {
+          liveDiagnosticsRef.current = startLiveDiagnostics(session, {
+            taskId: work.task.id,
+            runId: work.run.id,
+            projectId: work.run.projectId,
+            fencingToken: proof.fencingToken,
+          });
+        }
         const cancel = () => {
           void session?.cancel('Runtime cancellation').catch(() => {});
           void session?.close().catch(() => {});
@@ -1374,6 +1386,7 @@ export class Worker {
       clearInterval(timer);
       if (heartbeatFlight) await heartbeatFlight;
       await liveFrame?.stop().catch(() => {});
+      await liveDiagnosticsRef.current?.stop().catch(() => {});
       await session?.close().catch(() => {});
     }
   }

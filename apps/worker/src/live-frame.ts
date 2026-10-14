@@ -16,6 +16,8 @@ const FRAME_PERIOD_MS = 750;
 // follow symlinks, or delete retained artifact/evidence files.
 const STALE_FRAME_MS = 10 * 60 * 1000;
 const FRAME_FILE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?:\.\d+)?\.jpg$/i;
+const DIAGNOSTIC_FILE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.\d+\.diag\.json$/i;
+const DIAGNOSTIC_TEMP = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.\d+\.diag\.\d+\.tmp$/i;
 const TEMP_FILE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.\d+(?:\.\d+)?\.tmp$/i;
 
 /** Bounded per invocation to keep disk hygiene outside the browser hot path. */
@@ -33,7 +35,15 @@ export async function pruneExpiredLiveFrames(): Promise<{
   for await (const entry of dir) {
     if (examined >= 512 || removed >= 64) break;
     examined++;
-    if (!entry.isFile() || !(FRAME_FILE.test(entry.name) || TEMP_FILE.test(entry.name)))
+    if (
+      !entry.isFile() ||
+      !(
+        FRAME_FILE.test(entry.name) ||
+        TEMP_FILE.test(entry.name) ||
+        DIAGNOSTIC_FILE.test(entry.name) ||
+        DIAGNOSTIC_TEMP.test(entry.name)
+      )
+    )
       continue;
     const file = join(ROOT, entry.name);
     try {

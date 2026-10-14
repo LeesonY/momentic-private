@@ -210,6 +210,83 @@ function useLiveTaskFrame(taskId: string | null, live: boolean) {
   return { imageUrl, ageMs };
 }
 
+
+type LiveDiagnostic = {
+  capturedAt: number;
+  counts: {
+    consoleErrors: number;
+    pageErrors: number;
+    httpErrors: number;
+    networkFailures: number;
+  };
+  events: {
+    kind: 'console_error' | 'page_error' | 'http_error' | 'network_failed';
+    at: number;
+    status: number | null;
+  }[];
+};
+const diagnosticLabels: Record<LiveDiagnostic['events'][number]['kind'], string> = {
+  console_error: 'Console 错误',
+  page_error: '页面脚本异常',
+  http_error: 'HTTP 错误响应',
+  network_failed: '网络请求失败',
+};
+
+/** Fenced, ephemeral telemetry: never a finding, never a persisted artifact. */
+function useLiveDiagnostics(taskId: string | null, active: boolean) {
+  const [result, setResult] = useState<LiveDiagnostic | null>(null);
+  useEffect(() => {
+    let alive = true;
+    let loading = false;
+    let capturedAt = 0;
+    const controller = new AbortController();
+    setResult(null);
+    if (!taskId || !active) return;
+    const refresh = async () => {
+      if (!alive || loading || document.visibilityState === 'hidden') return;
+      loading = true;
+      try {
+        const response = await fetch(
+          `/api/v1/tasks/${encodeURIComponent(taskId)}/live-diagnostics`,
+          {
+            credentials: 'include',
+            cache: 'no-store',
+            signal: AbortSignal.any([
+              controller.signal,
+              AbortSignal.timeout(2600),
+            ]),
+          },
+        );
+        if (!alive) return;
+        if (response.ok) {
+          const next = (await response.json()) as LiveDiagnostic;
+          if (alive && typeof next?.capturedAt === 'number' &&
+              next?.counts && Array.isArray(next.events)) {
+            capturedAt = Date.now();
+            setResult(next);
+          }
+        } else if (response.status === 404 || response.status === 401) {
+          setResult(null);
+        }
+      } catch {
+        // Diagnostic availability must not affect the test or screenshots.
+      } finally {
+        loading = false;
+        if (alive && capturedAt && Date.now() - capturedAt > 5000)
+          setResult(null);
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 1800);
+    return () => {
+      alive = false;
+      controller.abort();
+      clearInterval(timer);
+    };
+  }, [taskId, active]);
+  return result;
+}
+
 /**
  * Mo's screen, from what the worker actually captured: screenshots stepped
  * through like a replay, with each step's type and time. It is not a video.
@@ -224,6 +301,7 @@ export const ScreenPanel: React.FC<{
     task?.id ?? null,
     live,
   );
+  const diagnostics = useLiveDiagnostics(task?.id ?? null, live);
   const { steps, error, hasMore } = useTaskSteps(
     task?.id ?? null,
     live,
@@ -384,6 +462,49 @@ export const ScreenPanel: React.FC<{
         )}
       </div>
 
+
+      <section className="panel stack stack-sm" data-testid="browser-live-diagnostics">
+        <h4>浏览器诊断</h4>
+        <p className="text-xs muted">
+          {diagnostics
+            ? '当前任务的实时错误分类（仅事件类型与 HTTP 状态，不传输日志原文、网址或凭据）。'
+            : live
+              ? '等待安全诊断事件；可继续查看下方步骤失败记录。'
+              : '任务已结束；下方保留执行步骤，实时诊断数据不作为报告证据保存。'}
+        </p>
+        {diagnostics && (
+          <>
+            <p className="text-sm" role="status">
+              Console 错误 {diagnostics.counts.consoleErrors} ·
+              页面脚本异常 {diagnostics.counts.pageErrors} ·
+              HTTP 4xx/5xx {diagnostics.counts.httpErrors} ·
+              网络失败 {diagnostics.counts.networkFailures}
+            </p>
+            {diagnostics.events.length ? (
+              <details>
+                <summary>最近 {diagnostics.events.length} 条诊断事件</summary>
+                <div className="stack stack-sm">
+                  {[...diagnostics.events].reverse().map((event, i) => (
+                    <p className="text-xs" key={`${event.at}-${i}`}>
+                      {new Date(event.at).toLocaleTimeString('zh-CN', { hour12: false })}
+                      {' · '}{diagnosticLabels[event.kind]}
+                      {event.status ? ` · HTTP ${event.status}` : ''}
+                    </p>
+                  ))}
+                </div>
+              </details>
+            ) : (
+              <p className="text-xs muted">当前尚未发现这四类浏览器异常。</p>
+            )}
+          </>
+        )}
+        {failedCount > 0 && (
+          <p className="text-xs">
+            检测到 {failedCount} 个失败步骤，请展开下方对应记录检查动作、
+            目标和失败摘要。浏览器异常本身不等于已确认的产品 Bug。
+          </p>
+        )}
+      </section>
       <div className="mo-log">
         <div className="mo-log-head">
           <span>时间</span>

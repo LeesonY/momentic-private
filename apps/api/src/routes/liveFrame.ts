@@ -135,4 +135,120 @@ export function registerLiveFrameRoutes(router: Router): void {
       return undefined;
     },
   );
+
+  // Live, metadata-only diagnostics. Applicable to authenticated sessions too:
+  // the worker writes enum labels, counters and numeric HTTP statuses only.
+  // A DB-scoped actor, active lease fence and age limit gate every read.
+  router.get(
+    '/api/v1/tasks/{taskId}/live-diagnostics',
+    async (ctx: RequestContext) => {
+      await requireAuth(ctx);
+      const taskId = ctx.params.taskId!;
+      if (!UUID.test(taskId)) throw new StorageError('NOT_FOUND');
+      const task = await ctx.api.db.actor(ctx.actor!, async (client) => {
+        const row = (
+          await client.query<{
+            project_id: string;
+            run_id: string;
+            fencing_token: string;
+          }>(
+            `SELECT j.project_id,j.run_id,j.fencing_token
+             FROM jobs j
+             JOIN task_leases l ON l.task_id=j.id
+               AND l.project_id=j.project_id AND l.fencing_token=j.fencing_token
+             JOIN runs r ON r.id=j.run_id AND r.project_id=j.project_id
+             WHERE j.id=$1 AND j.status='running' AND r.status='running'
+               AND j.role IN ('explorer','executor','reproducer')
+               AND j.lease_until>clock_timestamp()
+               AND l.lease_until>clock_timestamp() AND l.released_at IS NULL`,
+            [taskId],
+          )
+        ).rows[0];
+        if (!row) throw new StorageError('NOT_FOUND');
+        return row;
+      });
+      const fence = Number(task.fencing_token);
+      if (!Number.isSafeInteger(fence) || fence < 1)
+        throw new StorageError('NOT_FOUND');
+      let document: unknown;
+      try {
+        const path = join(LIVE_ROOT, `${taskId}.${fence}.diag.json`);
+        const stat = await lstat(path);
+        if (
+          !stat.isFile() ||
+          stat.size < 130 ||
+          stat.size > 4096 ||
+          Date.now() - stat.mtimeMs > 4500
+        )
+          throw new Error('stale');
+        document = JSON.parse(await readFile(path, 'utf8'));
+      } catch {
+        ctx.res.statusCode = 204;
+        ctx.res.setHeader('Cache-Control', 'no-store');
+        ctx.res.end();
+        return undefined;
+      }
+      if (!document || typeof document !== 'object' || Array.isArray(document)) {
+        ctx.res.statusCode = 204;
+        ctx.res.end();
+        return undefined;
+      }
+      const data = document as Record<string, unknown>;
+      const counts = data['counts'] as Record<string, unknown> | undefined;
+      const events = data['events'];
+      const keys = ['consoleErrors', 'pageErrors', 'httpErrors', 'networkFailures'];
+      const kinds = ['console_error', 'page_error', 'http_error', 'network_failed'];
+      const valid =
+        data['schema'] === 1 &&
+        data['taskId'] === taskId &&
+        data['projectId'] === task.project_id &&
+        data['runId'] === task.run_id &&
+        data['fencingToken'] === fence &&
+        typeof data['capturedAt'] === 'number' &&
+        Math.abs(Date.now() - data['capturedAt']) <= 4500 &&
+        counts &&
+        typeof counts === 'object' &&
+        !Array.isArray(counts) &&
+        keys.every(
+          (key) =>
+            Number.isSafeInteger(counts[key]) &&
+            (counts[key] as number) >= 0 &&
+            (counts[key] as number) <= 1000000,
+        ) &&
+        Array.isArray(events) &&
+        events.length <= 12 &&
+        events.every(
+          (event: unknown) => {
+            if (!event || typeof event !== 'object' || Array.isArray(event))
+              return false;
+            const row = event as Record<string, unknown>;
+            return (
+              Object.keys(row).length === 3 &&
+              kinds.includes(row['kind'] as string) &&
+              typeof row['at'] === 'number' &&
+              Math.abs(Date.now() - row['at']) <= 3600_000 &&
+              (row['status'] === null ||
+                (row['kind'] === 'http_error' &&
+                  Number.isInteger(row['status']) &&
+                  (row['status'] as number) >= 400 &&
+                  (row['status'] as number) <= 599))
+            );
+          },
+        );
+      if (!valid) {
+        ctx.res.statusCode = 204;
+        ctx.res.setHeader('Cache-Control', 'no-store');
+        ctx.res.end();
+        return undefined;
+      }
+      ctx.res.setHeader('Cache-Control', 'private, no-store');
+      ctx.res.setHeader('X-Content-Type-Options', 'nosniff');
+      return {
+        capturedAt: data['capturedAt'],
+        counts: Object.fromEntries(keys.map((key) => [key, counts![key]])),
+        events,
+      };
+    },
+  );
 }
+
