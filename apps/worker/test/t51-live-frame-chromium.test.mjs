@@ -13,7 +13,7 @@ test('T51 live capture: changing actual Chromium frames, bound hash, expiry and 
   const runId = randomUUID(),
     projectId = randomUUID(),
     taskId = randomUUID();
-  const file = join(dataRoot, 'live-frames', taskId + '.jpg');
+  const file = join(dataRoot, 'live-frames', `${taskId}.19.jpg`);
   let session, handle;
   try {
     session = await manager.createSession({
@@ -83,4 +83,52 @@ test('T51 live capture: changing actual Chromium frames, bound hash, expiry and 
     access(file),
     'live frame must be deleted after browser closes',
   );
+});
+test('T54 stale Worker teardown cannot remove replacement lease frames', async () => {
+  const manager = new BrowserManager();
+  const runId = randomUUID();
+  const projectId = randomUUID();
+  const taskId = randomUUID();
+  const oldFile = join(dataRoot, 'live-frames', `${taskId}.41.jpg`);
+  const freshFile = join(dataRoot, 'live-frames', `${taskId}.42.jpg`);
+  const waitForFrame = async (file, fence) => {
+    for (let attempt = 0; attempt < 24; attempt++) {
+      try {
+        const bytes = await readFile(file);
+        const end = bytes.indexOf(10);
+        const head = JSON.parse(bytes.subarray(0, end).toString());
+        assert.equal(head.fencingToken, fence);
+        assert.equal(head.taskId, taskId);
+        return bytes;
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+        await pause(250);
+      }
+    }
+    assert.fail(`No live frame for lease ${fence}`);
+  };
+  let session, previous, replacement;
+  try {
+    session = await manager.createSession({
+      projectId, runId, taskId, mode: 'non_submitting',
+    });
+    await session.getPage().setContent('<main>Fenced lease capture</main>');
+    previous = startLiveFrameCapture(session, {
+      projectId, runId, taskId, fencingToken: 41,
+    });
+    await waitForFrame(oldFile, 41);
+    replacement = startLiveFrameCapture(session, {
+      projectId, runId, taskId, fencingToken: 42,
+    });
+    await waitForFrame(freshFile, 42);
+    await previous.stop();
+    await assert.rejects(access(oldFile));
+    await waitForFrame(freshFile, 42);
+    await replacement.stop();
+    await assert.rejects(access(freshFile));
+  } finally {
+    await Promise.allSettled([previous?.stop(), replacement?.stop()]);
+    await session?.close();
+    await manager.close();
+  }
 });

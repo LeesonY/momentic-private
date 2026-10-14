@@ -38,12 +38,14 @@ export function startLiveFrameCapture(
     busy = false;
   let sequence = 0;
   let current: Promise<void> | null = null;
-  const filename = join(ROOT, taskId + '.jpg');
+  // Fence the filename too: an expired Worker must never unlink or overwrite
+  // its replacement Worker's frames for the same task.
+  const filename = join(ROOT, `${taskId}.${fencingToken}.jpg`);
   const attempt = async () => {
     if (stopped || busy || session.isClosed) return;
     busy = true;
     const frameSeq = ++sequence;
-    const temp = join(ROOT, `${taskId}.${frameSeq}.tmp`);
+    const temp = join(ROOT, `${taskId}.${fencingToken}.${frameSeq}.tmp`);
     try {
       await mkdir(ROOT, { recursive: true, mode: 0o700 });
       // Browser may navigate or close during capture. Never block the tested

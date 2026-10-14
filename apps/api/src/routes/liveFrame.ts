@@ -57,9 +57,14 @@ export function registerLiveFrameRoutes(router: Router): void {
         !['explorer', 'executor', 'reproducer'].includes(task.role)
       )
         throw new StorageError('NOT_FOUND');
+      const activeFence = Number(task.fencing_token);
+      if (!Number.isSafeInteger(activeFence) || activeFence < 1)
+        throw new StorageError('NOT_FOUND');
       let bytes: Buffer;
       try {
-        const file = join(LIVE_ROOT, taskId + '.jpg');
+        // Only the current lease may publish pixels, even if a stale
+        // Worker's final write arrives after this Worker was re-leased.
+        const file = join(LIVE_ROOT, `${taskId}.${activeFence}.jpg`);
         const stat = await lstat(file);
         if (
           !stat.isFile() ||
@@ -102,7 +107,7 @@ export function registerLiveFrameRoutes(router: Router): void {
         head['projectId'] !== task.project_id ||
         head['runId'] !== task.run_id ||
         head['schema'] !== 1 ||
-        head['fencingToken'] !== Number(task.fencing_token) ||
+        head['fencingToken'] !== activeFence ||
         typeof head['capturedAt'] !== 'number' ||
         Math.abs(Date.now() - head['capturedAt']) > MAX_AGE_MS ||
         typeof head['sha256'] !== 'string' ||
