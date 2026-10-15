@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "sourceHashes": {
-    "domain.schema.json": "aef3cc37e70d76d28c4c1cf497028a4912e5e7ec82205f069c224ce85def4daf",
+    "domain.schema.json": "3ff3559355f8709ef2d07d4a8ba7e79f6c54ac6980f9288851179e84169077fa",
     "events.schema.json": "9cf4d9ac541574862123a09bcfcf6b997941f9e43043b39e5543fb64bd9a67b7",
     "openapi.json": "7cc31a1856c32118a71961ac112ad4d60deeb15410f17d1be8637ffc64d9e784",
     "regression.schema.json": "3311ab392986b0253fc833e5eb97eecefd6f612b767ed308fd8edd75a086b39f",

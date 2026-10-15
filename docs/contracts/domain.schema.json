@@ -4684,6 +4684,13 @@
           "type": "integer",
           "minimum": 1
         },
+        "adapter": {
+          "type": "string",
+          "enum": [
+            "openai_compatible",
+            "anthropic_messages"
+          ]
+        },
         "name": {
           "type": "string",
           "maxLength": 120

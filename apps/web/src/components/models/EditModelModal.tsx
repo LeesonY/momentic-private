@@ -25,6 +25,7 @@ export const EditModelModal: React.FC<{
 }> = ({ model, onClose, onSaved }) => {
   const [name, setName] = useState(model.name);
   const [modelId, setModelId] = useState(model.configuredModelId);
+  const [adapter, setAdapter] = useState<ModelProfile['adapter']>(model.adapter);
   const [endpoint, setEndpoint] = useState(model.endpoint);
   const [apiKey, setApiKey] = useState('');
   const [outputTokens, setOutputTokens] = useState(
@@ -40,6 +41,7 @@ export const EditModelModal: React.FC<{
 
   const nameChanged = name.trim() !== model.name;
   const modelIdChanged = modelId.trim() !== model.configuredModelId;
+  const adapterChanged = adapter !== model.adapter;
   const endpointChanged = endpoint.trim() !== model.endpoint;
   const keyChanged = apiKey.trim().length > 0;
   const capChanged =
@@ -51,7 +53,7 @@ export const EditModelModal: React.FC<{
       ? ''
       : String(model.contextWindowTokens));
   const changed =
-    nameChanged || modelIdChanged || endpointChanged || keyChanged || capChanged || contextChanged;
+    nameChanged || modelIdChanged || adapterChanged || endpointChanged || keyChanged || capChanged || contextChanged;
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -66,6 +68,7 @@ export const EditModelModal: React.FC<{
       return;
     }
     const patch: ModelProfilePatch = { expectedVersion: model.version };
+    if (adapterChanged) patch.adapter = adapter;
     if (endpointChanged) patch.endpoint = endpoint.trim();
     if (nameChanged) patch.name = name.trim();
     if (modelIdChanged) patch.configuredModelId = modelId.trim();
@@ -145,9 +148,20 @@ export const EditModelModal: React.FC<{
       }
     >
       <form id="form-edit-model" onSubmit={(e) => void submit(e)}>
+        <Field label="接口协议" required htmlFor="edit-model-adapter">
+          <select
+            id="edit-model-adapter"
+            data-testid="edit-model-adapter"
+            className="form-select"
+            value={adapter}
+            disabled={saving}
+            onChange={(e) => setAdapter(e.target.value as ModelProfile['adapter'])}
+          >
+            <option value="anthropic_messages">{adapterLabels.anthropic_messages}</option>
+            <option value="openai_compatible">{adapterLabels.openai_compatible}</option>
+          </select>
+        </Field>
         <dl className="kv lqa-model-edit-summary">
-          <dt>接口协议</dt>
-          <dd>{adapterLabels[model.adapter]}</dd>
           <dt>服务部署位置</dt>
           <dd>{model.dataBoundary === 'internal' ? '内网／本地' : '外部'}</dd>
         </dl>
@@ -208,8 +222,8 @@ export const EditModelModal: React.FC<{
             onChange={(e) => setApiKey(e.target.value)}
           />
         </Field>
-        {(modelIdChanged || keyChanged || endpointChanged) && (
-          <Alert tone="info">修改模型 ID、地址或 Key 后，需要重新探测模型。</Alert>
+        {(modelIdChanged || keyChanged || adapterChanged || endpointChanged) && (
+          <Alert tone="info">修改接口协议、模型 ID、服务地址或 Key 后，模型能力将重置为未探测，需要重新探测；原有 Key 留空即保留。</Alert>
         )}
         <Field
           label="单次输出上限（token）"

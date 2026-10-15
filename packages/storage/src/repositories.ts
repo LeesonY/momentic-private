@@ -1213,14 +1213,23 @@ export class ModelRepository {
       if (row.document.version !== expectedVersion)
         throw new StorageError('VERSION_CONFLICT');
       const previous = { ...row.document };
+      const adapterChanged =
+        patch.adapter !== undefined && patch.adapter !== row.document.adapter;
       if (contextWindowTokens === null) delete previous.contextWindowTokens;
       const dto = parseContract('ModelProfile', {
         ...previous,
         ...patch,
+        // A protocol change must never keep an incompatible wire response
+        // format from the former adapter. Require a fresh capability probe.
+        ...(adapterChanged
+          ? { responseFormat: patch.adapter === 'anthropic_messages'
+              ? 'json_object' : 'json_schema' }
+          : {}),
         ...(typeof contextWindowTokens === 'number'
           ? { contextWindowTokens }
           : {}),
-        ...(apiKey !== undefined ||
+        ...(adapterChanged ||
+        apiKey !== undefined ||
         (patch.configuredModelId !== undefined &&
           patch.configuredModelId !== row.document.configuredModelId) ||
         (patch.endpoint !== undefined &&

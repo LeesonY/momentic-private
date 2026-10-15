@@ -1180,6 +1180,7 @@ export interface ModelProfilePage {
 }
 export interface ModelProfilePatch {
   expectedVersion: number;
+  adapter?: "openai_compatible" | "anthropic_messages";
   name?: string;
   endpoint?: string;
   configuredModelId?: string;
