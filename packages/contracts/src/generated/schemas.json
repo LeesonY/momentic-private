@@ -4420,6 +4420,15 @@
             "type": "string",
             "maxLength": 64,
             "pattern": "^[a-zA-Z0-9_.-]+$"
+          },
+          "sensitiveValues": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "maxItems": 16,
+            "minItems": 0
           }
         },
         "required": [
@@ -17958,6 +17967,17 @@
               "type": "integer",
               "minimum": 1
             },
+            "allowedOrigins": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uri",
+                "maxLength": 8192,
+                "pattern": "^https?://"
+              },
+              "maxItems": 30,
+              "minItems": 1
+            },
             "name": {
               "type": "string",
               "maxLength": 120
@@ -21119,6 +21139,15 @@
               "type": "string",
               "maxLength": 64,
               "pattern": "^[a-zA-Z0-9_.-]+$"
+            },
+            "sensitiveValues": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "maxItems": 16,
+              "minItems": 0
             }
           },
           "required": [
@@ -21383,6 +21412,13 @@
             "expectedVersion": {
               "type": "integer",
               "minimum": 1
+            },
+            "adapter": {
+              "type": "string",
+              "enum": [
+                "openai_compatible",
+                "anthropic_messages"
+              ]
             },
             "name": {
               "type": "string",

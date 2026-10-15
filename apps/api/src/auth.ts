@@ -1,8 +1,10 @@
 import type { ServerResponse } from 'node:http';
 import { StorageError } from '@localqa/storage';
+import { ServiceIdentityError } from '@localqa/service-identity';
 import { ApiError } from './errors.js';
 import type { RequestContext } from './types.js';
 import { authenticateApiKey } from './apiKeys.js';
+import { toInternalAuthError } from './serviceIdentity.js';
 
 export function parseCookies(cookieHeader?: string): Record<string, string> {
   if (!cookieHeader) return {};
@@ -90,6 +92,65 @@ export function rejectUserCookieForInternal(ctx: RequestContext): void {
       'Internal endpoints reject user cookie sessions',
       403,
     );
+  }
+}
+
+/**
+ * Exact request target used by the service-identity signature. Both sides derive
+ * it the same way (WHATWG URL parse, then pathname + search) so percent-encoding
+ * and default-port normalization cannot drift between signer and verifier.
+ * The fragment is never sent on the wire and is therefore not part of the
+ * signed string.
+ */
+export function internalRequestTarget(ctx: RequestContext): string {
+  const url = new URL(ctx.req.url ?? '/', 'http://internal.invalid');
+  return `${url.pathname}${url.search}`;
+}
+
+/**
+ * Service-identity gate for every `/internal/v1/*` route.
+ *
+ * A user cookie is rejected outright (internal routes never accept browser
+ * sessions), and peer identity comes only from an HMAC over the request signed
+ * with a key from the protected service key ring. `X-Worker-Id` and friends
+ * remain business inputs, never credentials.
+ *
+ * Fails closed: without a configured verifier the internal surface returns 503
+ * instead of silently accepting unauthenticated callers.
+ */
+export async function requireServiceIdentity(
+  ctx: RequestContext,
+): Promise<string> {
+  rejectUserCookieForInternal(ctx);
+  const verifier = ctx.api.serviceIdentity;
+  if (!verifier) {
+    throw new ApiError(
+      'SERVICE_UNAVAILABLE',
+      'Internal API service identity is not configured',
+      503,
+    );
+  }
+  try {
+    const { serviceId } = verifier.verify({
+      headers: ctx.headers,
+      method: ctx.method,
+      path: internalRequestTarget(ctx),
+      rawBody: ctx.rawBody,
+    });
+    return serviceId;
+  } catch (error) {
+    if (error instanceof ServiceIdentityError) {
+      // Reason code only: the request id correlates with server logs and no
+      // credential material is ever written.
+      console.warn(
+        'INTERNAL_SERVICE_AUTH_REJECTED',
+        ctx.requestId,
+        ctx.pathname,
+        error.code,
+      );
+      throw toInternalAuthError(error);
+    }
+    throw error;
   }
 }
 

@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { lookup } from 'node:dns/promises';
 import {
   parseContract,
   getRootValidator,
@@ -119,10 +120,270 @@ export function reserve(
   }
   return next;
 }
-export function validateTarget(
+export type TargetHostResolver = (
+  hostname: string,
+) => Promise<readonly { address: string; family: number }[]>;
+
+export interface TargetHostClassification {
+  /** Lowercased, trailing-dot stripped; IPv4 numeric literals are canonicalized. */
+  host: string;
+  kind: 'address' | 'hostname';
+  /** Loopback, private, link-local/cloud-metadata, CGNAT, unspecified,
+   *  multicast, broadcast, unique-local and IPv4-mapped restricted addresses. */
+  restricted: boolean;
+  restrictedReason: string | null;
+}
+
+export interface TargetGuardOptions {
+  /**
+   * Permit restricted (loopback/private/link-local/metadata) targets because
+   * the caller already froze them in an approved Environment. Defaults to
+   * false: a URL a user submitted on its own never reaches an internal host.
+   */
+  allowRestricted?: boolean;
+  /** Hostname resolver; injectable so tests never touch real DNS. */
+  resolveHost?: TargetHostResolver;
+}
+
+const CLOUD_METADATA_HOSTNAMES = new Set([
+  'metadata.google.internal',
+  'metadata.google.com',
+  'metadata.goog',
+  'instance-data',
+]);
+
+// Exact hosts every caller rejects regardless of the approved origin list.
+const FORBIDDEN_TARGET_HOSTS = new Set([
+  '169.254.169.254',
+  'metadata.google.internal',
+  'fe80::1',
+]);
+
+function stripIpv6Brackets(host: string): string {
+  return host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host;
+}
+
+/** Lowercases, strips IPv6 brackets/zone and trailing dots. */
+export function normalizeHostname(rawHost: string): string {
+  let host = stripIpv6Brackets(rawHost.trim().toLowerCase());
+  const zone = host.indexOf('%');
+  if (zone !== -1) host = host.slice(0, zone);
+  while (host.endsWith('.')) host = host.slice(0, -1);
+  return host;
+}
+
+/** inet_aton parsing: accepts decimal, hexadecimal (0x) and octal (0...) parts. */
+function parseIpv4Number(host: string): number | null {
+  if (host.length === 0 || host.includes(':')) return null;
+  const parts = host.split('.');
+  if (parts.length === 0 || parts.length > 4) return null;
+  const values: number[] = [];
+  for (const part of parts) {
+    let value: number;
+    if (/^0x[0-9a-f]+$/.test(part)) value = Number.parseInt(part.slice(2), 16);
+    else if (/^0[0-7]+$/.test(part)) value = Number.parseInt(part, 8);
+    else if (/^[0-9]+$/.test(part)) value = Number.parseInt(part, 10);
+    else return null;
+    if (!Number.isSafeInteger(value) || value < 0) return null;
+    values.push(value);
+  }
+  const last = values[values.length - 1]!;
+  let combined = 0;
+  for (let i = 0; i < values.length - 1; i++) {
+    const part = values[i]!;
+    if (part > 0xff) return null;
+    combined = combined * 256 + part;
+  }
+  const remainingBits = 32 - 8 * (values.length - 1);
+  if (last >= 2 ** remainingBits) return null;
+  return (combined * 2 ** remainingBits + last) >>> 0;
+}
+
+function formatIpv4(value: number): string {
+  return [
+    (value >>> 24) & 0xff,
+    (value >>> 16) & 0xff,
+    (value >>> 8) & 0xff,
+    value & 0xff,
+  ].join('.');
+}
+
+function ipv6ToBytes(host: string): number[] | null {
+  let normalized = stripIpv6Brackets(host);
+  if (!normalized.includes(':')) return null;
+  const lastColon = normalized.lastIndexOf(':');
+  const tail = normalized.slice(lastColon + 1);
+  if (tail.includes('.')) {
+    const embedded = parseIpv4Number(tail);
+    if (embedded === null) return null;
+    normalized =
+      normalized.slice(0, lastColon + 1) +
+      ((embedded >>> 16) & 0xffff).toString(16) +
+      ':' +
+      (embedded & 0xffff).toString(16);
+  }
+  const doubleIndex = normalized.indexOf('::');
+  let groups: string[];
+  if (doubleIndex !== -1) {
+    if (normalized.indexOf('::', doubleIndex + 1) !== -1) return null;
+    const left = normalized.slice(0, doubleIndex);
+    const right = normalized.slice(doubleIndex + 2);
+    const leftGroups = left === '' ? [] : left.split(':');
+    const rightGroups = right === '' ? [] : right.split(':');
+    const missing = 8 - leftGroups.length - rightGroups.length;
+    if (missing < 1) return null;
+    groups = [
+      ...leftGroups,
+      ...Array.from({ length: missing }, () => '0'),
+      ...rightGroups,
+    ];
+  } else {
+    groups = normalized.split(':');
+    if (groups.length !== 8) return null;
+  }
+  const bytes: number[] = [];
+  for (const group of groups) {
+    if (!/^[0-9a-f]{1,4}$/.test(group)) return null;
+    const value = Number.parseInt(group, 16);
+    bytes.push((value >> 8) & 0xff, value & 0xff);
+  }
+  return bytes;
+}
+
+function isRestrictedIpv4(value: number): boolean {
+  const a = (value >>> 24) & 0xff;
+  const b = (value >>> 16) & 0xff;
+  if (a === 0) return true; // 0.0.0.0/8: unspecified / "this network"
+  if (a === 10) return true; // RFC 1918
+  if (a === 127) return true; // loopback
+  if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT 100.64/10
+  if (a === 169 && b === 254) return true; // link-local / cloud metadata
+  if (a === 172 && b >= 16 && b <= 31) return true; // RFC 1918
+  if (a === 192 && b === 168) return true; // RFC 1918
+  if (a === 192 && b === 0 && ((value >>> 8) & 0xff) === 0) return true; // 192.0.0.0/24
+  if (a === 198 && (b === 18 || b === 19)) return true; // 198.18.0.0/15
+  if (a >= 224) return true; // multicast, reserved and broadcast
+  return false;
+}
+
+function ipv4FromBytes(bytes: readonly number[]): number {
+  return (
+    ((bytes[12]! << 24) |
+      (bytes[13]! << 16) |
+      (bytes[14]! << 8) |
+      bytes[15]!) >>>
+    0
+  );
+}
+
+function isRestrictedIpv6(bytes: readonly number[]): {
+  restricted: boolean;
+  reason: string | null;
+} {
+  const first = bytes[0]!;
+  const second = bytes[1]!;
+  if (bytes.every((byte) => byte === 0))
+    return { restricted: true, reason: 'unspecified' };
+  if (bytes[15] === 1 && bytes.slice(0, 15).every((byte) => byte === 0))
+    return { restricted: true, reason: 'loopback' };
+  const mapped =
+    bytes[10] === 0xff &&
+    bytes[11] === 0xff &&
+    bytes.slice(0, 10).every((x) => x === 0);
+  if (mapped)
+    return isRestrictedIpv4(ipv4FromBytes(bytes))
+      ? { restricted: true, reason: 'ipv4-mapped-restricted' }
+      : { restricted: false, reason: null };
+  // ::a.b.c.d and NAT64 64:ff9b::/96 embed an IPv4 destination.
+  const embedsIpv4 =
+    bytes.slice(0, 12).every((x) => x === 0) ||
+    (first === 0x00 &&
+      second === 0x64 &&
+      bytes[2] === 0xff &&
+      bytes[3] === 0x9b);
+  if (embedsIpv4)
+    return isRestrictedIpv4(ipv4FromBytes(bytes))
+      ? { restricted: true, reason: 'ipv4-embedded-restricted' }
+      : { restricted: false, reason: null };
+  // 6to4 2002::/16 embeds the IPv4 address in the next 32 bits.
+  if (first === 0x20 && second === 0x02) {
+    const embedded =
+      ((bytes[2]! << 24) | (bytes[3]! << 16) | (bytes[4]! << 8) | bytes[5]!) >>>
+      0;
+    return isRestrictedIpv4(embedded)
+      ? { restricted: true, reason: 'six-to-four-restricted' }
+      : { restricted: false, reason: null };
+  }
+  if ((first & 0xfe) === 0xfc)
+    return { restricted: true, reason: 'unique-local' }; // fc00::/7
+  if (first === 0xfe && (second & 0xc0) === 0x80)
+    return { restricted: true, reason: 'link-local' }; // fe80::/10
+  if (first === 0xff) return { restricted: true, reason: 'multicast' }; // ff00::/8
+  return { restricted: false, reason: null };
+}
+
+/** True when the address literal is not a public internet destination. */
+export function isRestrictedIpAddress(address: string): boolean {
+  const host = normalizeHostname(address);
+  if (host.includes(':')) {
+    const bytes = ipv6ToBytes(host);
+    return bytes ? isRestrictedIpv6(bytes).restricted : false;
+  }
+  const ipv4 = parseIpv4Number(host);
+  return ipv4 === null ? false : isRestrictedIpv4(ipv4);
+}
+
+/**
+ * Literal classification without DNS. Hostnames only become restricted here
+ * when they are loopback/metadata names; resolved-address checks live in
+ * {@link assertPublicOrApprovedTarget}.
+ */
+export function classifyTargetHost(rawHost: string): TargetHostClassification {
+  const host = normalizeHostname(rawHost);
+  if (host === 'localhost' || host.endsWith('.localhost'))
+    return {
+      host,
+      kind: 'hostname',
+      restricted: true,
+      restrictedReason: 'loopback-name',
+    };
+  if (CLOUD_METADATA_HOSTNAMES.has(host))
+    return {
+      host,
+      kind: 'hostname',
+      restricted: true,
+      restrictedReason: 'cloud-metadata',
+    };
+  if (host.includes(':')) {
+    const bytes = ipv6ToBytes(host);
+    if (bytes) {
+      const result = isRestrictedIpv6(bytes);
+      return {
+        host,
+        kind: 'address',
+        restricted: result.restricted,
+        restrictedReason: result.reason,
+      };
+    }
+  } else {
+    const ipv4 = parseIpv4Number(host);
+    if (ipv4 !== null) {
+      const restricted = isRestrictedIpv4(ipv4);
+      return {
+        host: formatIpv4(ipv4),
+        kind: 'address',
+        restricted,
+        restrictedReason: restricted ? 'restricted-ipv4' : null,
+      };
+    }
+  }
+  return { host, kind: 'hostname', restricted: false, restrictedReason: null };
+}
+
+function parseAllowedTargetUrl(
   input: string,
   origins: readonly string[],
-  protectedOrigins: readonly string[] = [],
+  protectedOrigins: readonly string[],
 ): URL {
   let url: URL;
   try {
@@ -133,14 +394,75 @@ export function validateTarget(
   if (
     !['http:', 'https:'].includes(url.protocol) ||
     url.username ||
-    url.password ||
-    !origins.map((x) => new URL(x).origin).includes(url.origin) ||
-    protectedOrigins.includes(url.origin) ||
-    ['169.254.169.254', 'metadata.google.internal', '[fe80::1]'].includes(
-      url.hostname,
-    )
+    url.password
   )
     throw new DomainError('TARGET_NOT_ALLOWED');
+  let originMatches: boolean;
+  try {
+    originMatches = origins
+      .map((origin) => new URL(origin).origin)
+      .includes(url.origin);
+  } catch {
+    throw new DomainError('TARGET_NOT_ALLOWED');
+  }
+  if (!originMatches || protectedOrigins.includes(url.origin))
+    throw new DomainError('TARGET_NOT_ALLOWED');
+  return url;
+}
+
+/**
+ * Synchronous scope check kept signature-compatible for existing callers.
+ * Rejects the always-forbidden metadata hosts after canonicalizing the host,
+ * which also closes decimal/hex/trailing-dot variants of those literals.
+ */
+export function validateTarget(
+  input: string,
+  origins: readonly string[],
+  protectedOrigins: readonly string[] = [],
+): URL {
+  const url = parseAllowedTargetUrl(input, origins, protectedOrigins);
+  if (FORBIDDEN_TARGET_HOSTS.has(classifyTargetHost(url.hostname).host))
+    throw new DomainError('TARGET_NOT_ALLOWED');
+  return url;
+}
+
+const defaultResolveHost: TargetHostResolver = async (hostname) => {
+  const records = await lookup(hostname, { all: true });
+  return records.map((record) => ({
+    address: record.address,
+    family: record.family,
+  }));
+};
+
+/**
+ * SSRF guard for user-submitted targets. A restricted (loopback/private/
+ * link-local/metadata/...) destination is rejected unless the caller passes
+ * `allowRestricted: true` because an approved Environment already froze it.
+ * Hostnames are resolved and every returned address is checked; DNS failure
+ * fails closed. Public IP literals are accepted without any DNS lookup.
+ */
+export async function assertPublicOrApprovedTarget(
+  input: string,
+  origins: readonly string[],
+  protectedOrigins: readonly string[] = [],
+  options: TargetGuardOptions = {},
+): Promise<URL> {
+  const url = parseAllowedTargetUrl(input, origins, protectedOrigins);
+  if (options.allowRestricted === true) return url;
+  const classification = classifyTargetHost(url.hostname);
+  if (classification.restricted) throw new DomainError('TARGET_NOT_ALLOWED');
+  if (classification.kind === 'address') return url;
+  const resolveHost = options.resolveHost ?? defaultResolveHost;
+  let records: readonly { address: string; family: number }[];
+  try {
+    records = await resolveHost(classification.host);
+  } catch {
+    throw new DomainError('TARGET_NOT_ALLOWED');
+  }
+  if (records.length === 0) throw new DomainError('TARGET_NOT_ALLOWED');
+  for (const record of records)
+    if (isRestrictedIpAddress(record.address))
+      throw new DomainError('TARGET_NOT_ALLOWED');
   return url;
 }
 export function displayUrl(input: string): string {
@@ -191,8 +513,15 @@ export function taskKey(
 ): string {
   return `${runId}:${role}:${target}:v${contextVersion}:${attempt}`;
 }
+type CanonicalJson =
+  | null
+  | boolean
+  | number
+  | string
+  | CanonicalJson[]
+  | { [key: string]: CanonicalJson };
 export function canonicalHash(value: unknown): string {
-  const canonical = (item: unknown): unknown =>
+  const canonical = (item: unknown): CanonicalJson =>
     Array.isArray(item)
       ? item.map(canonical)
       : item !== null && typeof item === 'object'
@@ -201,7 +530,7 @@ export function canonicalHash(value: unknown): string {
               .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
               .map(([key, child]) => [key, canonical(child)]),
           )
-        : item;
+        : (item as CanonicalJson);
   return createHash('sha256')
     .update(JSON.stringify(canonical(value)))
     .digest('hex');

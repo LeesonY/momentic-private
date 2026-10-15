@@ -16,6 +16,7 @@ const expected = [
   'database_url',
   'kek.json',
   'worker_identity.json',
+  'service_identity.json',
   'admin_initial_password',
 ];
 const existing = readdirSync(root);
@@ -42,6 +43,21 @@ const files = {
     1001,
   ],
   'worker_identity.json': [randomBytes(32).toString('hex'), 1001],
+  'service_identity.json': [
+    JSON.stringify({
+      services: {
+        worker: {
+          activeVersion: 1,
+          keys: { 1: randomBytes(32).toString('base64') },
+        },
+        orchestrator: {
+          activeVersion: 1,
+          keys: { 1: randomBytes(32).toString('base64') },
+        },
+      },
+    }),
+    1001,
+  ],
   admin_initial_password: [adminPassword, 1001],
 };
 for (const [file, [content, uid]] of Object.entries(files)) {

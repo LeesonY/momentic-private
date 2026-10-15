@@ -19,6 +19,11 @@ import {
   createWorkerModelOptions,
 } from '../../../packages/orchestrator/dist/index.js';
 import { createApiContext, createApiServer } from '../dist/index.js';
+import { createTestServiceIdentity } from './support/internal-auth.mjs';
+
+// The internal boundary is a peer-only surface. The suite signs its internal
+// requests with this ring instead of being exempted from the gate.
+const testServiceIdentity = createTestServiceIdentity();
 
 const tag = randomUUID().slice(0, 8);
 const container = `localqa-g3d4-pg-${tag}`;
@@ -375,6 +380,20 @@ async function seedRun(spec) {
 }
 
 async function post(run, marker, token = run.token, extra = {}) {
+  // Serialise once so the service-identity signature covers the exact bytes sent.
+  const rawBody = JSON.stringify({
+    taskId: run.taskId,
+    profileId: extra.profileId ?? run.profileId,
+    contextVersion: extra.contextVersion ?? 1,
+    purpose: extra.purpose ?? 'decide',
+    messages: extra.messages ?? [
+      { role: 'user', content: [{ type: 'text', text: marker }] },
+    ],
+    maxOutputTokens: 100,
+    outputSchema: extra.outputSchema ?? outputSchema(),
+    ...(extra.criterionId ? { criterionId: extra.criterionId } : {}),
+    ...(extra.fields ?? {}),
+  });
   const response = await fetch(
     `http://127.0.0.1:${port}/internal/v1/model/complete`,
     {
@@ -382,20 +401,13 @@ async function post(run, marker, token = run.token, extra = {}) {
       headers: {
         'content-type': 'application/json',
         'x-lease-token': token,
+        ...testServiceIdentity.sign('worker', {
+          method: 'POST',
+          path: '/internal/v1/model/complete',
+          body: rawBody,
+        }),
       },
-      body: JSON.stringify({
-        taskId: run.taskId,
-        profileId: extra.profileId ?? run.profileId,
-        contextVersion: extra.contextVersion ?? 1,
-        purpose: extra.purpose ?? 'decide',
-        messages: extra.messages ?? [
-          { role: 'user', content: [{ type: 'text', text: marker }] },
-        ],
-        maxOutputTokens: 100,
-        outputSchema: extra.outputSchema ?? outputSchema(),
-        ...(extra.criterionId ? { criterionId: extra.criterionId } : {}),
-        ...(extra.fields ?? {}),
-      }),
+      body: rawBody,
     },
   );
   const text = await response.text();
@@ -722,6 +734,7 @@ before(async () => {
     vault,
     artifactsDir: `${dir}/artifacts`,
     serviceActor: { userId: admin.id },
+    serviceIdentity: testServiceIdentity.verifier,
     modelTransport: transport,
   });
   server = createApiServer(api);

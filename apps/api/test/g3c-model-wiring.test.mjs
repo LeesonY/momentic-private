@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createApiServer } from '../dist/index.js';
+import { createTestServiceIdentity } from './support/internal-auth.mjs';
+
+// The internal boundary is a peer-only surface. The suite signs its internal
+// requests with this ring instead of being exempted from the gate.
+const testServiceIdentity = createTestServiceIdentity();
 
 const profileId = 'd3c0d3c0-d3c0-43c0-83d0-d3c0d3c0d3c0';
 const projectId = 'd3c1d3c1-d3c1-43c1-83d1-d3c1d3c1d3c1';
@@ -93,10 +98,23 @@ async function request(
   path,
   { method = 'POST', headers = {}, body } = {},
 ) {
+  // Serialise once so the service-identity signature covers the exact bytes sent.
+  const rawBody = body === undefined ? undefined : JSON.stringify(body);
+  const requestHeaders = { ...headers };
+  if (path.startsWith('/internal/')) {
+    Object.assign(
+      requestHeaders,
+      testServiceIdentity.sign('worker', {
+        method,
+        path,
+        body: rawBody,
+      }),
+    );
+  }
   const response = await fetch(`http://127.0.0.1:${port}${path}`, {
     method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    headers: requestHeaders,
+    body: rawBody,
   });
   const text = await response.text();
   return {
@@ -242,6 +260,7 @@ function context({
     },
     runRepo: {},
     adminActor: { userId: adminId },
+    serviceIdentity: testServiceIdentity.verifier,
     modelTransport,
   };
   return { ctx, seen, reads: reads ?? [] };

@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { parseContract } from '@localqa/contracts';
-import { validateTarget } from '@localqa/domain';
+import { assertPublicOrApprovedTarget } from '@localqa/domain';
 import { authorize, audit, hashPayload, StorageError } from '@localqa/storage';
 import { requireAuth } from '../auth.js';
 import { parsePagination, type Router } from '../router.js';
@@ -263,37 +263,32 @@ export function registerCandidateVerificationRoutes(router: Router): void {
         )
       )
         throw new StorageError('VALIDATION_ERROR');
-      const destinations = doc.steps
-        .filter(
-          (
-            step,
-          ): step is Extract<
-            (typeof doc.steps)[number],
-            { kind: 'navigate' }
-          > => step.kind === 'navigate',
+      const destinations: string[] = [];
+      for (const step of doc.steps) {
+        if (step.kind !== 'navigate') continue;
+        let target: URL;
+        try {
+          target = new URL(step.url);
+        } catch {
+          throw new StorageError('VALIDATION_ERROR');
+        }
+        if (
+          !['https:', 'http:'].includes(target.protocol) ||
+          target.username ||
+          target.password ||
+          target.hash ||
+          target.search
         )
-        .map((step) => {
-          let target: URL;
-          try {
-            target = new URL(step.url);
-          } catch {
-            throw new StorageError('VALIDATION_ERROR');
-          }
-          if (
-            !['https:', 'http:'].includes(target.protocol) ||
-            target.username ||
-            target.password ||
-            target.hash ||
-            target.search
-          )
-            throw new StorageError('VALIDATION_ERROR');
-          try {
-            validateTarget(target.href, [target.origin]);
-          } catch {
-            throw new StorageError('TARGET_NOT_ALLOWED');
-          }
-          return target.origin;
-        });
+          throw new StorageError('VALIDATION_ERROR');
+        // Candidate URLs are member-submitted and have no frozen Environment,
+        // so loopback/private/link-local/metadata destinations are refused.
+        try {
+          await assertPublicOrApprovedTarget(target.href, [target.origin]);
+        } catch {
+          throw new StorageError('TARGET_NOT_ALLOWED');
+        }
+        destinations.push(target.origin);
+      }
       if (new Set(destinations).size !== 1)
         throw new StorageError('VALIDATION_ERROR');
       const exists = (

@@ -147,6 +147,7 @@ try {
     '1001:1001',
     '/secrets/kek.json',
     '/secrets/worker_identity.json',
+    '/secrets/service_identity.json',
     '/secrets/admin_initial_password',
   ]);
   cmd('docker', [
@@ -179,7 +180,7 @@ try {
   ]);
   writeFileSync(
     `${deploy}/.env`,
-    `DATABASE_URL=postgresql://localqa:${password}@postgres:5432/localqa\nPUBLIC_ORIGIN=https://127.0.0.1:18443\nDATA_DIR=/var/localqa/data\nMASTER_KEY_FILE=/run/secrets/kek.json\nWORKER_IDENTITY_FILE=/run/secrets/worker_identity.json\nLOCALQA_ALLOW_TEST_STUB=1\nBROWSER_SLOTS=4\nJOB_HEARTBEAT_SECONDS=10\nJOB_LEASE_SECONDS=45\nJOB_POLL_INTERVAL_MS=500\nWORKER_FIXTURE_URL=http://localqa-t09b-fixture:8080/\nLOCALQA_API_IMAGE=localqa-api:latest\nLOCALQA_WORKER_IMAGE=localqa-worker:latest\nLOCALQA_ORCHESTRATOR_IMAGE=localqa-orchestrator:latest\nLOCALQA_WEB_IMAGE=localqa-web:latest\nGATEWAY_HTTP_PORT=18080\nGATEWAY_HTTPS_PORT=18443\n`,
+    `DATABASE_URL=postgresql://localqa:${password}@postgres:5432/localqa\nPUBLIC_ORIGIN=https://127.0.0.1:18443\nDATA_DIR=/var/localqa/data\nMASTER_KEY_FILE=/run/secrets/kek.json\nWORKER_IDENTITY_FILE=/run/secrets/worker_identity.json\nSERVICE_IDENTITY_FILE=/run/secrets/service_identity.json\nLOCALQA_ALLOW_TEST_STUB=1\nBROWSER_SLOTS=4\nJOB_HEARTBEAT_SECONDS=10\nJOB_LEASE_SECONDS=45\nJOB_POLL_INTERVAL_MS=500\nWORKER_FIXTURE_URL=http://localqa-t09b-fixture:8080/\nLOCALQA_API_IMAGE=localqa-api:latest\nLOCALQA_WORKER_IMAGE=localqa-worker:latest\nLOCALQA_ORCHESTRATOR_IMAGE=localqa-orchestrator:latest\nLOCALQA_WEB_IMAGE=localqa-web:latest\nGATEWAY_HTTP_PORT=18080\nGATEWAY_HTTPS_PORT=18443\n`,
     { mode: 0o600 },
   );
   compose(['config', '--quiet']);

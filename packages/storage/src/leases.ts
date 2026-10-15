@@ -106,11 +106,11 @@ export async function claimTask(
            ? `AND (($2::boolean AND j.role IN ('coordinator','finalizer')) OR ($3::boolean AND j.role NOT IN ('coordinator','finalizer')))
         AND (j.role IN ('coordinator','finalizer') OR
           (SELECT count(*) FROM budget_reservations b JOIN jobs occupied ON occupied.id=b.task_id
-           WHERE b.run_id=r.id AND b.kind='concurrency' AND b.status='reserved' AND occupied.role NOT IN ('coordinator','finalizer'))
+           WHERE b.run_id=r.id AND b.kind='concurrency' AND b.status='reserved' AND occupied.status='running' AND occupied.role NOT IN ('coordinator','finalizer'))
           < (r.effective_config->'budget'->>'concurrency')::integer)
         AND (j.role NOT IN ('coordinator','finalizer') OR NOT EXISTS(
           SELECT 1 FROM budget_reservations b JOIN jobs occupied ON occupied.id=b.task_id
-          WHERE b.run_id=r.id AND b.kind='concurrency' AND b.status='reserved' AND occupied.role IN ('coordinator','finalizer')))`
+          WHERE b.run_id=r.id AND b.kind='concurrency' AND b.status='reserved' AND occupied.status='running' AND occupied.role IN ('coordinator','finalizer')))`
            : ''
        }
        ORDER BY CASE WHEN j.role IN ('coordinator','finalizer') THEN 0 ELSE 1 END,j.available_at,j.id FOR UPDATE OF j SKIP LOCKED LIMIT 1`,

@@ -26,6 +26,7 @@ import {
 } from '@localqa/storage';
 import { smokeCase, criteriaHash } from '@localqa/domain';
 import { createApiContext, createApiServer } from '../dist/index.js';
+import { createTestServiceIdentity } from './support/internal-auth.mjs';
 import { parsePagination } from '../dist/router.js';
 import { toApiErrorResponse } from '../dist/errors.js';
 import { StorageError } from '@localqa/storage';
@@ -67,6 +68,10 @@ writeFileSync(
   }),
   { mode: 0o600 },
 );
+
+// The internal boundary is a peer-only surface. The suite signs its internal
+// requests with this ring instead of being exempted from the gate.
+const testServiceIdentity = createTestServiceIdentity();
 
 let pgConnection;
 let db,
@@ -146,8 +151,30 @@ async function apiRequest(method, endpoint, options = {}) {
   if (options.cookie) {
     headers['Cookie'] = options.cookie;
   }
-  if (options.body && !headers['Content-Type']) {
-    headers['Content-Type'] = 'application/json';
+  // Serialise once so the service-identity signature covers the exact bytes sent.
+  let rawBody;
+  if (options.body !== undefined && options.body !== null) {
+    rawBody =
+      typeof options.body === 'string' || Buffer.isBuffer(options.body)
+        ? options.body
+        : JSON.stringify(options.body);
+    if (!headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
+  }
+  // `internalAuth: false` deliberately probes the unauthenticated path; a
+  // service id string signs as that service.
+  if (endpoint.startsWith('/internal/') && options.internalAuth !== false) {
+    const serviceId =
+      typeof options.internalAuth === 'string' ? options.internalAuth : 'worker';
+    Object.assign(
+      headers,
+      testServiceIdentity.sign(serviceId, {
+        method: method.toUpperCase(),
+        path: endpoint,
+        body: rawBody,
+      }),
+    );
   }
 
   const reqOptions = {
@@ -155,11 +182,8 @@ async function apiRequest(method, endpoint, options = {}) {
     headers,
   };
 
-  if (options.body) {
-    reqOptions.body =
-      typeof options.body === 'string'
-        ? options.body
-        : JSON.stringify(options.body);
+  if (rawBody !== undefined) {
+    reqOptions.body = rawBody;
   }
 
   const res = await fetch(url, reqOptions);
@@ -346,6 +370,7 @@ before(async () => {
       artifactsDir,
       serviceActor: { userId: adminUser.id },
       publicOrigin: 'http://localhost',
+    serviceIdentity: testServiceIdentity.verifier,
       modelTransport,
     });
 
@@ -1642,6 +1667,78 @@ test('T06-9: Internal Worker Protocol (/internal/v1/*) and Service Identity', as
   });
   assert.equal(cookieReject.status, 403);
   assert.equal(cookieReject.json.code, 'FORBIDDEN');
+
+  const claimPath = `/internal/v1/leases/claim?projectId=${projectAlpha.id}`;
+  const claimBody = { workerId: 'worker-node-1', capabilities: ['chromium'] };
+
+  // 1b. No credential at all: refuse before any business logic runs.
+  const unauthenticated = await apiRequest('POST', claimPath, {
+    internalAuth: false,
+    body: claimBody,
+  });
+  assert.equal(unauthenticated.status, 403);
+  assert.equal(unauthenticated.json.code, 'FORBIDDEN');
+
+  // 1c. A self-declared worker identity is not a credential.
+  const selfDeclared = await apiRequest('POST', claimPath, {
+    internalAuth: false,
+    headers: {
+      'X-Worker-Id': 'worker-node-1',
+      'X-Project-Id': projectAlpha.id,
+    },
+    body: claimBody,
+  });
+  assert.equal(selfDeclared.status, 403);
+  assert.equal(selfDeclared.json.code, 'FORBIDDEN');
+
+  // 1d. A signature made with a key outside the ring is refused.
+  const forged = await apiRequest('POST', claimPath, {
+    internalAuth: false,
+    headers: testServiceIdentity.forgedHeaders(claimPath, claimBody),
+    body: claimBody,
+  });
+  assert.equal(forged.status, 403);
+
+  // 1e. A correctly signed but stale credential is refused.
+  const stale = await apiRequest('POST', claimPath, {
+    internalAuth: false,
+    headers: testServiceIdentity.signAt('worker', {
+      path: claimPath,
+      body: claimBody,
+      timestampMs: Date.now() - 10 * 60_000,
+    }),
+    body: claimBody,
+  });
+  assert.equal(stale.status, 403);
+
+  // 1f. A replayed credential is refused on its second use.
+  const replayHeaders = testServiceIdentity.sign('worker', {
+    path: claimPath,
+    body: claimBody,
+  });
+  const firstUse = await apiRequest('POST', claimPath, {
+    internalAuth: false,
+    headers: replayHeaders,
+    body: claimBody,
+  });
+  assert.notEqual(firstUse.status, 403);
+  const replay = await apiRequest('POST', claimPath, {
+    internalAuth: false,
+    headers: replayHeaders,
+    body: claimBody,
+  });
+  assert.equal(replay.status, 403);
+
+  // 1g. A signed request cannot carry a substituted body.
+  const tampered = await apiRequest('POST', claimPath, {
+    internalAuth: false,
+    headers: testServiceIdentity.sign('worker', {
+      path: claimPath,
+      body: claimBody,
+    }),
+    body: { workerId: 'attacker', capabilities: ['chromium'] },
+  });
+  assert.equal(tampered.status, 403);
 
   // 2. Claim task as worker (service identity)
   const claimRes = await apiRequest(

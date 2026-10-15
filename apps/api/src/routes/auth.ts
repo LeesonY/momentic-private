@@ -1,4 +1,5 @@
 import { parseContract } from '@localqa/contracts';
+import { StorageError } from '@localqa/storage';
 import {
   requireAuth,
   requireAdmin,
@@ -6,8 +7,13 @@ import {
   clearSessionCookie,
   parseCookies,
 } from '../auth.js';
+import { ApiError } from '../errors.js';
+import { LoginThrottle, clientIdentity } from '../loginThrottle.js';
 import { parsePagination, paginate, type Router } from '../router.js';
 import type { RequestContext } from '../types.js';
+
+/** One throttle per API process: logins are cheap and the window is minutes. */
+const loginThrottle = new LoginThrottle();
 
 export function registerAuthRoutes(router: Router): void {
   // POST /api/v1/auth/login
@@ -23,12 +29,34 @@ export function registerAuthRoutes(router: Router): void {
       password: raw.password ?? '',
     });
 
+    // Throttle before verifying, so a flood costs no password hashing and the
+    // response time does not reveal whether the account exists.
+    const clientId = clientIdentity(ctx.headers, ctx.req.socket.remoteAddress);
+    const decision = loginThrottle.inspect(loginInput.email, clientId);
+    if (decision.limited) {
+      ctx.res.setHeader('Retry-After', String(decision.retryAfterSeconds));
+      throw new ApiError(
+        'RATE_LIMITED',
+        'Too many failed sign-in attempts. Try again later.',
+        429,
+      );
+    }
+
     const isSecure = ctx.req.headers['x-forwarded-proto'] === 'https';
-    const { token, result } = await ctx.api.accountsRepo.login(loginInput);
-    setSessionCookie(ctx.res, token, 86400, isSecure);
+    let login: Awaited<ReturnType<typeof ctx.api.accountsRepo.login>>;
+    try {
+      login = await ctx.api.accountsRepo.login(loginInput);
+    } catch (error) {
+      if (error instanceof StorageError && error.code === 'UNAUTHENTICATED') {
+        loginThrottle.recordFailure(loginInput.email, clientId);
+      }
+      throw error;
+    }
+    loginThrottle.recordSuccess(loginInput.email, clientId);
+    setSessionCookie(ctx.res, login.token, 86400, isSecure);
 
     ctx.res.statusCode = 200;
-    return parseContract('LoginResult', result);
+    return parseContract('LoginResult', login.result);
   });
 
   // POST /api/v1/auth/logout

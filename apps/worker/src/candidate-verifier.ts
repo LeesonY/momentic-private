@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { BrowserPort, BrowserSession } from '@localqa/browser';
 import { parseContract } from '@localqa/contracts';
-import { validateTarget } from '@localqa/domain';
+import { assertPublicOrApprovedTarget } from '@localqa/domain';
 import type {
   BrowserSnapshot,
   Criterion,
@@ -305,7 +305,9 @@ export class CandidateVerifier {
       if (step.kind !== 'navigate') continue;
       try {
         const url = new URL(step.url);
-        validateTarget(url.href, [url.origin]);
+        // The verification lane has no frozen Environment, so a candidate that
+        // resolves to loopback/private/link-local/metadata is denied.
+        await assertPublicOrApprovedTarget(url.href, [url.origin]);
       } catch {
         throw new VerificationBlocked('VERIFICATION_TARGET_DENIED');
       }

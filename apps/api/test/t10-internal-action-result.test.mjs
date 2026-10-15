@@ -19,6 +19,11 @@ import {
   hashPayload,
 } from '@localqa/storage';
 import { createApiContext, createApiServer } from '../dist/index.js';
+import { createTestServiceIdentity } from './support/internal-auth.mjs';
+
+// The internal boundary is a peer-only surface. The suite signs its internal
+// requests with this ring instead of being exempted from the gate.
+const testServiceIdentity = createTestServiceIdentity();
 
 const tag = randomUUID();
 const dir = mkdtempSync(join(tmpdir(), 'localqa-action-result-'));
@@ -81,11 +86,24 @@ async function admin(sql, params = []) {
   }
 }
 async function post(path, body, headers = {}) {
+  // Serialise once so the service-identity signature covers the exact bytes sent.
+  const rawBody = JSON.stringify(body);
+  const requestHeaders = { 'Content-Type': 'application/json', ...headers };
+  if (path.startsWith('/internal/')) {
+    Object.assign(
+      requestHeaders,
+      testServiceIdentity.sign('worker', {
+        method: 'POST',
+        path,
+        body: rawBody,
+      }),
+    );
+  }
   const response = await fetch(`${url}${path}`, {
     method: 'POST',
     signal: AbortSignal.timeout(15000),
-    headers: { 'Content-Type': 'application/json', ...headers },
-    body: JSON.stringify(body),
+    headers: requestHeaders,
+    body: rawBody,
   });
   return { status: response.status, body: await response.json() };
 }
@@ -206,6 +224,7 @@ before(async () => {
     serviceActor: actor,
     artifactsDir: join(dir, 'artifacts'),
     publicOrigin: 'http://localhost',
+    serviceIdentity: testServiceIdentity.verifier,
     modelTransport: async () => {
       facts.modelTransportCalls++;
       throw new Error('Provider forbidden');

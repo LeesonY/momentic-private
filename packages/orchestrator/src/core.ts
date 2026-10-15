@@ -262,7 +262,7 @@ export class Coordinator {
       await client.query('SELECT pg_advisory_xact_lock(741005)');
       const slots = (
         await client.query<{ total: number; project: number }>(
-          "SELECT count(*)::integer AS total,count(*) FILTER(WHERE b.project_id=$1)::integer AS project FROM budget_reservations b JOIN jobs j ON j.id=b.task_id WHERE b.kind='concurrency' AND b.status='reserved' AND j.role NOT IN ('coordinator','finalizer')",
+          "SELECT count(*)::integer AS total,count(*) FILTER(WHERE b.project_id=$1)::integer AS project FROM budget_reservations b JOIN jobs j ON j.id=b.task_id WHERE b.kind='concurrency' AND b.status='reserved' AND j.status='running' AND j.role NOT IN ('coordinator','finalizer')",
           [data.projectId],
         )
       ).rows[0]!;
@@ -677,7 +677,7 @@ export class Coordinator {
             project: number;
             control: number;
           }>(
-            "SELECT count(*) FILTER(WHERE j.role NOT IN ('coordinator','finalizer'))::int children,count(*) FILTER(WHERE j.role NOT IN ('coordinator','finalizer') AND b.project_id=$1)::int project,count(*) FILTER(WHERE j.role IN ('coordinator','finalizer'))::int control FROM budget_reservations b JOIN jobs j ON j.id=b.task_id WHERE b.kind='concurrency' AND b.status='reserved'",
+            "SELECT count(*) FILTER(WHERE j.role NOT IN ('coordinator','finalizer'))::int children,count(*) FILTER(WHERE j.role NOT IN ('coordinator','finalizer') AND b.project_id=$1)::int project,count(*) FILTER(WHERE j.role IN ('coordinator','finalizer'))::int control FROM budget_reservations b JOIN jobs j ON j.id=b.task_id WHERE b.kind='concurrency' AND b.status='reserved' AND j.status='running'",
             [scope.projectId],
           )
         ).rows[0]!;
@@ -2820,6 +2820,12 @@ export class Coordinator {
       // lock; this also frees locks left by runs that ended before that fix.
       await client.query(
         "UPDATE auth_profile_run_locks l SET status='released', released_at=clock_timestamp(), release_reason='run_finished' FROM runs r WHERE l.project_id=$1 AND r.project_id=l.project_id AND r.id=l.run_id AND l.status='held' AND r.status IN ('completed','cancelled','failed')",
+        [projectId],
+      );
+      // Reconcile capacity left by a completed or requeued task. Stale
+      // reservations must not permanently starve all control jobs.
+      await client.query(
+        "UPDATE budget_reservations b SET status='released',charged='{}' FROM jobs j WHERE b.project_id=$1 AND b.task_id=j.id AND b.kind='concurrency' AND b.status='reserved' AND j.status<>'running'",
         [projectId],
       );
       const ids = (

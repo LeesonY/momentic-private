@@ -19,6 +19,11 @@ import {
 import { RuntimeClient, createWorkerModelOptions } from '@localqa/orchestrator';
 import { DEFAULT_LIMITS } from '@localqa/domain';
 import { createApiContext, createApiServer } from '../dist/index.js';
+import { createTestServiceIdentity } from './support/internal-auth.mjs';
+
+// The internal boundary is a peer-only surface. The suite signs its internal
+// requests with this ring instead of being exempted from the gate.
+const testServiceIdentity = createTestServiceIdentity();
 
 const tag = randomUUID().slice(0, 8);
 const dir = mkdtempSync(join(tmpdir(), 'localqa-auth-runtime-'));
@@ -133,6 +138,7 @@ before(async () => {
     vault,
     artifactsDir: join(dir, 'artifacts'),
     serviceActor: actor,
+    serviceIdentity: testServiceIdentity.verifier,
     modelTransport: async () => {
       throw new Error('External provider is forbidden in this fixture');
     },
@@ -284,6 +290,12 @@ async function fixture(mode = 'none', unusedNoneSecret = false) {
   };
 }
 async function resolveAuth(f, headers = {}) {
+  // Serialise once so the service-identity signature covers the exact bytes sent.
+  const rawBody = JSON.stringify({
+    taskId: f.proof.taskId,
+    authProfileId: f.profile.id,
+    authProfileVersion: f.profile.version,
+  });
   const response = await fetch(`${origin}/internal/v1/auth/resolve`, {
     method: 'POST',
     headers: {
@@ -293,12 +305,13 @@ async function resolveAuth(f, headers = {}) {
       'x-fencing-token': String(f.proof.fencingToken),
       'x-context-version': String(f.proof.contextVersion),
       ...headers,
+      ...testServiceIdentity.sign('worker', {
+        method: 'POST',
+        path: '/internal/v1/auth/resolve',
+        body: rawBody,
+      }),
     },
-    body: JSON.stringify({
-      taskId: f.proof.taskId,
-      authProfileId: f.profile.id,
-      authProfileVersion: f.profile.version,
-    }),
+    body: rawBody,
   });
   return { status: response.status, body: await response.json() };
 }

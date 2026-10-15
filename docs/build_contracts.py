@@ -55,7 +55,7 @@ D["FormConfig"]["allOf"] = [{"if": {"properties": {"detectionMode": {"const": "a
 D["AuthVariable"] = obj({"name": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"}, "sensitive": BOOL, "note": text(200)}, ["name", "sensitive"])
 D["AgentLoginConfig"] = obj({"loginUrl": URI, "instructions": text(4000, minLength=1), "variables": arr(ref("AuthVariable"), 20, 1)}, ["instructions", "variables"])
 D["AuthProfileCreate"] = obj({"environmentId": nullable(UUID), "name": text(120, minLength=1), "mode": enum(*AUTH_MODES), "allowedOrigins": arr(URI, 30, 1), "sharingPolicy": {**enum("exclusive_run", "shared_state"), "default": "exclusive_run"}, "formConfig": ref("FormConfig"), "agentConfig": ref("AgentLoginConfig"), "secretInput": {"type": "object", "writeOnly": True, "additionalProperties": text(1000000)}}, ["name", "mode", "allowedOrigins"])
-D["AuthProfilePatch"] = obj({"expectedVersion": VER, "name": text(120), "sharingPolicy": enum("exclusive_run", "shared_state"), "formConfig": ref("FormConfig"), "agentConfig": ref("AgentLoginConfig"), "secretInput": copy.deepcopy(D["AuthProfileCreate"]["properties"]["secretInput"]), "revoke": BOOL}, ["expectedVersion"])
+D["AuthProfilePatch"] = obj({"expectedVersion": VER, "allowedOrigins": arr(URI, 30, 1), "name": text(120), "sharingPolicy": enum("exclusive_run", "shared_state"), "formConfig": ref("FormConfig"), "agentConfig": ref("AgentLoginConfig"), "secretInput": copy.deepcopy(D["AuthProfileCreate"]["properties"]["secretInput"]), "revoke": BOOL}, ["expectedVersion"])
 D["Knowledge"] = obj({"id": UUID, "projectId": UUID, "title": text(200), "kind": enum("terminology", "rule", "flow", "restriction"), "text": text(20000), "approved": BOOL, "version": VER})
 D["KnowledgeCreate"] = obj({"title": text(200, minLength=1), "kind": enum("terminology", "rule", "flow", "restriction"), "text": text(20000, minLength=1)})
 D["KnowledgePatch"] = obj({"expectedVersion": VER, "title": text(200), "text": text(20000), "approved": BOOL}, ["expectedVersion"])
@@ -140,6 +140,10 @@ D["ModelMessage"] = obj({"role": enum("system", "user", "assistant", "tool"), "c
 # maxOutputTokens is an optional caller ceiling; the bound model's own cap applies.
 D["ModelRequest"] = obj({"taskId": UUID, "profileId": UUID, "contextVersion": VER, "purpose": enum("plan", "decide", "assert", "summarize"), "messages": arr(ref("ModelMessage"), 100, 1), "maxOutputTokens": integer(1, 32000), "outputSchema": {"type": "object"}}, ["taskId", "profileId", "contextVersion", "purpose", "messages", "outputSchema"])
 D["ModelRequest"]["properties"]["criterionId"] = copy.deepcopy(D["Criterion"]["properties"]["id"])
+# Concrete credential values the caller already holds. The model gateway removes
+# them verbatim before a request leaves the process, so a secret that appears
+# with no surrounding key still cannot reach a provider.
+D["ModelRequest"]["properties"]["sensitiveValues"] = arr(text(512), 16, 0)
 D["ModelResult"] = obj({"data": ref("JsonValue"), "configuredModelId": text(200), "reportedModelId": nullable(text(200)), "usage": ref("ModelUsage")})
 D["AuthResolve"] = obj({"taskId": UUID, "authProfileId": UUID, "authProfileVersion": VER})
 D["CredentialMaterial"] = obj({"mode": enum(*AUTH_MODES), "material": {"type": "object", "additionalProperties": ref("JsonValue"), "x-sensitive": True}, "expiresAt": DATE})
@@ -153,7 +157,7 @@ D["Project"]["required"].append("defaultModelProfileId")
 D["ProjectPatch"] = obj({"expectedVersion": VER, "name": text(120), "status": enum("active", "archived"), "defaultModelProfileId": nullable(UUID)}, ["expectedVersion"])
 D["ProjectDeleteConfirm"] = obj({"expectedVersion": VER, "confirmName": text(120, minLength=1)})
 D["ModelDeleteConfirm"] = obj({"expectedVersion": VER, "confirmName": text(120, minLength=1)})
-D["ModelProfilePatch"] = obj({"expectedVersion": VER, "name": text(120), "endpoint": URI, "configuredModelId": text(200), "apiKey": text(1000, writeOnly=True), "status": enum("disabled", "untested")}, ["expectedVersion"])
+D["ModelProfilePatch"] = obj({"expectedVersion": VER, "adapter": enum("openai_compatible", "anthropic_messages"), "name": text(120), "endpoint": URI, "configuredModelId": text(200), "apiKey": text(1000, writeOnly=True), "status": enum("disabled", "untested")}, ["expectedVersion"])
 D["ModelProfilePatch"]["properties"]["responseFormat"] = enum("json_schema", "json_object", "native_tools")
 D["ModelProfilePatch"]["properties"]["maxOutputTokens"] = copy.deepcopy(MODEL_OUTPUT_TOKENS)
 D["ModelProfilePatch"]["properties"]["contextWindowTokens"] = nullable(copy.deepcopy(MODEL_CONTEXT_TOKENS))

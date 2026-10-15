@@ -606,6 +606,7 @@ export class BoundModel {
     proof: LeaseProof,
     payload: DecisionPayload,
     signal?: AbortSignal,
+    sensitiveValues: readonly string[] = [],
   ): Promise<CallRecord> {
     await this.coordinator.tx(async (client) => {
       const { job } = await this.coordinator.validateLease(
@@ -631,9 +632,16 @@ export class BoundModel {
       undefined,
       payload.messages,
     );
+    const egressGuards = {
+      // The auth agent already scrubs its payload. Passing the same values to
+      // the gateway makes the guarantee hold at the egress boundary too, so a
+      // future change to the payload builder cannot leak a credential.
+      sensitiveValues: sensitiveValues.filter(Boolean).slice(0, 16),
+    };
     if (
       !validateContract('ModelRequest', {
         ...payload,
+        ...egressGuards,
         taskId: proof.taskId,
         profileId: bound.profile.id,
         contextVersion: proof.contextVersion,
@@ -655,6 +663,7 @@ export class BoundModel {
     });
     const record = await gateway.generateDecision({
       ...payload,
+      ...egressGuards,
       taskId: proof.taskId,
       profileId: bound.profile.id,
       contextVersion: proof.contextVersion,

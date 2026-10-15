@@ -224,6 +224,12 @@ export interface CallInput {
   fallbackProfileId?: string;
   knownEvidenceIds?: readonly string[];
   /**
+   * Concrete credential values the caller already holds. The gateway removes
+   * them verbatim, in addition to the syntax and token layers, so no path can
+   * forward an auth secret to a provider.
+   */
+  sensitiveValues?: readonly string[];
+  /**
    * Stored criterion for purpose assert. Only a canonical Criterion is sent.
    * Free-form messages are not an expectedValue source.
    */
@@ -694,7 +700,14 @@ export function createGateway(options: {
       }
     }
 
-    const redacted = redactMessages(input.messages, input.approvedImageIds);
+    // Concrete credentials the caller already holds (registered auth material)
+    // are removed verbatim as well, so a secret that appears with no key cannot
+    // pass the syntax layers.
+    const redacted = redactMessages(
+      input.messages,
+      input.approvedImageIds,
+      input.sensitiveValues ?? [],
+    );
     if (redacted.droppedImageIds.length > 0) {
       return failure({
         method,

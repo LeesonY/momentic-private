@@ -18,12 +18,13 @@
     "format:check": "prettier --check package.json tsconfig.json src test README.md"
   },
   "dependencies": {
+    "@localqa/agents": "workspace:*",
+    "@localqa/browser": "workspace:*",
     "@localqa/contracts": "workspace:*",
     "@localqa/domain": "workspace:*",
-    "@localqa/storage": "workspace:*",
     "@localqa/model-gateway": "workspace:*",
-    "@localqa/browser": "workspace:*",
-    "@localqa/agents": "workspace:*"
+    "@localqa/service-identity": "workspace:*",
+    "@localqa/storage": "workspace:*"
   },
   "devDependencies": {
     "@types/pg": "8.23.1"

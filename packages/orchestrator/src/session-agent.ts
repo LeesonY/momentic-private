@@ -279,17 +279,29 @@ export class SessionAgent {
         )
       )
         throw new StorageError('VALIDATION_ERROR');
+      // Recover once by exploring the server-authorized entry URL.
+      // A repeated planner failure still uses immutable technical smoke.
+      const exploreBeforeFallback =
+        context.session.round === 1 &&
+        context.session.exploredUrls.length === 0 &&
+        context.remainingPages > 0 &&
+        run.effectiveConfig.taskIntent !== 'plan';
       fallbackToTechnicalSmoke =
+        !exploreBeforeFallback &&
         context.cases.length === 0 &&
         context.remainingCases > 0 &&
         run.effectiveConfig.taskIntent !== 'plan';
       accepted = {
         action: 'dispatch',
-        rationale: 'AI 规划输出被截断或格式不合法；服务端未采用该输出。',
+        rationale: exploreBeforeFallback
+          ? 'AI 规划输出无效；使用已授权入口的只读探索结果重新规划。'
+          : 'AI 规划输出被截断或格式不合法；服务端未采用该输出。',
         cases: [],
-        exploreTargets: [],
+        exploreTargets: exploreBeforeFallback ? [run.targetUrl] : [],
         coverageGaps: [
-          'AI 规划的结构化输出无效；业务用例未得到确认。',
+          exploreBeforeFallback
+            ? '首次 AI 规划无效；仅探索已授权入口，等待基于观察的下一轮规划。'
+            : 'AI 规划的结构化输出无效；业务用例未得到确认。',
           ...(fallbackToTechnicalSmoke
             ? ['仅执行服务端固定的入口 HTTP/可见性技术冒烟。']
             : []),

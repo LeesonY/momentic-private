@@ -44,6 +44,9 @@ importers:
       '@localqa/report':
         specifier: workspace:*
         version: link:../../packages/report
+      '@localqa/service-identity':
+        specifier: workspace:*
+        version: link:../../packages/service-identity
       '@localqa/storage':
         specifier: workspace:*
         version: link:../../packages/storage
@@ -227,6 +230,9 @@ importers:
       '@localqa/model-gateway':
         specifier: workspace:*
         version: link:../model-gateway
+      '@localqa/service-identity':
+        specifier: workspace:*
+        version: link:../service-identity
       '@localqa/storage':
         specifier: workspace:*
         version: link:../storage
@@ -262,6 +268,8 @@ importers:
       '@types/pg':
         specifier: 8.23.1
         version: 8.23.1
+
+  packages/service-identity: {}
 
   packages/storage:
     dependencies:

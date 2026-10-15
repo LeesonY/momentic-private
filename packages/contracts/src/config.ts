@@ -17,6 +17,13 @@ export const CONFIG_KEYS = Object.freeze({
     required: true,
     sensitive: true,
   },
+  // Versioned key ring for the internal `/internal/v1/*` service-identity gate.
+  // Required in production; without it internal routes fail closed.
+  SERVICE_IDENTITY_FILE: {
+    kind: 'protected-file',
+    required: true,
+    sensitive: true,
+  },
   BROWSER_SLOTS: { kind: 'positive-integer', required: false, default: 4 },
   JOB_LEASE_SECONDS: { kind: 'positive-integer', required: false, default: 45 },
   JOB_HEARTBEAT_SECONDS: {

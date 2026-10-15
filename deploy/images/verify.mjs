@@ -17,12 +17,27 @@ const containers = [db, api, worker, fixture, web, orchestrator];
 const password = randomBytes(24).toString('hex');
 const kek = randomBytes(32).toString('base64');
 const identity = randomBytes(32).toString('hex');
+// Versioned key ring for the internal service-identity gate. The worker and
+// orchestrator entries must exist for their HTTP clients to sign requests.
+const serviceIdentity = JSON.stringify({
+  services: {
+    worker: {
+      activeVersion: 1,
+      keys: { 1: randomBytes(32).toString('base64') },
+    },
+    orchestrator: {
+      activeVersion: 1,
+      keys: { 1: randomBytes(32).toString('base64') },
+    },
+  },
+});
 const adminPassword = randomBytes(24).toString('hex');
 const redacted = (text) =>
   String(text ?? '')
     .replaceAll(password, '[DB_SECRET]')
     .replaceAll(kek, '[KEK]')
     .replaceAll(identity, '[IDENTITY]')
+    .replaceAll(serviceIdentity, '[SERVICE_IDENTITY]')
     .replaceAll(adminPassword, '[ADMIN_SECRET]');
 const commands = [],
   facts = {},
@@ -51,9 +66,16 @@ function waitHealthy(name) {
   for (let n = 0; n < 60; n++) {
     const r = run(['inspect', '--format', '{{json .State}}', name], true);
     if (r.status === 0) {
-      const state = JSON.parse(r.stdout);
-      if (state.Health?.Status === 'healthy') return state;
-      if (state.Status === 'exited' || state.Health?.Status === 'unhealthy')
+      // A container may be inspected while its log buffers are being written;
+      // an unparseable snapshot is a retry, not a harness crash.
+      let state;
+      try {
+        state = JSON.parse(r.stdout);
+      } catch {
+        state = null;
+      }
+      if (state?.Health?.Status === 'healthy') return state;
+      if (state?.Status === 'exited' || state?.Health?.Status === 'unhealthy')
         throw new Error(
           `${name} exited/unhealthy: ${redacted(run(['logs', name], true).stdout).slice(-1200)}`,
         );
@@ -139,11 +161,12 @@ try {
     `LOCALQA_KEK=${kek}`,
     '-e',
     `LOCALQA_IDENTITY=${identity}`,
+    `LOCALQA_SERVICE_IDENTITY=${serviceIdentity}`,
     '--entrypoint',
     'node',
     'node:24-bookworm-slim',
     '-e',
-    "const f=require('fs');for(const [name,data] of [['kek.json',JSON.stringify({activeVersion:1,keys:{1:process.env.LOCALQA_KEK}})],['worker_identity.json',process.env.LOCALQA_IDENTITY]]) {const p='/secrets/'+name;f.writeFileSync(p,data,{mode:0o400});f.chownSync(p,1001,1001);f.chmodSync(p,0o400)}",
+    "const f=require('fs');for(const [name,data] of [['kek.json',JSON.stringify({activeVersion:1,keys:{1:process.env.LOCALQA_KEK}})],['worker_identity.json',process.env.LOCALQA_IDENTITY],['service_identity.json',process.env.LOCALQA_SERVICE_IDENTITY]]) {const p='/secrets/'+name;f.writeFileSync(p,data,{mode:0o400});f.chownSync(p,1001,1001);f.chmodSync(p,0o400)}",
   ]);
   run([
     'run',
@@ -184,6 +207,8 @@ try {
     'MASTER_KEY_FILE=/run/secrets/kek.json',
     '-e',
     'WORKER_IDENTITY_FILE=/run/secrets/worker_identity.json',
+    '-e',
+    'SERVICE_IDENTITY_FILE=/run/secrets/service_identity.json',
     '-e',
     'PUBLIC_ORIGIN=https://localqa.invalid',
     '--health-cmd=node /app/deploy/images/check.mjs api ready',

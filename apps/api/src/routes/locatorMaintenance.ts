@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { parseContract, previewLocatorMaintenance } from '@localqa/contracts';
-import { validateTarget } from '@localqa/domain';
+import { assertPublicOrApprovedTarget } from '@localqa/domain';
 import { authorize, audit, hashPayload, StorageError } from '@localqa/storage';
 import { requireAuth } from '../auth.js';
 import type { Router } from '../router.js';
@@ -17,7 +17,8 @@ function versionInput(body: unknown): {
     typeof body !== 'object' ||
     Array.isArray(body) ||
     Object.keys(body).some(
-      (key) => !['expectedVersion', 'suggestionIndex', 'autoVerify'].includes(key),
+      (key) =>
+        !['expectedVersion', 'suggestionIndex', 'autoVerify'].includes(key),
     ) ||
     !('expectedVersion' in body)
   )
@@ -39,9 +40,9 @@ function versionInput(body: unknown): {
   return { expectedVersion: n, suggestionIndex: idx, autoVerify };
 }
 
-function allowedVerificationDocument(
+async function allowedVerificationDocument(
   document: ReturnType<typeof parseRegressionPayload>,
-): void {
+): Promise<void> {
   const steps = document.steps;
   if (
     steps.length === 0 ||
@@ -83,7 +84,9 @@ function allowedVerificationDocument(
     )
       throw new StorageError('VALIDATION_ERROR');
     try {
-      validateTarget(url.href, [url.origin]);
+      // Locator-maintenance candidates are member-submitted with no frozen
+      // Environment, so restricted (internal/metadata) destinations are refused.
+      await assertPublicOrApprovedTarget(url.href, [url.origin]);
     } catch {
       throw new StorageError('TARGET_NOT_ALLOWED');
     }
@@ -119,8 +122,6 @@ function verificationOutput(row: {
 }
 
 export function registerLocatorMaintenanceRoutes(router: Router): void {
-
-
   // A bounded, read-only quality sample. Never infer "AI recommendation
   // accuracy" from a successful locator replay: human review and verified
   // browser behavior are separate independent observations.
@@ -137,12 +138,13 @@ export function registerLocatorMaintenanceRoutes(router: Router): void {
         ).rows[0];
         if (!saved) throw new StorageError('NOT_FOUND');
         await authorize(client, saved.project_id, 'read');
-        const owner = (
-          await client.query<{ allowed: boolean }>(
-            "SELECT can_project($1,'owner') AS allowed",
-            [saved.project_id],
-          )
-        ).rows[0]?.allowed === true;
+        const owner =
+          (
+            await client.query<{ allowed: boolean }>(
+              "SELECT can_project($1,'owner') AS allowed",
+              [saved.project_id],
+            )
+          ).rows[0]?.allowed === true;
         // Reviewer-only: free-text decision reasons and retained evidence
         // receipts must not leak to project operators or viewers.
         if (!owner) throw new StorageError('NOT_FOUND');
@@ -241,14 +243,19 @@ export function registerLocatorMaintenanceRoutes(router: Router): void {
         const truncated = rows.length > 100;
         const sample = rows.slice(0, 100);
         const reviewed = sample.filter(
-          (row) => row.review_status === 'approved' || row.review_status === 'rejected',
+          (row) =>
+            row.review_status === 'approved' ||
+            row.review_status === 'rejected',
         );
         const completed = sample.filter(
           (row) => row.verification_status === 'completed',
         );
-        const passed = (row: typeof sample[number]) =>
+        const passed = (row: (typeof sample)[number]) =>
           row.fully_verified && row.screenshot_witness;
-        const kinds = ['locator_name_variation', 'locator_semantic_candidate'] as const;
+        const kinds = [
+          'locator_name_variation',
+          'locator_semantic_candidate',
+        ] as const;
         return {
           sampleWindowDays: 90,
           sampleLimit: 100,
@@ -257,7 +264,8 @@ export function registerLocatorMaintenanceRoutes(router: Router): void {
             drafts: sample.length,
             verifiedCompleted: completed.length,
             verifiedPassed: completed.filter(passed).length,
-            verifiedFailed: completed.filter((row) => row.outcome === 'failed').length,
+            verifiedFailed: completed.filter((row) => row.outcome === 'failed')
+              .length,
             verifiedInconclusive: completed.filter(
               (row) => row.outcome === 'inconclusive',
             ).length,
@@ -278,7 +286,9 @@ export function registerLocatorMaintenanceRoutes(router: Router): void {
             ).length,
           },
           byKind: kinds.map((kind) => {
-            const matched = sample.filter((row) => row.suggestion_kind === kind);
+            const matched = sample.filter(
+              (row) => row.suggestion_kind === kind,
+            );
             return {
               kind,
               drafts: matched.length,
@@ -300,8 +310,8 @@ export function registerLocatorMaintenanceRoutes(router: Router): void {
             createdAt: row.created_at.toISOString(),
             reviewStatus: row.review_status,
             reviewedAt: row.reviewed_at?.toISOString() ?? null,
-            reviewReason: owner && row.reason
-              ? row.reason.trim().slice(0, 300) : null,
+            reviewReason:
+              owner && row.reason ? row.reason.trim().slice(0, 300) : null,
             verificationStatus: row.verification_status,
             verificationOutcome: row.outcome,
             verifiedPassed: passed(row),
@@ -419,8 +429,11 @@ export function registerLocatorMaintenanceRoutes(router: Router): void {
     '/api/v1/saved-cases/{caseId}/locator-maintenance/{taskId}/draft',
     async (ctx: RequestContext) => {
       await requireAuth(ctx);
-      const { expectedVersion: expected, suggestionIndex, autoVerify } =
-        versionInput(ctx.body);
+      const {
+        expectedVersion: expected,
+        suggestionIndex,
+        autoVerify,
+      } = versionInput(ctx.body);
       const result = await ctx.api.db.actor(ctx.actor!, async (client) => {
         const saved = (
           await client.query<{
@@ -514,7 +527,7 @@ export function registerLocatorMaintenanceRoutes(router: Router): void {
         }
         // The safety lane cannot run free-form AI, modules, non-submitting
         // writes, credentials, fixture mutation or other origins.
-        allowedVerificationDocument(candidate);
+        await allowedVerificationDocument(candidate);
         const sha = hashPayload(candidate);
         if (sha === evidence.source_sha256)
           throw new StorageError('VALIDATION_ERROR');
@@ -697,7 +710,7 @@ export function registerLocatorMaintenanceRoutes(router: Router): void {
         hashPayload(row.document) !== row.candidate_sha256
       )
         throw new StorageError('POLICY_DENIED');
-      allowedVerificationDocument(parseRegressionPayload(row.document));
+      await allowedVerificationDocument(parseRegressionPayload(row.document));
       const exists = await client.query(
         `SELECT 1 FROM repair_candidate_verifications
          WHERE project_id=$1 AND case_version_id=$2

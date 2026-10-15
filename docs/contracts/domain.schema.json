@@ -4419,6 +4419,15 @@
           "type": "string",
           "maxLength": 64,
           "pattern": "^[a-zA-Z0-9_.-]+$"
+        },
+        "sensitiveValues": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "maxItems": 16,
+          "minItems": 0
         }
       },
       "required": [

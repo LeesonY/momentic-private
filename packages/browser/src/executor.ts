@@ -18,7 +18,7 @@ import {
   validateContract,
   toolMetadata,
 } from '@localqa/contracts';
-import { STABLE_REASON_CODES } from './types.js';
+import { STABLE_REASON_CODES, type ActionTargetMetadata } from './types.js';
 import { PolicyInterceptor } from './policy.js';
 import { resolveTarget } from './resolver.js';
 import { captureBrowserSnapshot } from './snapshot.js';
@@ -44,6 +44,60 @@ function getTargetPage(ctx: ExecutorContext, pageId?: string): Page | null {
     if (found) return found;
   }
   return pageId === ctx.pageId ? ctx.page : null;
+}
+
+/** Policy hints are read from the current DOM, never from the model. */
+async function inspectedTargetMetadata(
+  resolved: Extract<
+    Awaited<ReturnType<typeof resolveTarget>>,
+    { status: 'resolved' }
+  >,
+  page: Page,
+): Promise<ActionTargetMetadata> {
+  const handle = resolved.elementHandle;
+  const attr = (name: string): Promise<string | null> =>
+    typeof handle.getAttribute === 'function'
+      ? handle.getAttribute(name).catch(() => null)
+      : Promise.resolve(null);
+  const [href, formAction, formMethod, type, owner] = await Promise.all([
+    attr('href'),
+    attr('formaction'),
+    attr('formmethod'),
+    attr('type'),
+    handle
+      .evaluate((node) => {
+        const form = node.closest('form');
+        const anchor = node.closest('a[href]');
+        return {
+          action: form?.getAttribute('action') ?? null,
+          method: form?.getAttribute('method') ?? null,
+          href: anchor?.getAttribute('href') ?? null,
+        };
+      })
+      .catch(() => ({ action: null, method: null, href: null })),
+  ]);
+  const absolute = (value: string | null) => {
+    if (!value) return undefined;
+    try {
+      return new URL(value, page.url()).toString();
+    } catch {
+      return value;
+    }
+  };
+  return {
+    nodeId: resolved.node.nodeId,
+    role: resolved.node.role,
+    name: resolved.node.name,
+    text: resolved.node.text,
+    tag: resolved.node.role === 'button' ? 'button' : undefined,
+    href: absolute(href ?? owner.href),
+    actionUrl: absolute(formAction ?? owner.action),
+    isDangerousMutation:
+      ['post', 'put', 'patch', 'delete'].includes(
+        (formMethod ?? owner.method ?? '').toLowerCase(),
+      ) &&
+      (type === 'submit' || resolved.node.role === 'button'),
+  };
 }
 
 export class ToolExecutor {
@@ -99,6 +153,7 @@ export class ToolExecutor {
           requestId,
           actionId: null,
           status: 'cancelled',
+          // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
           data: snapshot as unknown as JsonValue,
           reasonCode: STABLE_REASON_CODES.USER_CANCELLED,
           evidenceRefs: [],
@@ -127,6 +182,7 @@ export class ToolExecutor {
           requestId,
           actionId: null,
           status: 'denied',
+          // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
           data: snapshot as unknown as JsonValue,
           reasonCode: STABLE_REASON_CODES.POLICY_DENIED,
           evidenceRefs: [],
@@ -147,6 +203,7 @@ export class ToolExecutor {
           requestId,
           actionId: null,
           status: 'failed',
+          // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
           data: snapshot as unknown as JsonValue,
           reasonCode: STABLE_REASON_CODES.VALIDATION_ERROR,
           evidenceRefs: [],
@@ -167,6 +224,28 @@ export class ToolExecutor {
 
     const actionId = randomUUID();
 
+    // Apply the common policy to every tool, not just click/type/navigation.
+    const generalPolicy = ctx.policy.checkAction(
+      toolCall,
+      undefined,
+      ctx.page.url(),
+    );
+    if (!generalPolicy.allowed) {
+      return this.finalizeResult(
+        {
+          requestId,
+          actionId,
+          status: 'denied',
+          data: ctx.currentSnapshot as unknown as JsonValue,
+          reasonCode:
+            generalPolicy.reasonCode ?? STABLE_REASON_CODES.POLICY_DENIED,
+          evidenceRefs: [],
+        },
+        toolCall,
+        ctx.currentSnapshot,
+      );
+    }
+
     try {
       // 4. Dispatch Tool Execution
       switch (toolCall.name) {
@@ -179,6 +258,7 @@ export class ToolExecutor {
                 requestId,
                 actionId,
                 status: 'failed',
+                // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
                 data: ctx.currentSnapshot as unknown as JsonValue,
                 reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
                 evidenceRefs: [],
@@ -198,6 +278,7 @@ export class ToolExecutor {
               requestId,
               actionId,
               status: 'succeeded',
+              // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
               data: snapshot as unknown as JsonValue,
               reasonCode: null,
               evidenceRefs: [],
@@ -216,6 +297,7 @@ export class ToolExecutor {
                 requestId,
                 actionId,
                 status: 'denied',
+                // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
                 data: ctx.currentSnapshot as unknown as JsonValue,
                 reasonCode:
                   policyCheck.reasonCode || STABLE_REASON_CODES.POLICY_DENIED,
@@ -230,6 +312,39 @@ export class ToolExecutor {
             signal: ctx.signal,
           });
           const responseStatus = response ? response.status() : null;
+
+          // Navigation may follow redirects. Re-check the URL that actually
+          // loaded so a redirect cannot move the session onto a disallowed or
+          // restricted origin.
+          const finalUrl = ctx.page.url();
+          if (/^https?:\/\//i.test(finalUrl)) {
+            const finalCheck = ctx.policy.checkNavigationUrl(finalUrl);
+            if (!finalCheck.allowed) {
+              const redirectSnapshot = await captureBrowserSnapshot(ctx.page, {
+                pageId: ctx.pageId,
+                stateVersion: ++ctx.stateVersion,
+                recorder: ctx.recorder,
+                lastResponseStatus: responseStatus,
+              });
+              return this.finalizeResult(
+                {
+                  requestId,
+                  actionId,
+                  status: 'denied',
+                  // SAFETY: BrowserSnapshot is the JSON-serializable payload the
+                  // ToolResult envelope carries; the contract types it as JsonValue.
+                  // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
+                  data: redirectSnapshot as unknown as JsonValue,
+                  reasonCode:
+                    finalCheck.reasonCode ??
+                    STABLE_REASON_CODES.TARGET_NOT_ALLOWED,
+                  evidenceRefs: [],
+                },
+                toolCall,
+                redirectSnapshot,
+              );
+            }
+          }
 
           const snapshot = await captureBrowserSnapshot(ctx.page, {
             pageId: ctx.pageId,
@@ -247,6 +362,7 @@ export class ToolExecutor {
               requestId,
               actionId,
               status: 'succeeded',
+              // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
               data: snapshot as unknown as JsonValue,
               reasonCode: null,
               evidenceRefs: [],
@@ -265,6 +381,7 @@ export class ToolExecutor {
                 requestId,
                 actionId,
                 status: 'failed',
+                // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
                 data: ctx.currentSnapshot as unknown as JsonValue,
                 reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
                 evidenceRefs: [],
@@ -285,6 +402,7 @@ export class ToolExecutor {
                 requestId,
                 actionId,
                 status: 'failed',
+                // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
                 data: ctx.currentSnapshot as unknown as JsonValue,
                 reasonCode: resolved.reasonCode,
                 evidenceRefs: [],
@@ -297,12 +415,7 @@ export class ToolExecutor {
           // Policy check on target
           const policyCheck = ctx.policy.checkAction(
             toolCall,
-            {
-              nodeId: resolved.node.nodeId,
-              role: resolved.node.role,
-              name: resolved.node.name,
-              text: resolved.node.text,
-            },
+            await inspectedTargetMetadata(resolved, targetPage),
             targetPage.url(),
           );
 
@@ -313,6 +426,7 @@ export class ToolExecutor {
                 requestId,
                 actionId,
                 status: 'denied',
+                // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
                 data: ctx.currentSnapshot as unknown as JsonValue,
                 reasonCode:
                   policyCheck.reasonCode || STABLE_REASON_CODES.POLICY_DENIED,
@@ -355,6 +469,7 @@ export class ToolExecutor {
               // Cancellation during dispatch does not undo a browser-side
               // click. Preserve a non-null actionId for ambiguous outcomes.
               status: ctx.signal?.aborted ? 'cancelled' : 'succeeded',
+              // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
               data: snapshot as unknown as JsonValue,
               reasonCode: ctx.signal?.aborted
                 ? STABLE_REASON_CODES.USER_CANCELLED
@@ -375,6 +490,7 @@ export class ToolExecutor {
                 requestId,
                 actionId,
                 status: 'failed',
+                // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
                 data: ctx.currentSnapshot as unknown as JsonValue,
                 reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
                 evidenceRefs: [],
@@ -395,6 +511,7 @@ export class ToolExecutor {
                 requestId,
                 actionId,
                 status: 'failed',
+                // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
                 data: ctx.currentSnapshot as unknown as JsonValue,
                 reasonCode: resolved.reasonCode,
                 evidenceRefs: [],
@@ -406,11 +523,7 @@ export class ToolExecutor {
 
           const policyCheck = ctx.policy.checkAction(
             toolCall,
-            {
-              nodeId: resolved.node.nodeId,
-              role: resolved.node.role,
-              name: resolved.node.name,
-            },
+            await inspectedTargetMetadata(resolved, targetPage),
             targetPage.url(),
           );
 
@@ -421,6 +534,7 @@ export class ToolExecutor {
                 requestId,
                 actionId,
                 status: 'denied',
+                // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
                 data: ctx.currentSnapshot as unknown as JsonValue,
                 reasonCode:
                   policyCheck.reasonCode || STABLE_REASON_CODES.POLICY_DENIED,
@@ -450,6 +564,7 @@ export class ToolExecutor {
               requestId,
               actionId,
               status: 'succeeded',
+              // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
               data: snapshot as unknown as JsonValue,
               reasonCode: null,
               evidenceRefs: [],
@@ -468,6 +583,7 @@ export class ToolExecutor {
                 requestId,
                 actionId,
                 status: 'failed',
+                // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
                 data: ctx.currentSnapshot as unknown as JsonValue,
                 reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
                 evidenceRefs: [],
@@ -488,8 +604,31 @@ export class ToolExecutor {
                 requestId,
                 actionId,
                 status: 'failed',
+                // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
                 data: ctx.currentSnapshot as unknown as JsonValue,
                 reasonCode: resolved.reasonCode,
+                evidenceRefs: [],
+              },
+              toolCall,
+              ctx.currentSnapshot!,
+            );
+          }
+
+          const selectPolicy = ctx.policy.checkAction(
+            toolCall,
+            await inspectedTargetMetadata(resolved, targetPage),
+            targetPage.url(),
+          );
+          if (!selectPolicy.allowed) {
+            await resolved.elementHandle.dispose().catch(() => undefined);
+            return this.finalizeResult(
+              {
+                requestId,
+                actionId,
+                status: 'denied',
+                data: ctx.currentSnapshot as unknown as JsonValue,
+                reasonCode:
+                  selectPolicy.reasonCode ?? STABLE_REASON_CODES.POLICY_DENIED,
                 evidenceRefs: [],
               },
               toolCall,
@@ -518,6 +657,7 @@ export class ToolExecutor {
               requestId,
               actionId,
               status: 'succeeded',
+              // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
               data: snapshot as unknown as JsonValue,
               reasonCode: null,
               evidenceRefs: [],
@@ -536,6 +676,7 @@ export class ToolExecutor {
                 requestId,
                 actionId,
                 status: 'failed',
+                // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
                 data: ctx.currentSnapshot as unknown as JsonValue,
                 reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
                 evidenceRefs: [],
@@ -557,8 +698,30 @@ export class ToolExecutor {
                   requestId,
                   actionId,
                   status: 'failed',
+                  // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
                   data: ctx.currentSnapshot as unknown as JsonValue,
                   reasonCode: resolved.reasonCode,
+                  evidenceRefs: [],
+                },
+                toolCall,
+                ctx.currentSnapshot!,
+              );
+            }
+            const pressPolicy = ctx.policy.checkAction(
+              toolCall,
+              await inspectedTargetMetadata(resolved, targetPage),
+              targetPage.url(),
+            );
+            if (!pressPolicy.allowed) {
+              await resolved.elementHandle.dispose().catch(() => undefined);
+              return this.finalizeResult(
+                {
+                  requestId,
+                  actionId,
+                  status: 'denied',
+                  data: ctx.currentSnapshot as unknown as JsonValue,
+                  reasonCode:
+                    pressPolicy.reasonCode ?? STABLE_REASON_CODES.POLICY_DENIED,
                   evidenceRefs: [],
                 },
                 toolCall,
@@ -587,6 +750,7 @@ export class ToolExecutor {
               requestId,
               actionId,
               status: 'succeeded',
+              // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
               data: snapshot as unknown as JsonValue,
               reasonCode: null,
               evidenceRefs: [],
@@ -605,6 +769,7 @@ export class ToolExecutor {
                 requestId,
                 actionId,
                 status: 'failed',
+                // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
                 data: ctx.currentSnapshot as unknown as JsonValue,
                 reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
                 evidenceRefs: [],
@@ -628,6 +793,7 @@ export class ToolExecutor {
               requestId,
               actionId,
               status: 'succeeded',
+              // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
               data: snapshot as unknown as JsonValue,
               reasonCode: null,
               evidenceRefs: [],
@@ -646,6 +812,7 @@ export class ToolExecutor {
                 requestId,
                 actionId,
                 status: 'failed',
+                // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
                 data: ctx.currentSnapshot as unknown as JsonValue,
                 reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
                 evidenceRefs: [],
@@ -677,6 +844,7 @@ export class ToolExecutor {
                     requestId,
                     actionId,
                     status: 'failed',
+                    // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
                     data: ctx.currentSnapshot as unknown as JsonValue,
                     reasonCode: resolved.reasonCode,
                     evidenceRefs: [],
@@ -702,6 +870,7 @@ export class ToolExecutor {
                 requestId,
                 actionId,
                 status: 'failed',
+                // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
                 data: ctx.currentSnapshot as unknown as JsonValue,
                 reasonCode: STABLE_REASON_CODES.ACTION_TIMEOUT,
                 evidenceRefs: [],
@@ -722,6 +891,7 @@ export class ToolExecutor {
               requestId,
               actionId,
               status: 'succeeded',
+              // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
               data: snapshot as unknown as JsonValue,
               reasonCode: null,
               evidenceRefs: [],
@@ -740,6 +910,7 @@ export class ToolExecutor {
                 requestId,
                 actionId,
                 status: 'failed',
+                // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
                 data: ctx.currentSnapshot as unknown as JsonValue,
                 reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
                 evidenceRefs: [],
@@ -762,6 +933,7 @@ export class ToolExecutor {
               requestId,
               actionId,
               status: 'succeeded',
+              // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
               data: artifact as unknown as JsonValue,
               reasonCode: null,
               evidenceRefs: [artifact.id],
@@ -780,6 +952,7 @@ export class ToolExecutor {
                 requestId,
                 actionId,
                 status: 'failed',
+                // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
                 data: ctx.currentSnapshot as unknown as JsonValue,
                 reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
                 evidenceRefs: [],
@@ -800,6 +973,7 @@ export class ToolExecutor {
               requestId,
               actionId,
               status: 'succeeded',
+              // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
               data: sliced as unknown as JsonValue,
               reasonCode: null,
               evidenceRefs: [],
@@ -834,6 +1008,7 @@ export class ToolExecutor {
               requestId,
               actionId,
               status: 'succeeded',
+              // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
               data: criterionResult as unknown as JsonValue,
               reasonCode: null,
               evidenceRefs,
@@ -862,6 +1037,7 @@ export class ToolExecutor {
               requestId,
               actionId,
               status: 'succeeded',
+              // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
               data: verdict as unknown as JsonValue,
               reasonCode: null,
               evidenceRefs: [],
@@ -888,6 +1064,7 @@ export class ToolExecutor {
               requestId,
               actionId,
               status: 'succeeded',
+              // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
               data: inputRequest as unknown as JsonValue,
               reasonCode: null,
               evidenceRefs: [],
@@ -916,6 +1093,7 @@ export class ToolExecutor {
               requestId,
               actionId,
               status: 'succeeded',
+              // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
               data: caseDef as unknown as JsonValue,
               reasonCode: null,
               evidenceRefs: [],
@@ -954,6 +1132,7 @@ export class ToolExecutor {
               requestId,
               actionId,
               status: 'succeeded',
+              // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
               data: finding as unknown as JsonValue,
               reasonCode: null,
               evidenceRefs: evidenceRefs || [],
@@ -981,6 +1160,7 @@ export class ToolExecutor {
               requestId,
               actionId,
               status: 'succeeded',
+              // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
               data: reproduction as unknown as JsonValue,
               reasonCode: null,
               evidenceRefs: evidenceRefs || [],
@@ -996,6 +1176,7 @@ export class ToolExecutor {
               requestId,
               actionId,
               status: 'failed',
+              // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
               data: ctx.currentSnapshot as unknown as JsonValue,
               reasonCode: STABLE_REASON_CODES.VALIDATION_ERROR,
               evidenceRefs: [],
@@ -1033,6 +1214,7 @@ export class ToolExecutor {
             reasonCode === STABLE_REASON_CODES.USER_CANCELLED
               ? 'cancelled'
               : 'failed',
+          // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
           data: snapshot as unknown as JsonValue,
           reasonCode,
           evidenceRefs: [],

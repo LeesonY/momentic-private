@@ -348,8 +348,29 @@ export class Worker {
             undefined,
             signal,
           );
-          if (!['ok', 'repaired'].includes(record.requestResult))
-            throw new DomainError(record.errorCode ?? 'MODEL_FAILURE');
+          if (!['ok', 'repaired'].includes(record.requestResult)) {
+            // Model text cannot invalidate server-owned verdicts.
+            // Provider, network, and billing errors still fail normally.
+            if (
+              record.requestResult !== 'malformed' ||
+              !['MODEL_OUTPUT_TRUNCATED', 'VALIDATION_ERROR'].includes(
+                record.errorCode ?? '',
+              )
+            )
+              throw new DomainError(record.errorCode ?? 'MODEL_FAILURE');
+            await this.runtime.finish(proof, {
+              stage: 'finalize',
+              conclusion: {
+                overview:
+                  'AI 最终总结无有效结构化结果。请以服务端记录的执行用例、判定和证据为准；未覆盖的业务功能不得视为通过。',
+                caseComments: [],
+                coverageGaps: [
+                  'AI 最终总结生成失败，使用服务端证据限定的结果报告。',
+                ],
+              },
+            });
+            return true;
+          }
           await this.runtime.finish(proof, {
             stage: 'finalize',
             conclusion: record.data,

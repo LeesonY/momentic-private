@@ -25,6 +25,11 @@ import {
 } from '@localqa/storage';
 import { createApiContext, createApiServer } from '../dist/index.js';
 import { RuntimeClient } from '../../../packages/orchestrator/dist/index.js';
+import { createTestServiceIdentity } from './support/internal-auth.mjs';
+
+// The internal boundary is a peer-only surface. The suite signs its internal
+// requests with this ring instead of being exempted from the gate.
+const testServiceIdentity = createTestServiceIdentity();
 
 const tag = randomUUID();
 const dir = mkdtempSync(join(tmpdir(), 'localqa-auth-import-'));
@@ -212,6 +217,7 @@ before(async () => {
     serviceActor: actor,
     artifactsDir: join(dir, 'artifacts'),
     publicOrigin: 'http://localhost',
+    serviceIdentity: testServiceIdentity.verifier,
     modelTransport: async () => {
       facts.modelTransportCalls++;
       throw new Error('Provider forbidden');
@@ -908,29 +914,34 @@ test('private importer rejects initializer-only methods and ordinary result/HTTP
       ),
     (e) => e.code === 'POLICY_DENIED',
   );
-  const http = await fetch(
-    `${url}/internal/v1/actions/${y.grant.grantId}/result`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Lease-Token': y.proof.leaseToken,
-        'X-Worker-Id': y.scope.workerId,
-        'X-Fencing-Token': String(y.proof.fencingToken),
-        'X-Context-Version': String(y.proof.contextVersion),
-      },
-      body: JSON.stringify({
-        outcome: 'succeeded',
-        summary: 'No private state',
-        evidenceRefs: [],
-        resultHash: hashPayload('opaque'),
+  const internalPath = `/internal/v1/actions/${y.grant.grantId}/result`;
+  // Serialise once so the service-identity signature covers the exact bytes sent.
+  const httpBody = JSON.stringify({
+    outcome: 'succeeded',
+    summary: 'No private state',
+    evidenceRefs: [],
+    resultHash: hashPayload('opaque'),
+  });
+  const http = await fetch(`${url}${internalPath}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Lease-Token': y.proof.leaseToken,
+      'X-Worker-Id': y.scope.workerId,
+      'X-Fencing-Token': String(y.proof.fencingToken),
+      'X-Context-Version': String(y.proof.contextVersion),
+      ...testServiceIdentity.sign('worker', {
+        method: 'POST',
+        path: internalPath,
+        body: httpBody,
       }),
     },
-  );
-  const httpBody = await http.json();
+    body: httpBody,
+  });
+  const parsed = await http.json();
   // The API translates the private service reason into its standard HTTP error.
-  assert.equal(http.status, 403, JSON.stringify(httpBody));
-  assert.equal(httpBody.code, 'FORBIDDEN');
+  assert.equal(http.status, 403, JSON.stringify(parsed));
+  assert.equal(parsed.code, 'FORBIDDEN');
   assert.equal(
     (
       await admin('SELECT outcome FROM action_intents WHERE id=$1', [

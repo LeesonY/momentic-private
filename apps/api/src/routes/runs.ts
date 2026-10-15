@@ -8,7 +8,11 @@ import {
   authorize,
   audit,
 } from '@localqa/storage';
-import { DEFAULT_LIMITS, TERMINAL } from '@localqa/domain';
+import {
+  DEFAULT_LIMITS,
+  TERMINAL,
+  assertPublicOrApprovedTarget,
+} from '@localqa/domain';
 import { sanitizeUserText } from '../redact.js';
 import { resolveRunAuth } from '../runAuth.js';
 import { selectRunModelBinding } from '../runModelSelection.js';
@@ -84,6 +88,17 @@ export async function startTrustedSmokeRun(
     allowedOrigins = env.allowedOrigins;
     environmentVersion = env.version;
     defaultAuthProfileId = env.defaultAuthProfileId ?? null;
+  }
+
+  // A URL a user submitted on its own must resolve to a public address. Only a
+  // frozen Environment whose allowedOrigins already contains the target may
+  // point the run at a restricted (loopback/private/link-local/metadata) host.
+  try {
+    await assertPublicOrApprovedTarget(input.targetUrl, allowedOrigins, [], {
+      allowRestricted: input.environmentId !== undefined,
+    });
+  } catch {
+    throw new StorageError('TARGET_NOT_ALLOWED');
   }
 
   // Resolve auth profile if provided

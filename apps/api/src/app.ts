@@ -177,7 +177,10 @@ export function createRequestHandler(api: ApiContext, router = createRouter()) {
       if (!res.writableEnded) {
         const { status, body } = toApiErrorResponse(error, requestId);
         res.statusCode = status;
-        if (status === 429) res.setHeader('Retry-After', '1');
+        // A route that knows the real window (login throttling) sets its own
+        // value; only default it when absent.
+        if (status === 429 && !res.hasHeader('Retry-After'))
+          res.setHeader('Retry-After', '1');
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.end(JSON.stringify(body));
       }

@@ -11,6 +11,7 @@ import type {
   RunRepository,
 } from '@localqa/storage';
 import type { Coordinator, ArtifactStore } from '@localqa/orchestrator';
+import type { InternalServiceVerifier } from '@localqa/service-identity';
 import type { Gateway } from '@localqa/model-gateway';
 
 export interface ApiContext {
@@ -26,7 +27,11 @@ export interface ApiContext {
   runRepo: RunRepository;
   adminActor: Actor;
   publicOrigin?: string | undefined;
-  workerSecret?: string | undefined;
+  /**
+   * Verifier for the `/internal/v1/*` service-identity boundary. When absent
+   * every internal route fails closed; a deployment must supply it explicitly.
+   */
+  serviceIdentity?: InternalServiceVerifier | undefined;
   /** Process transport. Production uses global fetch unless a test injects one. */
   modelTransport: typeof fetch;
 }

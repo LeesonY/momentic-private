@@ -12,7 +12,7 @@ import {
 } from '@localqa/storage';
 import { BoundModel, createWorkerModelOptions } from '@localqa/orchestrator';
 import { ApiError } from '../errors.js';
-import { rejectUserCookieForInternal } from '../auth.js';
+import { requireServiceIdentity } from '../auth.js';
 import type { Router } from '../router.js';
 import type { RequestContext } from '../types.js';
 
@@ -23,10 +23,9 @@ const validateActionResultPath = getApiValidator(
 );
 
 export function registerInternalRoutes(router: Router): void {
-  // Common check for all internal routes
-  const checkInternal = (ctx: RequestContext) => {
-    rejectUserCookieForInternal(ctx);
-  };
+  // Every internal route must pass the service-identity gate before it reads
+  // any caller-supplied proof. Business fields (X-Worker-Id, project ids, lease
+  // tokens) are never accepted as identity.
 
   // Helper to extract WorkerScope and LeaseProof from headers and body
   const extractScopeAndProof = async (
@@ -101,7 +100,7 @@ export function registerInternalRoutes(router: Router): void {
 
   // POST /internal/v1/leases/claim
   router.post('/internal/v1/leases/claim', async (ctx: RequestContext) => {
-    checkInternal(ctx);
+    await requireServiceIdentity(ctx);
     const claimInput = parseContract('WorkerClaim', ctx.body);
 
     // Project ID can be explicitly provided or queried from queued jobs
@@ -148,7 +147,7 @@ export function registerInternalRoutes(router: Router): void {
   router.post(
     '/internal/v1/tasks/{taskId}/heartbeat',
     async (ctx: RequestContext) => {
-      checkInternal(ctx);
+      await requireServiceIdentity(ctx);
       const taskId = ctx.params.taskId!;
       const input = parseContract('HeartbeatInput', ctx.body);
 
@@ -171,7 +170,7 @@ export function registerInternalRoutes(router: Router): void {
   router.post(
     '/internal/v1/tasks/{taskId}/complete',
     async (ctx: RequestContext) => {
-      checkInternal(ctx);
+      await requireServiceIdentity(ctx);
       const taskId = ctx.params.taskId!;
       const input = parseContract('TaskComplete', ctx.body);
 
@@ -191,7 +190,7 @@ export function registerInternalRoutes(router: Router): void {
 
   // POST /internal/v1/actions/reserve
   router.post('/internal/v1/actions/reserve', async (ctx: RequestContext) => {
-    checkInternal(ctx);
+    await requireServiceIdentity(ctx);
     const input = parseContract('ActionReservation', ctx.body);
 
     const { scope, proof } = await extractScopeAndProof(
@@ -234,7 +233,7 @@ export function registerInternalRoutes(router: Router): void {
   router.post(
     '/internal/v1/actions/{actionId}/result',
     async (ctx: RequestContext) => {
-      checkInternal(ctx);
+      await requireServiceIdentity(ctx);
       const pathId = ctx.params.actionId!;
       if (!validateActionResultPath({ actionId: pathId }))
         throw new ApiError('VALIDATION_ERROR', 'Invalid action ID', 422);
@@ -316,7 +315,7 @@ export function registerInternalRoutes(router: Router): void {
 
   // POST /internal/v1/model/complete
   router.post('/internal/v1/model/complete', async (ctx: RequestContext) => {
-    checkInternal(ctx);
+    await requireServiceIdentity(ctx);
     const input = parseContract('ModelRequest', ctx.body);
     if (!ctx.api.modelTransport) {
       throw new ApiError(
@@ -368,7 +367,7 @@ export function registerInternalRoutes(router: Router): void {
 
   // POST /internal/v1/auth/resolve
   router.post('/internal/v1/auth/resolve', async (ctx: RequestContext) => {
-    checkInternal(ctx);
+    await requireServiceIdentity(ctx);
     const input = parseContract('AuthResolve', ctx.body);
     // These values must come from the caller's proof. Reading the current DB
     // context/fencing value would renew a stale worker's authorization.
@@ -413,7 +412,7 @@ export function registerInternalRoutes(router: Router): void {
 
   // POST /internal/v1/artifacts
   router.post('/internal/v1/artifacts', async (ctx: RequestContext) => {
-    checkInternal(ctx);
+    await requireServiceIdentity(ctx);
     const leaseToken = ctx.headers['x-lease-token'];
     if (!leaseToken) {
       throw new ApiError('FORBIDDEN', 'X-Lease-Token header is required', 403);

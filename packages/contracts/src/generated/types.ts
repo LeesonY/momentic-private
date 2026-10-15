@@ -1205,6 +1205,11 @@ export interface ModelRequest {
     [k: string]: unknown | undefined;
   };
   criterionId?: string;
+  /**
+   * @minItems 0
+   * @maxItems 16
+   */
+  sensitiveValues?: string[];
 }
 export interface ModelResult {
   data: JsonValue;

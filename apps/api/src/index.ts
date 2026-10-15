@@ -11,6 +11,7 @@ import {
   type Actor,
 } from '@localqa/storage';
 import { Coordinator, ArtifactStore } from '@localqa/orchestrator';
+import type { InternalServiceVerifier } from '@localqa/service-identity';
 import {
   createGateway,
   createOpenAIAdapter,
@@ -24,6 +25,7 @@ export * from './errors.js';
 export * from './router.js';
 export * from './auth.js';
 export * from './app.js';
+export { loadServiceIdentity, DEFAULT_SERVICE_IDENTITY_FILE } from './serviceIdentity.js';
 export { tickSchedules } from './scheduleService.js';
 
 export interface CreateApiOptions {
@@ -32,7 +34,11 @@ export interface CreateApiOptions {
   artifactsDir?: string | undefined;
   serviceActor?: Actor | undefined;
   publicOrigin?: string | undefined;
-  workerSecret?: string | undefined;
+  /**
+   * Verified internal-service boundary. Unset closes `/internal/v1/*`; there is
+   * intentionally no unauthenticated fallback for production entries.
+   */
+  serviceIdentity?: InternalServiceVerifier | undefined;
   platformSlots?: number | undefined;
   projectSlots?: number | undefined;
   /** Explicit test double. Production entries leave this unset. */
@@ -119,7 +125,7 @@ export function createApiContext(options: CreateApiOptions): ApiContext {
     runRepo,
     adminActor,
     publicOrigin: options.publicOrigin,
-    workerSecret: options.workerSecret,
+    serviceIdentity: options.serviceIdentity,
     modelTransport,
   };
 }

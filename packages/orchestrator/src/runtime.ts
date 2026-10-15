@@ -363,6 +363,7 @@ export class RuntimeClient {
       proof,
       authRecognitionPayload(context.snapshot, slot, context.sensitiveValues),
       signal,
+      context.sensitiveValues,
     );
     if (
       !['ok', 'repaired'].includes(record.requestResult) ||

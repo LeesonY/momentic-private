@@ -21,6 +21,7 @@
     "@localqa/model-gateway": "workspace:*",
     "@localqa/orchestrator": "workspace:*",
     "@localqa/report": "workspace:*",
+    "@localqa/service-identity": "workspace:*",
     "@localqa/storage": "workspace:*",
     "pg": "^8.13.1",
     "yaml": "2.9.1"

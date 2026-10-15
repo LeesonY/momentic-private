@@ -8,6 +8,11 @@ import {
   createApiServer,
   resolveModelTransport,
 } from '../dist/index.js';
+import { createTestServiceIdentity } from './support/internal-auth.mjs';
+
+// The internal boundary is a peer-only surface. The suite signs its internal
+// requests with this ring instead of being exempted from the gate.
+const testServiceIdentity = createTestServiceIdentity();
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const stubProfileId = '00000000-0000-0000-0000-000000000002';
@@ -290,6 +295,7 @@ function context({
     },
     runRepo: {},
     adminActor: { userId: adminId },
+    serviceIdentity: testServiceIdentity.verifier,
     modelTransport,
   };
   return { ctx, seen, reads };
@@ -309,13 +315,26 @@ async function withServer(ctx, fn) {
 }
 
 async function request(port, path, body) {
+  // Serialise once so the service-identity signature covers the exact bytes sent.
+  const rawBody = JSON.stringify(body);
+  const headers = {
+    'content-type': 'application/json',
+    'x-lease-token': 'g3d-lease',
+  };
+  if (path.startsWith('/internal/')) {
+    Object.assign(
+      headers,
+      testServiceIdentity.sign('worker', {
+        method: 'POST',
+        path,
+        body: rawBody,
+      }),
+    );
+  }
   const response = await fetch(`http://127.0.0.1:${port}${path}`, {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-lease-token': 'g3d-lease',
-    },
-    body: JSON.stringify(body),
+    headers,
+    body: rawBody,
   });
   const text = await response.text();
   return { status: response.status, body: text ? JSON.parse(text) : null };

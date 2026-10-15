@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-import { readFile } from 'node:fs/promises';
 import {
   createApiContext,
   createApiServer,
+  loadServiceIdentity,
   tickSchedules,
 } from '../../apps/api/dist/index.js';
 import { loadProtectedKek } from './kek.mjs';
@@ -11,12 +11,10 @@ import { readiness } from './readiness.mjs';
 import { loadDatabaseUrl } from './database-url.mjs';
 
 const vault = await loadProtectedKek();
-const secretFile =
-  process.env.WORKER_IDENTITY_FILE || '/run/secrets/worker_identity.json';
-const workerSecret = (await readFile(secretFile, 'utf8')).trim();
+// Fail closed before listening: a malformed or absent key ring must not leave
+// `/internal/v1/*` reachable without service authentication.
+const serviceIdentity = await loadServiceIdentity();
 const connectionString = await loadDatabaseUrl();
-if (!workerSecret)
-  throw new Error('Missing required API identity or database configuration');
 const slots = Number(process.env.BROWSER_SLOTS || 4);
 if (!Number.isSafeInteger(slots) || slots < 1)
   throw new Error('Invalid BROWSER_SLOTS');
@@ -41,7 +39,7 @@ const context = createApiContext({
   vault,
   artifactsDir: process.env.DATA_DIR,
   publicOrigin: process.env.PUBLIC_ORIGIN,
-  workerSecret,
+  serviceIdentity,
 });
 const server = createApiServer(context);
 const app = server.listeners('request')[0];
