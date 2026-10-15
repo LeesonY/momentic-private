@@ -758,7 +758,10 @@ export class AuthImportService {
         g.result_hash !== hashPayload({ status: 'succeeded' })
       )
         throw new StorageError('POLICY_DENIED');
-      const limit = await this.live(client, proof, a, g);
+      // The grant's own deadline bounded the import, which completed. The
+      // task that used the imported state is bounded by the live session,
+      // which heartbeats renew (up to the five-minute activation limit).
+      const limit = await this.live(client, proof, a);
       deadline = !deadline || limit < deadline ? limit : deadline;
       await client.query(
         "UPDATE auth_execution_sessions SET status='ended',ended_at=clock_timestamp(),end_reason='task_finished' WHERE id=$1",

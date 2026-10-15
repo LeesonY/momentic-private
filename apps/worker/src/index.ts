@@ -131,6 +131,45 @@ function trailEntry(
   };
 }
 
+/**
+ * The page as an agent acts on it: visible nodes with the ids its tool calls
+ * need, without layout boxes, network rows or hidden nodes. Sending the raw
+ * snapshot at every step spent most of a session's token budget.
+ */
+function actionObservation(snapshot: BrowserSnapshot | null) {
+  if (!snapshot) return null;
+  const visible = snapshot.nodes.filter((node) => node.visible);
+  return {
+    snapshotId: snapshot.snapshotId,
+    pageId: snapshot.pageId,
+    url: snapshot.displayUrl,
+    title: clip(snapshot.title, 200),
+    status: snapshot.responseStatus,
+    truncated: snapshot.truncated || visible.length > 200,
+    nodes: visible.slice(0, 200).map((node) => {
+      const name = clip(node.name, 100);
+      const text = clip(node.text, 160);
+      return {
+        nodeId: node.nodeId,
+        ...(node.frameId && node.frameId !== 'main'
+          ? { frameId: node.frameId }
+          : {}),
+        role: node.role,
+        name,
+        ...(text && text !== name ? { text } : {}),
+        ...(node.enabled ? {} : { enabled: false }),
+      };
+    }),
+    ...(snapshot.consoleSummary.length
+      ? {
+          console: snapshot.consoleSummary
+            .slice(0, 8)
+            .map((line) => clip(line, 200)),
+        }
+      : {}),
+  };
+}
+
 /** The final page as the agent reads it for its report: visible nodes only. */
 function compactObservation(snapshot: BrowserSnapshot) {
   const visible = snapshot.nodes.filter((node) => node.visible);
@@ -159,6 +198,7 @@ const SESSION_AGENT_PROMPT = [
   'login 是本次账号的登录结果。status=blocked：登录代理没能登录，detail 是它看到的情况；不要再派需要登录的用例，用 action=ask 向用户说明原因并询问（例如提供可用账号或更新认证配置），或只在不需要登录的范围内继续。status=succeeded：已登录，执行代理会带着这个登录状态开始。',
   'cases[].report 是执行代理提交的报告（status、summary、verified、gaps），以它为准。被 blocked 的用例看 gaps 判断缺什么；缺的是只有用户能提供的东西（账号、测试数据、预期行为）时，用 action=ask 提问。',
   '用例写法：title、summary、preconditions、outline（具体操作步骤）、criteria（验收标准，每条用例 1–3 条，kind 用 semantic，description 写清楚可以在页面上观察到的预期；locator 和 expectedValue 填 null；id 用简短英文如 login_ok）。用户需求里提到的预期写 sourceKind=user_spec，sourceRef 原样使用 sources 里的 ref，sourceQuote 逐字摘录原文；根据页面推断的预期写 sourceKind=inferred，sourceRef 用对应 observation 的 ref，sourceQuote 填空字符串。',
+  'cases[].entryUrl 只能用 targetUrl 或 observations 里出现过的 displayUrl，不要自己拼接或猜测路径；要测的页面还没观察到地址时，entryUrl 用已知地址，并在 outline 里写清楚从哪个菜单或链接点进去，或者先用 exploreTargets 探索。打不开一个猜出来的地址不是产品缺陷。',
   '一轮最多 4 条用例，不要重复已有用例，不要改已有用例的结论。需要先了解页面时用 exploreTargets 探索（最多 2 个地址）。',
   '信息不足以开始时 action=ask，question 写清楚要补充什么，可以给 2–4 个简短候选答案 options；此时 cases=[]、exploreTargets=[]。',
   '首次规划给出 title：不超过 20 个汉字，概括被测对象和流程（如“TodoMVC 待办流程”），只依据用户请求和页面观察。',
@@ -588,6 +628,8 @@ export class Worker {
       // derived from model text or from the target's untrusted HTML.
       /** Set once this task's result is settled; never settle it twice. */
       let reported = false;
+      /** The agent's browser work began (so a later failure is not sign-in). */
+      let browserWorkStarted = false;
       let approvedLoginPage: URL | null = null;
       let approvedLoginTestIds: readonly string[] | null = null;
       let intentionalLoginPage = false;
@@ -1282,14 +1324,14 @@ export class Worker {
               {
                 type: 'text',
                 text: JSON.stringify({
-                  observation: snapshot,
+                  observation: actionObservation(snapshot),
                   ...(work.definition
                     ? {
                         assignedCase: work.definition,
                         ...(suspectedBug ? { suspectedBug } : {}),
                         instruction: suspectedBug
-                          ? '从头按这条用例的前提和步骤操作，独立确认 suspectedBug 描述的问题是否再次出现。做完或无法继续时 done=true，之后会单独让你提交报告。'
-                          : '按这条用例的前提和步骤在页面上操作并观察结果。做完、确认了问题或无法继续时 done=true，之后会单独让你提交报告。',
+                          ? '从头按这条用例的前提和步骤操作，独立确认 suspectedBug 描述的问题是否再次出现。通过页面上的链接、菜单和按钮进入目标页面，不要自己拼接或猜测网址。做完或无法继续时 done=true，之后会单独让你提交报告。'
+                          : '按这条用例的前提和步骤在页面上操作并观察结果。通过页面上的链接、菜单和按钮进入目标页面，不要自己拼接或猜测网址。做完、确认了问题或无法继续时 done=true，之后会单独让你提交报告。',
                       }
                     : {
                         instruction:
@@ -1369,7 +1411,7 @@ export class Worker {
                   {
                     type: 'text',
                     text: JSON.stringify({
-                      observation: snapshot,
+                      observation: actionObservation(snapshot),
                       ...(work.definition
                         ? { assignedCase: work.definition }
                         : {}),
@@ -1442,6 +1484,7 @@ export class Worker {
         return true;
       };
       const runBrowserWork = async (): Promise<boolean> => {
+        browserWorkStarted = true;
         try {
           return await executeBrowserWork();
         } catch (error) {
@@ -1546,8 +1589,10 @@ export class Worker {
           await this.reportBlocked(
             proof,
             work,
-            'AUTH_FAILED',
-            '无法载入本次登录状态，没有执行。',
+            browserWorkStarted ? 'TASK_INTERRUPTED' : 'AUTH_FAILED',
+            browserWorkStarted
+              ? '执行中断，没能提交这项工作的结果。'
+              : '无法载入本次登录状态，没有执行。',
           );
         }
         return true;
@@ -1608,6 +1653,15 @@ export class Worker {
             : code === 'LEASE_EXPIRED' || code === 'CANCELLED'
               ? 'worker_failure'
               : 'setup_failure';
+      // Constant codes only: never page text, model output or credentials.
+      console.warn(
+        JSON.stringify({
+          event: 'worker.task.stopped',
+          taskId: proof.taskId,
+          code,
+          reason,
+        }),
+      );
       await this.runtime.stop(proof, reason).catch(() => {});
       return true;
     } finally {
