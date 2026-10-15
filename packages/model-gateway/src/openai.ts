@@ -110,12 +110,26 @@ export function toOpenAIChatRequest(
   return body;
 }
 
-export function assertHttpsEndpoint(endpoint: string): void {
-  if (!endpoint.startsWith('https://')) {
+/** HTTPS is mandatory for external providers. HTTP requires an explicitly
+ * internal model profile; direct adapter callers default to external. */
+export function assertHttpsEndpoint(
+  endpoint: string,
+  dataBoundary: 'internal' | 'external' = 'external',
+): void {
+  let allowed = false;
+  try {
+    const url = new URL(endpoint);
+    allowed =
+      (url.protocol === 'https:' ||
+        (url.protocol === 'http:' && dataBoundary === 'internal')) &&
+      !url.username && !url.password && !url.search && !url.hash;
+  } catch {
+    // Invalid provider URLs fail closed before any network request.
+  }
+  if (!allowed)
     throw Object.assign(new Error('MODEL_NOT_CONFIGURED'), {
       code: 'MODEL_NOT_CONFIGURED',
     });
-  }
 }
 
 export function diagnosticSample(text: string): string {
@@ -235,7 +249,7 @@ export function createOpenAIAdapter(fetchImpl: typeof fetch): ProviderAdapter {
       );
     },
     build(input) {
-      assertHttpsEndpoint(input.endpoint);
+      assertHttpsEndpoint(input.endpoint, input.dataBoundary);
       const base = input.endpoint.replace(/\/$/, '');
       return {
         endpoint: base.endsWith('/chat/completions')

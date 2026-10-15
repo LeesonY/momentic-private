@@ -641,7 +641,7 @@ export function createGateway(options: {
       profile.kind === 'anthropic_messages'
     ) {
       try {
-        assertHttpsEndpoint(profile.endpoint);
+        assertHttpsEndpoint(profile.endpoint, profile.dataBoundary);
       } catch {
         return failure({
           method,
@@ -957,6 +957,7 @@ export function createGateway(options: {
     ): Promise<ProviderResponse> => {
       let normalized: NormalizedCall = {
         endpoint: profile.endpoint,
+        dataBoundary: profile.dataBoundary,
         model: profile.configuredModelId,
         purpose: input.purpose,
         messages: current,
@@ -1407,6 +1408,7 @@ export function createGateway(options: {
             const tested = await options.adapter.probeCapability(
               {
                 endpoint: profile.endpoint,
+                dataBoundary: profile.dataBoundary,
                 model: profile.configuredModelId,
                 apiKey,
                 capability,

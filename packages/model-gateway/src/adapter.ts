@@ -54,6 +54,8 @@ export type StructuredOutputMode =
 
 export interface NormalizedCall {
   endpoint: string;
+  /** Internal-only HTTP is opt-in; omission remains external HTTPS. */
+  dataBoundary?: 'internal' | 'external';
   model: string;
   purpose: string;
   messages: readonly ModelMessage[];
@@ -83,6 +85,8 @@ export interface ProviderAdapter {
 
 export interface CapabilityProbeInput {
   endpoint: string;
+  /** Internal-only HTTP is opt-in; omission remains external HTTPS. */
+  dataBoundary?: 'internal' | 'external';
   model: string;
   apiKey: string;
   capability: 'nativeTools' | 'imageInput';

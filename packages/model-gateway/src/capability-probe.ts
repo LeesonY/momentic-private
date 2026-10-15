@@ -34,7 +34,7 @@ export async function probeProviderCapability(
     estimatedInputTokens: 0,
   };
   try {
-    assertHttpsEndpoint(input.endpoint);
+    assertHttpsEndpoint(input.endpoint, input.dataBoundary);
     const token = randomBytes(8).toString('hex');
     const image = native ? null : imageFactory();
     const prompt = native

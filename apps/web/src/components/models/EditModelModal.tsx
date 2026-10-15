@@ -25,6 +25,7 @@ export const EditModelModal: React.FC<{
 }> = ({ model, onClose, onSaved }) => {
   const [name, setName] = useState(model.name);
   const [modelId, setModelId] = useState(model.configuredModelId);
+  const [endpoint, setEndpoint] = useState(model.endpoint);
   const [apiKey, setApiKey] = useState('');
   const [outputTokens, setOutputTokens] = useState(
     model.maxOutputTokens === undefined ? '' : String(model.maxOutputTokens),
@@ -39,6 +40,7 @@ export const EditModelModal: React.FC<{
 
   const nameChanged = name.trim() !== model.name;
   const modelIdChanged = modelId.trim() !== model.configuredModelId;
+  const endpointChanged = endpoint.trim() !== model.endpoint;
   const keyChanged = apiKey.trim().length > 0;
   const capChanged =
     outputTokens.trim() !==
@@ -49,7 +51,7 @@ export const EditModelModal: React.FC<{
       ? ''
       : String(model.contextWindowTokens));
   const changed =
-    nameChanged || modelIdChanged || keyChanged || capChanged || contextChanged;
+    nameChanged || modelIdChanged || endpointChanged || keyChanged || capChanged || contextChanged;
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -58,7 +60,13 @@ export const EditModelModal: React.FC<{
       setError('模型 ID 不能为空');
       return;
     }
+    if (endpointChanged && (!/^https?:\/\//i.test(endpoint.trim()) ||
+      (/^http:\/\//i.test(endpoint.trim()) && model.dataBoundary !== 'internal'))) {
+      setError('请输入合法的 HTTP(S) 接口地址；HTTP 仅允许内网／本地模型。');
+      return;
+    }
     const patch: ModelProfilePatch = { expectedVersion: model.version };
+    if (endpointChanged) patch.endpoint = endpoint.trim();
     if (nameChanged) patch.name = name.trim();
     if (modelIdChanged) patch.configuredModelId = modelId.trim();
     if (keyChanged) patch.apiKey = apiKey.trim();
@@ -140,11 +148,26 @@ export const EditModelModal: React.FC<{
         <dl className="kv lqa-model-edit-summary">
           <dt>接口协议</dt>
           <dd>{adapterLabels[model.adapter]}</dd>
-          <dt>服务地址</dt>
-          <dd>
-            <code>{model.endpoint}</code>
-          </dd>
+          <dt>服务部署位置</dt>
+          <dd>{model.dataBoundary === 'internal' ? '内网／本地' : '外部'}</dd>
         </dl>
+        <Field label="服务地址" required htmlFor="edit-model-endpoint" hint="内网模型可使用 HTTP（如 http://wb-proxy:8788）；外部模型仅支持 HTTPS">
+          <input
+            id="edit-model-endpoint"
+            data-testid="edit-model-endpoint"
+            className="form-input is-mono"
+            type="url"
+            pattern="https?://.*"
+            required
+            maxLength={8192}
+            disabled={saving}
+            value={endpoint}
+            onChange={(e) => setEndpoint(e.target.value)}
+          />
+        </Field>
+        {/^http:\/\//i.test(endpoint.trim()) && (
+          <Alert tone="warning" role="alert">HTTP 不加密 API Key、模型输入和输出；请只用于可信内网。</Alert>
+        )}
         <Field label="名称" required htmlFor="edit-model-name">
           <input
             id="edit-model-name"
@@ -185,8 +208,8 @@ export const EditModelModal: React.FC<{
             onChange={(e) => setApiKey(e.target.value)}
           />
         </Field>
-        {(modelIdChanged || keyChanged) && (
-          <Alert tone="info">修改模型 ID 或 Key 后，需要重新探测模型。</Alert>
+        {(modelIdChanged || keyChanged || endpointChanged) && (
+          <Alert tone="info">修改模型 ID、地址或 Key 后，需要重新探测模型。</Alert>
         )}
         <Field
           label="单次输出上限（token）"

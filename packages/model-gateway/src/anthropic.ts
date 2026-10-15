@@ -31,7 +31,7 @@ export function createAnthropicAdapter(
       );
     },
     build(input) {
-      assertHttpsEndpoint(input.endpoint);
+      assertHttpsEndpoint(input.endpoint, input.dataBoundary);
       // Tool/response shape is instructed in the prompt. This adapter does
       // not claim JSON-Schema or native-tools capability on behalf of a proxy.
       if (input.responseFormat !== 'json_object') {
