@@ -85,12 +85,12 @@ function node(nodeId, role, name, extra = {}) {
 }
 
 let seed = 0;
-function snapshot(page, extraNodes = []) {
+function snapshot(page, extraNodes = [], otpVisible = false, truncated = false) {
   seed += 1;
   const login = [
     node('user-field', 'email', '邮箱'),
     node('pass-field', 'password', '密码'),
-    node('otp-field', 'text', '验证码'),
+    ...(otpVisible ? [node('otp-field', 'text', '验证码')] : []),
     node('submit', 'button', '登录'),
   ];
   const dashboard = [
@@ -111,7 +111,7 @@ function snapshot(page, extraNodes = []) {
     screenshotRef: null,
     networkSummary: [],
     consoleSummary: [],
-    truncated: false,
+    truncated,
     redacted: false,
   };
 }
@@ -120,8 +120,9 @@ function snapshot(page, extraNodes = []) {
 function fakeBrowser(config = {}) {
   const calls = [];
   let page = 'login';
-  let current = snapshot(page);
-  const observe = () => (current = snapshot(page, config.extraNodes?.(page)));
+  let current = snapshot(page, [], config.otpVisible, config.truncated);
+  const observe = () =>
+    (current = snapshot(page, config.extraNodes?.(page), config.otpVisible, config.truncated));
   return {
     calls,
     session: {
@@ -465,6 +466,68 @@ test('stalled login page rejects duplicate submit even if model requests it', as
   assert.equal(attempt.runtime.log.grants.filter((g) => g.action === 'submit_auth').length, 1);
 });
 
+test('initial premature blocked on truncated ordinary login is rechecked once and can recover', async () => {
+  const attempt = run({
+    browser: { truncated: true },
+    steps: [{ action: 'blocked', reason: '不确定页面结构' }, ...signIn],
+  });
+  const outcome = await attempt.outcome;
+  assert.equal(outcome.status, 'succeeded', outcome.reasonCode);
+  assert.equal(attempt.model.requests.length, 5);
+  const prompts = attempt.model.requests.map((x) =>
+    JSON.parse(x.messages[1].content[0].text),
+  );
+  assert.equal(prompts[0].issue, null);
+  assert.equal(prompts[1].issue, 'LOGIN_BLOCKED_RECHECK');
+  assert.equal(prompts[0].observation.truncated, true);
+  assert.notEqual(prompts[0].observation.nodes[0].nodeId, undefined);
+  assert.deepEqual(
+    attempt.runtime.log.grants.map((x) => x.action),
+    ['navigate_auth', 'fill_credential', 'fill_credential', 'submit_auth'],
+  );
+  assert.ok(!JSON.stringify(prompts).includes(secret));
+});
+
+test('model blocked twice stops with exactly one read-only retry and no credential effects', async () => {
+  const attempt = run({ steps: [
+    { action: 'blocked', reason: '信息不足' },
+    { action: 'blocked', reason: '信息不足' },
+    ...signIn,
+  ] });
+  const result = await attempt.outcome;
+  assert.equal(result.status, 'blocked');
+  assert.equal(result.reasonCode, 'AGENT_LOGIN_BLOCKED');
+  assert.equal(attempt.model.requests.length, 2);
+  assert.deepEqual(attempt.runtime.log.grants.map((x) => x.action), ['navigate_auth']);
+  assert.deepEqual(attempt.runtime.log.finishes, []);
+});
+
+test('captcha/SSO/lock/manual blocked decisions are never rechecked or executed', async () => {
+  for (const reason of [
+    '需完成验证码', '需要第三方SSO', '账号已锁定', '需要人工确认',
+  ]) {
+    const attempt = run({ steps: [{ action: 'blocked', reason }, ...signIn] });
+    const result = await attempt.outcome;
+    assert.equal(result.reasonCode, 'AGENT_LOGIN_BLOCKED');
+    assert.equal(attempt.model.requests.length, 1);
+    assert.deepEqual(attempt.runtime.log.grants.map((x) => x.action), ['navigate_auth']);
+  }
+  const challengeOnPage = run({
+    browser: { otpVisible: true },
+    steps: [{ action: 'blocked', reason: '无法继续' }, ...signIn],
+  });
+  assert.equal((await challengeOnPage.outcome).reasonCode, 'AGENT_LOGIN_BLOCKED');
+  assert.equal(challengeOnPage.model.requests.length, 1);
+});
+
+test('blocked after credential fill never retries or repeats a mutation', async () => {
+  const attempt = run({ steps: [signIn[0], { action: 'blocked' }, ...signIn] });
+  assert.equal((await attempt.outcome).reasonCode, 'AGENT_LOGIN_BLOCKED');
+  assert.equal(attempt.model.requests.length, 2);
+  assert.deepEqual(attempt.runtime.log.grants.map((x) => x.action),
+    ['navigate_auth', 'fill_credential']);
+});
+
 test('blocked, step limit and missing driver stop without capture', async () => {
   const blocked = run({ steps: [{ action: 'blocked' }] });
   const result = await blocked.outcome;
@@ -492,6 +555,7 @@ test('a missing variable value blocks before any navigation', async () => {
 
 test('one verification code is requested from the user, never twice', async () => {
   const withOtp = run({
+    browser: { otpVisible: true },
     steps: [
       ...signIn.slice(0, 2),
       { action: 'otp', nodeId: 'otp-field' },
@@ -508,6 +572,7 @@ test('one verification code is requested from the user, never twice', async () =
   assert.ok(withOtp.runtime.log.grants.some((grant) => grant.slot === 'otp'));
 
   const twice = run({
+    browser: { otpVisible: true },
     steps: [
       { action: 'otp', nodeId: 'otp-field' },
       { action: 'otp', nodeId: 'otp-field' },
@@ -558,6 +623,20 @@ test('parseAgentDecision binds targets to the given snapshot only', () => {
       },
     ),
     { kind: 'done' },
+  );
+  assert.deepEqual(
+    parseAgentDecision(
+      { action: 'blocked', reason: '需要验证码' },
+      { snapshot: observed, variables },
+    ),
+    { kind: 'blocked', category: 'challenge' },
+  );
+  assert.deepEqual(
+    parseAgentDecision(
+      { action: 'blocked', reason: '页面结构不清晰' },
+      { snapshot: observed, variables },
+    ),
+    { kind: 'blocked', category: 'unknown' },
   );
   assert.equal(
     parseAgentDecision({ action: 'type' }, { snapshot: observed, variables })

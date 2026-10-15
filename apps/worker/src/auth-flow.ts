@@ -176,7 +176,7 @@ export type AgentLoginDecision =
   | { kind: 'otp'; target: NodeTarget }
   | { kind: 'wait' }
   | { kind: 'done' }
-  | { kind: 'blocked' }
+  | { kind: 'blocked'; category: 'challenge' | 'sso' | 'locked' | 'manual' | 'unknown' }
   /** A malformed proposal: nothing runs, the model is asked again. */
   | { kind: 'invalid'; issue: string };
 
@@ -906,6 +906,7 @@ export async function runAuthFlow(
     let issue: string | null = null;
     let otpUsed = false;
     let staleReobservations = 0;
+    let recheckedInitialBlock = false;
     let stalledAfterSubmit = false;
     let lastSubmittedTarget: string | null = null;
     const loginFormVisible = (snapshot: BrowserSnapshot) =>
@@ -953,6 +954,42 @@ export async function runAuthFlow(
         continue;
       }
       if (decision.kind === 'blocked') {
+        // The model's first refusal is not evidence of an actual obstacle.
+        // Only on the *initial* decision, with an apparently ordinary login
+        // form and no reported/visible challenge, allow ONE fresh, read-only
+        // observation and one additional model decision. Never infer a target,
+        // request a permit or execute an effect as part of this recheck.
+        const usable = (node: BrowserSnapshot['nodes'][number]) =>
+          node.visible && node.enabled;
+        const ordinaryLogin = current.nodes.some((node) =>
+          usable(node) && node.role === 'password',
+        ) && current.nodes.some((node) =>
+          usable(node) && ['text', 'email', 'textbox', 'tel'].includes(node.role),
+        ) && current.nodes.some((node) =>
+          usable(node) && ['button', 'submit'].includes(node.role),
+        );
+        const visibleChallenge = current.nodes.some((node) =>
+          node.visible && /验证码|图形验证|滑块|captcha|扫码|二维码|qr.?code|人机验证|otp|2fa/i.test(node.name),
+        );
+        const shouldRecheck =
+          round === 0 && !recheckedInitialBlock && history.length === 0 &&
+          ordinaryLogin && !visibleChallenge &&
+          decision.category === 'unknown';
+        // Never log the free-form model reason, page text or credentials.
+        console.warn(JSON.stringify({
+          event: 'auth.agent.model_blocked',
+          runId: binding.runId,
+          category: decision.category,
+          firstDecision: history.length === 0,
+          snapshotTruncated: current.truncated,
+          recheck: shouldRecheck,
+        }));
+        if (shouldRecheck) {
+          recheckedInitialBlock = true;
+          current = await observeFresh();
+          issue = 'LOGIN_BLOCKED_RECHECK';
+          continue;
+        }
         throw new Stop('blocked', 'AGENT_LOGIN_BLOCKED');
       }
       if (decision.kind === 'wait') {
