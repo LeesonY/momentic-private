@@ -58,6 +58,11 @@ export const CreateModelModal: React.FC<{
       setError('上下文窗口必须大于单次输出上限');
       return;
     }
+    const endpoint = draft.endpoint.trim();
+    if (/^http:\/\//i.test(endpoint) && draft.dataBoundary !== 'internal') {
+      setError('HTTP 模型接口只支持内网服务，请将「服务部署位置」选择为「内网／本地」；外部服务必须使用 HTTPS。');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -66,7 +71,7 @@ export const CreateModelModal: React.FC<{
         ...(cap !== undefined ? { maxOutputTokens: cap } : {}),
         ...(window !== undefined ? { contextWindowTokens: window } : {}),
         name: draft.name.trim(),
-        endpoint: draft.endpoint.trim(),
+        endpoint,
         configuredModelId: draft.configuredModelId.trim(),
       });
       onCreated(created);
@@ -145,11 +150,26 @@ export const CreateModelModal: React.FC<{
             <option value="openai_compatible">OpenAI Chat Completions</option>
           </select>
         </Field>
+        <Field label="服务部署位置" required htmlFor="new-model-boundary">
+          <select
+            id="new-model-boundary"
+            data-testid="new-model-data-boundary"
+            className="form-select"
+            value={draft.dataBoundary}
+            onChange={(e) => setDraft((m) => ({
+              ...m,
+              dataBoundary: e.target.value as ModelProfileCreate['dataBoundary'],
+            }))}
+          >
+            <option value="external">外部服务（仅 HTTPS）</option>
+            <option value="internal">内网／本地服务（支持 HTTP）</option>
+          </select>
+        </Field>
         <Field
           label="服务地址"
           required
           htmlFor="new-model-endpoint"
-          hint="仅支持 HTTPS，填 API 基础地址"
+          hint="填写 API 基础地址；内网／本地服务可使用 HTTP，外部服务必须使用 HTTPS"
           className="is-wide"
         >
           <input
@@ -157,14 +177,20 @@ export const CreateModelModal: React.FC<{
             className="form-input is-mono"
             required
             type="url"
-            pattern="https://.*"
-            placeholder="https://provider.example/v1"
+            pattern="https?://.*"
+            data-testid="new-model-endpoint"
+            placeholder={draft.dataBoundary === 'internal' ? 'http://192.168.1.10:11434/v1' : 'https://provider.example/v1'}
             value={draft.endpoint}
             onChange={(e) =>
               setDraft((m) => ({ ...m, endpoint: e.target.value }))
             }
           />
         </Field>
+        {/^http:\/\//i.test(draft.endpoint.trim()) && (
+          <Alert tone="warning" role="alert" className="is-wide">
+            HTTP 不加密传输 API Key、模型输入和输出。仅在可信内网或本机使用；若经过公网，请启用 HTTPS。
+          </Alert>
+        )}
         <Field label="模型 ID" required htmlFor="new-model-id">
           <input
             id="new-model-id"
