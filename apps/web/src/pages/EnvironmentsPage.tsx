@@ -39,6 +39,10 @@ export const EnvironmentsPage: React.FC = () => {
   const [notice, setNotice] = useState('');
   const [switchingAuthId, setSwitchingAuthId] = useState<string | null>(null);
   const [authUpdateError, setAuthUpdateError] = useState('');
+  const [editingAuthOrigins, setEditingAuthOrigins] = useState<string | null>(null);
+  const [authOriginsDraft, setAuthOriginsDraft] = useState('');
+  const [authOriginsSaving, setAuthOriginsSaving] = useState(false);
+  const [authOriginsError, setAuthOriginsError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{
     kind: 'environment' | 'auth';
     record: Environment | AuthProfile;
@@ -55,6 +59,49 @@ export const EnvironmentsPage: React.FC = () => {
     setDeleteTarget({ kind, record });
     setDeleteName('');
     setDeleteError('');
+  };
+  const closeAuthOrigins = () => {
+    if (!authOriginsSaving) setEditingAuthOrigins(null);
+  };
+  const saveAuthOrigins = async () => {
+    const profile = authProfiles.find((item) => item.id === editingAuthOrigins);
+    const projectId = currentProject?.id;
+    if (!profile || !projectId || !canConfigure || authOriginsSaving ||
+        profile.projectId !== projectId) return;
+    setAuthOriginsError('');
+    const rawOrigins = authOriginsDraft.split(/\r?\n/).map((entry) => entry.trim()).filter(Boolean);
+    if (rawOrigins.length < 1 || rawOrigins.length > 30 || new Set(rawOrigins).size !== rawOrigins.length ||
+      rawOrigins.some((origin) => {
+        try {
+          const url = new URL(origin);
+          return !['http:', 'https:'].includes(url.protocol) || url.origin !== origin ||
+            Boolean(url.username || url.password);
+        } catch { return true; }
+      })) {
+      setAuthOriginsError('请每行填写一个完整且不重复的 HTTP(S) Origin（协议、域名/IP、端口，不含路径或参数）。');
+      return;
+    }
+    const environment = environments.find((item) => item.id === profile.environmentId);
+    if (profile.environmentId && (!environment || rawOrigins.some((origin) =>
+      !environment.allowedOrigins.includes(origin)))) {
+      setAuthOriginsError('认证配置的 Origins 必须包含在所属测试环境的允许访问范围中；请先编辑环境。');
+      return;
+    }
+    setAuthOriginsSaving(true);
+    try {
+      const updated = await defaultApiClient.updateAuthProfile(profile.id, {
+        expectedVersion: profile.version,
+        allowedOrigins: rawOrigins as [string, ...string[]],
+      });
+      if (projectRef.current !== projectId) return;
+      setAuthProfiles((old) => old.map((item) => item.id === updated.id ? updated : item));
+      setEditingAuthOrigins(null);
+    } catch (error) {
+      if (projectRef.current === projectId)
+        setAuthOriginsError(error instanceof Error ? error.message : '保存失败，请刷新后重试');
+    } finally {
+      setAuthOriginsSaving(false);
+    }
   };
   const closeDelete = () => {
     if (!deleting) setDeleteTarget(null);
@@ -154,6 +201,8 @@ export const EnvironmentsPage: React.FC = () => {
     setDeleteError('');
     setNotice('');
     setAuthUpdateError('');
+    setEditingAuthOrigins(null);
+    setAuthOriginsError('');
     setCanConfigure(currentUser?.globalRole === 'admin');
     setLoadError('');
     if (!currentProject) {
@@ -261,6 +310,21 @@ export const EnvironmentsPage: React.FC = () => {
               >
                 <AppIcon name="sparkles" size={14} />
                 {switchingAuthId === profile.id ? '切换中…' : '改用 AI 识别'}
+              </button>
+            )}
+            {canEdit && profile.status === 'active' && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={deleting || authOriginsSaving}
+                data-testid={`btn-edit-auth-origins-${profile.id}`}
+                onClick={() => {
+                  setEditingAuthOrigins(profile.id);
+                  setAuthOriginsDraft(profile.allowedOrigins.join('\n'));
+                  setAuthOriginsError('');
+                }}
+              >
+                编辑访问范围
               </button>
             )}
             {canEdit && (
@@ -535,6 +599,32 @@ export const EnvironmentsPage: React.FC = () => {
             setAuthDialogEnvId(null);
           }}
         />
+      )}
+      {editingAuthOrigins && (
+        <Modal
+          title="编辑认证配置访问范围"
+          description="只更新允许访问的 Origins，不修改账号密码、密钥或登录步骤。"
+          onClose={closeAuthOrigins}
+          closeOnOverlay={!authOriginsSaving}
+          testId="edit-auth-origins-dialog"
+          footer={
+            <>
+              <button type="button" className="btn btn-secondary" disabled={authOriginsSaving} onClick={closeAuthOrigins}>取消</button>
+              <button type="button" className="btn btn-primary" disabled={authOriginsSaving} data-testid="btn-save-auth-origins" onClick={() => void saveAuthOrigins()}>
+                {authOriginsSaving ? '保存中…' : '保存访问范围'}
+              </button>
+            </>
+          }
+        >
+          <label className="lqa-model-field">
+            <span>允许访问的 Origins（每行一个）</span>
+            <textarea className="form-textarea is-mono" rows={4} value={authOriginsDraft}
+              data-testid="auth-origins-editor"
+              disabled={authOriginsSaving}
+              onChange={(event) => setAuthOriginsDraft(event.target.value)} />
+          </label>
+          {authOriginsError && <Alert tone="danger" role="alert" testId="auth-origins-edit-error">{authOriginsError}</Alert>}
+        </Modal>
       )}
       {deleteTarget && (
         <Modal
