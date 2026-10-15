@@ -206,6 +206,8 @@ export interface AuthFlowOptions {
   agent?: AgentLoginDriver | undefined;
   /** Settle time before a re-observation in agent mode (tests use 0). */
   settleMs?: number | undefined;
+  /** Poll interval following one confirmed submit; test fixtures use 0. */
+  postSubmitPollMs?: number | undefined;
   newRequestId?: (() => string) | undefined;
   now?: (() => number) | undefined;
 }
@@ -897,10 +899,37 @@ export async function runAuthFlow(
     // Observe after the initial settle instead of letting the model act on the
     // navigation-time snapshot. The first snapshot still records navigation.
     let current = await observeFresh();
+    // Login URL can be frozen on the auth profile rather than agentConfig.
+    // Bind the baseline to the actually navigated browser observation.
+    const loginLocation = new URL(current.displayUrl);
     const history: AgentLoginHistoryEntry[] = [];
     let issue: string | null = null;
     let otpUsed = false;
     let staleReobservations = 0;
+    let stalledAfterSubmit = false;
+    let lastSubmittedTarget: string | null = null;
+    const loginFormVisible = (snapshot: BrowserSnapshot) =>
+      snapshot.nodes.some((node) => node.role === 'password' && node.visible);
+    const sameLoginForm = (snapshot: BrowserSnapshot) =>
+      new URL(snapshot.displayUrl).origin === loginLocation.origin &&
+      new URL(snapshot.displayUrl).pathname === loginLocation.pathname &&
+      loginFormVisible(snapshot);
+    // Read-only, bounded settlement after a known successful click. No extra
+    // model request, auth permit, credential fill or submit is issued here.
+    async function settleAfterSubmit(): Promise<BrowserSnapshot> {
+      let observed = await observeFresh();
+      const pollMs = options.postSubmitPollMs ?? 600;
+      for (let attempt = 0; attempt < 5 && sameLoginForm(observed); attempt++) {
+        check();
+        if (pollMs > 0) {
+          try { await delay(pollMs, undefined, { signal }); }
+          catch { throw new Stop('cancelled', 'CANCELLED'); }
+        }
+        observed = await observeFresh();
+      }
+      stalledAfterSubmit = sameLoginForm(observed);
+      return observed;
+    }
     for (let round = 0; round < AGENT_LOGIN_MAX_DECISIONS; round++) {
       check();
       let decision: AgentLoginDecision;
@@ -927,6 +956,9 @@ export async function runAuthFlow(
         throw new Stop('blocked', 'AGENT_LOGIN_BLOCKED');
       }
       if (decision.kind === 'wait') {
+        // The browser already polled after a submit. Asking the model to wait
+        // on the exact unchanged login form cannot increase authority/evidence.
+        if (stalledAfterSubmit) throw new Stop('blocked', 'LOGIN_FORM_STILL_VISIBLE');
         history.push({ action: 'wait' });
         current = await observeFresh();
         continue;
@@ -934,6 +966,8 @@ export async function runAuthFlow(
       if (decision.kind === 'done') {
         // Judge the settled page, not the one the model last saw.
         const settled = await observeFresh();
+        if (sameLoginForm(settled))
+          throw new Stop('blocked', 'LOGIN_FORM_STILL_VISIBLE');
         await criterion(settled, options.criterion);
         return captureAndFinish();
       }
@@ -994,13 +1028,19 @@ export async function runAuthFlow(
           nodeId: target.nodeId,
           label,
         });
+        stalledAfterSubmit = false;
       } else if (decision.kind === 'click') {
+        // Re-clicking the same submit control after a stalled login may
+        // duplicate unknown effects such as login attempts or OTP delivery.
+        // Only a changed form or a different explicit step can proceed.
+        if (stalledAfterSubmit && lastSubmittedTarget === target.nodeId)
+          throw new Stop('blocked', 'LOGIN_FORM_STILL_VISIBLE');
         requireSnapshot(
           await perform('submit_auth', 'submit', { kind: 'submit' }, target),
         );
+        lastSubmittedTarget = target.nodeId;
         history.push({ action: 'click', nodeId: target.nodeId, label });
-        // A click often navigates; propose the next step on the settled page.
-        current = await observeFresh();
+        current = await settleAfterSubmit();
       } else {
         // At most one code per session; the user types it in the run page.
         if (otpUsed) throw new Stop('blocked', 'OTP_UNAVAILABLE');
@@ -1024,6 +1064,7 @@ export async function runAuthFlow(
           ),
         );
         history.push({ action: 'otp', nodeId: target.nodeId, label });
+        stalledAfterSubmit = false;
       }
     }
     throw new Stop('blocked', 'AGENT_STEP_LIMIT');

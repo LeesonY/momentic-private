@@ -146,8 +146,11 @@ function fakeBrowser(config = {}) {
       },
       async submit(target) {
         calls.push({ kind: 'click', nodeId: target.nodeId });
-        if (target.nodeId === 'submit' && !config.loginFails)
-          page = 'dashboard';
+        if (target.nodeId === 'submit' && !config.loginFails) {
+          if (config.loginNavigationDelayMs)
+            setTimeout(() => { page = 'dashboard'; }, config.loginNavigationDelayMs);
+          else page = 'dashboard';
+        }
         return observe();
       },
       async prepareState() {
@@ -295,6 +298,7 @@ function run(config = {}) {
             ? config.agent
             : createAgentLoginDriver({ call: model.call }),
         settleMs: 0,
+        postSubmitPollMs: config.postSubmitPollMs ?? 0,
         newRequestId: (() => {
           let n = 0;
           return () => `request-${(n += 1)}`;
@@ -420,9 +424,45 @@ test('a model "done" on the sign-in form never passes the oracle', async () => {
   });
   const result = await outcome;
   assert.equal(result.status, 'blocked');
-  assert.equal(result.reasonCode, 'CRITERION_FAILED');
-  assert.equal(runtime.log.criteria[0].result, 'failed');
+  assert.equal(result.reasonCode, 'LOGIN_FORM_STILL_VISIBLE');
+  assert.equal(runtime.log.criteria.length, 0);
   assert.deepEqual(runtime.log.finishes, []);
+});
+
+test('delayed login navigation settles read-only before the next model decision', async () => {
+  const attempt = run({
+    browser: { loginNavigationDelayMs: 14 },
+    postSubmitPollMs: 6,
+  });
+  const result = await attempt.outcome;
+  assert.equal(result.status, 'succeeded', result.reasonCode);
+  assert.equal(attempt.model.requests.length, 4);
+  assert.equal(attempt.browser.calls.filter((x) => x.kind === 'click').length, 1);
+  assert.equal(attempt.runtime.log.criteria[0].result, 'passed');
+});
+
+test('stalled login page stops model wait without another submit or secrets', async () => {
+  const attempt = run({
+    browser: { loginFails: true },
+    steps: [...signIn.slice(0, 3), { action: 'wait' }],
+  });
+  const result = await attempt.outcome;
+  assert.equal(result.reasonCode, 'LOGIN_FORM_STILL_VISIBLE');
+  assert.equal(attempt.model.requests.length, 4);
+  assert.equal(attempt.browser.calls.filter((x) => x.kind === 'click').length, 1);
+  assert.deepEqual(attempt.runtime.log.finishes, []);
+  assert.ok(!JSON.stringify(result).includes(secret));
+});
+
+test('stalled login page rejects duplicate submit even if model requests it', async () => {
+  const attempt = run({
+    browser: { loginFails: true },
+    steps: [...signIn.slice(0, 3), signIn[2]],
+  });
+  const result = await attempt.outcome;
+  assert.equal(result.reasonCode, 'LOGIN_FORM_STILL_VISIBLE');
+  assert.equal(attempt.browser.calls.filter((x) => x.kind === 'click').length, 1);
+  assert.equal(attempt.runtime.log.grants.filter((g) => g.action === 'submit_auth').length, 1);
 });
 
 test('blocked, step limit and missing driver stop without capture', async () => {

@@ -188,12 +188,20 @@ export class Worker {
         );
         // finishAuth settles successful auth jobs itself. Ordinary finish()
         // explicitly refuses the auth stage and must never forge success.
-        if (outcome.status !== 'succeeded')
-          throw new DomainError(
-            isErrorCode(outcome.reasonCode)
-              ? outcome.reasonCode
-              : 'AUTH_FAILED',
-          );
+        if (outcome.status !== 'succeeded') {
+          // Persist only an allowlisted-shaped code in the operator logs.
+          // Never emit browser content, selectors, credentials or model text.
+          const code = /^[A-Z][A-Z0-9_]{1,47}$/.test(outcome.reasonCode)
+            ? outcome.reasonCode
+            : 'AUTH_FAILED';
+          console.warn(JSON.stringify({
+            event: 'auth.initializer.blocked',
+            runId: work.run.id,
+            reasonCode: code,
+            completedActions: outcome.steps.filter((step) => step.status === 'succeeded').length,
+          }));
+          throw new DomainError(isErrorCode(code) ? code : 'AUTH_FAILED');
+        }
         return true;
       }
       if (work.stage === 'plan') {
