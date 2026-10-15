@@ -542,9 +542,14 @@ test(
       await page.getByTestId('task-intent-plan').click();
       assert.equal(await page.getByTestId('allow-business-writes').count(), 0);
       await page.getByTestId('task-intent-flow').click();
-      await page.getByTestId('allow-business-writes').check();
-      assert.equal(await page.getByTestId('business-write-scope').count(), 0);
-      await page.getByTestId('business-write-all-pages').waitFor();
+      // Write permission is now the always-visible, environment-scoped
+      // composer checkbox; the old advanced settings control is in a popover.
+      await page.getByTestId('allow-business-writes-visible').check();
+      assert.match(
+        await page.getByTestId('run-write-policy-notice').innerText(),
+        /已启用业务写操作/,
+      );
+      await page.getByTestId('composer-input').fill('检查组织页面入口');
       const started = page.waitForResponse(
         (r) =>
           r.url() === `${origin}/api/v1/runs` &&
