@@ -335,6 +335,21 @@ export class SessionAgent {
     }
     const caseIds: string[] = [];
     const planningOnly = run.effectiveConfig.taskIntent === 'plan';
+    // No model-provided oracle: schedule only server-owned technical smoke
+    // instead of returning an empty report as if the business had passed.
+    if (
+      !planningOnly &&
+      !fallbackToTechnicalSmoke &&
+      context.cases.length === 0 &&
+      accepted.cases.length === 0 &&
+      accepted.exploreTargets.length === 0 &&
+      context.remainingCases > 0
+    ) {
+      fallbackToTechnicalSmoke = true;
+      accepted.coverageGaps.push(
+        '缺少可核实的业务验收依据；仅执行服务端固定技术冒烟，不能据此判断业务功能通过。',
+      );
+    }
     if (fallbackToTechnicalSmoke && !planningOnly) {
       const c = smokeCase(run, run.targetUrl);
       await this.coordinator.insertCase(client, c);

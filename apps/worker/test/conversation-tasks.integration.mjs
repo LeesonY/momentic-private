@@ -33,7 +33,7 @@ import { loadDatabaseUrl } from '../../../deploy/images/database-url.mjs';
 import { loadProtectedKek } from '../../../deploy/images/kek.mjs';
 
 test(
-  'conversation task: ask/resume, stable live lease, scoped save, plan-only and continue',
+  'conversation task: autonomous planning, real browser execution, scoped save, plan-only and continue',
   { timeout: 120000 },
   async () => {
     const base = await loadDatabaseUrl();
@@ -407,25 +407,16 @@ test(
       };
       const run = await start({
         actionPolicy: 'approved_workflows',
+        brief: goal,
       });
       assert.deepEqual(run.effectiveConfig.writeScope, [siteOrigin + '/']);
-      await advance(run.id, true);
+      const completed = await advance(run.id);
       const inputs = await (
         await request.get(`${origin}/api/v1/runs/${run.id}/inputs`)
       ).json();
-      assert.equal(inputs.items.length, 1);
-      assert.equal(inputs.items[0].kind, 'clarification');
+      assert.equal(inputs.items.length, 0, 'explicit objective must not trigger clarification');
       const page = await ui.newPage();
       await page.goto(`${origin}/#/workbench?runId=${run.id}`);
-      await page.getByTestId('input-request-input').waitFor();
-      await page.reload();
-      await page.getByTestId('input-request-input').fill(goal);
-      const response = page.waitForResponse((r) =>
-        r.url().endsWith(`/inputs/${inputs.items[0].id}/respond`),
-      );
-      await page.getByTestId('btn-submit-input-response').click();
-      await check(await response, 200);
-      const completed = await advance(run.id);
       assert.equal(completed.terminationReason, 'normal');
       assert.equal(
         saves,
@@ -450,8 +441,26 @@ test(
       const messages = await (
         await request.get(`${origin}/api/v1/runs/${run.id}/messages`)
       ).json();
-      assert.equal(messages.items.length, 2);
-      assert.ok(messages.items.some((m) => m.redactedText.includes(goal)));
+      assert.equal(messages.items.length, 1);
+      assert.ok(messages.items.some((m) => m.redactedText.includes('不要重复保存')));
+      // A model-produced ask with no relevant source must not create input
+      // requests. The session explores the admitted page and then performs
+      // only a server-owned technical smoke rather than inventing an oracle.
+      const uncertain = await start({ brief: '检查组织页面的入口与可观察状态' });
+      const uncertainFinal = await advance(uncertain.id);
+      assert.equal(uncertainFinal.status, 'completed');
+      const uncertainInputs = await (
+        await request.get(`${origin}/api/v1/runs/${uncertain.id}/inputs`)
+      ).json();
+      assert.equal(uncertainInputs.items.length, 0, 'planner ask is resolved autonomously');
+      const uncertainReport = await (
+        await request.get(`${origin}/api/v1/runs/${uncertain.id}/report`)
+      ).json();
+      assert.equal(uncertainReport.summary.attempted, 1);
+      assert.ok(uncertainReport.session.coverageGaps.some((gap) =>
+        gap.includes('业务验收依据') || gap.includes('额外澄清')));
+      assert.equal(saves, 1, 'autonomous technical smoke must not submit business changes');
+
       await page.reload();
       await page.getByTestId('input-run-message').fill('继续检查组织页面');
       const continued = page.waitForResponse((r) =>
@@ -554,7 +563,7 @@ test(
       await coordinator.tick(project.id);
 
       console.log(
-        `CONVERSATION_ACCEPTED: modelCalls=${calls}; non-admin project owner + real pending request after refresh + reply in planner context + one scoped save with live message + plan-only zero browser work + follow-up + auth profile resume`,
+        `CONVERSATION_ACCEPTED: modelCalls=${calls}; autonomous no-question target exploration + trusted technical smoke + one scoped save with live message + plan-only zero browser work + follow-up + auth profile resume`,
       );
     } finally {
       await uiBrowser?.close();
