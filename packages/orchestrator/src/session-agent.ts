@@ -64,6 +64,22 @@ export interface SessionContext {
   };
 }
 
+/** The sign-in agent's report in words for the user and the session agent. */
+export function loginReportText(report: {
+  reasonCode: string | null;
+  detail: string | null;
+}): string {
+  if (report.detail) return clean(report.detail).slice(0, 300);
+  const code = report.reasonCode ?? 'AUTH_FAILED';
+  if (code === 'MODEL_TIMEOUT') return '登录代理调用模型超时，没能完成登录。';
+  if (code.startsWith('MODEL_') || code === 'RATE_LIMITED')
+    return `登录代理调用模型失败（${code}），没能完成登录。`;
+  if (code === 'AGENT_STEP_LIMIT') return '登录代理在步数上限内没能完成登录。';
+  if (code === 'OTP_UNAVAILABLE') return '需要验证码，但没有拿到。';
+  if (code === 'AUTH_INTERRUPTED') return '登录过程被中断。';
+  return `登录没有完成（${code}）。`;
+}
+
 /** Model proposes work; transactions own IDs, quotas, source checks and dispatch. */
 export class SessionAgent {
   constructor(private coordinator: Coordinator) {}
@@ -623,9 +639,7 @@ export class SessionAgent {
   ): Promise<void> {
     const session = await this.read(client, run);
     if (!session) return;
-    const gap = report.detail
-      ? `登录未成功：${clean(report.detail).slice(0, 300)}`
-      : `登录未成功（${report.reasonCode ?? 'AUTH_FAILED'}）`;
+    const gap = `登录未成功：${loginReportText(report)}`;
     await this.write(client, run, {
       ...session,
       coverageGaps: [...new Set([...session.coverageGaps, gap])].slice(0, 100),

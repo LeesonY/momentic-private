@@ -3539,7 +3539,7 @@ export class Coordinator {
   }
   /**
    * A sign-in that did not succeed is the sign-in agent's report, not a run
-   * failure (as in Mo). The auth job ends failed with that report; tick then
+   * failure (as in Mo). The auth job ends with that report; tick then
    * starts the session agent, which reads it and decides what to ask.
    */
   async failAuth(
@@ -3559,9 +3559,10 @@ export class Coordinator {
         typeof input.detail === 'string' && input.detail.trim()
           ? sanitizeText(input.detail).replace(/\s+/g, ' ').trim().slice(0, 300)
           : null;
-      await this.interrupt(client, run, job, 'interrupted');
+      // Record the report while the job is still running: a terminal job
+      // is immutable. The interruption then releases its session and slots.
       await client.query(
-        "UPDATE jobs SET status='failed',result=COALESCE(result,'{}'::jsonb)||$2::jsonb WHERE id=$1",
+        "UPDATE jobs SET result=COALESCE(result,'{}'::jsonb)||$2::jsonb WHERE id=$1",
         [
           job.id,
           JSON.stringify({
@@ -3570,10 +3571,7 @@ export class Coordinator {
           }),
         ],
       );
-      await appendEvent(client, run.projectId, run.id, 'task.updated', {
-        ...job.document,
-        status: 'failed',
-      });
+      await this.interrupt(client, run, job, 'interrupted');
     });
   }
   async finalize(

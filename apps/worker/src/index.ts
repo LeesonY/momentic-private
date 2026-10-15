@@ -22,6 +22,7 @@ import {
   DECISION_SCHEMA,
   AGENT_REPORT_SCHEMA,
   parseAgentReport,
+  loginReportText,
   sessionOutputSchema,
   sessionModelContext,
   type ActionGrant,
@@ -609,9 +610,7 @@ export class Worker {
           proof,
           work,
           'LOGIN_BLOCKED',
-          work.loginBlocked.detail
-            ? `登录未成功：${work.loginBlocked.detail}`
-            : `登录未成功（${work.loginBlocked.reasonCode}），没有执行。`,
+          `登录未成功，没有执行：${loginReportText(work.loginBlocked)}`,
         );
         return true;
       }
