@@ -1247,6 +1247,17 @@
           "type": "integer",
           "minimum": 1
         },
+        "allowedOrigins": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 8192,
+            "pattern": "^https?://"
+          },
+          "maxItems": 30,
+          "minItems": 1
+        },
         "name": {
           "type": "string",
           "maxLength": 120

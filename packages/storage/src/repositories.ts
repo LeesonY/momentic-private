@@ -848,6 +848,28 @@ export class ConfigurationRepository {
       ).rows[0]!;
       if (old.version !== expectedVersion)
         throw new StorageError('VERSION_CONFLICT');
+      const effectiveOrigins = patch.allowedOrigins ?? old.allowedOrigins;
+      const allowedOriginSet = new Set(
+        effectiveOrigins.map((origin) => new URL(origin).origin),
+      );
+      if (patch.allowedOrigins && old.environmentId) {
+        // A credential cannot expand past its bound environment. This check
+        // happens under the same actor transaction and config.write grant.
+        const environment = await versionDocument(
+          client, 'Environment', projectId, old.environmentId,
+        );
+        const environmentOrigins = new Set(
+          environment.allowedOrigins.map((origin) => new URL(origin).origin),
+        );
+        if (effectiveOrigins.some((origin) =>
+          !environmentOrigins.has(new URL(origin).origin),
+        )) throw new StorageError('TARGET_NOT_ALLOWED');
+      }
+      const configuredLoginUrl =
+        patch.agentConfig?.loginUrl ?? old.agentConfig?.loginUrl ??
+        patch.formConfig?.loginUrl ?? old.formConfig?.loginUrl;
+      if (configuredLoginUrl && !allowedOriginSet.has(new URL(configuredLoginUrl).origin))
+        throw new StorageError('TARGET_NOT_ALLOWED');
       if (
         old.mode === 'storage_state' &&
         !(patch.storageCriterion ?? old.storageCriterion)
@@ -865,21 +887,13 @@ export class ConfigurationRepository {
           .sort();
         if (JSON.stringify(before) !== JSON.stringify(after))
           throw new StorageError('VALIDATION_ERROR');
-        const loginUrl = patch.agentConfig.loginUrl;
-        if (
-          loginUrl &&
-          !old.allowedOrigins.some(
-            (origin) => new URL(origin).origin === new URL(loginUrl).origin,
-          )
-        )
-          throw new StorageError('TARGET_NOT_ALLOWED');
       }
       if (secretInput)
         validateAuth(
           parseContract('AuthProfileCreate', {
             name: old.name,
             mode: old.mode,
-            allowedOrigins: old.allowedOrigins,
+            allowedOrigins: effectiveOrigins,
             secretInput,
             ...(old.mode === 'storage_state'
               ? {

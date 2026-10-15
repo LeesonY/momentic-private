@@ -618,6 +618,11 @@ export interface AuthProfilePage {
 }
 export interface AuthProfilePatch {
   expectedVersion: number;
+  /**
+   * @minItems 1
+   * @maxItems 30
+   */
+  allowedOrigins?: [string, ...string[]];
   name?: string;
   sharingPolicy?: "exclusive_run" | "shared_state";
   formConfig?: FormConfig;
