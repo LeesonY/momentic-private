@@ -16,7 +16,8 @@
     "test:functional-start": "node scripts/t39-project-start-functional.mjs",
     "test:functional-report": "node scripts/t44-report-export-functional.mjs",
     "test:functional-delete": "node scripts/t45-project-delete-functional.mjs",
-    "test:functional-theme": "node scripts/t46-theme-controls-functional.mjs"
+    "test:functional-theme": "node scripts/t46-theme-controls-functional.mjs",
+    "test:functional-session-delete": "node scripts/t47-session-delete-functional.mjs"
   },
   "dependencies": {
     "@fontsource-variable/geist": "5.3.0",

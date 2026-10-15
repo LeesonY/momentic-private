@@ -283,6 +283,120 @@
   color: var(--color-danger);
 }
 
+/* Sidebar history deletion and selection. */
+.lqa-recent-runs-head-actions,
+.lqa-recent-runs-bulk {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lqa-recent-runs-action {
+  padding: 2px 4px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.lqa-recent-runs-action:hover {
+  background: var(--color-bg-muted);
+  color: var(--color-text-main);
+}
+
+.lqa-recent-runs-bulk {
+  justify-content: space-between;
+  padding: 4px 8px 7px;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.lqa-recent-runs-select-all {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.lqa-recent-runs-danger {
+  padding: 3px 7px;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+  background: transparent;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.lqa-recent-runs-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lqa-recent-runs-feedback {
+  margin: 0 8px 6px;
+  font-size: var(--text-xs);
+  color: var(--color-success);
+  overflow-wrap: anywhere;
+}
+
+.lqa-recent-runs-feedback.is-error {
+  color: var(--color-danger);
+}
+
+.lqa-recent-run-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.lqa-recent-run-checkbox {
+  flex: 0 0 auto;
+  margin: 0 0 0 8px;
+}
+
+.lqa-recent-run-row .lqa-recent-run {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+
+.lqa-recent-run-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  margin-right: 3px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.lqa-recent-run-row:hover .lqa-recent-run-delete,
+.lqa-recent-run-delete:focus-visible {
+  opacity: 1;
+}
+
+.lqa-recent-run-delete:hover,
+.lqa-recent-run-delete:focus-visible {
+  color: var(--color-danger);
+  background: var(--color-bg-muted);
+}
+
+@media (hover: none) {
+  .lqa-recent-run-delete {
+    opacity: 1;
+  }
+}
+
 /* Footer: mode, theme, user */
 .lqa-sidebar-footer {
   display: flex;
