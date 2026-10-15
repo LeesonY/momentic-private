@@ -176,7 +176,12 @@ export type AgentLoginDecision =
   | { kind: 'otp'; target: NodeTarget }
   | { kind: 'wait' }
   | { kind: 'done' }
-  | { kind: 'blocked'; category: 'challenge' | 'sso' | 'locked' | 'manual' | 'unknown' }
+  | {
+      kind: 'blocked';
+      category: 'challenge' | 'sso' | 'locked' | 'manual' | 'unknown';
+      /** The agent's own short account, never containing variable values. */
+      reason?: string | null;
+    }
   /** A malformed proposal: nothing runs, the model is asked again. */
   | { kind: 'invalid'; issue: string };
 
@@ -229,12 +234,18 @@ export interface AuthFlowOutcome {
   steps: readonly AuthFlowStep[];
   /** Private capture handle, present only after finish. Not a model value. */
   stateRef: string | null;
+  /**
+   * The sign-in agent's own short account of why it stopped (agent mode),
+   * shown to the user and the session agent. Never a variable value.
+   */
+  detail?: string | null;
 }
 
 class Stop extends Error {
   constructor(
     readonly status: AuthFlowStatus,
     readonly code: string,
+    readonly detail: string | null = null,
   ) {
     super(code);
   }
@@ -347,6 +358,7 @@ export async function runAuthFlow(
     status: AuthFlowStatus,
     reasonCode: string,
     stateRef: string | null = null,
+    detail: string | null = null,
   ): AuthFlowOutcome => {
     let frozen: readonly AuthFlowStep[];
     try {
@@ -354,7 +366,13 @@ export async function runAuthFlow(
     } catch {
       frozen = Object.freeze([]);
     }
-    return Object.freeze({ status, reasonCode, steps: frozen, stateRef });
+    return Object.freeze({
+      status,
+      reasonCode,
+      steps: frozen,
+      stateRef,
+      ...(detail ? { detail } : {}),
+    });
   };
 
   // `none` is not an authentication: no material, no port, no adapter call.
@@ -894,7 +912,9 @@ export async function runAuthFlow(
         .filter((variable) => variable.sensitive)
         .map((variable) => values.get(variable.name)!),
     );
-    requireSnapshot(await perform('navigate_auth', 'login_url', { kind: 'navigate' }));
+    requireSnapshot(
+      await perform('navigate_auth', 'login_url', { kind: 'navigate' }),
+    );
     // SPA hydration commonly mutates the login form after domcontentloaded.
     // Observe after the initial settle instead of letting the model act on the
     // navigation-time snapshot. The first snapshot still records navigation.
@@ -906,7 +926,6 @@ export async function runAuthFlow(
     let issue: string | null = null;
     let otpUsed = false;
     let staleReobservations = 0;
-    let recheckedInitialBlock = false;
     let stalledAfterSubmit = false;
     let lastSubmittedTarget: string | null = null;
     const loginFormVisible = (snapshot: BrowserSnapshot) =>
@@ -923,8 +942,11 @@ export async function runAuthFlow(
       for (let attempt = 0; attempt < 5 && sameLoginForm(observed); attempt++) {
         check();
         if (pollMs > 0) {
-          try { await delay(pollMs, undefined, { signal }); }
-          catch { throw new Stop('cancelled', 'CANCELLED'); }
+          try {
+            await delay(pollMs, undefined, { signal });
+          } catch {
+            throw new Stop('cancelled', 'CANCELLED');
+          }
         }
         observed = await observeFresh();
       }
@@ -954,57 +976,32 @@ export async function runAuthFlow(
         continue;
       }
       if (decision.kind === 'blocked') {
-        // The model's first refusal is not evidence of an actual obstacle.
-        // Only on the *initial* decision, with an apparently ordinary login
-        // form and no reported/visible challenge, allow ONE fresh, read-only
-        // observation and one additional model decision. Never infer a target,
-        // request a permit or execute an effect as part of this recheck.
-        const usable = (node: BrowserSnapshot['nodes'][number]) =>
-          node.visible && node.enabled;
-        const ordinaryLogin = current.nodes.some((node) =>
-          usable(node) && node.role === 'password',
-        ) && current.nodes.some((node) =>
-          usable(node) && ['text', 'email', 'textbox', 'tel'].includes(node.role),
-        ) && current.nodes.some((node) =>
-          usable(node) && ['button', 'submit'].includes(node.role),
-        );
-        const visibleChallenge = current.nodes.some((node) =>
-          node.visible && /验证码|图形验证|滑块|captcha|扫码|二维码|qr.?code|人机验证|otp|2fa/i.test(node.name),
-        );
-        const shouldRecheck =
-          round === 0 && !recheckedInitialBlock && history.length === 0 &&
-          ordinaryLogin && !visibleChallenge &&
-          decision.category === 'unknown';
+        // The agent's own conclusion stands, as in Mo: no server recheck or
+        // page heuristic overrides it. Its short reason reaches the user.
         // Never log the free-form model reason, page text or credentials.
-        console.warn(JSON.stringify({
-          event: 'auth.agent.model_blocked',
-          runId: binding.runId,
-          category: decision.category,
-          firstDecision: history.length === 0,
-          snapshotTruncated: current.truncated,
-          recheck: shouldRecheck,
-        }));
-        if (shouldRecheck) {
-          recheckedInitialBlock = true;
-          current = await observeFresh();
-          issue = 'LOGIN_BLOCKED_RECHECK';
-          continue;
-        }
-        throw new Stop('blocked', 'AGENT_LOGIN_BLOCKED');
+        console.warn(
+          JSON.stringify({
+            event: 'auth.agent.model_blocked',
+            runId: binding.runId,
+            category: decision.category,
+            firstDecision: history.length === 0,
+            snapshotTruncated: current.truncated,
+          }),
+        );
+        throw new Stop(
+          'blocked',
+          'AGENT_LOGIN_BLOCKED',
+          decision.reason ?? null,
+        );
       }
       if (decision.kind === 'wait') {
-        // The browser already polled after a submit. Asking the model to wait
-        // on the exact unchanged login form cannot increase authority/evidence.
-        if (stalledAfterSubmit) throw new Stop('blocked', 'LOGIN_FORM_STILL_VISIBLE');
         history.push({ action: 'wait' });
         current = await observeFresh();
         continue;
       }
       if (decision.kind === 'done') {
-        // Judge the settled page, not the one the model last saw.
+        // Record the agent's decision on the settled page it now shows.
         const settled = await observeFresh();
-        if (sameLoginForm(settled))
-          throw new Stop('blocked', 'LOGIN_FORM_STILL_VISIBLE');
         await criterion(settled, options.criterion);
         return captureAndFinish();
       }
@@ -1070,8 +1067,12 @@ export async function runAuthFlow(
         // Re-clicking the same submit control after a stalled login may
         // duplicate unknown effects such as login attempts or OTP delivery.
         // Only a changed form or a different explicit step can proceed.
-        if (stalledAfterSubmit && lastSubmittedTarget === target.nodeId)
-          throw new Stop('blocked', 'LOGIN_FORM_STILL_VISIBLE');
+        // Another identical submit could lock the account; the agent is told
+        // and decides the next step (usually reporting why it is blocked).
+        if (stalledAfterSubmit && lastSubmittedTarget === target.nodeId) {
+          issue = 'SUBMIT_ALREADY_TRIED';
+          continue;
+        }
         requireSnapshot(
           await perform('submit_auth', 'submit', { kind: 'submit' }, target),
         );
@@ -1153,7 +1154,7 @@ export async function runAuthFlow(
     return finish('succeeded', 'AUTH_SUCCEEDED', stateRef);
   } catch (error) {
     const stop = failure(error, 'AUTH_FLOW_ERROR');
-    return finish(stop.status, stop.code);
+    return finish(stop.status, stop.code, null, stop.detail);
   } finally {
     // The session is discarded on every path; material is never reused after.
     try {

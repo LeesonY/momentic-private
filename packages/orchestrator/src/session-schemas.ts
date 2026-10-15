@@ -51,6 +51,7 @@ export function sessionModelContext(
     taskIntent: context.taskIntent,
     writeScope: context.writeScope,
     assertionCapabilities: context.assertionCapabilities,
+    login: context.login,
     remainingCases: context.remainingCases,
     remainingPages: context.remainingPages,
     concurrency: context.concurrency,
@@ -79,6 +80,16 @@ export function sessionModelContext(
         sourceRef: k.sourceRef,
       })),
       results: c.verdict?.criterionResults,
+      report: c.verdict
+        ? {
+            status: c.verdict.status,
+            summary: c.verdict.summary.slice(0, 400),
+            verified: (c.verdict.verified ?? [])
+              .slice(0, 6)
+              .map((item) => item.slice(0, 160)),
+            gaps: c.verdict.gaps.slice(0, 6).map((gap) => gap.slice(0, 200)),
+          }
+        : null,
     })),
     findings: context.findings.map((f) => ({
       id: f.id,

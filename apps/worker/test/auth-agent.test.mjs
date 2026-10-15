@@ -85,7 +85,12 @@ function node(nodeId, role, name, extra = {}) {
 }
 
 let seed = 0;
-function snapshot(page, extraNodes = [], otpVisible = false, truncated = false) {
+function snapshot(
+  page,
+  extraNodes = [],
+  otpVisible = false,
+  truncated = false,
+) {
   seed += 1;
   const login = [
     node('user-field', 'email', '邮箱'),
@@ -122,7 +127,12 @@ function fakeBrowser(config = {}) {
   let page = 'login';
   let current = snapshot(page, [], config.otpVisible, config.truncated);
   const observe = () =>
-    (current = snapshot(page, config.extraNodes?.(page), config.otpVisible, config.truncated));
+    (current = snapshot(
+      page,
+      config.extraNodes?.(page),
+      config.otpVisible,
+      config.truncated,
+    ));
   return {
     calls,
     session: {
@@ -149,7 +159,9 @@ function fakeBrowser(config = {}) {
         calls.push({ kind: 'click', nodeId: target.nodeId });
         if (target.nodeId === 'submit' && !config.loginFails) {
           if (config.loginNavigationDelayMs)
-            setTimeout(() => { page = 'dashboard'; }, config.loginNavigationDelayMs);
+            setTimeout(() => {
+              page = 'dashboard';
+            }, config.loginNavigationDelayMs);
           else page = 'dashboard';
         }
         return observe();
@@ -395,7 +407,10 @@ test('stale AI login target is reobserved before any credential grant', async ()
   assert.equal(outcome.status, 'succeeded', outcome.reasonCode);
   assert.equal(probes, 4);
   assert.equal(attempt.runtime.log.grants.length, 4);
-  assert.equal(attempt.browser.calls.filter((x) => x.kind === 'fill').length, 2);
+  assert.equal(
+    attempt.browser.calls.filter((x) => x.kind === 'fill').length,
+    2,
+  );
   const requests = attempt.model.requests.map((x) =>
     JSON.parse(x.messages[1].content[0].text),
   );
@@ -412,22 +427,30 @@ test('persistently changing login DOM blocks without granting or filling', async
   const outcome = await attempt.outcome;
   assert.equal(outcome.status, 'blocked');
   assert.equal(outcome.reasonCode, 'TARGET_STALE');
-  assert.deepEqual(attempt.runtime.log.grants.map((g) => g.action), ['navigate_auth']);
-  assert.equal(attempt.browser.calls.filter((x) => x.kind === 'fill').length, 0);
+  assert.deepEqual(
+    attempt.runtime.log.grants.map((g) => g.action),
+    ['navigate_auth'],
+  );
+  assert.equal(
+    attempt.browser.calls.filter((x) => x.kind === 'fill').length,
+    0,
+  );
   assert.equal(attempt.runtime.log.finishes.length, 0);
   assert.equal(attempt.model.requests.length, 4);
 });
 
-test('a model "done" on the sign-in form never passes the oracle', async () => {
+test('the agent decides it is signed in; no server page heuristic overrides it', async () => {
+  // The page still shows the sign-in form, but the agent judged it signed in
+  // (Mo-style). Its decision is recorded on the observation and captured.
   const { runtime, outcome } = run({
     browser: { loginFails: true },
     steps: [...signIn.slice(0, 3), { action: 'done' }],
   });
   const result = await outcome;
-  assert.equal(result.status, 'blocked');
-  assert.equal(result.reasonCode, 'LOGIN_FORM_STILL_VISIBLE');
-  assert.equal(runtime.log.criteria.length, 0);
-  assert.deepEqual(runtime.log.finishes, []);
+  assert.equal(result.status, 'succeeded', result.reasonCode);
+  assert.equal(runtime.log.criteria.length, 1);
+  assert.equal(runtime.log.criteria[0].result, 'passed');
+  assert.deepEqual(runtime.log.finishes, ['state-ref-7c']);
 });
 
 test('delayed login navigation settles read-only before the next model decision', async () => {
@@ -438,85 +461,98 @@ test('delayed login navigation settles read-only before the next model decision'
   const result = await attempt.outcome;
   assert.equal(result.status, 'succeeded', result.reasonCode);
   assert.equal(attempt.model.requests.length, 4);
-  assert.equal(attempt.browser.calls.filter((x) => x.kind === 'click').length, 1);
+  assert.equal(
+    attempt.browser.calls.filter((x) => x.kind === 'click').length,
+    1,
+  );
   assert.equal(attempt.runtime.log.criteria[0].result, 'passed');
 });
 
-test('stalled login page stops model wait without another submit or secrets', async () => {
+test('waiting on a stalled login page only re-observes, bounded by the step limit', async () => {
   const attempt = run({
     browser: { loginFails: true },
     steps: [...signIn.slice(0, 3), { action: 'wait' }],
   });
   const result = await attempt.outcome;
-  assert.equal(result.reasonCode, 'LOGIN_FORM_STILL_VISIBLE');
-  assert.equal(attempt.model.requests.length, 4);
-  assert.equal(attempt.browser.calls.filter((x) => x.kind === 'click').length, 1);
+  assert.equal(result.reasonCode, 'AGENT_STEP_LIMIT');
+  assert.equal(attempt.model.requests.length, 12);
+  assert.equal(
+    attempt.browser.calls.filter((x) => x.kind === 'click').length,
+    1,
+  );
   assert.deepEqual(attempt.runtime.log.finishes, []);
   assert.ok(!JSON.stringify(result).includes(secret));
 });
 
-test('stalled login page rejects duplicate submit even if model requests it', async () => {
+test('a repeated submit on a stalled page is not executed; the agent then reports why', async () => {
   const attempt = run({
     browser: { loginFails: true },
-    steps: [...signIn.slice(0, 3), signIn[2]],
+    steps: [
+      ...signIn.slice(0, 3),
+      signIn[2],
+      { action: 'blocked', reason: '页面提示：用户名或密码错误' },
+    ],
   });
   const result = await attempt.outcome;
-  assert.equal(result.reasonCode, 'LOGIN_FORM_STILL_VISIBLE');
-  assert.equal(attempt.browser.calls.filter((x) => x.kind === 'click').length, 1);
-  assert.equal(attempt.runtime.log.grants.filter((g) => g.action === 'submit_auth').length, 1);
+  assert.equal(result.status, 'blocked');
+  assert.equal(result.reasonCode, 'AGENT_LOGIN_BLOCKED');
+  assert.equal(result.detail, '页面提示：用户名或密码错误');
+  assert.equal(
+    attempt.browser.calls.filter((x) => x.kind === 'click').length,
+    1,
+  );
+  assert.equal(
+    attempt.runtime.log.grants.filter((g) => g.action === 'submit_auth').length,
+    1,
+  );
+  const issues = attempt.model.requests.map(
+    (request) => JSON.parse(request.messages[1].content[0].text).issue,
+  );
+  assert.equal(issues[4], 'SUBMIT_ALREADY_TRIED');
+  assert.ok(!JSON.stringify(result).includes(secret));
 });
 
-test('initial premature blocked on truncated ordinary login is rechecked once and can recover', async () => {
+test("a blocked decision stands with the agent's own reason; no server recheck", async () => {
   const attempt = run({
     browser: { truncated: true },
     steps: [{ action: 'blocked', reason: '不确定页面结构' }, ...signIn],
   });
-  const outcome = await attempt.outcome;
-  assert.equal(outcome.status, 'succeeded', outcome.reasonCode);
-  assert.equal(attempt.model.requests.length, 5);
-  const prompts = attempt.model.requests.map((x) =>
-    JSON.parse(x.messages[1].content[0].text),
-  );
-  assert.equal(prompts[0].issue, null);
-  assert.equal(prompts[1].issue, 'LOGIN_BLOCKED_RECHECK');
-  assert.equal(prompts[0].observation.truncated, true);
-  assert.notEqual(prompts[0].observation.nodes[0].nodeId, undefined);
-  assert.deepEqual(
-    attempt.runtime.log.grants.map((x) => x.action),
-    ['navigate_auth', 'fill_credential', 'fill_credential', 'submit_auth'],
-  );
-  assert.ok(!JSON.stringify(prompts).includes(secret));
-});
-
-test('model blocked twice stops with exactly one read-only retry and no credential effects', async () => {
-  const attempt = run({ steps: [
-    { action: 'blocked', reason: '信息不足' },
-    { action: 'blocked', reason: '信息不足' },
-    ...signIn,
-  ] });
   const result = await attempt.outcome;
   assert.equal(result.status, 'blocked');
   assert.equal(result.reasonCode, 'AGENT_LOGIN_BLOCKED');
-  assert.equal(attempt.model.requests.length, 2);
-  assert.deepEqual(attempt.runtime.log.grants.map((x) => x.action), ['navigate_auth']);
+  assert.equal(result.detail, '不确定页面结构');
+  assert.equal(attempt.model.requests.length, 1);
+  assert.deepEqual(
+    attempt.runtime.log.grants.map((x) => x.action),
+    ['navigate_auth'],
+  );
   assert.deepEqual(attempt.runtime.log.finishes, []);
 });
 
 test('captcha/SSO/lock/manual blocked decisions are never rechecked or executed', async () => {
   for (const reason of [
-    '需完成验证码', '需要第三方SSO', '账号已锁定', '需要人工确认',
+    '需完成验证码',
+    '需要第三方SSO',
+    '账号已锁定',
+    '需要人工确认',
   ]) {
     const attempt = run({ steps: [{ action: 'blocked', reason }, ...signIn] });
     const result = await attempt.outcome;
     assert.equal(result.reasonCode, 'AGENT_LOGIN_BLOCKED');
     assert.equal(attempt.model.requests.length, 1);
-    assert.deepEqual(attempt.runtime.log.grants.map((x) => x.action), ['navigate_auth']);
+    assert.deepEqual(
+      attempt.runtime.log.grants.map((x) => x.action),
+      ['navigate_auth'],
+    );
   }
   const challengeOnPage = run({
     browser: { otpVisible: true },
     steps: [{ action: 'blocked', reason: '无法继续' }, ...signIn],
   });
-  assert.equal((await challengeOnPage.outcome).reasonCode, 'AGENT_LOGIN_BLOCKED');
+  assert.equal(
+    (await challengeOnPage.outcome).reasonCode,
+    'AGENT_LOGIN_BLOCKED',
+  );
   assert.equal(challengeOnPage.model.requests.length, 1);
 });
 
@@ -524,8 +560,10 @@ test('blocked after credential fill never retries or repeats a mutation', async 
   const attempt = run({ steps: [signIn[0], { action: 'blocked' }, ...signIn] });
   assert.equal((await attempt.outcome).reasonCode, 'AGENT_LOGIN_BLOCKED');
   assert.equal(attempt.model.requests.length, 2);
-  assert.deepEqual(attempt.runtime.log.grants.map((x) => x.action),
-    ['navigate_auth', 'fill_credential']);
+  assert.deepEqual(
+    attempt.runtime.log.grants.map((x) => x.action),
+    ['navigate_auth', 'fill_credential'],
+  );
 });
 
 test('blocked, step limit and missing driver stop without capture', async () => {
@@ -629,14 +667,14 @@ test('parseAgentDecision binds targets to the given snapshot only', () => {
       { action: 'blocked', reason: '需要验证码' },
       { snapshot: observed, variables },
     ),
-    { kind: 'blocked', category: 'challenge' },
+    { kind: 'blocked', category: 'challenge', reason: '需要验证码' },
   );
   assert.deepEqual(
     parseAgentDecision(
       { action: 'blocked', reason: '页面结构不清晰' },
       { snapshot: observed, variables },
     ),
-    { kind: 'blocked', category: 'unknown' },
+    { kind: 'blocked', category: 'unknown', reason: '页面结构不清晰' },
   );
   assert.equal(
     parseAgentDecision({ action: 'type' }, { snapshot: observed, variables })

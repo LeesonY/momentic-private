@@ -45,6 +45,12 @@ export interface SessionContext {
     caseId: string | null;
     summary: string;
   }>;
+  /** The sign-in agent's report for this run's account, if it has one. */
+  login: {
+    status: 'none' | 'pending' | 'succeeded' | 'blocked';
+    reasonCode: string | null;
+    detail: string | null;
+  };
   concurrency: number;
   remainingCases: number;
   remainingPages: number;
@@ -229,6 +235,7 @@ export class SessionAgent {
     const assertionCapabilities = profile
       ? parseContract('ModelProfile', profile.document).capabilities
       : { structuredOutput: false, nativeTools: false, imageInput: false };
+    const login = await this.coordinator.loginOutcome(client, run);
     return {
       session,
       sources,
@@ -236,6 +243,10 @@ export class SessionAgent {
       cases,
       findings,
       activeTasks,
+      login: {
+        ...login,
+        detail: login.detail ? clean(login.detail).slice(0, 300) : null,
+      },
       concurrency: run.effectiveConfig.budget.concurrency,
       remainingCases: Math.max(
         0,
@@ -603,6 +614,22 @@ export class SessionAgent {
         null,
       );
     return true;
+  }
+  /** Records the sign-in agent's report where the user and the agent see it. */
+  async noteLoginBlocked(
+    client: PoolClient,
+    run: Run,
+    report: { reasonCode: string | null; detail: string | null },
+  ): Promise<void> {
+    const session = await this.read(client, run);
+    if (!session) return;
+    const gap = report.detail
+      ? `登录未成功：${clean(report.detail).slice(0, 300)}`
+      : `登录未成功（${report.reasonCode ?? 'AUTH_FAILED'}）`;
+    await this.write(client, run, {
+      ...session,
+      coverageGaps: [...new Set([...session.coverageGaps, gap])].slice(0, 100),
+    });
   }
   async finishRun(client: PoolClient, run: Run, reason: string): Promise<void> {
     const session = await this.read(client, run);

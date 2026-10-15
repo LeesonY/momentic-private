@@ -74,8 +74,8 @@ UI 不直接连接模型、数据库、Worker 或裸证据目录。Worker 不直
 | coordinator | URL、环境/知识/策略快照、预算 | 推进阶段、汇总，不直接任意点击页面 |
 | explorer | 获准入口、图谱、剩余预算 | 非提交式探索、控件记录、候选流程；不确认 Bug |
 | planner | 探索结果和可信预期 | 冻结用例版本、确定 criterion ID 和来源；由 coordinator 调用 |
-| executor | 一条不可变用例、认证配置引用 | 通过工具执行，产生一次 attempt 与 verdict |
-| reproducer | 疑似问题、相同 criteria、等价准备 | 全新 context 复现；不能削弱原预期来确认或消除问题 |
+| executor | 一条不可变用例、认证配置引用 | 通过工具执行，最后提交本条用例的报告（结论、已验证项、缺口、缺陷描述），报告即 verdict |
+| reproducer | 疑似问题、相同 criteria、等价准备 | 全新 context 从头复现并提交复现报告；不能削弱原预期来确认或消除问题 |
 | finalizer | 事实数据、证据状态、清理账本 | 确定性计算统计、生成报告、列出缺口；模型摘要为可选附加 |
 
 终态 completed 表示调度结束，不表示测试通过。`completion` 为 complete/partial/none；`terminationReason` 独立记录 normal/budget_limit/input_timeout/user_cancel/worker_failure/model_failure/setup_failure。清理失败和证据缺失作为报告警告及 cleanupStatus 记录，不能隐藏。
@@ -92,7 +92,7 @@ complete 表示正常结束且计划已全部尝试并收尾，不等于全部�
 4. Explorer 在 maxPages/maxDepth/maxActions 内建立页面/控件图谱。URL 与结构指纹去重，避免返回/分页循环；任何新 origin 均重新校验。
 5. Planner 生成至多 maxCases 条用例，并检查每条预期来源、策略、可执行性与去重条件。
 
-新自动探索运行由 Session agent 负责覆盖规划、派发探索与执行任务、读取结果并决定补测或收尾，最多 6 轮，整体仍受运行预算限制。业务用例必须引用冻结的测试说明或已批准项目知识，并提供原文引用；仅由页面推断的条件标记 inferred，不能据此确认功能缺陷。服务端分配用例身份、校验范围、冻结条件、去重和复现，模型不能改写已有判定。每步操作后读取新观察，模型验收引用该任务自己的证据；未执行的受限操作只能报告受阻。最终文字总结由模型生成，统计由代码计算。规划历史与覆盖缺口持久化在 run_sessions，并通过 session.updated 与报告展示；已有运行及已批准回归基线保留原执行路径。
+新自动探索运行按 Momentic Mo 的方式进行：Session agent（主 AI）负责覆盖规划、写用例（前置条件、步骤、验收标准）、派发探索与执行任务、读取各代理的报告，再决定补测、向用户提问或收尾，整体受运行预算限制。验收标准由主 AI 编写；引用用户需求或项目知识的要注明来源，引用核对不上的标记为 inferred，不再整份拒绝。每条用例由执行代理在自己的浏览器里完成，并提交报告作为结论（passed / issue_found / blocked，附已验证项和缺口）；平台不再用固定规则或单独的断言调用复核。功能缺陷由独立复现代理从干净状态复现成功后才确认。单个代理的失败（登录状态失效、模型调用失败、浏览器操作失败）只让它负责的那项工作判为受阻，不终止整次运行；预算耗尽、取消和租约丢失仍按运行级处理。主 AI 提问时会话等待用户回复（最长 24 小时，等待不计入活跃时间）。服务端分配用例身份、校验范围、去重；最终文字总结由模型生成，统计由代码按各用例结论计算。规划历史与覆盖缺口持久化在 run_sessions，并通过 session.updated 与报告展示；已批准回归基线保留原有的固定判定执行路径。
 6. 冻结计划；创建 executor 任务，分别从已知前提和获准认证开始。跨用例共享业务写入状态不是默认机制。
 7. 失败区分 issue_found/blocked/inconclusive。功能疑似问题最多触发 maxReproductions 次独立复现，其余保持 suspected。
 8. Finalizer 聚合事实、执行清理、生成报告。所有没有执行到的计划和未覆盖控件明确列出。
@@ -149,7 +149,7 @@ SecretVault 用随机 nonce 的 AES-256-GCM 加密，记录 keyVersion；KEK 通
 
 表单认证通过固定配置的字段定位和成功条件执行。CredentialBroker 只对当前获准 lease/profile 提供所需材料；模型看到角色、变量名和描述，不得到密码、cookie/token。storage state 校验 origin/容量，使用后仅存在获准浏览器 context 和任务 scratch。
 
-AI 登录（`mode: agent`，与 Momentic Mo 的用法一致）是默认推荐方式：认证配置保存变量（名称、是否敏感、备注）和自然语言登录说明，变量值只进 write-only secretInput。认证任务里，模型读取登录说明、变量名和已脱敏的页面观察，每次只提出一步（fill 变量 / click / otp / wait / done / blocked）；Worker 校验目标属于本次登记的观察后，按 `fill_credential:variable`、`submit_auth:submit` 申请服务端放行，变量值在私有端口内替换，模型始终拿不到值，填过的值和敏感值在后续观察中打码。成功不采信模型自报：服务端对自己登记的观察执行固定判定 `agent_login_completed`（无错误响应，且任何 frame 中都没有可见的密码输入框），通过后才允许抓取并复用登录状态。单次认证最多 12 次决策、最多 1 次向用户索取验证码，用运行冻结的 executor 模型绑定和预算。表单登录（`detectionMode: ai` 由服务端模型按账号、密码、提交、验证码、成功几个固定槽位识别字段，`manual` 使用固定定位器）和 storage state 保留为可选方式。
+AI 登录（`mode: agent`，与 Momentic Mo 的用法一致）是默认推荐方式：认证配置保存变量（名称、是否敏感、备注）和自然语言登录说明，变量值只进 write-only secretInput。认证任务里，登录代理读取登录说明、变量名和已脱敏的页面观察，每次只提出一步（fill 变量 / click / otp / wait / done / blocked）；Worker 校验目标属于本次登记的观察后，按 `fill_credential:variable`、`submit_auth:submit` 申请服务端放行，变量值在私有端口内替换，模型始终拿不到值，填过的值和敏感值在后续观察中打码。是否登录成功由登录代理自己根据页面判断（与 Mo 一致），平台不再用“是否还有密码框”等页面规则复核或否决；`agent_login_completed` 只把这个判断绑定到它所依据的那次登记观察，之后才允许抓取并复用登录状态。登录代理回 blocked 时附一句它看到的情况（不含变量值）。冒烟会话中登录未成功不再判为 setup_failure：认证任务以失败结束并保存该理由，会话照常开始，理由写入覆盖缺口并交给主 AI；需要登录的工作直接判为受阻，主 AI 可以向用户说明并提问。同一登录按钮在页面没有变化时不会被再次提交，登录代理会被告知并自行决定下一步。单次认证最多 12 次决策、最多 1 次向用户索取验证码，用运行冻结的 executor 模型绑定和预算。表单登录（`detectionMode: ai` 由服务端模型按账号、密码、提交、验证码、成功几个固定槽位识别字段，`manual` 使用固定定位器）和 storage state 保留为可选方式；回归运行的登录失败仍按 setup_failure 处理。
 
 执行中凭据需要进入运行进程和浏览器内存，不能声称完全不接触运行进程。实际截图、DOM、network headers/bodies、URL 和日志都走同一 RedactionPolicy；截图生成前对已知敏感字段遮罩。脱敏影响验收时使用固定检查或明确受阻，不展示虚假的未脱敏证据。
 

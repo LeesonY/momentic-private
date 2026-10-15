@@ -2085,6 +2085,15 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "verified": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "maxItems": 30,
+            "minItems": 0
           }
         },
         "required": [
@@ -2512,11 +2521,6 @@
                 "reproductionRef": {
                   "type": "string",
                   "format": "uuid"
-                },
-                "expectedSource": {
-                  "not": {
-                    "const": "inferred"
-                  }
                 },
                 "evidenceRefs": {
                   "type": "array",
@@ -10285,6 +10289,15 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "verified": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "maxItems": 30,
+            "minItems": 0
           }
         },
         "required": [
@@ -10490,11 +10503,6 @@
                 "reproductionRef": {
                   "type": "string",
                   "format": "uuid"
-                },
-                "expectedSource": {
-                  "not": {
-                    "const": "inferred"
-                  }
                 },
                 "evidenceRefs": {
                   "type": "array",
@@ -18804,6 +18812,15 @@
             "createdAt": {
               "type": "string",
               "format": "date-time"
+            },
+            "verified": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "maxItems": 30,
+              "minItems": 0
             }
           },
           "required": [
@@ -19231,11 +19248,6 @@
                   "reproductionRef": {
                     "type": "string",
                     "format": "uuid"
-                  },
-                  "expectedSource": {
-                    "not": {
-                      "const": "inferred"
-                    }
                   },
                   "evidenceRefs": {
                     "type": "array",
@@ -26984,6 +26996,15 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "verified": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "maxItems": 30,
+            "minItems": 0
           }
         },
         "required": [
@@ -27189,11 +27210,6 @@
                 "reproductionRef": {
                   "type": "string",
                   "format": "uuid"
-                },
-                "expectedSource": {
-                  "not": {
-                    "const": "inferred"
-                  }
                 },
                 "evidenceRefs": {
                   "type": "array",
@@ -29540,11 +29556,6 @@
                   "type": "string",
                   "format": "uuid"
                 },
-                "expectedSource": {
-                  "not": {
-                    "const": "inferred"
-                  }
-                },
                 "evidenceRefs": {
                   "type": "array",
                   "items": {
@@ -29611,6 +29622,15 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "verified": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "maxItems": 30,
+            "minItems": 0
           }
         },
         "required": [

@@ -89,45 +89,41 @@ test('session planner deduplicates the same flow across rounds without weakening
   assert.equal(reviewed.cases.length, 0);
   assert.ok(reviewed.coverageGaps.length);
 });
-test('session planner refuses invented sources and unauthorized targets', () => {
-  for (const invalid of [
-    { ...candidate, entryUrl: 'https://foreign.test/' },
-    {
-      ...candidate,
-      criteria: [{ ...candidate.criteria[0], sourceRef: 'invented' }],
-    },
-    {
-      ...candidate,
-      criteria: [
-        { ...candidate.criteria[0], sourceQuote: '没有给出的业务规则' },
-      ],
-    },
-  ])
-    assert.throws(() =>
-      reviewSessionProposal({ ...decision, cases: [invalid] }, context),
-    );
-});
-test('session planner cannot disguise a business rule as a generic smoke oracle', () => {
+test('session planner refuses unauthorized targets', () => {
   assert.throws(() =>
     reviewSessionProposal(
       {
         ...decision,
-        cases: [
-          {
-            ...candidate,
-            criteria: [
-              {
-                ...candidate.criteria[0],
-                sourceKind: 'generic_smoke',
-                sourceRef: 'FR-016',
-              },
-            ],
-          },
-        ],
+        cases: [{ ...candidate, entryUrl: 'https://foreign.test/' }],
       },
       context,
     ),
   );
+});
+test('an unverifiable citation keeps the case but marks its criterion inferred', () => {
+  // As in Mo, the session agent writes acceptance criteria; one that does not
+  // check out against the sources is not rejected, only not claimed as sourced.
+  for (const criterion of [
+    { ...candidate.criteria[0], sourceRef: 'invented' },
+    { ...candidate.criteria[0], sourceQuote: '没有给出的业务规则' },
+    {
+      ...candidate.criteria[0],
+      sourceKind: 'generic_smoke',
+      sourceRef: 'FR-016',
+    },
+  ]) {
+    const reviewed = reviewSessionProposal(
+      { ...decision, cases: [{ ...candidate, criteria: [criterion] }] },
+      context,
+    );
+    assert.equal(reviewed.cases.length, 1);
+    assert.equal(reviewed.cases[0].criteria[0].sourceKind, 'inferred');
+    assert.equal(reviewed.cases[0].criteria[0].sourceRef, 'session:planner');
+    assert.equal(
+      reviewed.cases[0].criteria[0].description,
+      candidate.criteria[0].description,
+    );
+  }
 });
 test('session planner bounds dispatch by remaining budget and rejects a contradictory finish', () => {
   const reviewed = reviewSessionProposal(decision, {

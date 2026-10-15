@@ -76,7 +76,7 @@ test('an AI session without frozen cases still enters its normal explore path', 
   assert.equal(events[1].role, 'explorer');
 });
 
-test('malformed AI citation falls back only to immutable technical smoke and records coverage gap', async () => {
+test('an unverifiable AI citation keeps the session agent case, marked inferred', async () => {
   const run = { ...makeRun(), phase: 'plan' };
   const { coordinator, events } = makeCoordinator();
   const agent = new SessionAgent(coordinator);
@@ -143,22 +143,19 @@ test('malformed AI citation falls back only to immutable technical smoke and rec
     { role: 'coordinator', result: { stage: 'plan', sessionRound: 1 } },
     invalid,
   );
+  // Mo-style: the session agent's case runs; its unverifiable citation is
+  // only not claimed as a sourced business rule.
   const c = events.find((e) => e.action === 'case')?.definition;
   assert.ok(c);
-  assert.equal(c.title, 'Entry smoke 1');
+  assert.equal(c.title, 'Unsupported business claim');
   assert.deepEqual(
-    c.criteria.map((x) => x.sourceKind),
-    ['generic_smoke', 'generic_smoke'],
-  );
-  assert.deepEqual(
-    c.criteria.map((x) => x.kind),
-    ['http_status', 'element_visible'],
+    c.criteria.map((x) => [x.sourceKind, x.sourceRef]),
+    [['inferred', 'session:planner']],
   );
   assert.equal(events.filter((e) => e.action === 'enqueue').length, 1);
   const documented = events.find((e) => e.action === 'session').document;
   assert.equal(documented.caseIds.length, 1);
-  assert.match(documented.coverageGaps.join(' '), /未执行其业务断言/);
-  assert.equal(documented.status, 'finalizing');
+  assert.equal(documented.status, 'working');
 });
 
 test('truncated Planner output may only create fixed technical smoke, not invented business cases', async () => {

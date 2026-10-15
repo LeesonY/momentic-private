@@ -674,15 +674,14 @@ export function evaluateTechnical(
   });
 }
 /**
- * Fixed success oracle for agent (Mo-style) sign-in. Users give variables and
- * natural-language instructions, not a success locator, so the server derives
- * success from its own registered observation instead of the model's claim.
+ * Agent (Mo-style) sign-in: the sign-in agent itself decides whether it is
+ * signed in. The server keeps no extra page heuristics; this criterion only
+ * ties that decision to the registered observation it was made on.
  */
 export const AGENT_LOGIN_CRITERION: Criterion = Object.freeze({
   id: 'agent_login_completed',
   kind: 'semantic',
-  description:
-    'Agent sign-in left the sign-in form: no visible password field and no error response',
+  description: 'The sign-in agent judged that sign-in succeeded',
   sourceKind: 'inferred',
   sourceRef: 'auth:agent_login',
 });
@@ -697,39 +696,21 @@ export function authCriterionFor(
   return null;
 }
 /**
- * Deterministic part of agent sign-in success, evaluated on one redacted
- * observation: a healthy response and no visible password input in any frame.
- * The model's own "signed in" claim is necessary upstream but never sufficient.
+ * Records the sign-in agent's own "signed in" decision on one redacted,
+ * registered observation. Only a missing observation or evidence keeps it
+ * unknown; the page content is the agent's to judge, as in Mo.
  */
 export function evaluateAgentLogin(
   snapshot: BrowserSnapshot,
   evidence: string[],
 ): CriterionResult {
-  let result: CriterionResult['result'];
-  let reason: string;
-  if (snapshot.responseStatus !== null && snapshot.responseStatus >= 400) {
-    result = 'failed';
-    reason = 'Error response after sign-in';
-  } else if (snapshot.nodes.length === 0) {
-    result = 'unknown';
-    reason = 'Empty observation cannot prove sign-in';
-  } else if (
-    snapshot.nodes.some((node) => node.role === 'password' && node.visible)
-  ) {
-    result = 'failed';
-    reason = 'Visible password field: still on a sign-in form';
-  } else {
-    result = 'passed';
-    reason = 'No visible password field after agent sign-in';
-  }
-  if (evidence.length === 0 && result !== 'unknown') {
-    result = 'unknown';
-    reason = 'Required owned evidence missing';
-  }
+  const missing = snapshot.nodes.length === 0 || evidence.length === 0;
   return parseContract('CriterionResult', {
     criterionId: AGENT_LOGIN_CRITERION.id,
-    result,
-    reason,
+    result: missing ? 'unknown' : 'passed',
+    reason: missing
+      ? 'No registered observation for the sign-in decision'
+      : 'Sign-in agent judged the sign-in successful',
     evidenceRefs: evidence,
   });
 }

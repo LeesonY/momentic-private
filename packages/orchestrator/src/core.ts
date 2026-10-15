@@ -1,6 +1,7 @@
-import { withinWriteScope } from '@localqa/browser';
+import { sanitizeText, withinWriteScope } from '@localqa/browser';
 import { randomUUID } from 'node:crypto';
 import { SessionAgent, type SessionContext } from './session-agent.js';
+import { parseAgentReport, verdictFromReport } from './agent-report.js';
 import { createRegressionPlan } from './regression-plan.js';
 import { AuthStateService, type AuthStateRef } from './auth-state-service.js';
 import { AuthOtpService } from './auth-otp.js';
@@ -115,7 +116,19 @@ export interface Work {
   definition: CaseDefinition | null;
   regressionPlan?: ReturnType<typeof createRegressionPlan>;
   findingId: string | null;
+  /** For a reproducer: the suspected bug it independently re-checks. */
+  finding?: import('@localqa/contracts').Finding | null;
+  /**
+   * The run's sign-in did not succeed (Mo-style): browser work reports it as
+   * blocked instead of running without the account. Null otherwise.
+   */
+  loginBlocked?: LoginReport | null;
   session?: SessionContext;
+}
+/** The sign-in agent's report for a run, read from its auth job. */
+export interface LoginReport {
+  reasonCode: string;
+  detail: string | null;
 }
 export interface Reservation {
   regressionSource?: import('@localqa/contracts').RegressionStepSource;
@@ -1230,6 +1243,7 @@ export class Coordinator {
       const { job, run } = await this.validateLease(client, scope, proof);
       const stage = (job.result?.['stage'] ?? job.document.summary) as Stage;
       let authStateId: string | null = null;
+      let loginBlocked: LoginReport | null = null;
       if (
         (run.executionMode === 'smoke' || run.executionMode === 'regression') &&
         ['explore', 'execute', 'reproduce'].includes(stage) &&
@@ -1263,16 +1277,25 @@ export class Coordinator {
               [scope.projectId, run.id],
             )
           ).rows[0];
-          if (
-            !authority ||
-            authority.status !== 'granted' ||
-            !authority.current_state_id ||
-            authority.context_version !== proof.contextVersion ||
-            authority.auth_profile_id !== profile.id ||
-            authority.auth_profile_version !== profile.version
-          )
-            throw new StorageError('AUTH_FAILED');
-          authStateId = authority.current_state_id;
+          const granted =
+            authority &&
+            authority.status === 'granted' &&
+            authority.current_state_id &&
+            authority.context_version === proof.contextVersion &&
+            authority.auth_profile_id === profile.id &&
+            authority.auth_profile_version === profile.version;
+          if (granted) authStateId = authority.current_state_id;
+          else {
+            // A sign-in the agent could not complete is its report to the
+            // session, not a run failure: the work is reported as blocked.
+            const login = await this.loginOutcome(client, run);
+            if (run.executionMode !== 'smoke' || login.status !== 'blocked')
+              throw new StorageError('AUTH_FAILED');
+            loginBlocked = {
+              reasonCode: login.reasonCode ?? 'AUTH_FAILED',
+              detail: login.detail,
+            };
+          }
         }
       }
       let targetUrl = run.targetUrl;
@@ -1477,8 +1500,56 @@ export class Coordinator {
           typeof job.result?.['findingId'] === 'string'
             ? job.result['findingId']
             : null,
+        finding:
+          typeof job.result?.['findingId'] === 'string'
+            ? ((
+                await client.query<{ document: unknown }>(
+                  'SELECT document FROM findings WHERE project_id=$1 AND run_id=$2 AND id=$3',
+                  [scope.projectId, run.id, job.result['findingId']],
+                )
+              ).rows.map((row) => parseContract('Finding', row.document))[0] ??
+              null)
+            : null,
+        loginBlocked,
       };
     });
+  }
+  /**
+   * The run's sign-in report: the latest auth job's outcome. `blocked` keeps
+   * the sign-in agent's own reason code and short account of what it saw.
+   */
+  async loginOutcome(
+    client: PoolClient,
+    run: Pick<Run, 'id' | 'projectId'>,
+  ): Promise<{
+    status: 'none' | 'pending' | 'succeeded' | 'blocked';
+    reasonCode: string | null;
+    detail: string | null;
+  }> {
+    const row = (
+      await client.query<{
+        status: JobRow['status'];
+        result: Record<string, unknown> | null;
+      }>(
+        "SELECT status,result FROM jobs WHERE project_id=$1 AND run_id=$2 AND document->>'summary'='auth' ORDER BY available_at DESC,id DESC LIMIT 1",
+        [run.projectId, run.id],
+      )
+    ).rows[0];
+    if (!row) return { status: 'none', reasonCode: null, detail: null };
+    if (['queued', 'running', 'waiting'].includes(row.status))
+      return { status: 'pending', reasonCode: null, detail: null };
+    if (row.status === 'succeeded')
+      return { status: 'succeeded', reasonCode: null, detail: null };
+    const report = row.result?.['loginBlocked'] as
+      { reasonCode?: unknown; detail?: unknown } | undefined;
+    return {
+      status: 'blocked',
+      reasonCode:
+        typeof report?.reasonCode === 'string'
+          ? report.reasonCode
+          : 'AUTH_INTERRUPTED',
+      detail: typeof report?.detail === 'string' ? report.detail : null,
+    };
   }
   async reserve(
     client: PoolClient,
@@ -2185,18 +2256,27 @@ export class Coordinator {
             [scope.projectId, run.id, job.id],
           )
         ).rows.map((row) => row.id as string);
-        const status = verdictStatus(
-          definition,
-          results,
-          new Set(evidence),
-          reason === 'WORKER_INTERRUPTED' ? undefined : reason,
-        );
+        // Mo-style sessions: the executing agent's own report is the
+        // verdict. Frozen regression replays keep their fixed oracle.
+        const byAgent =
+          run.executionMode === 'smoke' && result['oracle'] === 'agent_report';
+        const report = byAgent ? parseAgentReport(result['agentReport']) : null;
+        const reported = byAgent ? verdictFromReport(report, reason) : null;
+        const status = reported
+          ? reported.status
+          : verdictStatus(
+              definition,
+              results,
+              new Set(evidence),
+              reason === 'WORKER_INTERRUPTED' ? undefined : reason,
+            );
         const verdict = parseContract('Verdict', {
           id: randomUUID(),
           caseId: job.case_id,
           attemptId: attempt.id,
           status,
           reasonCode:
+            reported?.reasonCode ??
             reason ??
             (status === 'passed'
               ? 'OBSERVED'
@@ -2204,12 +2284,16 @@ export class Coordinator {
                 ? 'CRITERION_FAILED'
                 : 'INSUFFICIENT_EVIDENCE'),
           summary:
-            reason ?? 'Fixed criteria evaluated against owned observations',
+            reported?.summary ??
+            reason ??
+            'Fixed criteria evaluated against owned observations',
           criterionResults: results,
           gaps:
-            status === 'passed' || status === 'issue_found'
+            reported?.gaps ??
+            (status === 'passed' || status === 'issue_found'
               ? []
-              : [reason ?? 'Criteria not fully evaluated'],
+              : [reason ?? 'Criteria not fully evaluated']),
+          ...(reported ? { verified: reported.verified } : {}),
           createdAt: new Date().toISOString(),
         });
         await client.query(
@@ -2234,11 +2318,13 @@ export class Coordinator {
           verdict,
         });
         if (job.role === 'executor' && status === 'issue_found') {
-          const failed = definition.criteria.find((k) =>
-            results.some(
-              (r) => r.criterionId === k.id && r.result === 'failed',
-            ),
-          )!;
+          // An agent may report an issue outside any one listed criterion.
+          const failed =
+            definition.criteria.find((k) =>
+              results.some(
+                (r) => r.criterionId === k.id && r.result === 'failed',
+              ),
+            ) ?? definition.criteria[0]!;
           const refs = [...new Set(results.flatMap((r) => r.evidenceRefs))];
           const sessionManaged =
             (await this.sessions.read(client, run)) !== null;
@@ -2299,10 +2385,13 @@ export class Coordinator {
               caseIds: [definition.id],
               kind: 'functional',
               status: 'suspected',
-              title: definition.title,
+              title: report?.bug?.title || definition.title,
               severity: 'medium',
-              expected: failed.description,
-              actual: 'Fixed sourced criterion failed',
+              expected: report?.bug?.expected || failed.description,
+              actual:
+                report?.bug?.actual ||
+                report?.summary ||
+                'Fixed sourced criterion failed',
               expectedSource: failed.sourceKind,
               reproSteps: definition.outline,
               evidenceRefs: refs,
@@ -2395,7 +2484,7 @@ export class Coordinator {
             taskId: job.id,
             outcome,
             freshContext: true,
-            summary: `Independent reproduction: ${outcome}`,
+            summary: report?.summary || `Independent reproduction: ${outcome}`,
             evidenceRefs: refs,
             createdAt: new Date().toISOString(),
           });
@@ -2421,10 +2510,9 @@ export class Coordinator {
           const f = parseContract('Finding', row.document);
           const updated = {
             ...f,
+            // Reproduced by an independent agent from a clean start: confirmed.
             status:
-              outcome === 'reproduced' &&
-              independentEvidence &&
-              f.expectedSource !== 'inferred'
+              outcome === 'reproduced' && independentEvidence
                 ? 'confirmed'
                 : outcome === 'not_reproduced'
                   ? 'unconfirmed'
@@ -2610,7 +2698,8 @@ export class Coordinator {
       if (
         !Number.isSafeInteger(expiresMs) ||
         expiresMs < 1 ||
-        expiresMs > 3600000
+        // A Mo-style question waits for the user; waiting time is not active.
+        expiresMs > 86400000
       )
         throw new StorageError('VALIDATION_ERROR');
       const input = parseContract('InputRequest', {
@@ -3021,6 +3110,20 @@ export class Coordinator {
         ) {
           // Ambiguous authentication must not hang or be replayed with old
           // tokens after a Worker crash. A new run gets a new lease and scope.
+          // In a Mo-style session the sign-in agent's report goes to the
+          // session agent instead: it is told, and asks or continues.
+          if (
+            run.executionMode === 'smoke' &&
+            (await this.sessions.read(client, run))
+          ) {
+            await this.sessions.noteLoginBlocked(
+              client,
+              run,
+              await this.loginOutcome(client, run),
+            );
+            run = await this.startSmokeAfterAuth(client, run);
+            continue;
+          }
           await this.finalize(client, run, 'setup_failure', 'completed');
           continue;
         }
@@ -3432,6 +3535,45 @@ export class Coordinator {
       if (run.status === 'cancelling' || TERMINAL.has(run.status)) return;
       await this.interrupt(client, run, job, 'interrupted');
       await this.change(client, run, 'running', run.phase, reason);
+    });
+  }
+  /**
+   * A sign-in that did not succeed is the sign-in agent's report, not a run
+   * failure (as in Mo). The auth job ends failed with that report; tick then
+   * starts the session agent, which reads it and decides what to ask.
+   */
+  async failAuth(
+    scope: WorkerScope,
+    proof: LeaseProof,
+    input: { reasonCode: string; detail: string | null },
+  ): Promise<void> {
+    await this.tx(async (client) => {
+      const { job, run } = await this.validateLease(client, scope, proof, true);
+      if (job.document.summary !== 'auth')
+        throw new StorageError('POLICY_DENIED');
+      if (run.status === 'cancelling' || TERMINAL.has(run.status)) return;
+      const reasonCode = /^[A-Z][A-Z0-9_]{1,47}$/.test(input.reasonCode)
+        ? input.reasonCode
+        : 'AUTH_FAILED';
+      const detail =
+        typeof input.detail === 'string' && input.detail.trim()
+          ? sanitizeText(input.detail).replace(/\s+/g, ' ').trim().slice(0, 300)
+          : null;
+      await this.interrupt(client, run, job, 'interrupted');
+      await client.query(
+        "UPDATE jobs SET status='failed',result=COALESCE(result,'{}'::jsonb)||$2::jsonb WHERE id=$1",
+        [
+          job.id,
+          JSON.stringify({
+            stage: 'auth',
+            loginBlocked: { reasonCode, detail },
+          }),
+        ],
+      );
+      await appendEvent(client, run.projectId, run.id, 'task.updated', {
+        ...job.document,
+        status: 'failed',
+      });
     });
   }
   async finalize(

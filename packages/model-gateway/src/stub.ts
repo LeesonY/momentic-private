@@ -230,6 +230,28 @@ export function createStubAdapter(): ProviderAdapter & { calls: number } {
           ),
         );
       }
+      if (blob.includes('role=agent_report')) {
+        // Mo-style case report from the agent that worked through the case.
+        return Promise.resolve(
+          json(
+            {
+              status: 'passed',
+              summary: '按步骤操作后页面符合验收标准',
+              verified: ['观察里看得到目标'],
+              gaps: [],
+              criteria: [
+                {
+                  criterionId: FIXTURE.criterionId,
+                  result: 'passed',
+                  reason: '观察里看得到目标',
+                },
+              ],
+              bug: null,
+            },
+            { inputTokens: 11, outputTokens: 7 },
+          ),
+        );
+      }
       if (purpose === 'assert') {
         return Promise.resolve(
           json(

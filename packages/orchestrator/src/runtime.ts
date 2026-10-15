@@ -205,6 +205,13 @@ export class RuntimeClient {
       reason,
     );
   }
+  /** The sign-in agent could not sign in: report it without failing the run. */
+  failAuth(
+    proof: LeaseProof,
+    input: { reasonCode: string; detail: string | null },
+  ): Promise<void> {
+    return this.#coordinator.failAuth(this.#scope, proof, input);
+  }
   stop(
     proof: LeaseProof,
     reason:

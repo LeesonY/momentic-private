@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 const files = [
   'packages/model-gateway/test/context-window.test.mjs',
   'packages/orchestrator/test/continuous-scheduling.test.mjs',
+  'packages/orchestrator/test/agent-report.test.mjs',
   'packages/orchestrator/test/model-timeout.test.mjs',
   'packages/model-gateway/test/rate-limit-retry.test.mjs',
   'apps/worker/test/preflight-model.test.mjs',

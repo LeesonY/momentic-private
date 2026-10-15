@@ -375,6 +375,16 @@ const CaseDetail: React.FC<{ record: CaseRecord; runId: string }> = ({
           </ul>
         </>
       )}
+      {record.verdict?.verified && record.verdict.verified.length > 0 && (
+        <>
+          <h4>已验证</h4>
+          <ul className="mo-bullets">
+            {record.verdict.verified.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </>
+      )}
       {record.verdict && record.verdict.gaps.length > 0 && (
         <>
           <h4>未覆盖</h4>

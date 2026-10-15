@@ -78,57 +78,59 @@ export function reviewSessionProposal(
       ).toString(),
     );
     const ids = new Set<string>();
-    const criteria = candidate.criteria.map((item): Criterion => {
-      if (ids.has(item.id)) throw new DomainError('VALIDATION_ERROR');
-      ids.add(item.id);
+    // Acceptance criteria are the session agent's to write, as in Mo. A
+    // citation that does not check out marks the criterion as inferred
+    // instead of rejecting the plan; the executing agent judges each one.
+    const criteria = candidate.criteria.map((item, index): Criterion => {
       const { sourceQuote, locator, expectedValue, ...base } = item;
-      if (item.sourceKind === 'generic_smoke') {
-        if (
-          item.kind === 'http_status' &&
-          item.sourceRef === 'FR-013/016' &&
-          expectedValue === null
-        )
-          return {
-            ...base,
-            description: '入口返回成功的 HTTP 响应',
-            expectedValue: { min: 200, max: 399 },
-          };
-        if (
-          item.kind === 'element_visible' &&
-          item.sourceRef === 'FR-016' &&
-          locator?.by === 'css' &&
-          locator.value === 'body'
-        )
-          return {
-            ...base,
-            description: '页面显示可见内容',
-            locator: { by: 'css', value: 'body' },
-          };
-        throw new DomainError('VALIDATION_ERROR');
-      }
+      const id = ids.has(item.id)
+        ? `${item.id.slice(0, 58)}_${index + 1}`
+        : item.id;
+      ids.add(id);
       const source = context.sources.find(
         (s) => s.ref === item.sourceRef && s.kind === item.sourceKind,
       );
-      if (
-        !source ||
-        item.sourceKind === 'saved_case' ||
-        (item.sourceKind !== 'inferred' &&
-          (!sourceQuote.trim() || !source.text.includes(sourceQuote)))
-      )
-        throw new DomainError('VALIDATION_ERROR');
-      return parseContract('Criterion', {
-        ...base,
-        ...(locator
-          ? {
-              locator: {
-                by: locator.by,
-                value: locator.value,
-                ...(locator.name !== null ? { name: locator.name } : {}),
-              },
-            }
-          : {}),
-        ...(expectedValue !== null ? { expectedValue } : {}),
-      });
+      const cited =
+        !!source &&
+        item.sourceKind !== 'saved_case' &&
+        item.sourceKind !== 'generic_smoke' &&
+        (item.sourceKind === 'inferred' ||
+          (!!sourceQuote.trim() && source.text.includes(sourceQuote)));
+      const usable = (() => {
+        try {
+          return parseContract('Criterion', {
+            ...base,
+            id,
+            ...(locator
+              ? {
+                  locator: {
+                    by: locator.by,
+                    value: locator.value,
+                    ...(locator.name !== null ? { name: locator.name } : {}),
+                  },
+                }
+              : {}),
+            ...(expectedValue !== null ? { expectedValue } : {}),
+            ...(cited
+              ? {}
+              : { sourceKind: 'inferred', sourceRef: 'session:planner' }),
+          });
+        } catch {
+          return null;
+        }
+      })();
+      // A structured check the planner left incomplete stays a plain
+      // observable expectation for the agent to judge.
+      return (
+        usable ??
+        parseContract('Criterion', {
+          id,
+          kind: 'semantic',
+          description: base.description,
+          sourceKind: cited ? base.sourceKind : 'inferred',
+          sourceRef: cited ? base.sourceRef : 'session:planner',
+        })
+      );
     });
     const c = {
       ...parseContract('CandidateCase', {
@@ -141,15 +143,6 @@ export function reviewSessionProposal(
       entryUrl,
     };
     const fingerprint = sessionCaseFingerprint(c, context.targetUrl);
-    if (
-      c.criteria.some((criterion) => criterion.kind === 'visual') &&
-      context.imageInput !== true
-    ) {
-      coverageGaps.push(
-        `模型没有获准的图片验收能力，未执行视觉用例：${candidate.title}`,
-      );
-      continue;
-    }
     if (seen.has(fingerprint)) {
       coverageGaps.push(`重复用例已跳过：${candidate.title}`);
       continue;

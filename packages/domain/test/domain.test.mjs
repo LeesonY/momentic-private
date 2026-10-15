@@ -278,7 +278,7 @@ test('graph URL/structure dedup, maxPages and maxDepth', () => {
   assert.equal(graph.canNavigate('http://localhost:8080/b', 1), false);
 });
 
-test('agent sign-in oracle: no visible password field and a healthy response', () => {
+test('agent sign-in: the sign-in agent decides, the server keeps no page heuristics', () => {
   const evidence = [randomUUID()];
   const field = (role, visible = true) => ({
     nodeId: `${role}-1`,
@@ -291,26 +291,15 @@ test('agent sign-in oracle: no visible password field and a healthy response', (
     bounds: { left: 0, top: 0, width: 1, height: 1 },
   });
   const page = (nodes, responseStatus = 200) => ({ nodes, responseStatus });
-  assert.equal(
-    evaluateAgentLogin(page([field('link')]), evidence).result,
-    'passed',
-  );
-  assert.equal(
-    evaluateAgentLogin(page([field('password')]), evidence).result,
-    'failed',
-  );
-  // A hidden password input (for example a re-auth dialog) does not count.
-  assert.equal(
-    evaluateAgentLogin(
-      page([field('link'), field('password', false)]),
-      evidence,
-    ).result,
-    'passed',
-  );
-  assert.equal(
-    evaluateAgentLogin(page([field('link')], 500), evidence).result,
-    'failed',
-  );
+  // The agent's "signed in" decision stands even where the old oracle
+  // second-guessed it (a password field on a dashboard, an error status).
+  for (const snapshot of [
+    page([field('link')]),
+    page([field('password')]),
+    page([field('link')], 500),
+  ])
+    assert.equal(evaluateAgentLogin(snapshot, evidence).result, 'passed');
+  // Without a registered observation there is nothing to tie it to.
   assert.equal(evaluateAgentLogin(page([]), evidence).result, 'unknown');
   assert.equal(evaluateAgentLogin(page([field('link')]), []).result, 'unknown');
   const passed = evaluateAgentLogin(page([field('link')]), evidence);

@@ -763,6 +763,11 @@ export interface Verdict {
    */
   gaps: string[];
   createdAt: string;
+  /**
+   * @minItems 0
+   * @maxItems 30
+   */
+  verified?: string[];
 }
 export interface CriterionResult {
   criterionId: string;

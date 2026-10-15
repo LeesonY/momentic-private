@@ -13,3 +13,4 @@ export * from './auth-import-service.js';
 
 export * from './session-agent.js';
 export * from './session-schemas.js';
+export * from './agent-report.js';

@@ -353,15 +353,13 @@ test('form and storage state auth conditional requirements', () => {
     }),
   );
 });
-test('functional confirmed needs reproduction/evidence and rejects inferred source', () => {
+test('functional confirmed needs an independent reproduction and evidence', () => {
   const finding = report.findings[0];
   assert(getValidator('Finding')(finding));
-  for (const patch of [
-    { reproductionRef: null },
-    { evidenceRefs: [] },
-    { expectedSource: 'inferred' },
-  ])
+  for (const patch of [{ reproductionRef: null }, { evidenceRefs: [] }])
     assert.equal(getValidator('Finding')({ ...finding, ...patch }), false);
+  // As in Mo, the reproduction confirms it whatever the expectation's source.
+  assert(getValidator('Finding')({ ...finding, expectedSource: 'inferred' }));
   assert.equal(
     getValidator('Reproduction')({
       ...report.reproductions[0],
