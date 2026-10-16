@@ -5,6 +5,7 @@ import {
   signInKind,
   AuthExecutionManager,
   AuthActionsManager,
+  Coordinator,
 } from '../dist/index.js';
 
 const session = { objective: '', round: 1 };
@@ -127,4 +128,91 @@ test('a session executor passes the task check and binds its own browser context
   assert.ok(
     !queries.some((sql) => /INSERT INTO auth_execution_sessions/.test(sql)),
   );
+});
+
+function dispatcher(managed, mode = 'agent') {
+  const coordinator = new Coordinator({
+    db: {},
+    vault: {},
+    serviceActor: { userId: randomUUID() },
+  });
+  const events = [];
+  coordinator.change = async (_client, current, status, phase) => {
+    events.push(`phase:${phase}`);
+    return { ...current, status, phase };
+  };
+  coordinator.enqueue = async (_client, _run, role, stage) => {
+    events.push(`enqueue:${role}/${stage}`);
+  };
+  coordinator.finalize = async () => events.push('finalize');
+  coordinator.startApprovedRegression = async (_client, current) => {
+    events.push('regression');
+    return current;
+  };
+  coordinator.sessions.read = async () => (managed ? session : null);
+  coordinator.sessions.advance = async () => {
+    events.push('session:advance');
+    return true;
+  };
+  const profile = {
+    id: randomUUID(),
+    projectId: randomUUID(),
+    environmentId: null,
+    name: 'Account',
+    mode,
+    allowedOrigins: ['https://app.example.test'],
+    sharingPolicy: 'exclusive_run',
+    hasSecret: true,
+    version: 1,
+    status: 'active',
+    formConfig: null,
+  };
+  const client = {
+    query: async (sql) =>
+      /auth_profile_versions/.test(sql)
+        ? { rows: [{ document: profile, revoked: false }] }
+        : { rows: [] },
+  };
+  return { coordinator, client, events };
+}
+const bound = (executionMode) => ({
+  ...run(executionMode),
+  phase: 'preflight',
+  effectiveConfig: {
+    allowedOrigins: ['https://app.example.test'],
+    authProfileVersion: 1,
+    budget: { maxCases: 1, maxPages: 1 },
+  },
+});
+
+test('a login-bound session goes from preflight straight to its session agent', async () => {
+  const { coordinator, client, events } = dispatcher(true);
+  const updated = await coordinator.startSmokeAfterPreflight(
+    client,
+    bound('smoke'),
+  );
+  assert.equal(updated.phase, 'explore');
+  assert.deepEqual(events, ['phase:auth', 'phase:explore', 'session:advance']);
+  assert.ok(!events.some((event) => event.includes('/auth')));
+});
+
+test('non-session smoke and regression runs keep the run-level auth job', async () => {
+  const smoke = dispatcher(false);
+  await smoke.coordinator.startSmokeAfterPreflight(
+    smoke.client,
+    bound('smoke'),
+  );
+  assert.deepEqual(smoke.events, ['phase:auth', 'enqueue:executor/auth']);
+  const regression = dispatcher(false);
+  await regression.coordinator.startRegressionAfterPreflight(
+    regression.client,
+    bound('regression'),
+  );
+  assert.deepEqual(regression.events, ['phase:auth', 'enqueue:executor/auth']);
+  const anonymous = dispatcher(false, 'none');
+  await anonymous.coordinator.startRegressionAfterPreflight(
+    anonymous.client,
+    bound('regression'),
+  );
+  assert.deepEqual(anonymous.events, ['regression']);
 });
