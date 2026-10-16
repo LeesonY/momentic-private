@@ -1753,14 +1753,15 @@ export class Coordinator {
       const sessionManaged =
         run.executionMode === 'smoke' &&
         (await this.sessions.read(client, run)) !== null;
-      const signedOutCase = sessionManaged && job.case_id
-        ? (
-            await client.query<{ document: { requiresLogin?: boolean } }>(
-              'SELECT document FROM run_cases WHERE id=$1 AND project_id=$2 AND run_id=$3',
-              [job.case_id, scope.projectId, run.id],
-            )
-          ).rows[0]?.document.requiresLogin === false
-        : false;
+      const signedOutCase =
+        sessionManaged && job.case_id
+          ? (
+              await client.query<{ document: { requiresLogin?: boolean } }>(
+                'SELECT document FROM run_cases WHERE id=$1 AND project_id=$2 AND run_id=$3',
+                [job.case_id, scope.projectId, run.id],
+              )
+            ).rows[0]?.document.requiresLogin === false
+          : false;
       if (
         run.effectiveConfig.authProfileVersion !== null &&
         !signedOutCase &&
@@ -2325,12 +2326,14 @@ export class Coordinator {
       if (await this.sessions.read(client, run)) {
         if (result['stage'] === 'plan') {
           const failureCode = result['plannerFailureCode'];
+          const failureHint = result['plannerFailureHint'];
           await this.sessions.applyPlan(
             client,
             run,
             job,
             result['decision'],
             typeof failureCode === 'string' ? failureCode : undefined,
+            Array.isArray(failureHint) ? failureHint : undefined,
           );
         }
         if (result['stage'] === 'finalize')

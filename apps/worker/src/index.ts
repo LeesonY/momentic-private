@@ -444,9 +444,19 @@ export class Worker {
                 record.errorCode ?? '',
               )
             ) {
+              // Schema paths only (no values or model text) so the next round
+              // can be told where its output broke the frozen schema.
+              const hint = Array.isArray(record.schemaErrorTrace)
+                ? record.schemaErrorTrace
+                    .filter(
+                      (entry): entry is string => typeof entry === 'string',
+                    )
+                    .slice(0, 6)
+                : [];
               await this.runtime.finish(proof, {
                 stage: 'plan',
                 plannerFailureCode: record.errorCode,
+                ...(hint.length ? { plannerFailureHint: hint } : {}),
               });
               return true;
             }
