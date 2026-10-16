@@ -10,7 +10,7 @@ import {
 } from '@localqa/storage';
 import { validateTarget, displayUrl } from '@localqa/domain';
 import type { Coordinator } from './core.js';
-import type { AuthSessionPurpose } from './auth-execution.js';
+import { signInKind, type AuthSessionPurpose } from './auth-execution.js';
 
 export type AuthActionName =
   'navigate_auth' | 'fill_credential' | 'submit_auth' | 'import_storage_state';
@@ -141,7 +141,8 @@ export class AuthActionsManager {
       proof,
     );
 
-    if (job.document.summary !== 'auth') {
+    const kind = await signInKind(this.coordinator, client, job, run);
+    if (!kind) {
       throw new StorageError('POLICY_DENIED');
     }
 
@@ -294,7 +295,8 @@ export class AuthActionsManager {
       proof,
     );
 
-    if (job.document.summary !== 'auth') {
+    const kind = await signInKind(this.coordinator, client, job, run);
+    if (!kind) {
       throw new StorageError('POLICY_DENIED');
     }
 
@@ -304,21 +306,32 @@ export class AuthActionsManager {
 
     validateActionSlot(request.action, request.slot);
 
-    // Read profile metadata
+    // Read profile metadata. A self sign-in uses the version its own session
+    // pinned at allocation (the latest one then), not the run's frozen one.
     const runProfile = (
       await client.query<{
         auth_profile_id: string;
         auth_profile_version: number;
         document: unknown;
       }>(
-        `SELECT r.auth_profile_id, r.auth_profile_version, v.document
+        `SELECT r.auth_profile_id, v.version AS auth_profile_version, v.document
          FROM runs r
          JOIN auth_profile_versions v
            ON v.project_id = r.project_id
           AND v.auth_profile_id = r.auth_profile_id
-          AND v.version = r.auth_profile_version
+          AND v.version = CASE WHEN $3::boolean THEN (
+            SELECT s.auth_profile_version FROM auth_execution_sessions s
+            WHERE s.id = $4::uuid AND s.project_id = r.project_id
+              AND s.run_id = r.id AND s.task_id = $5::uuid
+          ) ELSE r.auth_profile_version END
          WHERE r.project_id = $1 AND r.id = $2`,
-        [scope.projectId, run.id],
+        [
+          scope.projectId,
+          run.id,
+          kind === 'self',
+          request.sessionId,
+          proof.taskId,
+        ],
       )
     ).rows[0];
 
@@ -402,6 +415,13 @@ export class AuthActionsManager {
 
     if (!session || session.status !== 'active') {
       throw new StorageError('LEASE_EXPIRED');
+    }
+
+    if (
+      session.auth_profile_id !== profile.id ||
+      session.auth_profile_version !== profile.version
+    ) {
+      throw new StorageError('AUTH_FAILED');
     }
 
     if (
@@ -710,7 +730,8 @@ export class AuthActionsManager {
       proof,
     );
 
-    if (job.document.summary !== 'auth') {
+    const kind = await signInKind(this.coordinator, client, job, run);
+    if (!kind) {
       throw new StorageError('POLICY_DENIED');
     }
 
@@ -762,11 +783,12 @@ export class AuthActionsManager {
       await client.query<{
         id: string;
         auth_profile_id: string;
+        auth_profile_version: number;
         auth_epoch: number;
         status: string;
         expires_at: Date;
       }>(
-        `SELECT id, auth_profile_id, auth_epoch, status, expires_at
+        `SELECT id, auth_profile_id, auth_profile_version, auth_epoch, status, expires_at
          FROM auth_execution_sessions
          WHERE id = $1 AND project_id = $2 AND task_id = $3
            AND worker_id = $4 AND fencing_token = $5 AND context_version = $6
@@ -805,11 +827,17 @@ export class AuthActionsManager {
          FROM auth_profiles p
          JOIN auth_profile_versions v
            ON v.project_id = p.project_id AND v.auth_profile_id = p.id
-         JOIN runs r
-           ON r.auth_profile_id = p.id AND r.auth_profile_version = v.version
+         JOIN runs r ON r.auth_profile_id = p.id
          WHERE p.project_id = $1 AND r.id = $2
+           AND v.version = CASE WHEN $3::boolean
+             THEN $4::integer ELSE r.auth_profile_version END
          FOR SHARE OF p`,
-        [scope.projectId, run.id],
+        [
+          scope.projectId,
+          run.id,
+          kind === 'self',
+          session.auth_profile_version,
+        ],
       )
     ).rows[0];
 
@@ -817,8 +845,15 @@ export class AuthActionsManager {
       throw new StorageError('AUTH_FAILED');
     }
 
-    // 5. Exclusive profile lock if sharingPolicy === 'exclusive_run'
-    if (profileRow.sharing_policy === 'exclusive_run') {
+    // 5. A self sign-in took the exclusive lock for its own session at
+    // allocation; it may act only while that exact lock is still held.
+    if (kind === 'self' && profileRow.sharing_policy === 'exclusive_run') {
+      const own = await client.query(
+        "SELECT 1 FROM auth_profile_run_locks WHERE project_id=$1 AND auth_profile_id=$2 AND run_id=$3 AND auth_session_id=$4 AND status='held' FOR UPDATE",
+        [scope.projectId, profileRow.id, run.id, sessionId],
+      );
+      if (!own.rowCount) throw new StorageError('RATE_LIMITED');
+    } else if (profileRow.sharing_policy === 'exclusive_run') {
       const lockRow = (
         await client.query<{
           id: string;
@@ -910,7 +945,8 @@ export class AuthActionsManager {
       proof,
     );
 
-    if (job.document.summary !== 'auth') {
+    const kind = await signInKind(this.coordinator, client, job, run);
+    if (!kind) {
       throw new StorageError('POLICY_DENIED');
     }
 
@@ -1103,11 +1139,18 @@ export class AuthActionsManager {
 
     // If outcome is failed/cancelled, release initializing lock if held by this run
     if (outcome.status === 'failed' || outcome.status === 'cancelled') {
+      // A self sign-in releases only its own lock, never a sibling task's.
       await client.query(
         `UPDATE auth_profile_run_locks
          SET status = 'released', released_at = clock_timestamp(), release_reason = $3
-         WHERE project_id = $1 AND run_id = $2 AND phase = 'initializing' AND status = 'held'`,
-        [scope.projectId, run.id, `auth_${outcome.status}`],
+         WHERE project_id = $1 AND run_id = $2 AND phase = 'initializing' AND status = 'held'
+           AND ($4::uuid IS NULL OR auth_session_id = $4::uuid)`,
+        [
+          scope.projectId,
+          run.id,
+          `auth_${outcome.status}`,
+          kind === 'self' ? sessionId : null,
+        ],
       );
     }
   }

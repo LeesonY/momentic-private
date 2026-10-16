@@ -15,6 +15,7 @@ import {
 } from './auth-import-service.js';
 import {
   AuthExecutionManager,
+  signInKind,
   type AuthSessionBinding,
 } from './auth-execution.js';
 import {
@@ -122,16 +123,13 @@ export interface Work {
   /** For a reproducer: the suspected bug it independently re-checks. */
   finding?: import('@localqa/contracts').Finding | null;
   /**
-   * The run's sign-in did not succeed (Mo-style): browser work reports it as
-   * blocked instead of running without the account. Null otherwise.
+   * Mo-style session agent of a login-bound run: it signs in inside its own
+   * browser before its work. No run-level state is captured or imported.
    */
-  loginBlocked?: LoginReport | null;
+  signIn?: boolean;
+  /** A session explorer of a login-bound run: it explores signed out. */
+  withoutSignIn?: boolean;
   session?: SessionContext;
-}
-/** The sign-in agent's report for a run, read from its auth job. */
-export interface LoginReport {
-  reasonCode: string;
-  detail: string | null;
 }
 export interface Reservation {
   regressionSource?: import('@localqa/contracts').RegressionStepSource;
@@ -608,6 +606,87 @@ export class Coordinator {
       await this.sessions.advance(client, run, []);
     else await this.enqueue(client, run, 'explorer', 'explore', 'entry', null);
     return run;
+  }
+
+  /** Approved regression keeps its run-level sign-in and imported state. */
+  async startRegressionAfterPreflight(
+    client: PoolClient,
+    run: Run,
+  ): Promise<Run> {
+    const bound = (
+      await client.query<{ document: unknown; revoked: boolean }>(
+        `SELECT v.document,p.revoked FROM runs r
+         JOIN auth_profiles p ON p.project_id=r.project_id
+           AND p.id=r.auth_profile_id
+         JOIN auth_profile_versions v ON v.project_id=r.project_id
+           AND v.auth_profile_id=p.id AND v.version=r.auth_profile_version
+         WHERE r.project_id=$1 AND r.id=$2`,
+        [run.projectId, run.id],
+      )
+    ).rows[0];
+    if (
+      run.effectiveConfig.authProfileVersion !== null &&
+      (!bound || bound.revoked || !bound.document)
+    ) {
+      await this.finalize(client, run, 'setup_failure', 'completed');
+      return run;
+    }
+    const profile = bound ? parseContract('AuthProfile', bound.document) : null;
+    if (profile && profile.status !== 'active') {
+      await this.finalize(client, run, 'setup_failure', 'completed');
+      return run;
+    }
+    if (profile && profile.mode !== 'none') {
+      run = await this.change(client, run, 'running', 'auth');
+      await this.enqueue(client, run, 'executor', 'auth', 'initialize', null);
+      return run;
+    }
+    return this.startApprovedRegression(client, run);
+  }
+
+  /**
+   * A configured, non-anonymous smoke profile must first acquire a real
+   * authenticated state; never skip auth and explore anonymously. A
+   * Mo-style session has no run-level sign-in: each executor and reproducer
+   * signs in inside its own browser (Work.signIn), so it goes straight on.
+   */
+  async startSmokeAfterPreflight(client: PoolClient, run: Run): Promise<Run> {
+    const bound = (
+      await client.query<{ document: unknown; revoked: boolean }>(
+        `SELECT v.document,p.revoked FROM runs r
+         JOIN auth_profiles p ON p.project_id=r.project_id
+           AND p.id=r.auth_profile_id
+         JOIN auth_profile_versions v ON v.project_id=r.project_id
+           AND v.auth_profile_id=p.id AND v.version=r.auth_profile_version
+         WHERE r.project_id=$1 AND r.id=$2`,
+        [run.projectId, run.id],
+      )
+    ).rows[0];
+    if (
+      run.effectiveConfig.authProfileVersion !== null &&
+      (!bound || bound.revoked || !bound.document)
+    ) {
+      await this.finalize(client, run, 'setup_failure', 'completed');
+      return run;
+    }
+    const profile = bound ? parseContract('AuthProfile', bound.document) : null;
+    if (profile && profile.status !== 'active') {
+      await this.finalize(client, run, 'setup_failure', 'completed');
+      return run;
+    }
+    if (
+      profile &&
+      profile.mode !== 'none' &&
+      !(await this.sessions.read(client, run))
+    ) {
+      if (run.executionMode !== 'smoke')
+        throw new StorageError('POLICY_DENIED');
+      run = await this.change(client, run, 'running', 'auth');
+      await this.enqueue(client, run, 'executor', 'auth', 'initialize', null);
+      return run;
+    }
+    run = await this.change(client, run, 'running', 'auth');
+    return this.startSmokeAfterAuth(client, run);
   }
 
   async change(
@@ -1246,7 +1325,10 @@ export class Coordinator {
       const { job, run } = await this.validateLease(client, scope, proof);
       const stage = (job.result?.['stage'] ?? job.document.summary) as Stage;
       let authStateId: string | null = null;
-      let loginBlocked: LoginReport | null = null;
+      /** Mo-style session agent that signs in inside its own browser. */
+      let signIn = false;
+      /** Session explorer of a login-bound run: looks around signed out. */
+      let withoutSignIn = false;
       if (
         (run.executionMode === 'smoke' || run.executionMode === 'regression') &&
         ['explore', 'execute', 'reproduce'].includes(stage) &&
@@ -1262,42 +1344,47 @@ export class Coordinator {
             [scope.projectId, run.id],
           )
         ).rows[0];
-        if (!bound || bound.revoked) throw new StorageError('AUTH_FAILED');
-        const profile = parseContract('AuthProfile', bound.document);
-        if (profile.status !== 'active') throw new StorageError('AUTH_FAILED');
-        if (profile.mode !== 'none') {
-          const authority = (
-            await client.query<{
-              status: string;
-              current_state_id: string | null;
-              context_version: number;
-              auth_profile_id: string;
-              auth_profile_version: number;
-            }>(
-              `SELECT status,current_state_id,context_version,
-                      auth_profile_id,auth_profile_version
-               FROM run_auth_scopes WHERE project_id=$1 AND run_id=$2`,
-              [scope.projectId, run.id],
+        const sessionManaged =
+          run.executionMode === 'smoke' &&
+          (await this.sessions.read(client, run)) !== null;
+        if (sessionManaged && bound) {
+          // No run-level state to import: a revoked or edited profile is
+          // the sign-in's own concern, reported per task, not a run failure.
+          if (parseContract('AuthProfile', bound.document).mode !== 'none') {
+            if ((await signInKind(this, client, job, run)) === 'self')
+              signIn = true;
+            else withoutSignIn = true;
+          }
+        } else {
+          if (!bound || bound.revoked) throw new StorageError('AUTH_FAILED');
+          const profile = parseContract('AuthProfile', bound.document);
+          if (profile.status !== 'active')
+            throw new StorageError('AUTH_FAILED');
+          if (profile.mode !== 'none') {
+            const authority = (
+              await client.query<{
+                status: string;
+                current_state_id: string | null;
+                context_version: number;
+                auth_profile_id: string;
+                auth_profile_version: number;
+              }>(
+                `SELECT status,current_state_id,context_version,
+                        auth_profile_id,auth_profile_version
+                 FROM run_auth_scopes WHERE project_id=$1 AND run_id=$2`,
+                [scope.projectId, run.id],
+              )
+            ).rows[0];
+            if (
+              !authority ||
+              authority.status !== 'granted' ||
+              !authority.current_state_id ||
+              authority.context_version !== proof.contextVersion ||
+              authority.auth_profile_id !== profile.id ||
+              authority.auth_profile_version !== profile.version
             )
-          ).rows[0];
-          const granted =
-            authority &&
-            authority.status === 'granted' &&
-            authority.current_state_id &&
-            authority.context_version === proof.contextVersion &&
-            authority.auth_profile_id === profile.id &&
-            authority.auth_profile_version === profile.version;
-          if (granted) authStateId = authority.current_state_id;
-          else {
-            // A sign-in the agent could not complete is its report to the
-            // session, not a run failure: the work is reported as blocked.
-            const login = await this.loginOutcome(client, run);
-            if (run.executionMode !== 'smoke' || login.status !== 'blocked')
               throw new StorageError('AUTH_FAILED');
-            loginBlocked = {
-              reasonCode: login.reasonCode ?? 'AUTH_FAILED',
-              detail: login.detail,
-            };
+            authStateId = authority.current_state_id;
           }
         }
       }
@@ -1361,7 +1448,10 @@ export class Coordinator {
       }
       let contextId: string = randomUUID(),
         attemptId: string | null = null;
-      if (authStateId && typeof job.result?.['authContextId'] === 'string') {
+      // A signed-in browser context is frozen on the task: importer and
+      // self sign-in sessions bind to it and never invent another one.
+      const boundContext = authStateId !== null || signIn;
+      if (boundContext && typeof job.result?.['authContextId'] === 'string') {
         const frozenContext = job.result['authContextId'];
         if (
           !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(frozenContext)
@@ -1382,7 +1472,7 @@ export class Coordinator {
         if (existing) {
           attemptId = existing.id;
           if (
-            authStateId &&
+            boundContext &&
             job.result?.['authContextId'] &&
             job.result['authContextId'] !== existing.context_id
           )
@@ -1432,7 +1522,7 @@ export class Coordinator {
           );
         }
       }
-      if (authStateId) {
+      if (boundContext) {
         // Persist the actual case-attempt/Work context before private
         // importer allocation; it must never invent another browser context.
         await client.query(
@@ -1513,7 +1603,8 @@ export class Coordinator {
               ).rows.map((row) => parseContract('Finding', row.document))[0] ??
               null)
             : null,
-        loginBlocked,
+        ...(signIn ? { signIn } : {}),
+        ...(withoutSignIn ? { withoutSignIn } : {}),
       };
     });
   }
@@ -1759,7 +1850,29 @@ export class Coordinator {
         ).rows[0];
         if (!bound || bound.revoked) throw new StorageError('AUTH_FAILED');
         const profile = parseContract('AuthProfile', bound.document);
-        if (
+        const sessionManaged =
+          run.executionMode === 'smoke' &&
+          (await this.sessions.read(client, run)) !== null;
+        if (sessionManaged && profile.mode !== 'none') {
+          // A session agent acts only after its own server-verified sign-in
+          // in this lease; an explorer of the run looks around signed out.
+          if ((await signInKind(this, client, job, run)) === 'self') {
+            const signedIn = await client.query(
+              `SELECT 1 FROM auth_success_gates g
+               JOIN auth_execution_sessions s ON s.id=g.auth_session_id
+               WHERE s.project_id=$1 AND s.task_id=$2 AND s.fencing_token=$3
+                 AND s.context_version=$4 AND s.purpose='initializer'
+                 AND g.result='passed' LIMIT 1`,
+              [
+                scope.projectId,
+                job.id,
+                proof.fencingToken,
+                proof.contextVersion,
+              ],
+            );
+            if (!signedIn.rowCount) throw new StorageError('AUTH_FAILED');
+          }
+        } else if (
           profile.status !== 'active' ||
           profile.version !== run.effectiveConfig.authProfileVersion ||
           (profile.mode !== 'none' &&
@@ -1909,8 +2022,14 @@ export class Coordinator {
         job.case_id &&
         (
           await client.query(
-            'SELECT count(*)::integer n FROM action_intents WHERE project_id=$1 AND task_id=$2',
-            [scope.projectId, job.id],
+            // A task's own sign-in steps are private and bounded on their own;
+            // they do not use up the case's action allowance.
+            'SELECT count(*)::integer n FROM action_intents WHERE project_id=$1 AND task_id=$2 AND ($3::boolean OR auth_session_id IS NULL)',
+            [
+              scope.projectId,
+              job.id,
+              (await signInKind(this, client, job, run)) !== 'self',
+            ],
           )
         ).rows[0].n >= run.effectiveConfig.budget.maxActionsPerCase
       )
@@ -2552,6 +2671,13 @@ export class Coordinator {
         scope,
         proof,
       );
+      // A task that signed in itself releases its account with its result.
+      await this.authExecution.endTaskSignIn(
+        client,
+        scope.projectId,
+        job.id,
+        'task_finished',
+      );
       const finishTime = (
         await client.query<{
           started_at: Date | null;
@@ -3133,20 +3259,7 @@ export class Coordinator {
         ) {
           // Ambiguous authentication must not hang or be replayed with old
           // tokens after a Worker crash. A new run gets a new lease and scope.
-          // In a Mo-style session the sign-in agent's report goes to the
-          // session agent instead: it is told, and asks or continues.
-          if (
-            run.executionMode === 'smoke' &&
-            (await this.sessions.read(client, run))
-          ) {
-            await this.sessions.noteLoginBlocked(
-              client,
-              run,
-              await this.loginOutcome(client, run),
-            );
-            run = await this.startSmokeAfterAuth(client, run);
-            continue;
-          }
+          // (Sessions have no run-level auth job; their agents sign in.)
           await this.finalize(client, run, 'setup_failure', 'completed');
           continue;
         }
@@ -3155,92 +3268,9 @@ export class Coordinator {
           succeeded('preflight') &&
           run.executionMode === 'regression'
         ) {
-          const bound = (
-            await client.query<{ document: unknown; revoked: boolean }>(
-              `SELECT v.document,p.revoked FROM runs r
-               JOIN auth_profiles p ON p.project_id=r.project_id
-                 AND p.id=r.auth_profile_id
-               JOIN auth_profile_versions v ON v.project_id=r.project_id
-                 AND v.auth_profile_id=p.id AND v.version=r.auth_profile_version
-               WHERE r.project_id=$1 AND r.id=$2`,
-              [projectId, id],
-            )
-          ).rows[0];
-          if (
-            run.effectiveConfig.authProfileVersion !== null &&
-            (!bound || bound.revoked || !bound.document)
-          ) {
-            await this.finalize(client, run, 'setup_failure', 'completed');
-            continue;
-          }
-          const profile = bound
-            ? parseContract('AuthProfile', bound.document)
-            : null;
-          if (profile && profile.status !== 'active') {
-            await this.finalize(client, run, 'setup_failure', 'completed');
-            continue;
-          }
-          if (profile && profile.mode !== 'none') {
-            run = await this.change(client, run, 'running', 'auth');
-            await this.enqueue(
-              client,
-              run,
-              'executor',
-              'auth',
-              'initialize',
-              null,
-            );
-          } else {
-            run = await this.startApprovedRegression(client, run);
-          }
+          run = await this.startRegressionAfterPreflight(client, run);
         } else if (run.phase === 'preflight' && succeeded('preflight')) {
-          // A configured, non-anonymous smoke profile must first acquire a
-          // real authenticated state. Never skip auth and explore anonymously.
-          // The frozen profile version is bound to this run at admission.
-          const bound = (
-            await client.query<{
-              document: unknown;
-              revoked: boolean;
-            }>(
-              `SELECT v.document,p.revoked FROM runs r
-               JOIN auth_profiles p ON p.project_id=r.project_id
-                 AND p.id=r.auth_profile_id
-               JOIN auth_profile_versions v ON v.project_id=r.project_id
-                 AND v.auth_profile_id=p.id AND v.version=r.auth_profile_version
-               WHERE r.project_id=$1 AND r.id=$2`,
-              [projectId, id],
-            )
-          ).rows[0];
-          if (
-            run.effectiveConfig.authProfileVersion !== null &&
-            (!bound || bound.revoked || !bound.document)
-          ) {
-            await this.finalize(client, run, 'setup_failure', 'completed');
-            continue;
-          }
-          const profile = bound
-            ? parseContract('AuthProfile', bound.document)
-            : null;
-          if (profile && profile.status !== 'active') {
-            await this.finalize(client, run, 'setup_failure', 'completed');
-            continue;
-          }
-          if (profile && profile.mode !== 'none') {
-            if (run.executionMode !== 'smoke')
-              throw new StorageError('POLICY_DENIED');
-            run = await this.change(client, run, 'running', 'auth');
-            await this.enqueue(
-              client,
-              run,
-              'executor',
-              'auth',
-              'initialize',
-              null,
-            );
-          } else {
-            run = await this.change(client, run, 'running', 'auth');
-            run = await this.startSmokeAfterAuth(client, run);
-          }
+          run = await this.startSmokeAfterPreflight(client, run);
         } else if (run.phase === 'auth' && succeeded('auth')) {
           // finishAuth alone can mark the auth job successful after a real,
           // server-verified criterion and state capture. Normal job finish
@@ -3443,6 +3473,12 @@ export class Coordinator {
     await client.query(
       "UPDATE auth_profile_run_locks SET status='released', released_at=clock_timestamp(), release_reason='interrupted' WHERE project_id=$1 AND run_id=$2 AND phase='initializing' AND status='held'",
       [run.projectId, run.id],
+    );
+    await this.authExecution.endTaskSignIn(
+      client,
+      run.projectId,
+      job.id,
+      'interrupted',
     );
     const uncertainSteps = (
       await client.query(

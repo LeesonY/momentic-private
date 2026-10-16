@@ -48,6 +48,7 @@ const files = [
   'packages/report/test/unit.test.mjs',
   'packages/orchestrator/test/boundary.test.mjs',
   'packages/orchestrator/test/auth-ai.test.mjs',
+  'packages/orchestrator/test/self-sign-in.test.mjs',
   'packages/orchestrator/test/session-planning.test.mjs',
   'packages/orchestrator/test/session-title.test.mjs',
   'packages/orchestrator/test/input-options.test.mjs',
