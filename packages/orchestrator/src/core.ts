@@ -1291,10 +1291,21 @@ export class Coordinator {
     return this.tx(async (client) => {
       const { job, run } = await this.validateLease(client, scope, proof);
       const stage = (job.result?.['stage'] ?? job.document.summary) as Stage;
+      const definition = job.case_id
+        ? parseContract(
+            'CaseDefinition',
+            (
+              await client.query(
+                'SELECT document FROM run_cases WHERE id=$1 AND project_id=$2',
+                [job.case_id, scope.projectId],
+              )
+            ).rows[0].document,
+          )
+        : null;
       let authStateId: string | null = null;
       /** Mo-style session agent that signs in inside its own browser. */
       let signIn = false;
-      /** Session explorer of a login-bound run: looks around signed out. */
+      /** Session explorer or signed-out case of a login-bound run. */
       let withoutSignIn = false;
       if (
         (run.executionMode === 'smoke' || run.executionMode === 'regression') &&
@@ -1304,7 +1315,9 @@ export class Coordinator {
         const sessionManaged =
           run.executionMode === 'smoke' &&
           (await this.sessions.read(client, run)) !== null;
-        if (sessionManaged) {
+        if (sessionManaged && definition?.requiresLogin === false) {
+          withoutSignIn = true;
+        } else if (sessionManaged) {
           // Unavailable credentials are blocked by the task's sign-in, not
           // work() or the whole run. Read the current mode, never import state.
           const self = (await signInKind(this, client, job, run)) === 'self';
@@ -1381,17 +1394,7 @@ export class Coordinator {
         displayUrl(job.result['entryUrl']) !== run.targetUrl
       )
         targetUrl = job.result['entryUrl'];
-      const definition = job.case_id
-        ? parseContract(
-            'CaseDefinition',
-            (
-              await client.query(
-                'SELECT document FROM run_cases WHERE id=$1 AND project_id=$2',
-                [job.case_id, scope.projectId],
-              )
-            ).rows[0].document,
-          )
-        : null;
+
       if (run.executionMode === 'regression') {
         if (definition) {
           const snapshot = (
@@ -1747,8 +1750,20 @@ export class Coordinator {
   ): Promise<ActionGrant> {
     return this.tx(async (client) => {
       const { job, run } = await this.validateLease(client, scope, proof);
+      const sessionManaged =
+        run.executionMode === 'smoke' &&
+        (await this.sessions.read(client, run)) !== null;
+      const signedOutCase = sessionManaged && job.case_id
+        ? (
+            await client.query<{ document: { requiresLogin?: boolean } }>(
+              'SELECT document FROM run_cases WHERE id=$1 AND project_id=$2 AND run_id=$3',
+              [job.case_id, scope.projectId, run.id],
+            )
+          ).rows[0]?.document.requiresLogin === false
+        : false;
       if (
         run.effectiveConfig.authProfileVersion !== null &&
+        !signedOutCase &&
         ['explore', 'execute', 'reproduce'].includes(
           String(job.result?.['stage'] ?? job.document.summary),
         )
@@ -1804,9 +1819,7 @@ export class Coordinator {
         )
           throw new StorageError('AUTH_FAILED');
         const profile = parseContract('AuthProfile', bound.document);
-        const sessionManaged =
-          run.executionMode === 'smoke' &&
-          (await this.sessions.read(client, run)) !== null;
+
         if (sessionManaged && profile.mode !== 'none') {
           if (profile.status !== 'active')
             throw new StorageError('AUTH_FAILED');
@@ -2426,6 +2439,7 @@ export class Coordinator {
           const fingerprint = sessionManaged
             ? hashPayload({
                 entryUrl: job.result?.['entryUrl'] ?? run.targetUrl,
+                requiresLogin: definition.requiresLogin !== false,
                 preconditions: definition.preconditions,
                 outline: definition.outline,
                 criterion: {

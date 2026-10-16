@@ -104,6 +104,9 @@ D["Report"] = obj({"schemaVersion": {"const": 1}, "example": BOOL, "generatedAt"
 D["SessionLocator"] = obj({"by": D["Locator"]["properties"]["by"], "value": text(500, minLength=1), "name": nullable(text(500))})
 D["SessionCriterion"] = obj({**copy.deepcopy(D["Criterion"]["properties"]), "locator": nullable(ref("SessionLocator")), "expectedValue": nullable(text(2000)), "sourceQuote": text(1000)})
 D["SessionCase"] = obj({**copy.deepcopy(D["CandidateCase"]["properties"]), "entryUrl": URI, "criteria": arr(ref("SessionCriterion"), 3, 1)})
+# Optional on both proposals and stored cases; legacy cases still sign in.
+for case_schema in ("CandidateCase", "CaseDefinition", "SessionCase"):
+    D[case_schema]["properties"]["requiresLogin"] = {**BOOL, "default": True}
 D["SessionDecision"] = obj({"action": enum("dispatch", "finish", "ask"), "rationale": text(2000, minLength=1), "exploreTargets": arr(URI, 2), "cases": arr(ref("SessionCase"), 4), "coverageGaps": arr(text(1000), 20)})
 D["SessionDecision"]["properties"]["question"] = text(2000, minLength=1)
 D["SessionDecision"]["properties"]["title"] = text(60)

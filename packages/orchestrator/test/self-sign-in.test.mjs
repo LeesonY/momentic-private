@@ -30,6 +30,13 @@ const noQueries = {
   query: async (sql) => assert.fail(`unexpected query: ${sql.slice(0, 60)}`),
 };
 
+const sessionCase = {
+  query: async (sql) => {
+    assert.match(sql, /FROM run_cases WHERE id=\$1 AND project_id=\$2 AND run_id=\$3/);
+    return { rows: [{ document: {} }] };
+  },
+};
+
 test('only the auth job and session executors/reproducers may sign in', async () => {
   const cases = [
     [job('executor', 'auth'), run('regression'), false, 'auth'],
@@ -47,7 +54,7 @@ test('only the auth job and session executors/reproducers may sign in', async ()
   ];
   for (const [task, current, managed, expected] of cases)
     assert.equal(
-      await signInKind(coordinator(managed), noQueries, task, current),
+      await signInKind(coordinator(managed), sessionCase, task, current),
       expected,
       `${task.role}/${task.document.summary}/${current.executionMode}/${managed}`,
     );
@@ -117,6 +124,7 @@ test('a session executor passes the task check and binds its own browser context
   const client = {
     query: async (sql) => {
       queries.push(sql);
+      if (sql.includes('FROM run_cases')) return { rows: [{ document: {} }] };
       return { rows: [] };
     },
   };

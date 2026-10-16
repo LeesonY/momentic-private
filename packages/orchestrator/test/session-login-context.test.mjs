@@ -25,10 +25,13 @@ test('session and model contexts have no run-level login, even with an old auth 
       sql.includes("document->>'summary'='auth'"),
     ),
   );
-  assert.match(SESSION_AGENT_PROMPT, /自己的浏览器里登录/);
+  assert.match(SESSION_AGENT_PROMPT, /执行代理开工前由平台用该账号自动登录/);
+  assert.match(SESSION_AGENT_PROMPT, /actionPolicy=non_submitting/);
+  assert.match(SESSION_AGENT_PROMPT, /requiresLogin 设为 false/);
+  assert.match(SESSION_AGENT_PROMPT, /账号被占用.*不要反复重跑/);
   assert.match(SESSION_AGENT_PROMPT, /action=ask/);
   assert.match(SESSION_AGENT_PROMPT, /环境与认证/);
-  assert.match(SESSION_AGENT_PROMPT, /用户确认已修正后，用 retryCaseIds/);
+  assert.match(SESSION_AGENT_PROMPT, /retryCaseIds/);
   assert.doesNotMatch(SESSION_AGENT_PROMPT, /login 是本次账号的登录结果/);
 });
 

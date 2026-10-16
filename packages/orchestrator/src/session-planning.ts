@@ -41,6 +41,7 @@ function entryTitleKey(
 ): string {
   return hashPayload({
     entry: sessionEntryUrl(c, fallback),
+    requiresLogin: c.requiresLogin !== false,
     title: c.title.replace(/[\s\p{P}]/gu, '').toLowerCase(),
   });
 }
@@ -53,6 +54,7 @@ export function sessionCaseFingerprint(
     : null;
   return hashPayload({
     entry: sessionEntryUrl(c, fallback),
+    requiresLogin: c.requiresLogin !== false,
     preconditions: c.preconditions.map(normalize),
     outline: (navigation ? c.outline.slice(1) : c.outline).map(normalize),
     criteria: c.criteria.map(({ id: _id, ...criterion }) => ({
@@ -225,6 +227,9 @@ export function reviewSessionProposal(
         preconditions: candidate.preconditions,
         outline: candidate.outline,
         criteria,
+        ...(candidate.requiresLogin !== undefined
+          ? { requiresLogin: candidate.requiresLogin }
+          : {}),
       }),
       entryUrl,
     };

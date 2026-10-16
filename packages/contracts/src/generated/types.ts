@@ -497,6 +497,7 @@ export interface CandidateCase {
    * @maxItems 20
    */
   criteria: [Criterion, ...Criterion[]];
+  requiresLogin?: boolean;
 }
 export interface Locator {
   by: "role" | "label" | "test_id" | "text" | "css";
@@ -812,6 +813,7 @@ export interface CaseDefinition {
    * @maxItems 20
    */
   criteria: [Criterion, ...Criterion[]];
+  requiresLogin?: boolean;
   regression?: RegressionBinding;
 }
 export interface RegressionBinding {
@@ -1829,6 +1831,7 @@ export interface SessionCase {
    */
   criteria: [SessionCriterion, ...SessionCriterion[]];
   entryUrl: string;
+  requiresLogin?: boolean;
 }
 export interface SessionCriterion {
   id: string;

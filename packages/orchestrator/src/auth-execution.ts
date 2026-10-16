@@ -19,7 +19,7 @@ import { readRunAuthProfile } from './auth-profile.js';
 export async function signInKind(
   coordinator: Pick<Coordinator, 'sessions'>,
   client: PoolClient,
-  job: Pick<JobRow, 'role' | 'document'>,
+  job: Pick<JobRow, 'role' | 'document'> & Partial<Pick<JobRow, 'case_id'>>,
   run: Run,
 ): Promise<'auth' | 'self' | null> {
   const stage = job.document.summary;
@@ -29,8 +29,18 @@ export async function signInKind(
     ((job.role === 'executor' && stage === 'execute') ||
       (job.role === 'reproducer' && stage === 'reproduce')) &&
     (await coordinator.sessions.read(client, run)) !== null
-  )
-    return 'self';
+  ) {
+    // The immutable case, never a worker result flag, owns signed-out work.
+    const row = job.case_id
+      ? (
+          await client.query<{ document: { requiresLogin?: boolean } }>(
+            'SELECT document FROM run_cases WHERE id=$1 AND project_id=$2 AND run_id=$3',
+            [job.case_id, run.projectId, run.id],
+          )
+        ).rows[0]
+      : null;
+    return row?.document.requiresLogin === false ? null : 'self';
+  }
   return null;
 }
 
