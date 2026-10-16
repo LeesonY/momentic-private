@@ -20,6 +20,13 @@ type DomWitness = {
     targetUnchanged: (element: unknown) => boolean;
     stop: () => void;
   }>;
+  /**
+   * Page-side nodeId -> element map from the snapshot extraction. Held only
+   * through this handle, so page JS has no global name to reach it by. Used
+   * to prove that an action is bound to the very element the snapshot
+   * recorded, not to a lookalike a locator rebound to.
+   */
+  registry?: JSHandle<{ byNodeId: Map<string, Element> }>;
 };
 // Process-local only: never persisted, serialized into model messages or
 // exposed to page JS. Old handles invalidate on frame document navigation.
@@ -28,9 +35,10 @@ const MAX_SNAPSHOT_WITNESSES_PER_PAGE = 12;
 
 async function disposeWitnesses(witnesses: Map<string, DomWitness>) {
   await Promise.allSettled(
-    [...witnesses.values()].map(async ({ handle }) => {
+    [...witnesses.values()].map(async ({ handle, registry }) => {
       await handle.evaluate((w) => w.stop()).catch(() => undefined);
       await handle.dispose().catch(() => undefined);
+      await registry?.dispose().catch(() => undefined);
     }),
   );
 }
@@ -75,6 +83,43 @@ export async function snapshotTargetUnchanged(
     );
   } catch {
     // Detached frame, destroyed execution context or disposed observer.
+    return false;
+  }
+}
+
+/**
+ * True when the bound element is the exact DOM object the snapshot recorded
+ * for this node. A locator can silently rebind to another element with the
+ * same role and name when the page reveals it through an ancestor's
+ * class/style/hidden (carousels, tabs, lazy panels). Only this object
+ * identity proves the action stays on the element the model selected. A
+ * missing/evicted registry fails closed.
+ */
+export async function snapshotTargetIdentity(
+  page: Page,
+  snapshotId: string,
+  frameId: string,
+  frame: Frame,
+  nodeId: string,
+  element: ElementHandle<SVGElement | HTMLElement>,
+): Promise<boolean> {
+  const record = pageWitnesses.get(page)?.get(snapshotId)?.get(frameId);
+  if (!record || record.frame !== frame || !record.registry) return false;
+  try {
+    const expected = await record.registry.evaluateHandle(
+      (registry, id) => registry.byNodeId.get(id) ?? null,
+      nodeId,
+    );
+    try {
+      return await element.evaluate(
+        (el, other) => (other as unknown) === el,
+        expected,
+      );
+    } finally {
+      await expected.dispose().catch(() => undefined);
+    }
+  } catch {
+    // Detached frame, destroyed execution context or disposed registry.
     return false;
   }
 }
@@ -218,7 +263,10 @@ export async function captureBrowserSnapshot(
         await disposeWitnesses(new Map([[frameId, witness]]));
         throw error;
       }
-      domWitnesses.set(frameId, witness);
+      domWitnesses.set(frameId, {
+        ...witness,
+        registry: frameExtract.registry,
+      });
       if (frameExtract.truncated) isTruncated = true;
       for (const node of frameExtract.nodes) {
         if (allNodes.length >= 1000) {
@@ -324,8 +372,12 @@ export async function captureBrowserSnapshot(
 async function extractNodesFromFrame(
   frame: Frame,
   frameId: string,
-): Promise<{ nodes: SnapshotNode[]; truncated: boolean }> {
-  const rawNodes = await frame.evaluate((fId) => {
+): Promise<{
+  nodes: SnapshotNode[];
+  truncated: boolean;
+  registry: JSHandle<{ byNodeId: Map<string, Element> }>;
+}> {
+  const handle = await frame.evaluateHandle((fId) => {
     const selector = [
       'button',
       'a[href]',
@@ -378,6 +430,7 @@ async function extractNodesFromFrame(
       isSensitive: boolean;
       inputType?: string;
     }> = [];
+    const byNodeId = new Map<string, Element>();
 
     let counter = 0;
 
@@ -448,11 +501,15 @@ async function extractNodesFromFrame(
         name = `${role}_${counter}`;
       }
 
-      // Stable nodeId
-      const nodeId = testId ? `testid_${testId}` : `${fId}_node_${counter}`;
+      // Stable nodeId. The registry keeps the exact element for later
+      // identity checks; it is reachable only through a process-local handle.
+      const nodeId = (
+        testId ? `testid_${testId}` : `${fId}_node_${counter}`
+      ).slice(0, 120);
+      byNodeId.set(nodeId, el);
 
       results.push({
-        nodeId: nodeId.slice(0, 120),
+        nodeId,
         frameId: fId,
         role: role.slice(0, 120),
         ...(inputType
@@ -479,8 +536,34 @@ async function extractNodesFromFrame(
     return {
       results,
       truncated: scanned >= 5000 || elements.length >= 1000,
+      byNodeId,
     };
   }, frameId);
+
+  let rawNodes: {
+    results: Array<{
+      nodeId: string;
+      frameId: string;
+      role: string;
+      name: string;
+      text: string;
+      visible: boolean;
+      enabled: boolean;
+      bounds: { left: number; top: number; width: number; height: number };
+      isSensitive: boolean;
+      inputType?: string;
+    }>;
+    truncated: boolean;
+  };
+  try {
+    rawNodes = await handle.evaluate((value) => ({
+      results: value.results,
+      truncated: value.truncated,
+    }));
+  } catch (error) {
+    await handle.dispose().catch(() => undefined);
+    throw error;
+  }
 
   // Apply Node.js-side regex sanitization
   return {
@@ -497,5 +580,6 @@ async function extractNodesFromFrame(
       bounds: rn.bounds,
     })),
     truncated: rawNodes.truncated,
+    registry: handle,
   };
 }

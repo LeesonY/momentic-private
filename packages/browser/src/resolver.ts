@@ -8,6 +8,7 @@ import { STABLE_REASON_CODES, type StableReasonCode } from './types.js';
 import {
   isSameOriginOwnedFrame,
   snapshotFrameUnchanged,
+  snapshotTargetIdentity,
   snapshotTargetUnchanged,
 } from './snapshot.js';
 
@@ -99,30 +100,43 @@ export async function resolveTarget(
   if (bound.status === 'rejected') return bound;
 
   // 8. Freshness of the bound element. The document may have changed for
-  // reasons unrelated to this target; the action is still refused when the
-  // approved element itself (or its position) was touched.
-  if (
-    !(await snapshotFrameUnchanged(
+  // reasons unrelated to this target; the action is still refused unless the
+  // bound element is the exact object the snapshot recorded for this node
+  // and its own content was left untouched. A locator that rebound to a
+  // same-named element revealed through an ancestor's visibility change is
+  // therefore rejected instead of acted on.
+  if (!(await snapshotFrameUnchanged(
+    page,
+    currentSnapshot.snapshotId,
+    node.frameId,
+    frame,
+  ))) {
+    const sameElement = await snapshotTargetIdentity(
       page,
       currentSnapshot.snapshotId,
       node.frameId,
       frame,
-    )) &&
-    !(await snapshotTargetUnchanged(
-      page,
-      currentSnapshot.snapshotId,
-      node.frameId,
-      frame,
+      node.nodeId,
       bound.elementHandle,
-    ))
-  ) {
-    await bound.elementHandle.dispose().catch(() => undefined);
-    return {
-      status: 'rejected',
-      reasonCode: STABLE_REASON_CODES.VERSION_CONFLICT,
-      message:
-        'The observed document or DOM changed; capture a fresh snapshot before acting.',
-    };
+    );
+    const untouched =
+      sameElement &&
+      (await snapshotTargetUnchanged(
+        page,
+        currentSnapshot.snapshotId,
+        node.frameId,
+        frame,
+        bound.elementHandle,
+      ));
+    if (!untouched) {
+      await bound.elementHandle.dispose().catch(() => undefined);
+      return {
+        status: 'rejected',
+        reasonCode: STABLE_REASON_CODES.VERSION_CONFLICT,
+        message:
+          'The observed document or DOM changed; capture a fresh snapshot before acting.',
+      };
+    }
   }
 
   return {

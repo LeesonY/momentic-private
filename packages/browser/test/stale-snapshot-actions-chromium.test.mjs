@@ -154,6 +154,69 @@ test('a target recreated inside a replaced SPA subtree is still refused', async 
   });
 });
 
+test('a same-name element revealed by an ancestor visibility swap is refused', async () => {
+  await withPage(async (page) => {
+    await page.setContent(`<div id="panel-a"><button>Confirm</button></div>
+      <div id="panel-b" style="display:none"><button>Confirm</button></div>`);
+    const snapshot = await captureBrowserSnapshot(page, {
+      pageId: randomUUID(),
+    });
+    const visible = snapshot.nodes.find(
+      (n) => n.visible && n.role === 'button',
+    );
+    assert.ok(visible, 'the snapshot contains the visible button');
+    // The page swaps panels through ancestor style only; neither button is
+    // mutated, so only object identity can tell the locator rebound.
+    await page.evaluate(() => {
+      document.querySelector('#panel-a').style.display = 'none';
+      document.querySelector('#panel-b').style.display = '';
+    });
+    const result = await resolveTarget(
+      page,
+      targetFor(snapshot, visible),
+      snapshot,
+    );
+    assert.equal(result.status, 'rejected');
+    assert.equal(result.reasonCode, 'VERSION_CONFLICT');
+    // A fresh observation of the now-visible button is actionable.
+    const fresh = await captureBrowserSnapshot(page, {
+      pageId: snapshot.pageId,
+      stateVersion: 2,
+    });
+    const revealed = fresh.nodes.find((n) => n.visible && n.role === 'button');
+    assert.ok(revealed);
+    assert.equal(
+      (await resolveTarget(page, targetFor(fresh, revealed), fresh)).status,
+      'resolved',
+    );
+  });
+});
+
+test('a same-name element revealed after the snapshot element was removed is refused', async () => {
+  await withPage(async (page) => {
+    await page.setContent(`<div id="panel-a"><button>Confirm</button></div>
+      <div id="panel-b" style="display:none"><button>Confirm</button></div>`);
+    const snapshot = await captureBrowserSnapshot(page, {
+      pageId: randomUUID(),
+    });
+    const visible = snapshot.nodes.find(
+      (n) => n.visible && n.role === 'button',
+    );
+    assert.ok(visible);
+    await page.evaluate(() => {
+      document.querySelector('#panel-a').remove();
+      document.querySelector('#panel-b').style.display = '';
+    });
+    const result = await resolveTarget(
+      page,
+      targetFor(snapshot, visible),
+      snapshot,
+    );
+    assert.equal(result.status, 'rejected');
+    assert.equal(result.reasonCode, 'VERSION_CONFLICT');
+  });
+});
+
 test('a removed target is still refused', async () => {
   await withPage(async (page) => {
     await page.setContent(

@@ -18,7 +18,11 @@ async function fixture(count = 1, nodeCount = 1) {
     elementHandle: async () => element,
     evaluate: async (fn, expected) => fn(element, expected),
   };
-  const witness = { changed: () => false, stop: () => {} };
+  const witness = {
+    changed: () => false,
+    targetUnchanged: () => true,
+    stop: () => {},
+  };
   const nodes = Array.from({ length: nodeCount }, (_, i) => ({
     nodeId: `testid_${i}`,
     frameId: 'main',
@@ -37,7 +41,17 @@ async function fixture(count = 1, nodeCount = 1) {
     mainFrame: () => page,
     frames: () => [page],
     evaluateHandle: async () => ({
-      evaluate: async (fn) => fn(witness),
+      // One mock handle serves both the DOM witness and the snapshot node
+      // registry: the page-side callback receives an object carrying both
+      // surfaces, so extraction and later identity checks keep working.
+      evaluate: async (fn, arg) =>
+        fn(
+          Object.assign(
+            { results: nodes, truncated: false, byNodeId: new Map() },
+            witness,
+          ),
+          arg,
+        ),
       dispose: async () => {},
     }),
     evaluate: async () => ({ results: nodes, truncated: false }),

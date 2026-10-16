@@ -153,7 +153,20 @@ export function signInFixture(config = {}) {
   page.mainFrame = () => page;
   page.evaluate = async () => ({ results: rawNodes(), truncated: false });
   page.evaluateHandle = async () => ({
-    evaluate: async () => false,
+    // Serves both the DOM witness and the snapshot node registry: the
+    // page-side callback receives an object carrying both surfaces.
+    evaluate: async (fn, arg) =>
+      fn(
+        {
+          changed: () => false,
+          targetUnchanged: () => true,
+          stop: () => {},
+          results: rawNodes(),
+          truncated: false,
+          byNodeId: new Map(),
+        },
+        arg,
+      ),
     dispose: async () => {},
   });
   page.screenshot = async () => {
