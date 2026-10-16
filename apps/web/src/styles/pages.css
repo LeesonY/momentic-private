@@ -1245,6 +1245,23 @@
   background: var(--color-bg-subtle);
 }
 
+.lqa-link-group {
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.lqa-link-group:last-child {
+  border-bottom: 0;
+}
+
+.lqa-link-group .lqa-link-row {
+  border-bottom: 0;
+}
+
+.lqa-link-note {
+  margin: 0;
+  padding: 0 12px 8px;
+}
+
 /* ---- Input request bar ------------------------------------------------------------ */
 .lqa-input-request {
   display: flex;

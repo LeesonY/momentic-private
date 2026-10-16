@@ -1411,6 +1411,57 @@ a.mo-menu-item {
   -webkit-line-clamp: 2;
 }
 
+/* A retained finding and the duplicates merged into it stay one block. */
+.mo-card-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mo-merged {
+  margin-left: 14px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.mo-merged > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.mo-merged-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mo-merged-row:hover {
+  background: var(--color-bg-subtle);
+  color: var(--color-text-main);
+}
+
+.mo-merged-note {
+  margin: 0 0 0 14px;
+  padding-left: 10px;
+  border-left: 2px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
 /* Agent / case detail */
 .mo-detail {
   display: flex;

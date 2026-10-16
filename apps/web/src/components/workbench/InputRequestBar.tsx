@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { InputRequest } from '@localqa/contracts';
 import { AppIcon } from '../ui/AppIcon.tsx';
+import { inputRequestDeadlineLabel } from '../session/inputDeadline.ts';
 
 interface InputRequestBarProps {
   request: InputRequest;
@@ -303,12 +304,14 @@ export const InputRequestBar: React.FC<InputRequestBarProps> = ({
         </p>
       )}
 
-      <p className="mo-ask-hint">
+      <p className="mo-ask-hint" data-testid="input-request-deadline-hint">
         {isOtp
           ? '验证码只提交到私有认证通道，一次有效。'
           : isAuthKind
             ? '没有可用账号时，先在“环境与认证”里配置。'
-            : '最多等待 300 秒，超时后保留已有结果并结束。也可以直接在下方输入框回答。'}
+            : inputRequestDeadlineLabel(request.expiresAt)
+              ? `${inputRequestDeadlineLabel(request.expiresAt)} 前回答有效，超时后保留已有结果并结束。也可以直接在下方输入框回答。`
+              : '超时后保留已有结果并结束。也可以直接在下方输入框回答。'}
       </p>
     </section>
   );

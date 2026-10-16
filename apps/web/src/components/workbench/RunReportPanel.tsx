@@ -7,6 +7,7 @@ import { AppIcon } from '../ui/AppIcon.tsx';
 import { ReportExportPanel } from './ReportExportPanel.tsx';
 import { useApp } from '../../state/AppContext.tsx';
 import { getRegressionProvenanceStatus } from '../../utils/provenance.ts';
+import { countFindings, groupFindings } from '../session/findingDedup.ts';
 
 const cleanupLabels: Record<string, string> = {
   not_required: '无需清理',
@@ -148,7 +149,9 @@ export const RunReportPanel: React.FC<{
           >
             <dl className="kv">
               <dt>缺陷</dt>
-              <dd>{report.findings.length}</dd>
+              <dd data-testid="report-finding-count">
+                {countFindings(report.findings)}
+              </dd>
               <dt>复现</dt>
               <dd>{report.reproductions.length}</dd>
               <dt>证据</dt>
@@ -184,27 +187,44 @@ export const RunReportPanel: React.FC<{
             <div data-testid="report-findings">
               <div className="section-label">缺陷明细</div>
               <div className="lqa-link-list">
-                {report.findings.map((finding) => (
-                  <button
-                    key={finding.id}
-                    type="button"
-                    className="lqa-link-row"
-                    data-testid={`report-finding-${finding.id}`}
-                    onClick={() =>
-                      setRoute('finding-detail', {
-                        findingId: finding.id,
-                        runId,
-                      })
-                    }
-                  >
-                    <span className="truncate">{finding.title}</span>
-                    <span className="row nowrap">
-                      <span className="subtle text-xs">
-                        证据 {finding.evidenceRefs.length} 条
+                {groupFindings(report.findings).map((group) => (
+                  <div className="lqa-link-group" key={group.finding.id}>
+                    <button
+                      type="button"
+                      className="lqa-link-row"
+                      data-testid={`report-finding-${group.finding.id}`}
+                      onClick={() =>
+                        setRoute('finding-detail', {
+                          findingId: group.finding.id,
+                          runId,
+                        })
+                      }
+                    >
+                      <span className="truncate">
+                        {group.finding.title}
+                        {group.orphan && (
+                          <span className="badge badge-neutral badge-sm">
+                            重复
+                          </span>
+                        )}
                       </span>
-                      <StatusBadge status={finding.status} size="sm" />
-                    </span>
-                  </button>
+                      <span className="row nowrap">
+                        <span className="subtle text-xs">
+                          证据 {group.finding.evidenceRefs.length} 条
+                        </span>
+                        <StatusBadge status={group.finding.status} size="sm" />
+                      </span>
+                    </button>
+                    {group.merged.length > 0 && (
+                      <p
+                        className="subtle text-xs lqa-link-note"
+                        data-testid={`report-finding-merged-${group.finding.id}`}
+                      >
+                        另有 {group.merged.length} 条重复报告已合并：
+                        {group.merged.map((merged) => merged.title).join('；')}
+                      </p>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
