@@ -131,7 +131,9 @@ test('trusted Chromium auth route blocks an off-origin HTTP redirect before the 
     res.end('outside');
   });
   const host = await listen((_req, res) => {
-    res.writeHead(302, { Location: `${foreign.origin}/steal` });
+    res.writeHead(302, {
+      Location: `${foreign.origin}/steal?token=SECRET_TOKEN`,
+    });
     res.end();
   });
   const manager = new BrowserManager();
@@ -144,11 +146,45 @@ test('trusted Chromium auth route blocks an off-origin HTTP redirect before the 
       trusted.navigate(`${foreign.origin}/steal`),
       (error) => error.code === 'TARGET_NOT_ALLOWED',
     );
-    await assert.rejects(trusted.navigate(`${host.origin}/redirect`));
+    // The redirect target is refused by the login network gate: the refusal
+    // names the request (method + origin + path) and never the query it carried.
+    await assert.rejects(
+      trusted.navigate(`${host.origin}/redirect`),
+      (error) => {
+        assert.equal(error.code, 'POLICY_DENIED');
+        assert.equal(error.safeDetail, `GET ${foreign.origin}/steal`);
+        assert.equal(
+          JSON.stringify(error.safeDetail).includes('SECRET'),
+          false,
+        );
+        return true;
+      },
+    );
     assert.equal(foreignHits, 0);
   } finally {
     await manager.close();
     await host.close();
     await foreign.close();
+  }
+});
+
+test('trusted auth primitives report an unreachable login host, not a bare stall', async () => {
+  // The origin is approved, but nothing listens on it any more.
+  const host = await listen((_req, res) => res.end('ok'));
+  const unreachable = host.origin;
+  await host.close();
+  const manager = new BrowserManager();
+  try {
+    const browserSession = await session(manager, unreachable);
+    const trusted = createTrustedBrowserAuthPrimitives(browserSession, [
+      unreachable,
+    ]);
+    await assert.rejects(trusted.navigate(`${unreachable}/login`), (error) => {
+      assert.equal(error.code, 'BROWSER_UNAVAILABLE');
+      assert.equal(error.safeDetail, `GET ${unreachable}/login`);
+      return true;
+    });
+  } finally {
+    await manager.close();
   }
 });

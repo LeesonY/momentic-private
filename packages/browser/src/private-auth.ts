@@ -444,18 +444,30 @@ function redactSnapshot(
   };
 }
 
+/**
+ * Codes a trusted auth primitive may raise through the private port. Anything
+ * outside this set becomes a constant VALIDATION_ERROR, so a raw page/browser
+ * message can never travel as a refusal reason.
+ */
+const AUTH_STATE_CODES = new Set<string>([
+  'VALIDATION_ERROR',
+  'TARGET_NOT_ALLOWED',
+  'LEASE_EXPIRED',
+  'CANCELLED',
+  'POLICY_DENIED',
+  'BROWSER_UNAVAILABLE',
+]);
+
 function constantFailure(error: unknown): never {
   if (error instanceof PrivateAuthError) throw error;
   if (
     error instanceof Error &&
-    (error.name === 'AuthStateError' || error.name === 'PrivateAuthError') &&
-    (error.message === 'VALIDATION_ERROR' ||
-      error.message === 'TARGET_NOT_ALLOWED' ||
-      error.message === 'LEASE_EXPIRED' ||
-      error.message === 'CANCELLED')
-  ) {
+    (error.name === 'AuthStateError' ||
+      error.name === 'PrivateAuthError' ||
+      error.name === 'AuthRequestBlockedError') &&
+    AUTH_STATE_CODES.has(error.message)
+  )
     throw error;
-  }
   fail('VALIDATION_ERROR');
 }
 

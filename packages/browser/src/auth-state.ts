@@ -35,15 +35,21 @@ const DANGEROUS_KEYS = new Set([
 
 const encoder = new TextEncoder();
 
+/**
+ * Codes that may cross the private auth boundary. Validation and target scope
+ * are the normal refusals; the two policy codes let a sign-in say *why* a
+ * request was refused (blocked by the login network gate) or never answered
+ * (the login host was unreachable) instead of only reporting a stalled page.
+ */
+export type AuthStateErrorCode =
+  | typeof STABLE_REASON_CODES.VALIDATION_ERROR
+  | typeof STABLE_REASON_CODES.TARGET_NOT_ALLOWED
+  | typeof STABLE_REASON_CODES.POLICY_DENIED
+  | typeof STABLE_REASON_CODES.BROWSER_UNAVAILABLE;
+
 export class AuthStateError extends Error {
-  readonly code:
-    | typeof STABLE_REASON_CODES.VALIDATION_ERROR
-    | typeof STABLE_REASON_CODES.TARGET_NOT_ALLOWED;
-  constructor(
-    code:
-      | typeof STABLE_REASON_CODES.VALIDATION_ERROR
-      | typeof STABLE_REASON_CODES.TARGET_NOT_ALLOWED,
-  ) {
+  readonly code: AuthStateErrorCode;
+  constructor(code: AuthStateErrorCode) {
     super(code);
     this.name = 'AuthStateError';
     this.code = code;
@@ -51,9 +57,7 @@ export class AuthStateError extends Error {
 }
 
 function fail(
-  code:
-    | typeof STABLE_REASON_CODES.VALIDATION_ERROR
-    | typeof STABLE_REASON_CODES.TARGET_NOT_ALLOWED = STABLE_REASON_CODES.VALIDATION_ERROR,
+  code: AuthStateErrorCode = STABLE_REASON_CODES.VALIDATION_ERROR,
 ): never {
   throw new AuthStateError(code);
 }
