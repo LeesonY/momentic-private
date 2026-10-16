@@ -93,6 +93,29 @@ const SIGNED_IN_TASK_INSTRUCTION =
 const SIGNED_OUT_TASK_INSTRUCTION =
   '这条用例按未登录状态执行（requiresLogin=false）：可以往密码框或敏感输入框输入明显虚构的测试值（如 WrongPwd_123）来验证错误提示、掩码等；不要使用真实账号或密码，平台会拒绝任何已保存的凭据值。';
 
+/**
+ * Why a model action was not executed, in words the model can act on. A bare
+ * reasonCode made the executor repeat the same denied action (VERSION_CONFLICT
+ * ten times in one case) instead of re-observing or switching tools.
+ */
+function denialGuidance(reasonCode: string): string {
+  if (reasonCode === 'VERSION_CONFLICT' || reasonCode === 'TARGET_NOT_FOUND')
+    return '页面在你引用的快照之后发生了变化，这个动作没有执行。不要重复提交同一个目标；平台已重新观察，请只使用最新观察里的 nodeId。';
+  if (reasonCode === 'TARGET_AMBIGUOUS')
+    return '这个目标在页面上匹配到多个元素，动作没有执行。请换一个唯一的目标，或改用其他方式。';
+  if (reasonCode === 'TARGET_HIDDEN' || reasonCode === 'TARGET_DISABLED')
+    return '目标当前不可见或被禁用，动作没有执行。等待它可用，或换一个目标。';
+  if (reasonCode === 'POLICY_DENIED')
+    return '这个动作被当前运行策略拒绝，没有执行。不要重复它；只使用工具列表里的工具，需要时先 observe 再用最新快照重试。';
+  if (reasonCode === 'REPEATED_ACTION_LIMIT')
+    return '同一动作在同一页面状态上重复次数过多，已停止。换一个不同的动作或结束。';
+  if (reasonCode === 'ACTION_TIMEOUT')
+    return '动作超时，没有确认执行结果。不要假定成功；先 observe 再判断。';
+  if (reasonCode === 'VALIDATION_ERROR')
+    return '动作参数不符合工具契约，没有执行。请按工具定义修正参数。';
+  return '这个动作没有执行。看 reasonCode 换一个可行的操作，或如实结束并说明。';
+}
+
 /** Why an agent's work stopped, in words for the user and the session agent. */
 function blockedDetail(code: string): string {
   if (code === 'AUTH_FAILED')
@@ -1432,18 +1455,46 @@ export class Worker {
             if (!executed) {
               // The agent is told and decides what to do next, as in Mo.
               modelActionDenials++;
-              messages = [
-                ...messages,
+              const reasonCode = dispatch.reasonCode ?? 'POLICY_DENIED';
+              const content: ModelMessage['content'] = [
                 {
-                  role: 'tool',
-                  content: [
-                    {
-                      type: 'text',
-                      text: `DISPATCHED ${JSON.stringify({ executed: false, reasonCode: dispatch.reasonCode ?? 'POLICY_DENIED' })}`,
-                    },
-                  ],
+                  type: 'text',
+                  text: `DISPATCHED ${JSON.stringify({ executed: false, reasonCode })}`,
                 },
+                { type: 'text', text: denialGuidance(reasonCode) },
               ];
+              // A stale observation is a platform condition, not the model's
+              // mistake: refresh it once so the next decision starts from a
+              // snapshot whose ids the action ledger will accept.
+              if (
+                reasonCode === 'VERSION_CONFLICT' ||
+                reasonCode === 'TARGET_NOT_FOUND'
+              ) {
+                try {
+                  await execute({ name: 'observe', args: {} });
+                  content.push({
+                    type: 'text',
+                    text: JSON.stringify({
+                      observation: actionObservation(snapshot),
+                      ...(work.definition
+                        ? { assignedCase: work.definition }
+                        : {}),
+                      instruction:
+                        '这是平台重新采集的最新观察。上一步没有执行；下一轮只在此观察里选择目标。',
+                    }),
+                  });
+                } catch (error) {
+                  const code = (error as { code?: unknown } | null)?.code;
+                  // The recovery observation is opportunistic: an exhausted
+                  // action budget must not turn it into a run-level stop.
+                  if (
+                    !(error instanceof ScopedBrowserActionFailure) &&
+                    code !== 'BUDGET_EXCEEDED'
+                  )
+                    throw error;
+                }
+              }
+              messages = [...messages, { role: 'tool', content }];
               break;
             }
             messages = [
