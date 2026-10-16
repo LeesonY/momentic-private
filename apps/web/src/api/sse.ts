@@ -106,6 +106,7 @@ export class SseClient {
         'phase.changed',
         'task.updated',
         'session.updated',
+        'auth.profile_version_changed',
         'case.created',
         'case.result',
         'finding.updated',

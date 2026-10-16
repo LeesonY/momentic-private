@@ -346,14 +346,21 @@ export class AuthStateService {
         secret_id: string | null;
         secret_version: number | null;
         revoked: boolean;
+        current_status: string;
       }>(
-        `SELECT v.document,v.secret_id,v.secret_version,p.revoked FROM auth_profiles p
+        `SELECT v.document,v.secret_id,v.secret_version,p.revoked,
+         h.document->>'status' AS current_status FROM auth_profiles p
+       JOIN auth_profile_versions h ON h.project_id=p.project_id AND h.auth_profile_id=p.id AND h.version=p.version
        JOIN auth_profile_versions v ON v.project_id=p.project_id AND v.auth_profile_id=p.id AND v.version=$3
-       WHERE p.project_id=$1 AND p.id=$2 FOR SHARE OF p,v`,
+       WHERE p.project_id=$1 AND p.id=$2 AND p.deleted_at IS NULL FOR SHARE OF p,v`,
         [scope.projectId, frozen.auth_profile_id, version],
       )
     ).rows[0];
-    if (!profileRow || profileRow.revoked)
+    if (
+      !profileRow ||
+      profileRow.revoked ||
+      (kind === 'self' && profileRow.current_status !== 'active')
+    )
       throw new StorageError('AUTH_FAILED');
     const profile = parseContract('AuthProfile', profileRow.document);
     if (

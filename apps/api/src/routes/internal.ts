@@ -390,7 +390,9 @@ export function registerInternalRoutes(router: Router): void {
       integerHeader('x-context-version'),
     );
     if (scope.workerId !== workerId) throw new StorageError('LEASE_EXPIRED');
-    const frozen = await ctx.api.coordinator.authProfile(scope, proof);
+    // Legacy material resolution is run-frozen, never the private self-sign-in
+    // path. Self tasks use authMaterial with their allocated session instead.
+    const frozen = await ctx.api.coordinator.authProfile(scope, proof, 'frozen');
     if (
       !frozen ||
       frozen.id !== input.authProfileId ||

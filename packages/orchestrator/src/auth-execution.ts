@@ -1,7 +1,7 @@
 import { randomUUID, randomBytes, createHash } from 'node:crypto';
 import type { PoolClient } from 'pg';
-import { parseContract } from '@localqa/contracts';
 import {
+  appendEvent,
   StorageError,
   reconcileExpiredOtpInputs,
   type WorkerScope,
@@ -9,6 +9,7 @@ import {
 } from '@localqa/storage';
 import type { Coordinator, JobRow } from './core.js';
 import type { Run } from '@localqa/contracts';
+import { readRunAuthProfile } from './auth-profile.js';
 
 /**
  * Which tasks may run the private sign-in flow: the run-level auth job, or
@@ -275,50 +276,15 @@ export class AuthExecutionManager {
       throw new StorageError('POLICY_DENIED');
     }
 
-    // 2. Read frozen profile metadata from run without taking lock yet
-    const runProfileRow = (
-      await client.query<{
-        auth_profile_id: string | null;
-        auth_profile_version: number | null;
-        environment_id: string | null;
-        document: unknown;
-      }>(
-        `SELECT r.auth_profile_id, r.auth_profile_version, r.environment_id, v.document
-         FROM runs r
-         JOIN auth_profile_versions v
-           ON v.project_id = r.project_id
-          AND v.auth_profile_id = r.auth_profile_id
-          AND v.version = r.auth_profile_version
-         WHERE r.project_id = $1 AND r.id = $2`,
-        [scope.projectId, run.id],
-      )
-    ).rows[0];
-
-    if (
-      !runProfileRow ||
-      !runProfileRow.auth_profile_id ||
-      !runProfileRow.auth_profile_version ||
-      !runProfileRow.document
-    ) {
-      throw new StorageError('AUTH_FAILED');
-    }
-
-    const profileDoc = parseContract('AuthProfile', runProfileRow.document);
-    // Anonymous mode=none policy produces zero rows and zero decryption
-    if (profileDoc.mode === 'none') {
-      throw new StorageError('POLICY_DENIED');
-    }
-
-    const approvedOrigins = new Set(
-      profileDoc.allowedOrigins.map((origin) => new URL(origin).origin),
+    // 2. Self sign-ins select the current profile; other auth jobs remain frozen.
+    const profileDoc = await readRunAuthProfile(
+      client,
+      run,
+      kind === 'self',
+      proof,
     );
-    if (
-      run.effectiveConfig.allowedOrigins.some(
-        (origin) => !approvedOrigins.has(new URL(origin).origin),
-      )
-    ) {
-      throw new StorageError('TARGET_NOT_ALLOWED');
-    }
+    if (!profileDoc) throw new StorageError('AUTH_FAILED');
+    if (profileDoc.mode === 'none') throw new StorageError('POLICY_DENIED');
 
     // 3. Lock scope FOR UPDATE
     let scopeRow = (
@@ -349,16 +315,29 @@ export class AuthExecutionManager {
 
     // 5. Lock profile FOR SHARE (the final lock in the order: job/lease -> run -> scope -> session -> profile)
     const profileRow = (
-      await client.query<{ id: string; revoked: boolean }>(
-        `SELECT p.id, p.revoked
+      await client.query<{
+        id: string;
+        revoked: boolean;
+        version: number;
+        status: string;
+      }>(
+        `SELECT p.id,p.revoked,p.version,v.document->>'status' AS status
          FROM auth_profiles p
-         WHERE p.project_id = $1 AND p.id = $2
+         JOIN auth_profile_versions v ON v.project_id=p.project_id
+           AND v.auth_profile_id=p.id AND v.version=p.version
+         WHERE p.project_id=$1 AND p.id=$2 AND p.deleted_at IS NULL
          FOR SHARE OF p`,
         [scope.projectId, profileDoc.id],
       )
     ).rows[0];
 
-    if (!profileRow || profileRow.revoked !== false) {
+    if (
+      !profileRow ||
+      profileRow.revoked !== false ||
+      (kind === 'self' &&
+        (profileRow.status !== 'active' ||
+          (!existing && profileRow.version !== profileDoc.version)))
+    ) {
       throw new StorageError('AUTH_FAILED');
     }
 
@@ -396,16 +375,26 @@ export class AuthExecutionManager {
       if (scopeRow.context_version !== proof.contextVersion) {
         throw new StorageError('SCOPE_CHANGED');
       }
+      // Self sessions pin their own version; the run scope remains the shared
+      // revocation/epoch fence, so changing one task never invalidates siblings.
       if (
         scopeRow.auth_profile_id !== profileDoc.id ||
-        scopeRow.auth_profile_version !== profileDoc.version
+        (kind === 'auth' &&
+          scopeRow.auth_profile_version !== profileDoc.version)
       ) {
         throw new StorageError('AUTH_FAILED');
       }
     }
 
     if (existing) {
-      if (existing.auth_epoch !== scopeRow.auth_epoch) {
+      verifySessionCaller(existing, scope, proof);
+      if (
+        existing.auth_epoch !== scopeRow.auth_epoch ||
+        existing.auth_profile_id !== profileDoc.id ||
+        existing.auth_profile_version !== profileDoc.version ||
+        (kind === 'self' &&
+          existing.context_id !== job.result?.['authContextId'])
+      ) {
         throw new StorageError('AUTH_FAILED');
       }
       if (new Date(existing.expires_at) <= new Date()) {
@@ -459,6 +448,22 @@ export class AuthExecutionManager {
 
     if (kind === 'self' && profileDoc.sharingPolicy === 'exclusive_run')
       await this.holdCredential(client, scope, run.id, inserted);
+    if (
+      kind === 'self' &&
+      profileDoc.version !== run.effectiveConfig.authProfileVersion
+    )
+      await appendEvent(
+        client,
+        scope.projectId,
+        run.id,
+        'auth.profile_version_changed',
+        {
+          taskId: job.id,
+          authProfileId: profileDoc.id,
+          frozenVersion: run.effectiveConfig.authProfileVersion,
+          selectedVersion: profileDoc.version,
+        },
+      );
 
     return toBinding(inserted);
   }

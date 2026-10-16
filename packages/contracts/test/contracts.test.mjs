@@ -368,7 +368,7 @@ test('functional confirmed needs an independent reproduction and evidence', () =
     false,
   );
 });
-test('all 13 event types validate their matching payloads and reject mismatches', () => {
+test('every declared event type validates its matching payload and rejects mismatches', () => {
   const event = load('../../../docs/examples/event.sample.json');
   for (const condition of domain.$defs.RunEvent.allOf) {
     const type = condition.if.properties.type.const;

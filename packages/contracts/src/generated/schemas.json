@@ -3761,7 +3761,8 @@
               "artifact.updated",
               "report.ready",
               "run.finished",
-              "session.updated"
+              "session.updated",
+              "auth.profile_version_changed"
             ]
           },
           "at": {
@@ -3786,6 +3787,50 @@
         ],
         "additionalProperties": false,
         "allOf": [
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "auth.profile_version_changed"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "properties": {
+                "payload": {
+                  "type": "object",
+                  "properties": {
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "authProfileId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "frozenVersion": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "selectedVersion": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  },
+                  "required": [
+                    "taskId",
+                    "authProfileId",
+                    "frozenVersion",
+                    "selectedVersion"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
           {
             "if": {
               "properties": {
@@ -8711,7 +8756,8 @@
               "artifact.updated",
               "report.ready",
               "run.finished",
-              "session.updated"
+              "session.updated",
+              "auth.profile_version_changed"
             ]
           },
           "at": {
@@ -8736,6 +8782,50 @@
         ],
         "additionalProperties": false,
         "allOf": [
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "auth.profile_version_changed"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "properties": {
+                "payload": {
+                  "type": "object",
+                  "properties": {
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "authProfileId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "frozenVersion": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "selectedVersion": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  },
+                  "required": [
+                    "taskId",
+                    "authProfileId",
+                    "frozenVersion",
+                    "selectedVersion"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
           {
             "if": {
               "properties": {
@@ -20551,7 +20641,8 @@
                 "artifact.updated",
                 "report.ready",
                 "run.finished",
-                "session.updated"
+                "session.updated",
+                "auth.profile_version_changed"
               ]
             },
             "at": {
@@ -20576,6 +20667,50 @@
           ],
           "additionalProperties": false,
           "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "type": {
+                    "const": "auth.profile_version_changed"
+                  }
+                },
+                "required": [
+                  "type"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "payload": {
+                    "type": "object",
+                    "properties": {
+                      "taskId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "authProfileId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "frozenVersion": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "selectedVersion": {
+                        "type": "integer",
+                        "minimum": 1
+                      }
+                    },
+                    "required": [
+                      "taskId",
+                      "authProfileId",
+                      "frozenVersion",
+                      "selectedVersion"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            },
             {
               "if": {
                 "properties": {

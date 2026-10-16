@@ -149,7 +149,11 @@ SecretVault 用随机 nonce 的 AES-256-GCM 加密，记录 keyVersion；KEK 通
 
 表单认证通过固定配置的字段定位和成功条件执行。CredentialBroker 只对当前获准 lease/profile 提供所需材料；模型看到角色、变量名和描述，不得到密码、cookie/token。storage state 校验 origin/容量，使用后仅存在获准浏览器 context 和任务 scratch。
 
-AI 登录（`mode: agent`，与 Momentic Mo 的用法一致）是默认推荐方式：认证配置保存变量（名称、是否敏感、备注）和自然语言登录说明，变量值只进 write-only secretInput。认证任务里，登录代理读取登录说明、变量名和已脱敏的页面观察，每次只提出一步（fill 变量 / click / otp / wait / done / blocked）；Worker 校验目标属于本次登记的观察后，按 `fill_credential:variable`、`submit_auth:submit` 申请服务端放行，变量值在私有端口内替换，模型始终拿不到值，填过的值和敏感值在后续观察中打码。是否登录成功由登录代理自己根据页面判断（与 Mo 一致），平台不再用“是否还有密码框”等页面规则复核或否决；`agent_login_completed` 只把这个判断绑定到它所依据的那次登记观察，之后才允许抓取并复用登录状态。登录代理回 blocked 时附一句它看到的情况（不含变量值）。冒烟会话中登录未成功不再判为 setup_failure：认证任务结束并保存该理由（模型超时等原因也一样），会话照常开始，理由写入覆盖缺口并交给主 AI；需要登录的工作直接判为受阻，主 AI 可以向用户说明并提问。同一登录按钮在页面没有变化时不会被再次提交，登录代理会被告知并自行决定下一步。单次认证最多 12 次决策、最多 1 次向用户索取验证码，用运行冻结的 executor 模型绑定和预算。表单登录（`detectionMode: ai` 由服务端模型按账号、密码、提交、验证码、成功几个固定槽位识别字段，`manual` 使用固定定位器）和 storage state 保留为可选方式；回归运行的登录失败仍按 setup_failure 处理。
+AI 登录（`mode: agent`，与 Momentic Mo 的用法一致）是默认推荐方式：认证配置保存变量（名称、是否敏感、备注）和自然语言登录说明，变量值只进 write-only secretInput。登录代理读取说明、变量名和已脱敏的页面观察，每次只提出一步（fill 变量 / click / otp / wait / done / blocked）；Worker 校验目标属于本次登记的观察后申请私有认证许可，变量值在私有端口内替换，模型始终拿不到值，填过的值和敏感值在后续观察中打码。是否登录成功由登录代理根据页面判断，`agent_login_completed` 将判断绑定到它依据的登记观察。单次认证最多 12 次决策、最多 1 次索取验证码，使用当前任务角色的冻结模型绑定和运行预算。
+
+冒烟会话没有运行级 auth 任务或 `SessionContext.login`：每个 executor/reproducer 在自己的任务浏览器里登录，成功后沿用该浏览器执行，不抓取或跨任务复用登录态；explorer 只在未登录范围内观察。登录失败（包括配置撤销、删除或非 active）只让该用例受阻，原因保存在最近一次 `cases[].report.summary/gaps` 并进入主 AI 上下文。主 AI 停止派发同样需要登录的新用例，以 `action=ask` 说明原因并询问可用账号及是否已在“环境与认证”更新；确认修正后通过 `retryCaseIds` 重跑已有用例。
+
+更新账号/密码会新增 `auth_profile_versions`，新版本绑定新建的加密 secret；历史配置版本仍绑定原密钥。会话自登录只选同 id、同项目、同环境且未删除/撤销、active 的最新配置；分配认证会话后将版本固定在该任务的 `auth_execution_sessions`，私有许可、密钥读取和后续浏览器授权保持一致。版本不同于运行冻结值时按任务写 `auth.profile_version_changed`（taskId、authProfileId、frozenVersion、selectedVersion），不记录凭据、不修改运行冻结配置，也不提升兄弟任务的认证 epoch。分配时若发现配置在读取与加锁之间变化，拒绝此次登录并报告受阻，不默默采用不一致的元数据。回归和非会话 smoke 仍使用运行冻结版本、运行级登录和获准登录态导入；表单（AI 识别/固定定位）与 storage state 均保留，回归登录失败仍按 setup_failure 处理。
 
 执行中凭据需要进入运行进程和浏览器内存，不能声称完全不接触运行进程。实际截图、DOM、network headers/bodies、URL 和日志都走同一 RedactionPolicy；截图生成前对已知敏感字段遮罩。脱敏影响验收时使用固定检查或明确受阻，不展示虚假的未脱敏证据。
 
@@ -157,7 +161,7 @@ API cookie 为 HttpOnly、Secure、SameSite，并验证 Origin/CSRF；后台 sec
 
 认证资料选择/一般补充输入时关闭无用 context 并释放槽位，回应后新建 context。仅配置 otpTarget 的表单验证码可短暂保留登录 context：平台最多一半槽位等待输入，最长 300 秒；无空余等待槽位则受阻，不能占满全池。oneTimeCode 通过 protected broker 临时传递，必要的跨进程存储仅加密、一次消费并过期，不保存到 message/SSE/export。复杂人工认证仍属支持边界之外。
 
-默认对同一认证配置实施 run 级独占认证租约；一个 run 登录一次，子 context 导入同一获准状态。不同 run 不并发重新登录同一易失效账号；用户有明确可共享状态的环境才放宽。账号排队与浏览器配额分开，预开始排队不计 active 时间，running 中资源/模型等待计入。
+默认对同一认证配置实施独占认证租约（`exclusive_run`）。会话自登录按任务持有沿用的账号锁，成功后保持到任务结束；锁被其他任务占用时该用例立即受阻，不排队等待。回归和非会话 smoke 保持 run 级锁、一次登录及子 context 导入同一获准状态。不同 run 不并发重新登录同一易失效账号；明确可共享状态时才使用 `shared_state`。账号锁与浏览器配额分开，活跃时间按运行预算记录。
 
 ## 8. 持久任务、租约和恢复
 
