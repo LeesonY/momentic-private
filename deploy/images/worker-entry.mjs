@@ -17,6 +17,7 @@ import { ModelRepository } from '../../packages/storage/dist/index.js';
 import { createWorkerModelOptions } from '../../packages/orchestrator/dist/index.js';
 import { readiness } from './readiness.mjs';
 import { projectOffers } from './project-scheduling.mjs';
+import { workerPoolMax } from './worker-pool.mjs';
 import { loadDatabaseUrl } from './database-url.mjs';
 
 if (process.getuid() === 0) throw new Error('Refusing to run browser as root');
@@ -35,7 +36,9 @@ const identity = (
 ).trim();
 if (!identity) throw new Error('Worker identity missing');
 const workerId = `worker-${createHash('sha256').update(identity).digest('hex').slice(0, 32)}`;
-const db = new Database(connectionString);
+const db = new Database(connectionString, {
+  poolMax: workerPoolMax(slots, process.env.DB_POOL_MAX),
+});
 const adminId = await db.auth(
   async (client) =>
     (
@@ -181,7 +184,10 @@ try {
           if (cleaned.removed)
             console.info('Expired live frames cleaned:', cleaned.removed);
         } catch (cause) {
-          console.warn('Live frame cleanup skipped:', cause?.code ?? 'io_error');
+          console.warn(
+            'Live frame cleanup skipped:',
+            cause?.code ?? 'io_error',
+          );
         }
       }
       // Poll and claim using the storage lease/fencing transaction. Worker.once owns

@@ -281,6 +281,9 @@ export class Coordinator {
       // Admission under the same global lock as lease claim. Already queued work
       // remains queued; a new request when all browser slots are leased receives
       // the contract's 429 instead of an apparently accepted, unbounded queue.
+      // This is the API/run-creation side of the mutex: it holds one connection
+      // for the duration of one short claim transaction (the worker's claim loop
+      // uses try-lock and never queues here), so it cannot starve the pool.
       await client.query('SELECT pg_advisory_xact_lock(741005)');
       const slots = (
         await client.query<{ total: number; project: number }>(
@@ -780,9 +783,21 @@ export class Coordinator {
       // Claim and slot bookkeeping must share one mutual-exclusion domain: the
       // advisory lock is held for the whole claim+bookkeep, so a second worker
       // cannot observe reserved=limit-1 and oversell slots.
+      //
+      // It must be a *try* lock: with BROWSER_SLOTS=25 a worker launches up to
+      // 26 concurrent claim flights, and a blocking advisory lock would hold
+      // those pooled connections while they queue. The pool then has no
+      // connection left for heartbeats and model reservations of tasks that are
+      // already running, which fail as SERVICE_UNAVAILABLE. Losing the race only
+      // means this flight claims nothing; the caller's poll loop retries.
       let lease = null;
       await this.tx(async (client) => {
-        await client.query('SELECT pg_advisory_xact_lock(741005)');
+        const locked = (
+          await client.query<{ locked: boolean }>(
+            'SELECT pg_try_advisory_xact_lock(741005) AS locked',
+          )
+        ).rows[0]?.locked;
+        if (!locked) return;
         const slots = (
           await client.query<{
             children: number;

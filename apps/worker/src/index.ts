@@ -39,7 +39,12 @@ import {
   type AgentRole,
 } from '@localqa/agents';
 import type { AgentRoleName } from '@localqa/orchestrator';
-import { StorageError, hashPayload, type LeaseProof } from '@localqa/storage';
+import {
+  StorageError,
+  withTransientRetry,
+  hashPayload,
+  type LeaseProof,
+} from '@localqa/storage';
 import { replayRegression, type ReplayPorts } from './regression-replay.js';
 import { suggestLocatorRepair } from './repair-suggestions.js';
 import { suggestSemanticLocatorRepairs } from './ai-locator-suggestions.js';
@@ -308,8 +313,13 @@ export class Worker {
     const timer = setInterval(() => {
       if (beating) return;
       beating = true;
-      heartbeatFlight = this.runtime
-        .heartbeat(proof, this.leaseSeconds)
+      // A transient database blip (pool acquisition timeout while claim flights
+      // contend for connections) must not fail a running task on the first try:
+      // renewing an existing lease is idempotent, so it is safe to retry.
+      heartbeatFlight = withTransientRetry(
+        () => this.runtime.heartbeat(proof, this.leaseSeconds),
+        { attempts: 3, delaysMs: [250, 500] },
+      )
         .then((result) => {
           if (
             result.cancelRequested ||

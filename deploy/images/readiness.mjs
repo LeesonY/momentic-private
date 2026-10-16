@@ -15,6 +15,9 @@ export async function readiness({ vault = false, browserMarker = false } = {}) {
   }
   const pool = new pg.Pool({
     connectionString,
+    // Probes are short-lived and must never compete with task traffic for the
+    // server's connection budget.
+    max: 2,
     connectionTimeoutMillis: 3000,
   });
   // A restart can sever an idle readiness connection between query and end.

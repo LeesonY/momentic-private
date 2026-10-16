@@ -13,6 +13,100 @@ export class StorageError extends Error {
     this.name = 'StorageError';
   }
 }
+/**
+ * The database itself was unreachable or too busy to hand out a connection
+ * (pool acquisition timeout, dropped socket, server shutdown). Distinct from a
+ * plain SERVICE_UNAVAILABLE so a caller may retry an idempotent operation
+ * instead of failing a whole task on a transient blip.
+ */
+export class DatabaseUnavailableError extends StorageError {
+  constructor(
+    message = 'SERVICE_UNAVAILABLE',
+    readonly cause?: unknown,
+  ) {
+    super('SERVICE_UNAVAILABLE', message);
+    this.name = 'DatabaseUnavailableError';
+  }
+}
+const TRANSIENT_SQL_STATES = [
+  '08000',
+  '08001',
+  '08003',
+  '08004',
+  '08006',
+  '08007',
+  '57P01',
+  '57P02',
+  '57P03',
+];
+const TRANSIENT_SYSCALL_CODES = [
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'EPIPE',
+  'ETIMEDOUT',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+  'ENOTFOUND',
+];
+function transientDatabaseFailure(db: { code?: string; message?: string }) {
+  if (typeof db.code === 'string' && TRANSIENT_SQL_STATES.includes(db.code))
+    return true;
+  if (typeof db.code === 'string' && TRANSIENT_SYSCALL_CODES.includes(db.code))
+    return true;
+  // pg-pool's bounded acquisition in #transaction reports this message.
+  return (
+    typeof db.message === 'string' &&
+    db.message.includes('timeout exceeded when trying to connect')
+  );
+}
+/** True only for connectivity/overload failures that are safe to retry. */
+export function isTransientDatabaseError(error: unknown): boolean {
+  return error instanceof DatabaseUnavailableError;
+}
+/**
+ * Bounded retry for idempotent database work (lease heartbeats, budget
+ * reservations). Never wraps a call whose database effect must happen exactly
+ * once: finish/settle/action recording stay single-shot and are fenced by
+ * their own idempotency keys.
+ */
+export async function withTransientRetry<T>(
+  work: () => Promise<T>,
+  options: { attempts?: number; delaysMs?: readonly number[] } = {},
+): Promise<T> {
+  const attempts = options.attempts ?? 3;
+  if (!Number.isSafeInteger(attempts) || attempts < 1 || attempts > 10)
+    throw new StorageError('VALIDATION_ERROR');
+  const delays = options.delaysMs ?? [250, 500];
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await work();
+    } catch (error) {
+      lastError = error;
+      if (!isTransientDatabaseError(error) || attempt === attempts) throw error;
+      await new Promise((resolve) =>
+        setTimeout(resolve, delays[Math.min(attempt - 1, delays.length - 1)]),
+      );
+    }
+  }
+  throw lastError;
+}
+/** DB_POOL_MAX, or an explicit value, bounded to a sane PostgreSQL range. */
+export function resolvePoolMax(explicit?: number): number {
+  const raw =
+    explicit ??
+    (process.env.DB_POOL_MAX === undefined
+      ? undefined
+      : Number(process.env.DB_POOL_MAX));
+  if (raw === undefined) return 8;
+  if (!Number.isSafeInteger(raw) || raw < 1 || raw > 100) {
+    console.warn(
+      `Ignoring invalid DB_POOL_MAX/pool size (${String(raw)}); using 8`,
+    );
+    return 8;
+  }
+  return raw;
+}
 export function mapDatabaseError(error: unknown): never {
   const db = error as { code?: string; message?: string };
   if (db.message === 'VERSION_CONFLICT')
@@ -39,16 +133,19 @@ export function mapDatabaseError(error: unknown): never {
   if (db.code === '23503' || db.code === '23514' || db.code === '22P02')
     throw new StorageError('VALIDATION_ERROR');
   if (db.code === '42501') throw new StorageError('NOT_FOUND');
+  // Connectivity and pool-overload failures keep the public SERVICE_UNAVAILABLE
+  // code but are distinguishable for bounded retries.
+  if (transientDatabaseFailure(db)) throw new DatabaseUnavailableError();
   throw new StorageError('SERVICE_UNAVAILABLE'); // No SQL, stack or sensitive parameters in API errors.
 }
 export type Actor = { userId: string }; // Obtained from a verified server session, never the request body.
 export type WorkerScope = { workerId: string; projectId: string }; // Verified by the internal identity boundary.
 export class Database {
   readonly #pool: pg.Pool;
-  constructor(connectionString: string) {
+  constructor(connectionString: string, options: { poolMax?: number } = {}) {
     this.#pool = new pg.Pool({
       connectionString,
-      max: 8,
+      max: resolvePoolMax(options.poolMax),
       // Bounded acquisition on outage: pooled callers must not wait forever.
       // Transactions are still fenced by their own worker leases.
       connectionTimeoutMillis: 10000,
@@ -74,6 +171,10 @@ export class Database {
   }
   async close(): Promise<void> {
     await this.#pool.end();
+  }
+  /** Effective pool size, for readiness logs and tests. */
+  get poolMax(): number {
+    return this.#pool.options.max ?? 8;
   }
   async #transaction<T>(
     role: 'localqa_app' | 'localqa_auth' | 'localqa_worker',

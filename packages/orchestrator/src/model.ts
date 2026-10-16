@@ -18,6 +18,7 @@ import {
 import type { Criterion, ModelRequest, RoleModels } from '@localqa/contracts';
 import {
   StorageError,
+  withTransientRetry,
   type WorkerScope,
   type LeaseProof,
 } from '@localqa/storage';
@@ -386,53 +387,56 @@ export class BoundModel {
       async send(input, providerSignal) {
         const meta = metadata.get(input.body as object);
         if (!meta) throw new StorageError('VALIDATION_ERROR');
-        const reservation = await coordinator
-          .tx(async (client) => {
-            const r = await coordinator.reserve(
-              client,
-              scope,
-              proof,
-              'model',
-              {
-                modelCalls: 1,
-                totalTokens: meta.inputTokens + meta.maxOutputTokens,
-              },
-              randomUUID(),
-            );
-            const { job, run } = await coordinator.validateLease(
-              client,
-              scope,
-              proof,
-            );
-            await client.query(
-              "INSERT INTO model_requests(request_id,project_id,run_id,task_id,fencing_token,reservation_id,status,redacted_diagnostic) VALUES($1,$2,$3,$4,$5,$6,'reserved',$7)",
-              [
-                r.requestId,
-                scope.projectId,
-                run.id,
-                job.id,
-                proof.fencingToken,
-                r.id,
+        // One request id for the whole call: a retried reservation is idempotent
+        // (same task+fence+amount), so a transient pool timeout before the
+        // provider call can never double-charge the run budget.
+        const requestId = randomUUID();
+        const reservation = await withTransientRetry(
+          () =>
+            coordinator.tx(async (client) => {
+              const r = await coordinator.reserve(
+                client,
+                scope,
+                proof,
+                'model',
                 {
-                  role,
-                  profileId: profile.id,
-                  profileVersion: profile.version,
-                  configuredModelId: profile.configuredModelId,
-                  timeoutMs,
-                  usageSource: 'unknown',
+                  modelCalls: 1,
+                  totalTokens: meta.inputTokens + meta.maxOutputTokens,
                 },
-              ],
-            );
-            return r;
-          })
-          .catch((error) => {
-            if (
-              error instanceof StorageError &&
-              error.code === 'BUDGET_EXCEEDED'
-            )
-              budgetDenied.current = true;
-            throw error;
-          });
+                requestId,
+              );
+              const { job, run } = await coordinator.validateLease(
+                client,
+                scope,
+                proof,
+              );
+              await client.query(
+                "INSERT INTO model_requests(request_id,project_id,run_id,task_id,fencing_token,reservation_id,status,redacted_diagnostic) VALUES($1,$2,$3,$4,$5,$6,'reserved',$7)",
+                [
+                  r.requestId,
+                  scope.projectId,
+                  run.id,
+                  job.id,
+                  proof.fencingToken,
+                  r.id,
+                  {
+                    role,
+                    profileId: profile.id,
+                    profileVersion: profile.version,
+                    configuredModelId: profile.configuredModelId,
+                    timeoutMs,
+                    usageSource: 'unknown',
+                  },
+                ],
+              );
+              return r;
+            }),
+          { attempts: 3, delaysMs: [150, 300] },
+        ).catch((error) => {
+          if (error instanceof StorageError && error.code === 'BUDGET_EXCEEDED')
+            budgetDenied.current = true;
+          throw error;
+        });
         const started = Date.now();
         try {
           const response = await delegate.send(
