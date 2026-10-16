@@ -42,6 +42,7 @@ import type {
   TaskPage,
   CaseRecord,
   CaseRecordPage,
+  CaseAttempt,
   CaseAttemptPage,
   Finding,
   FindingPage,
@@ -158,6 +159,28 @@ const MOCK_USER_UUID_MAP: Record<string, string> = {
   usr_mock_operator_002: '00000000-0000-4000-a000-000000000002',
   usr_mock_viewer_003: '00000000-0000-4000-a000-000000000003',
 };
+
+/** Offset-based opaque cursor mirroring the API's parsePagination/paginate:
+ * default limit 20, clamped 1..100, nextCursor only when more remain. */
+function paginateMock<T>(
+  items: T[],
+  query?: PaginationQuery,
+): { items: T[]; nextCursor: string | null } {
+  const limit = Math.min(Math.max(query?.limit ?? 20, 1), 100);
+  let offset = 0;
+  if (query?.cursor) {
+    const parsed = Number(query.cursor);
+    if (!Number.isInteger(parsed) || parsed < 0)
+      throw new Error('Invalid cursor');
+    offset = parsed;
+  }
+  const page = items.slice(offset, offset + limit);
+  const nextOffset = offset + limit;
+  return {
+    items: page,
+    nextCursor: nextOffset < items.length ? String(nextOffset) : null,
+  };
+}
 
 function resolveMockUserUuid(userId?: string | null): string | null {
   if (!userId) return null;
@@ -539,7 +562,9 @@ export class MockApiClient implements ApiClient {
       status: 'active',
       formConfig: input.formConfig || null,
       ...(input.agentConfig ? { agentConfig: input.agentConfig } : {}),
-      ...(input.storageCriterion ? { storageCriterion: input.storageCriterion } : {}),
+      ...(input.storageCriterion
+        ? { storageCriterion: input.storageCriterion }
+        : {}),
     };
     this.authProfiles.push(newProf);
     return newProf;
@@ -878,79 +903,69 @@ export class MockApiClient implements ApiClient {
 
   public async listCaseAttempts(
     caseId: string,
-    _query?: PaginationQuery,
+    query?: PaginationQuery,
   ): Promise<CaseAttemptPage> {
     // A retried case has one attempt per executor task; the verdict lives on
     // the latest one.
-    if (caseId === 'case_mock_20_retried') {
-      return {
-        items: [
-          {
-            id: 'att_mock_20_1',
-            caseId,
-            taskId: 'task_mock_exec_20_1',
-            attemptNumber: 1,
-            status: 'completed',
-            verdict: null,
-            startedAt: '2026-10-02T08:02:55.000Z',
-            finishedAt: '2026-10-02T08:03:26.000Z',
-          },
-          {
-            id: 'att_mock_20_2',
-            caseId,
-            taskId: 'task_mock_exec_20_2',
-            attemptNumber: 2,
-            status: 'completed',
-            verdict:
-              this.cases.find((c) => c.definition.id === caseId)?.verdict ??
-              null,
-            startedAt: '2026-10-02T08:03:30.000Z',
-            finishedAt: '2026-10-02T08:03:57.000Z',
-          },
-        ],
-        nextCursor: null,
-      };
-    }
-    return {
-      items: [
-        {
-          id: `att_${caseId}_1`,
-          caseId,
-          taskId: 'task_mock_exec_01',
-          attemptNumber: 1,
-          status: 'completed',
-          verdict:
-            this.cases.find((c) => c.definition.id === caseId)?.verdict || null,
-          startedAt: '2026-10-02T08:01:30.000Z',
-          finishedAt: '2026-10-02T08:01:36.000Z',
-        },
-      ],
-      nextCursor: null,
-    };
+    const attempts: CaseAttempt[] =
+      caseId === 'case_mock_20_retried'
+        ? [
+            {
+              id: 'att_mock_20_1',
+              caseId,
+              taskId: 'task_mock_exec_20_1',
+              attemptNumber: 1,
+              status: 'completed' as const,
+              verdict: null,
+              startedAt: '2026-10-02T08:02:55.000Z',
+              finishedAt: '2026-10-02T08:03:26.000Z',
+            },
+            {
+              id: 'att_mock_20_2',
+              caseId,
+              taskId: 'task_mock_exec_20_2',
+              attemptNumber: 2,
+              status: 'completed',
+              verdict:
+                this.cases.find((c) => c.definition.id === caseId)?.verdict ??
+                null,
+              startedAt: '2026-10-02T08:03:30.000Z',
+              finishedAt: '2026-10-02T08:03:57.000Z',
+            },
+          ]
+        : [
+            {
+              id: `att_${caseId}_1`,
+              caseId,
+              taskId: 'task_mock_exec_01',
+              attemptNumber: 1,
+              status: 'completed' as const,
+              verdict:
+                this.cases.find((c) => c.definition.id === caseId)?.verdict ||
+                null,
+              startedAt: '2026-10-02T08:01:30.000Z',
+              finishedAt: '2026-10-02T08:01:36.000Z',
+            },
+          ];
+    return paginateMock(attempts, query);
   }
 
   public async listRunTasks(
     runId: string,
-    _query?: PaginationQuery,
+    query?: PaginationQuery,
   ): Promise<TaskPage> {
     const matched = mockTasks.filter((task) => task.runId === runId);
-    return {
-      items: matched.length > 0 ? matched : mockTasks,
-      nextCursor: null,
-    };
+    return paginateMock(matched.length > 0 ? matched : mockTasks, query);
   }
 
   public async listTaskSteps(
     taskIdOrCaseId: string,
-    _query?: PaginationQuery,
+    query?: PaginationQuery,
   ): Promise<StepPage> {
     const matched = mockSteps.filter(
       (s) => s.caseId === taskIdOrCaseId || s.taskId === taskIdOrCaseId,
     );
-    return {
-      items: matched.length > 0 ? matched : mockSteps,
-      nextCursor: null,
-    };
+    return paginateMock(matched.length > 0 ? matched : mockSteps, query);
   }
 
   public async getStep(stepId: string): Promise<Step> {
@@ -968,9 +983,9 @@ export class MockApiClient implements ApiClient {
 
   public async listRunFindings(
     _runId: string,
-    _query?: PaginationQuery,
+    query?: PaginationQuery,
   ): Promise<FindingPage> {
-    return { items: this.findings, nextCursor: null };
+    return paginateMock(this.findings, query);
   }
 
   public async getFinding(findingId: string): Promise<Finding> {
