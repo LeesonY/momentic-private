@@ -33,6 +33,7 @@ const files = [
   'apps/worker/test/preflight-model.test.mjs',
   'apps/worker/test/session-permission.test.mjs',
   'apps/worker/test/browser-action-scope.test.mjs',
+  'apps/worker/test/session-tool-parity.test.mjs',
   'apps/web/scripts/phaseTermination.test.mjs',
   'apps/web/scripts/runEventHistory.test.mjs',
   'apps/web/scripts/sseClient.test.mjs',

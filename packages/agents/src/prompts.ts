@@ -1,6 +1,6 @@
 import { toolMetadata, type ToolName } from '@localqa/contracts';
 
-export const PROMPT_VERSION = 'mo.1';
+export const PROMPT_VERSION = 'mo.2';
 
 export const SESSION_AGENT_PROMPT = [
   '你是测试会话的主 AI，像 Mo 一样工作：弄清用户要测什么，规划覆盖范围，写用例并派执行代理去跑，读它们的报告，去掉重复，再决定补测、提问还是收尾。只输出 SessionDecision JSON。',
@@ -46,12 +46,35 @@ const DUTY: Record<AgentRole, string> = {
   finalizer: '通过数由确定性代码计算。不要编造统计，不要补业务规则。',
 };
 
+/**
+ * Browser tools the session-managed action ledger can actually grant.
+ * `assert_criterion`, `inspect_network` and the case/report stubs are part of
+ * the ToolCall contract for these roles, but the Worker's runtime authority
+ * (`validateBrowserTool`) never executes them in a session-managed run.
+ * Advertising them made the model call tools that were always denied and then
+ * report the denied work as an observation gap.
+ */
+const SESSION_BROWSER_TOOLS: readonly ToolName[] = [
+  'observe',
+  'navigate',
+  'capture',
+  'click',
+  'type_text',
+  'select_option',
+  'press',
+  'scroll',
+  'wait_for',
+];
+
 export function toolsForRole(role: AgentRole): ToolName[] {
   if (role === 'planner' || role === 'finalizer') return [];
   return (Object.keys(toolMetadata) as ToolName[])
     .filter((name) => {
       const meta = toolMetadata[name];
-      return meta ? meta.roles.includes(role) : false;
+      if (!meta || !meta.roles.includes(role)) return false;
+      if (role === 'explorer' || role === 'executor' || role === 'reproducer')
+        return SESSION_BROWSER_TOOLS.includes(name);
+      return true;
     })
     .sort();
 }

@@ -674,9 +674,17 @@ test('role prompts and tool scopes are versioned', () => {
   assert.deepEqual(scopes.planner, []);
   assert.deepEqual(scopes.finalizer, []);
   assert.equal(scopes.coordinator.includes('click'), false);
-  assert.equal(scopes.executor.includes('finish_case'), true);
+  // Browser roles are advertised exactly the tools the session-managed action
+  // ledger can grant. The case/report stubs and inspect_network/assert tools
+  // are contract roles, but the Worker's runtime authority never executes
+  // them in a session-managed run, so offering them only produced denials.
+  assert.equal(scopes.executor.includes('click'), true);
+  assert.equal(scopes.executor.includes('finish_case'), false);
   assert.equal(scopes.executor.includes('submit_case'), false);
-  assert.equal(scopes.reproducer.includes('complete_reproduction'), true);
+  assert.equal(scopes.executor.includes('assert_criterion'), false);
+  assert.equal(scopes.executor.includes('inspect_network'), false);
+  assert.equal(scopes.reproducer.includes('complete_reproduction'), false);
+  assert.equal(scopes.reproducer.includes('type_text'), true);
   assert.equal(scopes.explorer.includes('assert_criterion'), false);
   const assertion = renderAssertionPrompt();
   assert.match(assertion.text, /criterionId/);
