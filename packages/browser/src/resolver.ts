@@ -5,7 +5,11 @@ import type {
   SnapshotNode,
 } from '@localqa/contracts';
 import { STABLE_REASON_CODES, type StableReasonCode } from './types.js';
-import { isSameOriginOwnedFrame, snapshotFrameUnchanged } from './snapshot.js';
+import {
+  isSameOriginOwnedFrame,
+  snapshotFrameUnchanged,
+  snapshotTargetUnchanged,
+} from './snapshot.js';
 
 export interface ResolveTargetSuccess {
   status: 'resolved';
@@ -25,16 +29,27 @@ export interface ResolveTargetFailure {
 
 export type ResolveTargetResult = ResolveTargetSuccess | ResolveTargetFailure;
 
+export interface ResolveTargetOptions {
+  allowHiddenForWait?: boolean;
+}
+
 /**
  * Resolves a NodeTarget on the active Playwright page.
  * Enforces stability hierarchy: test_id -> role+name -> label -> unique text.
  * Performs pre-action validation: Freshness, Uniqueness, Visibility, Operability, Semantics.
+ *
+ * The DOM witness is document-wide, but an unrelated page change (title,
+ * loading overlay, another field's validation, our own previous action
+ * elsewhere) does not invalidate the *approved element*. When the document
+ * changed, the element is still acted on only if its own attributes, content
+ * and position among siblings were provably untouched since the snapshot.
+ * A replaced, removed, ambiguous or hidden element is still rejected.
  */
 export async function resolveTarget(
   page: Page,
   target: NodeTarget,
   currentSnapshot: BrowserSnapshot,
-  options: { allowHiddenForWait?: boolean } = {},
+  options: ResolveTargetOptions = {},
 ): Promise<ResolveTargetResult> {
   // 1. Page ID Check: target.pageId must match currentSnapshot.pageId
   if (
@@ -49,7 +64,9 @@ export async function resolveTarget(
     };
   }
 
-  // 2. Freshness Check: Snapshot ID must match current active snapshot
+  // 2. Freshness Check: Snapshot ID must match current active snapshot.
+  // The browser layer does not retain older snapshots, so it cannot prove
+  // that a node id from an older observation still names the same element.
   if (target.snapshotId !== currentSnapshot.snapshotId) {
     return {
       status: 'rejected',
@@ -73,39 +90,33 @@ export async function resolveTarget(
   }
 
   // 3. Locate Target Frame
-  let frame: Frame = page.mainFrame();
-  if (node.frameId !== 'main') {
-    const foundFrame = page
-      .frames()
-      .find(
-        (f, idx) =>
-          `frame-${idx}-${f.name() || 'subframe'}`.slice(0, 120) ===
-          node.frameId,
-      );
-    if (!foundFrame) {
-      return {
-        status: 'rejected',
-        reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
-        message: `Target frame '${node.frameId}' not accessible or detached.`,
-      };
-    }
-    frame = foundFrame;
-    if (!isSameOriginOwnedFrame(frame, page.mainFrame()))
-      return {
-        status: 'rejected',
-        reasonCode: STABLE_REASON_CODES.TARGET_NOT_ALLOWED,
-        message: 'Target frame origin differs from the approved main page.',
-      };
-  }
+  const located = locateOwnedFrame(page, node);
+  if (located.status === 'rejected') return located;
+  const frame = located.frame;
 
+  // 4-7. Bind the unique owned element and validate visibility/operability.
+  const bound = await bindUniqueTarget(node, frame, options);
+  if (bound.status === 'rejected') return bound;
+
+  // 8. Freshness of the bound element. The document may have changed for
+  // reasons unrelated to this target; the action is still refused when the
+  // approved element itself (or its position) was touched.
   if (
     !(await snapshotFrameUnchanged(
       page,
       currentSnapshot.snapshotId,
       node.frameId,
       frame,
+    )) &&
+    !(await snapshotTargetUnchanged(
+      page,
+      currentSnapshot.snapshotId,
+      node.frameId,
+      frame,
+      bound.elementHandle,
     ))
   ) {
+    await bound.elementHandle.dispose().catch(() => undefined);
     return {
       status: 'rejected',
       reasonCode: STABLE_REASON_CODES.VERSION_CONFLICT,
@@ -114,7 +125,60 @@ export async function resolveTarget(
     };
   }
 
-  // 4. Construct Candidate Locators in Priority Order
+  return {
+    status: 'resolved',
+    locator: bound.locator,
+    elementHandle: bound.elementHandle,
+    node,
+    frame,
+  };
+}
+
+function locateOwnedFrame(
+  page: Page,
+  node: SnapshotNode,
+): { status: 'located'; frame: Frame } | ResolveTargetFailure {
+  if (node.frameId === 'main')
+    return { status: 'located', frame: page.mainFrame() };
+  const foundFrame = page
+    .frames()
+    .find(
+      (f, idx) =>
+        `frame-${idx}-${f.name() || 'subframe'}`.slice(0, 120) === node.frameId,
+    );
+  if (!foundFrame) {
+    return {
+      status: 'rejected',
+      reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
+      message: `Target frame '${node.frameId}' not accessible or detached.`,
+    };
+  }
+  if (!isSameOriginOwnedFrame(foundFrame, page.mainFrame()))
+    return {
+      status: 'rejected',
+      reasonCode: STABLE_REASON_CODES.TARGET_NOT_ALLOWED,
+      message: 'Target frame origin differs from the approved main page.',
+    };
+  return { status: 'located', frame: foundFrame };
+}
+
+/**
+ * Builds the stable candidate locators for the approved node, requires a
+ * unique match, and checks visibility/operability. Returns the pinned element
+ * handle so no later locator resolution can auto-rebind to another element.
+ */
+async function bindUniqueTarget(
+  node: SnapshotNode,
+  frame: Frame,
+  options: ResolveTargetOptions,
+): Promise<
+  | {
+      status: 'bound';
+      locator: Locator;
+      elementHandle: ElementHandle<SVGElement | HTMLElement>;
+    }
+  | ResolveTargetFailure
+> {
   const candidateLocators: Array<{ strategy: string; locator: Locator }> = [];
 
   // Priority 1: test_id contract
@@ -312,26 +376,5 @@ export async function resolveTarget(
       reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
       message: 'Approved element detached while binding its identity.',
     };
-  if (
-    !(await snapshotFrameUnchanged(
-      page,
-      currentSnapshot.snapshotId,
-      node.frameId,
-      frame,
-    ))
-  ) {
-    await elementHandle.dispose().catch(() => undefined);
-    return {
-      status: 'rejected',
-      reasonCode: STABLE_REASON_CODES.VERSION_CONFLICT,
-      message: 'The DOM changed while binding the approved element.',
-    };
-  }
-  return {
-    status: 'resolved',
-    locator: bestLocator,
-    elementHandle,
-    node,
-    frame,
-  };
+  return { status: 'bound', locator: bestLocator, elementHandle };
 }

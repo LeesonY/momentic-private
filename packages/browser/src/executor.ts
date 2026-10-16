@@ -437,20 +437,31 @@ export class ToolExecutor {
             );
           }
 
+          // Track the click's own mutating request *before* dispatch so its
+          // response is not missed, then wait a bounded moment for the app to
+          // render the result (toast/alert/inline error) into the returned
+          // observation. A click with no such request returns after a short
+          // grace period.
+          const settle = ctx.waiter.beginNetworkSettle(targetPage);
           try {
-            // Detect inert repeats before dispatch. Previously the third
-            // click happened but was reported failed after the fact.
-            if (ctx.currentSnapshot)
-              ctx.waiter.assertActionPermitted(
-                'click',
-                target.nodeId,
-                ctx.waiter.computeFingerprint(ctx.currentSnapshot),
-              );
-            if (ctx.signal?.aborted)
-              throw new Error(STABLE_REASON_CODES.USER_CANCELLED);
-            await resolved.elementHandle.click({ timeout: 15000 });
+            try {
+              // Detect inert repeats before dispatch. Previously the third
+              // click happened but was reported failed after the fact.
+              if (ctx.currentSnapshot)
+                ctx.waiter.assertActionPermitted(
+                  'click',
+                  target.nodeId,
+                  ctx.waiter.computeFingerprint(ctx.currentSnapshot),
+                );
+              if (ctx.signal?.aborted)
+                throw new Error(STABLE_REASON_CODES.USER_CANCELLED);
+              await resolved.elementHandle.click({ timeout: 15000 });
+            } finally {
+              await resolved.elementHandle.dispose().catch(() => undefined);
+            }
+            if (!ctx.signal?.aborted) await settle.settle(ctx.signal);
           } finally {
-            await resolved.elementHandle.dispose().catch(() => undefined);
+            settle.stop();
           }
 
           const snapshot = await captureBrowserSnapshot(targetPage, {

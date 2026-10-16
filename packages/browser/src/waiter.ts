@@ -1,4 +1,4 @@
-import type { Page, Response } from 'playwright';
+import type { Page, Response, Request } from 'playwright';
 import { createHash } from 'node:crypto';
 import type { BrowserSnapshot, NodeTarget } from '@localqa/contracts';
 import { STABLE_REASON_CODES } from './types.js';
@@ -111,6 +111,63 @@ export class WaitAndRecoveryManager {
       await page.waitForSelector(readySelector, { state: 'visible', timeout });
       return;
     }
+  }
+
+  /**
+   * Starts tracking non-idempotent requests so a click's response can be
+   * awaited. Must be called before dispatching the click; otherwise a request
+   * issued synchronously by the click handler is missed.
+   */
+  public beginNetworkSettle(
+    page: Page,
+    options: {
+      graceMs?: number | undefined;
+      quietMs?: number | undefined;
+      maxMs?: number | undefined;
+    } = {},
+  ): { settle: (signal?: AbortSignal) => Promise<void>; stop: () => void } {
+    const graceMs = options.graceMs ?? 250;
+    const quietMs = options.quietMs ?? 250;
+    const maxMs = options.maxMs ?? 2500;
+    let pending: Promise<unknown> | null = null;
+    const onRequest = (request: Request) => {
+      if (['GET', 'HEAD', 'OPTIONS'].includes(request.method().toUpperCase()))
+        return;
+      // Resolves with the response (or null on a network failure).
+      pending ??= request.response().catch(() => null);
+    };
+    page.on('request', onRequest);
+    let stopped = false;
+    const stop = () => {
+      if (stopped) return;
+      stopped = true;
+      page.off('request', onRequest);
+    };
+    return {
+      stop,
+      settle: async (signal?: AbortSignal) => {
+        try {
+          // A click that triggers a mutating request renders its result
+          // (toast, inline error, redirect) a moment after the response.
+          // Wait for that response plus a short quiet period so the returned
+          // observation can carry it; a click with no such request returns
+          // after a short grace. This never blocks an action indefinitely
+          // and never treats absence of a response as a failure.
+          await new Promise((resolve) => setTimeout(resolve, graceMs));
+          if (!pending || signal?.aborted) return;
+          await Promise.race([
+            pending,
+            new Promise((resolve) =>
+              setTimeout(resolve, Math.max(0, maxMs - graceMs)),
+            ),
+          ]);
+          if (signal?.aborted) return;
+          await new Promise((resolve) => setTimeout(resolve, quietMs));
+        } finally {
+          stop();
+        }
+      },
+    };
   }
 
   /**

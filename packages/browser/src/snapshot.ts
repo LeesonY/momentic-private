@@ -1,4 +1,4 @@
-import type { Page, Frame, JSHandle } from 'playwright';
+import type { Page, Frame, JSHandle, ElementHandle } from 'playwright';
 import { randomUUID } from 'node:crypto';
 import type { BrowserSnapshot, SnapshotNode } from '@localqa/contracts';
 import { validateContract } from '@localqa/contracts';
@@ -15,7 +15,11 @@ export interface SnapshotOptions {
 
 type DomWitness = {
   frame: Frame;
-  handle: JSHandle<{ changed: () => boolean; stop: () => void }>;
+  handle: JSHandle<{
+    changed: () => boolean;
+    targetUnchanged: (element: unknown) => boolean;
+    stop: () => void;
+  }>;
 };
 // Process-local only: never persisted, serialized into model messages or
 // exposed to page JS. Old handles invalidate on frame document navigation.
@@ -47,20 +51,97 @@ export async function snapshotFrameUnchanged(
   }
 }
 
+/**
+ * True when the approved element and its own content were left untouched by
+ * every DOM change observed since the snapshot, even though the document as a
+ * whole changed. Unrelated page churn (title, loading overlays, another
+ * field's validation, our own previous action elsewhere) does not invalidate
+ * the model's observation of this element, while a remount, replacement or
+ * content change still does. A missing/evicted witness fails closed.
+ */
+export async function snapshotTargetUnchanged(
+  page: Page,
+  snapshotId: string,
+  frameId: string,
+  frame: Frame,
+  element: ElementHandle<SVGElement | HTMLElement>,
+): Promise<boolean> {
+  const record = pageWitnesses.get(page)?.get(snapshotId)?.get(frameId);
+  if (!record || record.frame !== frame) return false;
+  try {
+    return await record.handle.evaluate(
+      (w, target) => w.targetUnchanged(target),
+      element,
+    );
+  } catch {
+    // Detached frame, destroyed execution context or disposed observer.
+    return false;
+  }
+}
+
 async function newDomWitness(frame: Frame): Promise<DomWitness> {
   const handle = await frame.evaluateHandle(() => {
-    let changed = false;
-    const observer = new MutationObserver(() => {
-      changed = true;
-    });
+    const MAX_RECORDS = 2000;
+    const records: MutationRecord[] = [];
+    let saturated = false;
+    const retain = (mutations: MutationRecord[]) => {
+      for (const record of mutations) records.push(record);
+      if (records.length > MAX_RECORDS) {
+        // Older evidence was dropped, so "this element was untouched" can no
+        // longer be proven. Fail closed for the target-scoped check.
+        saturated = true;
+        records.splice(0, records.length - MAX_RECORDS);
+      }
+    };
+    const observer = new MutationObserver(retain);
     observer.observe(document, {
       subtree: true,
       childList: true,
       attributes: true,
       characterData: true,
     });
+    const drain = () => {
+      // The callback and takeRecords() are the two delivery paths; retain
+      // both so a delivered record is never dropped.
+      retain(observer.takeRecords());
+    };
+    const contains = (element: Node, target: Node): boolean =>
+      target === element || element.contains(target);
     return {
-      changed: () => changed || observer.takeRecords().length > 0,
+      changed: () => {
+        drain();
+        return records.length > 0;
+      },
+      targetUnchanged: (element: unknown) => {
+        drain();
+        if (saturated) return false;
+        if (!element || !(element as Node).isConnected) return false;
+        const target = element as Node;
+        const parent = target.parentNode;
+        for (const record of records) {
+          if (record.type === 'childList') {
+            // Children of the target, the target's own position among
+            // siblings, or any descendant structure changed.
+            if (
+              record.target === target ||
+              (parent !== null && record.target === parent) ||
+              target.contains(record.target)
+            )
+              return false;
+            // The target itself was inserted or removed as part of a larger
+            // subtree replacement (SPA route change, remount). A locator can
+            // rebind to the new element; it is not the approved one.
+            for (const node of record.addedNodes)
+              if (node === target || node.contains(target)) return false;
+            for (const node of record.removedNodes)
+              if (node === target || node.contains(target)) return false;
+          } else if (contains(target, record.target)) {
+            // The target's own attributes or text content changed.
+            return false;
+          }
+        }
+        return true;
+      },
       stop: () => observer.disconnect(),
     };
   });
@@ -198,7 +279,11 @@ export async function captureBrowserSnapshot(
     screenshotRef: options.screenshotRef || null,
     networkSummary: summaries.networkSummary.slice(0, 100),
     consoleSummary: summaries.consoleSummary.slice(0, 50),
-    truncated: isTruncated || summaries.truncated,
+    // Only a clipped node observation counts as truncated. Capped
+    // network/console *summaries* must not mark a complete DOM as incomplete:
+    // consumers use this flag to decide whether the observed page can prove
+    // an element's absence and whether the sign-in page really came back.
+    truncated: isTruncated,
     redacted: true,
   };
 
