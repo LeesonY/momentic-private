@@ -534,10 +534,12 @@ export class MockApiClient implements ApiClient {
       mode: input.mode,
       allowedOrigins: input.allowedOrigins,
       sharingPolicy: input.sharingPolicy || 'exclusive_run',
-      hasSecret: false,
+      hasSecret: input.secretInput !== undefined,
       version: 1,
       status: 'active',
       formConfig: input.formConfig || null,
+      ...(input.agentConfig ? { agentConfig: input.agentConfig } : {}),
+      ...(input.storageCriterion ? { storageCriterion: input.storageCriterion } : {}),
     };
     this.authProfiles.push(newProf);
     return newProf;
@@ -549,7 +551,30 @@ export class MockApiClient implements ApiClient {
   ): Promise<AuthProfile> {
     const found = this.authProfiles.find((a) => a.id === authProfileId);
     if (!found) throw new Error('认证凭据配置未找到');
-    return { ...found, ...input };
+    const { expectedVersion, secretInput, revoke, ...patch } = parseContract(
+      'AuthProfilePatch',
+      input,
+    );
+    if (found.version !== expectedVersion)
+      throw Object.assign(new Error('VERSION_CONFLICT'), {
+        code: 'VERSION_CONFLICT',
+        status: 409,
+      });
+    if (secretInput !== undefined && found.status !== 'active')
+      throw new Error('认证配置已撤销');
+    // Only public configuration survives the request. Never spread secretInput
+    // into a profile or keep a separate mock credential store.
+    const updated: AuthProfile = {
+      ...found,
+      ...patch,
+      version: found.version + 1,
+      status: revoke ? 'revoked' : found.status,
+      hasSecret: secretInput !== undefined || found.hasSecret,
+    };
+    this.authProfiles = this.authProfiles.map((profile) =>
+      profile.id === authProfileId ? updated : profile,
+    );
+    return updated;
   }
 
   public async listKnowledge(
