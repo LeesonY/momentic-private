@@ -173,6 +173,12 @@ export class BrowserSessionImpl implements BrowserSession {
           signal: combinedController.signal,
         });
         this.currentSnapshot = snapshot;
+        // The task continues in its login browser. Known auth values remain
+        // private even if the application echoes them on a later page.
+        if (result.data === (snapshot as unknown as ToolResult['data']))
+          result.data = this.redactAuthenticationSnapshot(
+            snapshot,
+          ) as unknown as ToolResult['data'];
         this.stateVersion = snapshot.stateVersion;
         if (mutating)
           this.recorder.recordActionAudit({
@@ -225,8 +231,45 @@ export class BrowserSessionImpl implements BrowserSession {
           recorder: this.recorder,
         });
       }
-      return this.currentSnapshot;
+      return this.redactAuthenticationSnapshot(this.currentSnapshot);
     });
+  }
+
+  /** Trusted Worker lifecycle only; not a model/browser tool. */
+  public beginPrivateAuthentication(): void {
+    this.recorder.beginPrivateAuthentication();
+  }
+
+  public endPrivateAuthentication(): void {
+    this.recorder.endPrivateAuthentication();
+  }
+
+  public rememberAuthenticationValue(value: string): void {
+    this.recorder.rememberAuthenticationValue(value);
+  }
+
+  private redactAuthenticationSnapshot(
+    snapshot: BrowserSnapshot,
+  ): BrowserSnapshot {
+    const text = (value: string) =>
+      this.recorder.redactAuthenticationText(value);
+    return {
+      ...snapshot,
+      displayUrl: text(snapshot.displayUrl),
+      title: text(snapshot.title),
+      nodes: snapshot.nodes.map((node) => ({
+        ...node,
+        role: text(node.role),
+        name: text(node.name),
+        text: text(node.text),
+      })),
+      consoleSummary: snapshot.consoleSummary.map(text),
+      networkSummary: snapshot.networkSummary.map((entry) => ({
+        ...entry,
+        url: text(entry.url),
+        summary: text(entry.summary),
+      })),
+    };
   }
 
   public async captureScreenshot(options?: {
@@ -256,6 +299,8 @@ export class BrowserSessionImpl implements BrowserSession {
       await this.context.close();
     } catch {
       // Ignore
+    } finally {
+      this.recorder.clearAuthenticationValues();
     }
   }
 

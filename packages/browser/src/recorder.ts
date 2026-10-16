@@ -24,6 +24,41 @@ export class SessionRecorder {
 
   private consoleLogs: string[] = [];
   private networkEntries: NetworkEntry[] = [];
+  private privateAuthentication = false;
+  private readonly sensitiveValues: string[] = [];
+
+  /** Login diagnostics must never survive into a task's later observations. */
+  public beginPrivateAuthentication(): void {
+    this.privateAuthentication = true;
+    this.consoleLogs = [];
+    this.networkEntries = [];
+  }
+
+  public endPrivateAuthentication(): void {
+    this.consoleLogs = [];
+    this.networkEntries = [];
+    this.privateAuthentication = false;
+  }
+
+  /** Trusted auth material only, retained privately for this browser's lifetime. */
+  public rememberAuthenticationValue(value: string): void {
+    if (value && !this.sensitiveValues.includes(value))
+      this.sensitiveValues.push(value);
+  }
+
+  public clearAuthenticationValues(): void {
+    this.sensitiveValues.length = 0;
+  }
+
+  public redactAuthenticationText(text: string): string {
+    let result = text;
+    for (const value of this.sensitiveValues) {
+      result = result.split(value).join('•');
+      const encoded = encodeURIComponent(value);
+      if (encoded !== value) result = result.split(encoded).join('%E2%80%A2');
+    }
+    return result;
+  }
 
   private isTracing = false;
   private traceDegraded = false;
@@ -155,8 +190,9 @@ export class SessionRecorder {
    */
   public attachToPage(page: Page): void {
     page.on('console', (msg) => {
+      if (this.privateAuthentication) return;
       try {
-        const text = sanitizeText(msg.text());
+        const text = sanitizeText(this.redactAuthenticationText(msg.text()));
         const entry = `[${msg.type()}] ${text}`;
         if (this.consoleLogs.length >= this.maxConsoleBuffer) {
           this.consoleLogs.shift();
@@ -171,8 +207,9 @@ export class SessionRecorder {
     });
 
     page.on('pageerror', (err) => {
+      if (this.privateAuthentication) return;
       try {
-        const entry = `[error] ${sanitizeText(err.message || String(err))}`;
+        const entry = `[error] ${sanitizeText(this.redactAuthenticationText(err.message || String(err)))}`;
         if (this.consoleLogs.length >= this.maxConsoleBuffer) {
           this.consoleLogs.shift();
           this.recordDegradation(
@@ -186,9 +223,11 @@ export class SessionRecorder {
     });
 
     page.on('request', (req: Request) => {
+      if (this.privateAuthentication) return;
       try {
-        const sanitizedUrl = sanitizeUrl(req.url());
-
+        const sanitizedUrl = sanitizeUrl(
+          this.redactAuthenticationText(req.url()),
+        );
         // Record request entry
         this.appendNetworkEntry({
           url: sanitizedUrl.slice(0, 8192),
@@ -203,8 +242,11 @@ export class SessionRecorder {
     });
 
     page.on('response', (res: Response) => {
+      if (this.privateAuthentication) return;
       try {
-        const sanitizedUrl = sanitizeUrl(res.url());
+        const sanitizedUrl = sanitizeUrl(
+          this.redactAuthenticationText(res.url()),
+        );
         this.appendNetworkEntry({
           url: sanitizedUrl.slice(0, 8192),
           method: res.request().method().slice(0, 20),
@@ -222,15 +264,21 @@ export class SessionRecorder {
     });
 
     page.on('requestfailed', (req: Request) => {
+      if (this.privateAuthentication) return;
       try {
-        const sanitizedUrl = sanitizeUrl(req.url());
+        const sanitizedUrl = sanitizeUrl(
+          this.redactAuthenticationText(req.url()),
+        );
+        const failure = this.redactAuthenticationText(
+          req.failure()?.errorText || 'Unknown',
+        );
         this.appendNetworkEntry({
           url: sanitizedUrl.slice(0, 8192),
           method: req.method().slice(0, 20),
           status: null,
           resourceType: req.resourceType().slice(0, 40),
           summary:
-            `[FAILED] ${req.method()} ${sanitizedUrl} - ${req.failure()?.errorText || 'Unknown'}`.slice(
+            `[FAILED] ${req.method()} ${sanitizedUrl} - ${failure}`.slice(
               0,
               1000,
             ),
@@ -242,6 +290,11 @@ export class SessionRecorder {
   }
 
   private appendNetworkEntry(entry: NetworkEntry): void {
+    entry = {
+      ...entry,
+      url: this.redactAuthenticationText(entry.url),
+      summary: this.redactAuthenticationText(entry.summary),
+    };
     if (this.networkEntries.length >= this.maxNetworkBuffer) {
       this.networkEntries.shift();
       this.recordDegradation('Network buffer limit reached (1000 entries max)');

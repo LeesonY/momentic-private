@@ -1,4 +1,5 @@
 import type { NodeTarget, BrowserSnapshot } from '@localqa/contracts';
+import type { Route } from 'playwright';
 import type { TrustedAuthPrimitives } from './private-auth.js';
 import type { ApprovedAuthState } from './types.js';
 import { AuthStateError, validateApprovedAuthState } from './auth-state.js';
@@ -64,8 +65,9 @@ export function createTrustedBrowserAuthPrimitives(
     }
   }
 
+  let closed = false;
   function checkActive(): void {
-    if (session.isClosed || page.isClosed()) {
+    if (closed || session.isClosed || page.isClosed()) {
       throw new AuthStateError('VALIDATION_ERROR');
     }
   }
@@ -75,8 +77,9 @@ export function createTrustedBrowserAuthPrimitives(
     checkUrl(page.url());
   }
 
-  const routeReady = context.route('**/*', async (route) => {
+  const authRoute = async (route: Route) => {
     try {
+      checkActive();
       checkUrl(route.request().url());
       // Never follow a Location in the request client: that would bypass this
       // handler. Chromium follows fulfilled redirects as a new intercepted
@@ -97,7 +100,8 @@ export function createTrustedBrowserAuthPrimitives(
     } catch {
       await route.abort('blockedbyclient').catch(() => {});
     }
-  });
+  };
+  const routeReady = context.route('**/*', authRoute);
 
   async function fresh(): Promise<BrowserSnapshot> {
     checkPage();
@@ -122,6 +126,12 @@ export function createTrustedBrowserAuthPrimitives(
 
   let prepared = false;
   return {
+    async close() {
+      closed = true;
+      await routeReady;
+      // Remove only this private guard, not the task's other network policies.
+      await context.unroute('**/*', authRoute);
+    },
     async navigate(url) {
       checkActive();
       checkUrl(url);

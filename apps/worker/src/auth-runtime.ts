@@ -79,6 +79,8 @@ export interface AuthFlowServices {
     state: ApprovedAuthState,
   ): Promise<AuthCaptureReceipt>;
   finishAuth?(stateRef: string): Promise<void>;
+  /** End the verified sign-in of one task, without state capture or job finish. */
+  finishSignIn?(): Promise<void>;
 }
 
 export interface AuthRuntimeOptions {
@@ -387,6 +389,14 @@ export function createAuthRuntimeBridge(
       const service = requireService('captureAuthState');
       try {
         return await service(grant, state);
+      } catch (error) {
+        throw mapped(error, 'AUTH_FAILED');
+      }
+    },
+    async finishSignIn() {
+      const service = requireService('finishSignIn');
+      try {
+        await service();
       } catch (error) {
         throw mapped(error, 'AUTH_FAILED');
       }

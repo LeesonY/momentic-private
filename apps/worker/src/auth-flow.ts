@@ -98,6 +98,8 @@ export interface AuthFlowRuntime {
     state: ApprovedAuthState,
   ): Promise<AuthCaptureReceipt>;
   finishAuth(stateRef: string): Promise<void>;
+  /** End a verified task-local sign-in without exporting browser state. */
+  finishSignIn?(): Promise<void>;
 }
 
 /**
@@ -199,6 +201,8 @@ export const AGENT_LOGIN_MAX_DECISIONS = 12;
 export interface AuthFlowOptions {
   /** Frozen profile. `mode: 'none'` never touches material or the port. */
   profile: AuthProfile;
+  /** Self sign-in leaves state only in this task's browser, never exports it. */
+  completion?: 'capture_state' | 'task_sign_in';
   /** Active private authority binding (AUTH-5). */
   binding: AuthSessionBinding;
   runtime: AuthFlowRuntime;
@@ -633,9 +637,19 @@ export async function runAuthFlow(
     }
   }
 
-  /** Capture and finish. Every step must succeed for the flow to succeed. */
-  async function captureAndFinish(): Promise<string> {
+  /** Finish in-place for a self sign-in; legacy auth jobs capture and finish. */
+  async function captureAndFinish(): Promise<string | null> {
     check();
+    if (options.completion === 'task_sign_in') {
+      if (!runtime.finishSignIn)
+        throw new Stop('blocked', 'SERVICE_UNAVAILABLE');
+      try {
+        await runtime.finishSignIn();
+      } catch (error) {
+        throw failure(error, 'FINISH_FAILED');
+      }
+      return null;
+    }
     if (requirePort().renewAuthority) {
       try {
         await requirePort().renewAuthority!();
@@ -703,7 +717,7 @@ export async function runAuthFlow(
     return value;
   }
 
-  async function formFlow(): Promise<string> {
+  async function formFlow(): Promise<string | null> {
     const form = options.profile.formConfig;
     if (!form) throw new Stop('blocked', 'FORM_CONFIG_MISSING');
     const ai = form.detectionMode === 'ai';
@@ -886,10 +900,10 @@ export async function runAuthFlow(
   /**
    * Mo-style sign-in: the model reads the instructions, the variable names and
    * the redacted page, and proposes one step at a time. Values are substituted
-   * here, inside the private port; the model never receives them. Success is
-   * the fixed agent oracle, re-evaluated by the server, not the model's claim.
+   * here, inside the private port; the model never receives them. The agent
+   * judges success; the server only binds it to a registered observation.
    */
-  async function agentFlow(): Promise<string> {
+  async function agentFlow(): Promise<string | null> {
     const config = options.profile.agentConfig;
     if (!config) throw new Stop('blocked', 'AGENT_CONFIG_MISSING');
     const driver = options.agent;
@@ -907,11 +921,9 @@ export async function runAuthFlow(
     }
     // Sensitive values are scrubbed from every observation, including the
     // first one after navigation (auto-filled or echoed fields).
-    requirePort().primeSensitiveValues(
-      config.variables
-        .filter((variable) => variable.sensitive)
-        .map((variable) => values.get(variable.name)!),
-    );
+    // Every variable is private, including an account name marked non-sensitive.
+    const privateValues = [...values.values()];
+    requirePort().primeSensitiveValues(privateValues);
     requireSnapshot(
       await perform('navigate_auth', 'login_url', { kind: 'navigate' }),
     );
@@ -970,6 +982,7 @@ export async function runAuthFlow(
       } catch (error) {
         throw failure(error, 'AGENT_DECISION_FAILED');
       }
+      check();
       issue = null;
       if (decision.kind === 'invalid') {
         issue = decision.issue;
@@ -988,11 +1001,12 @@ export async function runAuthFlow(
             snapshotTruncated: current.truncated,
           }),
         );
-        throw new Stop(
-          'blocked',
-          'AGENT_LOGIN_BLOCKED',
-          decision.reason ?? null,
-        );
+        let detail = decision.reason ?? '';
+        for (const value of privateValues) {
+          detail = detail.split(value).join('•');
+          detail = detail.split(encodeURIComponent(value)).join('•');
+        }
+        throw new Stop('blocked', 'AGENT_LOGIN_BLOCKED', detail || null);
       }
       if (decision.kind === 'wait') {
         history.push({ action: 'wait' });
@@ -1093,6 +1107,7 @@ export async function runAuthFlow(
         if (typeof code !== 'string' || code.length === 0) {
           throw new Stop('blocked', 'OTP_UNAVAILABLE');
         }
+        privateValues.push(code);
         current = requireSnapshot(
           await perform(
             'fill_credential',
@@ -1108,7 +1123,7 @@ export async function runAuthFlow(
     throw new Stop('blocked', 'AGENT_STEP_LIMIT');
   }
 
-  async function storageFlow(): Promise<string> {
+  async function storageFlow(): Promise<string | null> {
     const value = await material();
     // resolveAuth ships `{storageState: "<json>"}`; that exact key is the only
     // accepted source, and the private port validates the raw shape.
@@ -1156,7 +1171,8 @@ export async function runAuthFlow(
     const stop = failure(error, 'AUTH_FLOW_ERROR');
     return finish(stop.status, stop.code, null, stop.detail);
   } finally {
-    // The session is discarded on every path; material is never reused after.
+    // The private authority ends on every path; task-local browser state stays
+    // in its context, with known values redacted for the rest of that task.
     try {
       await port?.close();
     } catch {

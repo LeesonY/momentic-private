@@ -684,7 +684,11 @@ test('construction refuses an incomplete client, proof, or inactive binding', as
   refuse({ client, proof, binding: { ...binding, sessionId: '' }, services });
   const built = createAuthRuntimeBridge({ client, proof, binding, services });
   assert.deepEqual(Object.keys(built).sort(), ['gate', 'runtime']);
-  assert.equal(Object.keys(built.runtime).length, 9);
+  assert.equal(Object.keys(built.runtime).length, 10);
+  await assert.rejects(
+    built.runtime.finishSignIn(),
+    (error) => error.code === 'SERVICE_UNAVAILABLE',
+  );
 });
 
 test('service methods keep their receiver and a throwing accessor is contained', async () => {

@@ -417,6 +417,47 @@ async function assertClosed(port) {
   );
 }
 
+test('task-local sign-in verifies once and never captures or imports run state', async () => {
+  const { port, browser } = newPort();
+  const { value, runtime } = options({ port });
+  let ended = 0;
+  runtime.runtime.finishSignIn = async () => {
+    ended++;
+  };
+  const outcome = await runAuthFlow(
+    { ...value, completion: 'task_sign_in' },
+    new AbortController().signal,
+  );
+  assert.equal(outcome.status, 'succeeded');
+  assert.equal(outcome.stateRef, null);
+  assert.equal(ended, 1);
+  assert.equal(runtime.log.criteria.length, 1);
+  assert.equal(runtime.log.captureGrants, 0);
+  assert.deepEqual(runtime.log.captures, []);
+  assert.deepEqual(runtime.log.finishes, []);
+  assert.ok(!browser.calls.some((call) => call.kind === 'export_state'));
+});
+
+test('task-local sign-in cannot skip a missing or rejected success ending', async () => {
+  for (const finishSignIn of [
+    undefined,
+    async () => {
+      throw { code: 'AUTH_FAILED' };
+    },
+  ]) {
+    const { port } = newPort();
+    const { value, runtime } = options({ port });
+    runtime.runtime.finishSignIn = finishSignIn;
+    const outcome = await runAuthFlow(
+      { ...value, completion: 'task_sign_in' },
+      new AbortController().signal,
+    );
+    assert.equal(outcome.status, 'blocked');
+    assert.equal(outcome.stateRef, null);
+    assert.equal(runtime.log.captureGrants, 0);
+  }
+});
+
 test('form flow runs the fixed order once through the fake runtime', async () => {
   const { port, browser, gateLog } = newPort();
   const { value, runtime, adapter } = options({ port });

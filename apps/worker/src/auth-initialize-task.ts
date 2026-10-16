@@ -1,4 +1,4 @@
-import type { AuthProfile } from '@localqa/contracts';
+import { isErrorCode, type AuthProfile } from '@localqa/contracts';
 import {
   BrowserManager,
   BrowserSessionImpl,
@@ -6,7 +6,10 @@ import {
   createTrustedBrowserAuthPrimitives,
   resolveTarget,
 } from '@localqa/browser';
-import type { AuthSessionBinding } from '@localqa/browser';
+import type {
+  AuthSessionBinding,
+  TrustedAuthPrimitives,
+} from '@localqa/browser';
 import { authCriterionFor } from '@localqa/domain';
 import type { RuntimeClient } from '@localqa/orchestrator';
 import type { LeaseProof } from '@localqa/storage';
@@ -25,6 +28,15 @@ const blocked: AuthFlowOutcome = Object.freeze({
   steps: [],
   stateRef: null,
 });
+
+function codeOf(error: unknown): string | null {
+  try {
+    const code = (error as { code?: unknown } | null)?.code;
+    return isErrorCode(code) ? code : null;
+  } catch {
+    return null;
+  }
+}
 
 const same = (allocated: AuthSessionBinding, active: AuthSessionBinding) =>
   allocated.status === 'allocated' &&
@@ -50,12 +62,12 @@ const same = (allocated: AuthSessionBinding, active: AuthSessionBinding) =>
   Date.parse(active.expiresAt) > Date.now();
 
 /**
- * Run the production, server-authorized authentication in an owned Chromium
- * context. Form and storage-state profiles are fixed adapters; agent profiles
- * let the auth-job model propose steps over redacted observations. Neither is a
- * model tool, and credential material, private tickets or imported state never
- * reach ordinary task output or the model.
- * finishAuth performs the *only* successful auth-job settlement in PostgreSQL.
+ * Run production, server-authorized authentication in an isolated Chromium
+ * context, either created here or supplied by the task. Form and storage-state
+ * profiles are fixed adapters; agent profiles propose steps over redacted
+ * observations. Credentials, private tickets and browser state never reach
+ * ordinary task output or the model. finishAuth settles legacy auth jobs;
+ * signed_in ends only the private authority of a task-local login.
  */
 export async function initializeBrowserAuthentication(
   options: {
@@ -66,6 +78,14 @@ export async function initializeBrowserAuthentication(
     projectId: string;
     runId: string;
     tlsPolicy?: 'strict' | 'allow_self_signed';
+    /**
+     * Mo-style self sign-in: the task's own, already opened browser. The
+     * sign-in happens in it and it stays open for the task's work; only the
+     * private port and the server session end here. No state is captured.
+     */
+    session?: BrowserSessionImpl;
+    /** The leased role whose model binding and budget the sign-in uses. */
+    role?: 'executor' | 'reproducer';
   },
   signal: AbortSignal,
 ): Promise<AuthFlowOutcome> {
@@ -87,9 +107,26 @@ export async function initializeBrowserAuthentication(
   let binding: AuthSessionBinding | undefined;
   let session: BrowserSessionImpl | undefined;
   let port: ReturnType<typeof createPrivateAuthPort> | undefined;
+  let primitives: TrustedAuthPrimitives | undefined;
   let finished = false;
+  let outcome = blocked;
+  let cleanupFailed = false;
+  const own = options.session;
+  /** Self sign-in only: ended with the server's success verification. */
+  let signedIn = false;
   try {
-    const allocated = await runtime.allocateAuthSession(proof);
+    let allocated: AuthSessionBinding;
+    try {
+      allocated = await runtime.allocateAuthSession(proof);
+    } catch (error) {
+      if (own && codeOf(error) === 'RATE_LIMITED')
+        return {
+          ...blocked,
+          reasonCode: 'RATE_LIMITED',
+          detail: '账号被同一运行或其他运行的任务占用，本条用例未执行。',
+        };
+      throw error;
+    }
     binding = allocated;
     if (
       allocated.taskId !== proof.taskId ||
@@ -109,28 +146,45 @@ export async function initializeBrowserAuthentication(
       proof,
       allocated.sessionId,
     );
-    if (!activationTicket || signal.aborted) return blocked;
+    if (signal.aborted)
+      return { ...blocked, status: 'cancelled', reasonCode: 'CANCELLED' };
+    if (!activationTicket) return blocked;
     const active = await runtime.activateAuthSession(
       proof,
       allocated.sessionId,
       activationTicket,
     );
-    if (!same(allocated, active) || signal.aborted) return blocked;
-    const created = await options.browser.createSession({
-      sessionId: active.contextId,
-      projectId: active.projectId,
-      runId: active.runId,
-      taskId: active.taskId,
-      allowedOrigins: profile.allowedOrigins,
-      tlsPolicy: options.tlsPolicy ?? 'strict',
-      mode: 'non_submitting',
-      enableTrace: false,
-    });
+    if (signal.aborted)
+      return { ...blocked, status: 'cancelled', reasonCode: 'CANCELLED' };
+    if (!same(allocated, active)) return blocked;
+    if (own) {
+      // The server session is bound to this exact task browser context.
+      if (
+        own.isClosed ||
+        own.id !== active.contextId ||
+        own.taskId !== active.taskId
+      )
+        return blocked;
+      session = own;
+    }
+    const created =
+      own ??
+      (await options.browser.createSession({
+        sessionId: active.contextId,
+        projectId: active.projectId,
+        runId: active.runId,
+        taskId: active.taskId,
+        allowedOrigins: profile.allowedOrigins,
+        tlsPolicy: options.tlsPolicy ?? 'strict',
+        mode: 'non_submitting',
+        enableTrace: false,
+      }));
     if (!(created instanceof BrowserSessionImpl)) {
       await created.close();
       return blocked;
     }
     session = created;
+    session.beginPrivateAuthentication();
     const services = createAuthServices({
       client: runtime,
       proof,
@@ -155,21 +209,29 @@ export async function initializeBrowserAuthentication(
         throw new Error('CANCELLED');
       },
     });
+    if (own) {
+      services.finishSignIn = async () => {
+        await runtime.endAuthSession(proof, active.sessionId, 'signed_in');
+        signedIn = true;
+      };
+    }
     const { runtime: flowRuntime, gate } = createAuthRuntimeBridge({
       client: runtime,
       proof,
       binding: active,
       services,
     });
+    primitives = createTrustedBrowserAuthPrimitives(
+      session,
+      profile.allowedOrigins,
+    );
     port = createPrivateAuthPort({
       binding: active,
       allowedOrigins: profile.allowedOrigins,
       gate,
       trustedRenewal: () => runtime.authSession(proof, active.sessionId),
-      primitives: createTrustedBrowserAuthPrimitives(
-        session,
-        profile.allowedOrigins,
-      ),
+      onSensitiveValue: (value) => session!.rememberAuthenticationValue(value),
+      primitives,
     });
     const adapters =
       profile.mode === 'form' && profile.formConfig?.detectionMode === 'ai'
@@ -197,22 +259,27 @@ export async function initializeBrowserAuthentication(
         if (
           observed.snapshotId !== target.snapshotId ||
           observed.pageId !== target.pageId
-        ) return false;
-        const resolved = await resolveTarget(session!.getPage(), target, observed);
+        )
+          return false;
+        const resolved = await resolveTarget(
+          session!.getPage(),
+          target,
+          observed,
+        );
         if (resolved.status !== 'resolved') return false;
         await resolved.elementHandle.dispose().catch(() => undefined);
         return !preflightSignal.aborted;
       };
     }
-    // The auth job runs under the executor lease, so agent sign-in uses the
-    // run's frozen executor model binding and its budget.
+    // Login uses this task's frozen model binding and shared run budget.
+    // A reproducer signs in with the reproducer binding, not the executor's.
     const agent =
       profile.mode === 'agent'
         ? createAgentLoginDriver({
             call: (messages, outputSchema, callSignal) =>
               runtime.model(
                 proof,
-                'executor',
+                options.role ?? 'executor',
                 {
                   purpose: 'decide',
                   messages,
@@ -223,8 +290,9 @@ export async function initializeBrowserAuthentication(
               ),
           })
         : undefined;
-    const outcome = await runAuthFlow(
+    outcome = await runAuthFlow(
       {
+        ...(own ? { completion: 'task_sign_in' } : {}),
         profile,
         binding: active,
         runtime: flowRuntime,
@@ -235,20 +303,37 @@ export async function initializeBrowserAuthentication(
       },
       signal,
     );
-    finished = outcome.status === 'succeeded';
-    return outcome;
-  } catch {
-    // No raw exceptions or secrets enter ordinary task results.
-    return signal.aborted
-      ? { ...blocked, status: 'cancelled', reasonCode: 'CANCELLED' }
-      : blocked;
+    finished = outcome.status === 'succeeded' && (!own || signedIn);
+    if (outcome.status === 'succeeded' && !finished) outcome = blocked;
+  } catch (error) {
+    // No raw exceptions or secrets enter ordinary task results. Preserve only
+    // trusted codes so cancellation/budget/lease failures are not downgraded.
+    const code = codeOf(error) ?? 'AUTH_FAILED';
+    outcome =
+      signal.aborted || code === 'CANCELLED' || code === 'USER_CANCELLED'
+        ? { ...blocked, status: 'cancelled', reasonCode: 'CANCELLED' }
+        : { ...blocked, reasonCode: code };
   } finally {
-    await port?.close().catch(() => {});
-    await session?.close().catch(() => {});
+    try {
+      if (port) await port.close();
+      else await primitives?.close?.();
+    } catch {
+      cleanupFailed = true;
+    }
+    session?.endPrivateAuthentication();
+    if (!own) await session?.close().catch(() => {});
     if (binding && !finished) {
       await runtime
-        .endAuthSession(proof, binding.sessionId, 'failed')
+        .endAuthSession(
+          proof,
+          binding.sessionId,
+          signal.aborted || outcome.status === 'cancelled'
+            ? 'cancelled'
+            : 'failed',
+        )
         .catch(() => {});
     }
   }
+  // Never let a task act while a private browser guard could still be held.
+  return cleanupFailed && outcome.status === 'succeeded' ? blocked : outcome;
 }
