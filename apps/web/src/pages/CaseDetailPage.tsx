@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { CaseRecord, Step, CaseAttempt, Run } from '@localqa/contracts';
 import { useAppContext } from '../state/AppContext.tsx';
 import { defaultApiClient } from '../api/index.ts';
+import { readAllPages } from '../api/pagination.ts';
 import { Page } from '../components/layout/Page.tsx';
 import { StatusBadge } from '../components/ui/Badge.tsx';
 import { ErrorCard } from '../components/ui/ErrorCard.tsx';
@@ -36,7 +37,7 @@ export const CaseDetailPage: React.FC = () => {
 
     Promise.all([
       defaultApiClient.getCase(caseId),
-      defaultApiClient.listCaseAttempts(caseId, { limit: 100 }),
+      readAllPages((query) => defaultApiClient.listCaseAttempts(caseId, query)),
       runId
         ? defaultApiClient.getRun(runId).catch(() => null)
         : Promise.resolve(null),
@@ -48,24 +49,24 @@ export const CaseDetailPage: React.FC = () => {
         let loadError: string | null = null;
         if (runId) {
           try {
-            const taskPage = await defaultApiClient.listRunTasks(runId, {
-              limit: 100,
-            });
-            const related = taskPage.items.filter((t) => t.caseId === caseId);
-            const pages = await Promise.all(
+            const tasks = await readAllPages((query) =>
+              defaultApiClient.listRunTasks(runId, query),
+            );
+            const related = tasks.filter((t) => t.caseId === caseId);
+            const stepLists = await Promise.all(
               related.map((t) =>
-                defaultApiClient.listTaskSteps(t.id, { limit: 100 }),
+                readAllPages((query) =>
+                  defaultApiClient.listTaskSteps(t.id, query),
+                ),
               ),
             );
-            matchingSteps = pages
-              .flatMap((page) => page.items)
+            matchingSteps = stepLists
+              .flatMap((steps) => steps)
               .sort((a, b) =>
                 a.taskId === b.taskId
                   ? a.seq - b.seq
                   : a.createdAt.localeCompare(b.createdAt),
               );
-            if (taskPage.nextCursor || pages.some((page) => page.nextCursor))
-              loadError = '步骤过多，当前仅展示已加载部分，剩余步骤尚未核验。';
           } catch (err) {
             loadError = err instanceof Error ? err.message : '步骤加载失败';
           }
@@ -76,7 +77,7 @@ export const CaseDetailPage: React.FC = () => {
         setCaseRecord(c);
         setSteps(matchingSteps);
         setStepError(loadError);
-        setAttempts(att.items);
+        setAttempts(att);
         setRun(r);
       })
       .catch((err) => {

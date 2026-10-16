@@ -26,6 +26,7 @@ import {
   recordMessageRendered,
   type RunMessage,
 } from '../api/index.ts';
+import { readAllPages } from '../api/pagination.ts';
 import { mergeRunEventHistory } from './runEventHistory.ts';
 
 interface RunState {
@@ -99,18 +100,27 @@ export function RunStoreProvider({
     try {
       const [
         runData,
-        caseRes,
-        taskRes,
-        findRes,
+        caseItems,
+        taskItems,
+        findItems,
         repData,
         msgs,
         inputs,
         history,
       ] = await Promise.all([
         defaultApiClient.getRun(runId),
-        defaultApiClient.listRunCases(runId).catch(() => ({ items: [] })),
-        defaultApiClient.listRunTasks(runId).catch(() => ({ items: [] })),
-        defaultApiClient.listRunFindings(runId).catch(() => ({ items: [] })),
+        // Mo-style sessions attach several tasks to one case (sign-in,
+        // retries, reproduction), so these collections must be read to the
+        // end before counting, grouping or labelling attempt numbers.
+        readAllPages((query) =>
+          defaultApiClient.listRunCases(runId, query),
+        ).catch(() => [] as CaseRecord[]),
+        readAllPages((query) =>
+          defaultApiClient.listRunTasks(runId, query),
+        ).catch(() => [] as Task[]),
+        readAllPages((query) =>
+          defaultApiClient.listRunFindings(runId, query),
+        ).catch(() => [] as Finding[]),
         defaultApiClient.getReport(runId).catch(() => null),
         fetchRunMessages('/api/v1', runId),
         // A failed read must not blank the whole session; pending questions
@@ -123,9 +133,9 @@ export function RunStoreProvider({
 
       if (runIdRef.current !== runId) return;
       setRun(runData);
-      setCases(caseRes.items);
-      setTasks(taskRes.items);
-      setFindings(findRes.items);
+      setCases(caseItems);
+      setTasks(taskItems);
+      setFindings(findItems);
       setReport(repData);
       setSession(repData?.session ?? null);
       setMessages(msgs);
