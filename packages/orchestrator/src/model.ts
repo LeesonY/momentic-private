@@ -508,6 +508,22 @@ export class BoundModel {
     record: CallRecord,
   ): Promise<CallRecord> {
     if (budgetDenied.current) throw new StorageError('BUDGET_EXCEEDED');
+    if (record.requestResult === 'malformed')
+      // Operator diagnostics: fixed categories and schema paths, no output text.
+      console.warn(
+        JSON.stringify({
+          event: 'model.output.malformed',
+          taskId: proof.taskId,
+          role: record.role,
+          purpose: record.purpose,
+          profileId: record.profileId,
+          modelId: record.modelId,
+          repairCount: record.repairCount,
+          validationFailureKind: record.validationFailureKind ?? null,
+          outputShapeTrace: record.outputShapeTrace ?? [],
+          schemaErrorTrace: record.schemaErrorTrace ?? [],
+        }),
+      );
     // Model output cannot dispatch itself; authority is rechecked after the awaited provider.
     await this.coordinator.tx((client) =>
       this.coordinator.validateLease(client, this.scope, proof),

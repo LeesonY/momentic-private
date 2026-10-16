@@ -292,6 +292,10 @@ export interface CallRecord {
     | 'markup_start'
     | 'other_text'
   >;
+  /** Where a malformed output broke the frozen schema: schema-derived paths
+   * (array indexes as `*`), AJV keyword and the missing/extra property name.
+   * Never values or response text. At most six entries per call. */
+  schemaErrorTrace?: string[];
   assessment: Assessment | null;
   attemptedModelIds: string[];
 }
@@ -962,6 +966,7 @@ export function createGateway(options: {
     let repairCount = 0;
     let rateLimitRetries = 0;
     const outputShapeTrace: NonNullable<CallRecord['outputShapeTrace']> = [];
+    const schemaErrorTrace: string[] = [];
     let visualTransmitted = false;
     let reportedModelId: string | null = null;
 
@@ -1073,6 +1078,9 @@ export function createGateway(options: {
         ...(validationFailureKind ? { validationFailureKind } : {}),
         ...(requestResult === 'malformed' && outputShapeTrace.length > 0
           ? { outputShapeTrace: [...outputShapeTrace] }
+          : {}),
+        ...(requestResult === 'malformed' && schemaErrorTrace.length > 0
+          ? { schemaErrorTrace: schemaErrorTrace.slice(0, 6) }
           : {}),
         assessment,
         attemptedModelIds: [profile.configuredModelId],
@@ -1190,7 +1198,10 @@ export function createGateway(options: {
         return finish('ok', null, parsed, null);
       }
       let parsed = parseWithSchema(response.raw, validator);
-      if (!parsed.ok) outputShapeTrace.push(classifyOutputShape(response.raw));
+      if (!parsed.ok) {
+        outputShapeTrace.push(classifyOutputShape(response.raw));
+        schemaErrorTrace.push(...parsed.errors);
+      }
       if (!parsed.ok && repairCount < 1) {
         repairCount += 1;
         const repair = messageFromText(
@@ -1203,8 +1214,10 @@ export function createGateway(options: {
         const repairedStop = stopForProvider(response);
         if (repairedStop) return repairedStop;
         parsed = parseWithSchema(response.raw, validator);
-        if (!parsed.ok)
+        if (!parsed.ok) {
           outputShapeTrace.push(classifyOutputShape(response.raw));
+          schemaErrorTrace.push(...parsed.errors);
+        }
       }
       if (!parsed.ok)
         return finish('malformed', 'VALIDATION_ERROR', null, null, parsed.kind);
@@ -1674,7 +1687,11 @@ function parseWithSchema(
   validator: ReturnType<typeof ajv.compile> | null,
 ):
   | { ok: true; value: unknown }
-  | { ok: false; kind: 'invalid_json' | 'schema_mismatch' } {
+  | {
+      ok: false;
+      kind: 'invalid_json' | 'schema_mismatch';
+      errors: string[];
+    } {
   let value = parseJson(raw);
   if (value === null) {
     // Only the entire output being one fenced JSON document qualifies.
@@ -1685,10 +1702,44 @@ function parseWithSchema(
     );
     if (fence) value = parseJson(fence[1]!);
   }
-  if (value === null) return { ok: false, kind: 'invalid_json' };
+  if (value === null) return { ok: false, kind: 'invalid_json', errors: [] };
   if (!validator || !validator(value))
-    return { ok: false, kind: 'schema_mismatch' };
+    return {
+      ok: false,
+      kind: 'schema_mismatch',
+      errors: schemaErrorPaths(validator?.errors ?? []),
+    };
   return { ok: true, value };
+}
+
+const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
+
+/** Schema-side locations only: indexes collapse to `*`; a property name is
+ * kept only when it looks like an identifier (an extra key is model text). */
+function schemaErrorPaths(
+  errors: readonly {
+    instancePath: string;
+    keyword: string;
+    params: Record<string, unknown>;
+  }[],
+): string[] {
+  const seen = new Set<string>();
+  for (const error of errors) {
+    const path =
+      error.instancePath
+        .split('/')
+        .map((part) => (/^\d+$/.test(part) ? '*' : part))
+        .filter((part) => part === '' || part === '*' || IDENTIFIER.test(part))
+        .join('/')
+        .slice(0, 160) || '/';
+    const name =
+      error.params['missingProperty'] ?? error.params['additionalProperty'];
+    const property =
+      typeof name === 'string' && IDENTIFIER.test(name) ? `:${name}` : '';
+    seen.add(`${path}:${error.keyword}${property}`);
+    if (seen.size >= 6) break;
+  }
+  return [...seen];
 }
 
 function jsonObjectConstraint(input: CallInput): string {
