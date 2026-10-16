@@ -11,6 +11,7 @@ import type {
   AuthProfile,
   ModelProfile,
 } from '@localqa/contracts';
+import { SESSION_BUDGET_DEFAULTS } from './sessionBudgetDefaults.ts';
 
 function configuredDefaultAuth(
   env: Environment | undefined,
@@ -118,16 +119,24 @@ export const ProjectHomePage: React.FC = () => {
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [optionsError, setOptionsError] = useState<string | null>(null);
 
-  // Budget overrides (session settings popover)
-  const [maxCases, setMaxCases] = useState(8);
-  const [maxPages, setMaxPages] = useState(6);
-  const [maxDepth, setMaxDepth] = useState(2);
-  const [maxActiveSeconds, setMaxActiveSeconds] = useState(600);
-  const [maxActions, setMaxActions] = useState(120);
-  const [maxActionsPerCase, setMaxActionsPerCase] = useState(24);
-  const [concurrency, setConcurrency] = useState(2);
-  const [maxModelCalls] = useState(100);
-  const [maxReproductions] = useState(3);
+  // Budget overrides (session settings popover). Defaults mirror the
+  // server's session defaults; fields the user cannot edit are not sent at
+  // all so the server default (raised for Mo-style sessions) applies.
+  const [maxCases, setMaxCases] = useState(SESSION_BUDGET_DEFAULTS.maxCases);
+  const [maxPages, setMaxPages] = useState(SESSION_BUDGET_DEFAULTS.maxPages);
+  const [maxDepth, setMaxDepth] = useState(SESSION_BUDGET_DEFAULTS.maxDepth);
+  const [maxActiveSeconds, setMaxActiveSeconds] = useState(
+    SESSION_BUDGET_DEFAULTS.maxActiveSeconds,
+  );
+  const [maxActions, setMaxActions] = useState(
+    SESSION_BUDGET_DEFAULTS.maxActions,
+  );
+  const [maxActionsPerCase, setMaxActionsPerCase] = useState(
+    SESSION_BUDGET_DEFAULTS.maxActionsPerCase,
+  );
+  const [concurrency, setConcurrency] = useState(
+    SESSION_BUDGET_DEFAULTS.concurrency,
+  );
 
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -240,8 +249,6 @@ export const ProjectHomePage: React.FC = () => {
           maxActions,
           maxActionsPerCase,
           concurrency,
-          maxModelCalls,
-          maxReproductions,
         },
       });
 
@@ -689,7 +696,10 @@ export const ProjectHomePage: React.FC = () => {
           </div>
         </form>
 
-        <div className="mo-composer-notes" data-testid="run-write-policy-notice">
+        <div
+          className="mo-composer-notes"
+          data-testid="run-write-policy-notice"
+        >
           <label>
             <input
               type="checkbox"
@@ -697,8 +707,7 @@ export const ProjectHomePage: React.FC = () => {
               disabled={taskIntent === 'plan' || !selectedEnvId || starting}
               onChange={(event) => setAllowWrites(event.target.checked)}
               data-testid="allow-business-writes-visible"
-            />
-            {' '}
+            />{' '}
             {allowWrites && taskIntent !== 'plan' && !!selectedEnvId
               ? '已启用业务写操作：仅在所选测试环境与授权范围内执行，可能产生测试数据。'
               : '当前为只读测试：不能提交新建、修改或删除操作。需要测试提交时请明确勾选。'}
