@@ -53,12 +53,6 @@ export interface SessionContext {
     caseId: string | null;
     summary: string;
   }>;
-  /** The sign-in agent's report for this run's account, if it has one. */
-  login: {
-    status: 'none' | 'pending' | 'succeeded' | 'blocked';
-    reasonCode: string | null;
-    detail: string | null;
-  };
   concurrency: number;
   remainingCases: number;
   remainingPages: number;
@@ -72,7 +66,7 @@ export interface SessionContext {
   };
 }
 
-/** The sign-in agent's report in words for the user and the session agent. */
+/** A task's sign-in report in words, without exposing credentials. */
 export function loginReportText(report: {
   reasonCode: string | null;
   detail: string | null;
@@ -259,7 +253,6 @@ export class SessionAgent {
     const assertionCapabilities = profile
       ? parseContract('ModelProfile', profile.document).capabilities
       : { structuredOutput: false, nativeTools: false, imageInput: false };
-    const login = await this.coordinator.loginOutcome(client, run);
     return {
       session,
       targetUrl: run.targetUrl,
@@ -269,10 +262,6 @@ export class SessionAgent {
       caseRetries: await readCaseRetries(client, run),
       findings,
       activeTasks,
-      login: {
-        ...login,
-        detail: login.detail ? clean(login.detail).slice(0, 300) : null,
-      },
       concurrency: run.effectiveConfig.budget.concurrency,
       remainingCases: Math.max(
         0,
@@ -669,20 +658,6 @@ export class SessionAgent {
         null,
       );
     return true;
-  }
-  /** Records the sign-in agent's report where the user and the agent see it. */
-  async noteLoginBlocked(
-    client: PoolClient,
-    run: Run,
-    report: { reasonCode: string | null; detail: string | null },
-  ): Promise<void> {
-    const session = await this.read(client, run);
-    if (!session) return;
-    const gap = `登录未成功：${loginReportText(report)}`;
-    await this.write(client, run, {
-      ...session,
-      coverageGaps: [...new Set([...session.coverageGaps, gap])].slice(0, 100),
-    });
   }
   async finishRun(client: PoolClient, run: Run, reason: string): Promise<void> {
     const session = await this.read(client, run);

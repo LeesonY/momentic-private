@@ -18,6 +18,7 @@ const files = [
   'packages/orchestrator/test/continuous-scheduling.test.mjs',
   'packages/orchestrator/test/agent-report.test.mjs',
   'packages/orchestrator/test/session-dedup-retry.test.mjs',
+  'packages/orchestrator/test/session-login-context.test.mjs',
   'apps/worker/test/session-dedup-retry.test.mjs',
   'packages/report/test/dedup-retry.test.mjs',
   'packages/orchestrator/test/model-timeout.test.mjs',

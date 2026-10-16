@@ -1608,43 +1608,6 @@ export class Coordinator {
       };
     });
   }
-  /**
-   * The run's sign-in report: the latest auth job's outcome. `blocked` keeps
-   * the sign-in agent's own reason code and short account of what it saw.
-   */
-  async loginOutcome(
-    client: PoolClient,
-    run: Pick<Run, 'id' | 'projectId'>,
-  ): Promise<{
-    status: 'none' | 'pending' | 'succeeded' | 'blocked';
-    reasonCode: string | null;
-    detail: string | null;
-  }> {
-    const row = (
-      await client.query<{
-        status: JobRow['status'];
-        result: Record<string, unknown> | null;
-      }>(
-        "SELECT status,result FROM jobs WHERE project_id=$1 AND run_id=$2 AND document->>'summary'='auth' ORDER BY available_at DESC,id DESC LIMIT 1",
-        [run.projectId, run.id],
-      )
-    ).rows[0];
-    if (!row) return { status: 'none', reasonCode: null, detail: null };
-    if (['queued', 'running', 'waiting'].includes(row.status))
-      return { status: 'pending', reasonCode: null, detail: null };
-    if (row.status === 'succeeded')
-      return { status: 'succeeded', reasonCode: null, detail: null };
-    const report = row.result?.['loginBlocked'] as
-      { reasonCode?: unknown; detail?: unknown } | undefined;
-    return {
-      status: 'blocked',
-      reasonCode:
-        typeof report?.reasonCode === 'string'
-          ? report.reasonCode
-          : 'AUTH_INTERRUPTED',
-      detail: typeof report?.detail === 'string' ? report.detail : null,
-    };
-  }
   async reserve(
     client: PoolClient,
     scope: WorkerScope,
