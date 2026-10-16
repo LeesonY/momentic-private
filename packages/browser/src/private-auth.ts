@@ -99,6 +99,8 @@ export interface TrustedAuthPrimitives {
   submit(target: NodeTarget): Promise<BrowserSnapshot>;
   prepareState(state: ApprovedAuthState): Promise<void>;
   exportState(): Promise<ApprovedAuthState>;
+  /** Release browser-local auth guards without closing the task's context. */
+  close?(): Promise<void>;
 }
 
 export interface PrivateAuthPort {
@@ -481,7 +483,8 @@ function bindPrimitives(
 ): TrustedAuthPrimitives {
   try {
     if (!primitives || typeof primitives !== 'object') fail('VALIDATION_ERROR');
-    const { navigate, fill, submit, prepareState, exportState } = primitives;
+    const { navigate, fill, submit, prepareState, exportState, close } =
+      primitives;
     if (
       typeof navigate !== 'function' ||
       typeof fill !== 'function' ||
@@ -497,6 +500,7 @@ function bindPrimitives(
       submit: submit.bind(primitives),
       prepareState: prepareState.bind(primitives),
       exportState: exportState.bind(primitives),
+      ...(typeof close === 'function' ? { close: close.bind(primitives) } : {}),
     };
   } catch (error) {
     constantFailure(error);
@@ -510,6 +514,8 @@ export function createPrivateAuthPort(options: {
   allowedOrigins: readonly string[];
   now?: () => number;
   trustedRenewal?: () => Promise<AuthSessionBinding>;
+  /** Trusted browser-local redaction survives a task's in-place sign-in. */
+  onSensitiveValue?: (value: string) => void;
 }): PrivateAuthPort {
   let binding = snapshotCopy(options.binding);
   assertBindingShape(binding);
@@ -521,6 +527,7 @@ export function createPrivateAuthPort(options: {
   const secrets: string[] = [];
   const targets: NodeTarget[] = [];
   let closed = false;
+  let closeFlight: Promise<void> | undefined;
   const now = options.now ?? Date.now;
   const absoluteRenewalLimit = parseTime(binding.expiresAt) + 5 * 60 * 1000;
 
@@ -552,7 +559,10 @@ export function createPrivateAuthPort(options: {
   }
 
   function rememberMaterial(value: string): void {
-    if (value.length > 0 && !secrets.includes(value)) secrets.push(value);
+    if (value.length > 0 && !secrets.includes(value)) {
+      secrets.push(value);
+      options.onSensitiveValue?.(value);
+    }
   }
 
   function redactObservation(snapshot: BrowserSnapshot): BrowserSnapshot {
@@ -743,6 +753,7 @@ export function createPrivateAuthPort(options: {
       closed = true;
       secrets.length = 0;
       targets.length = 0;
+      await (closeFlight ??= primitives.close?.() ?? Promise.resolve());
     },
   };
 }

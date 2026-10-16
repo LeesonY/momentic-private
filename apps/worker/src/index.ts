@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import {
   BrowserManager,
+  BrowserSessionImpl,
   type BrowserPort,
   type BrowserSession,
 } from '@localqa/browser';
@@ -605,18 +606,11 @@ export class Worker {
         );
         return true;
       }
-      if (work.loginBlocked) {
-        await this.reportBlocked(
-          proof,
-          work,
-          'LOGIN_BLOCKED',
-          `登录未成功，没有执行：${loginReportText(work.loginBlocked)}`,
-        );
-        return true;
-      }
       // Server-frozen current state is imported under a private lease.
       // Without a state the old fail-closed anonymous gate still applies.
       if (
+        !work.signIn &&
+        !work.withoutSignIn &&
         !work.authStateId &&
         !(await this.runtime.requireAnonymousOrInput(proof))
       )
@@ -1539,6 +1533,89 @@ export class Worker {
           return true;
         }
       };
+      if (work.signIn) {
+        // Every session executor/reproducer creates its own browser, signs in
+        // there, and carries on in that SAME context. No state hand-off.
+        try {
+          const profile = await this.runtime.authProfile(proof);
+          if (
+            !profile ||
+            profile.mode === 'none' ||
+            !(this.browser instanceof BrowserManager) ||
+            !['executor', 'reproducer'].includes(work.task.role)
+          )
+            throw new DomainError('AUTH_FAILED');
+          const origins = [
+            ...new Set([
+              ...work.run.effectiveConfig.allowedOrigins,
+              ...profile.allowedOrigins,
+            ]),
+          ];
+          const created = await this.browser.createSession({
+            sessionId: work.contextId,
+            taskId: work.task.id,
+            projectId: work.run.projectId,
+            runId: work.run.id,
+            allowedOrigins: origins,
+            tlsPolicy: work.tlsPolicy,
+            mode: work.run.effectiveConfig.actionPolicy,
+            writeScope: work.run.effectiveConfig.writeScope,
+            artifactsDir: directory,
+            enableTrace: false,
+            navigationTimeoutMs: 5000,
+          });
+          session = created;
+          if (!(created instanceof BrowserSessionImpl))
+            throw new DomainError('AUTH_FAILED');
+          const outcome = await initializeBrowserAuthentication(
+            {
+              runtime: this.runtime,
+              browser: this.browser,
+              proof,
+              profile,
+              projectId: work.run.projectId,
+              runId: work.run.id,
+              tlsPolicy: work.tlsPolicy,
+              session: created,
+              role: work.task.role as 'executor' | 'reproducer',
+            },
+            signal,
+          );
+          if (signal.aborted || outcome.status === 'cancelled')
+            throw new DomainError('CANCELLED');
+          if (outcome.status !== 'succeeded') {
+            if (RUN_LEVEL_STOPS.has(outcome.reasonCode))
+              throw new DomainError(outcome.reasonCode);
+            reported = true;
+            await this.reportBlocked(
+              proof,
+              work,
+              'AUTH_FAILED',
+              `登录未成功，没有执行：${loginReportText({
+                reasonCode: outcome.reasonCode,
+                detail: outcome.detail ?? null,
+              })}`,
+            );
+            return true;
+          }
+        } catch (error) {
+          const code =
+            error instanceof StorageError || error instanceof DomainError
+              ? error.code
+              : 'AUTH_FAILED';
+          if (reported || signal.aborted || RUN_LEVEL_STOPS.has(code))
+            throw error;
+          reported = true;
+          await this.reportBlocked(
+            proof,
+            work,
+            'AUTH_FAILED',
+            `登录未成功，没有执行：${loginReportText({ reasonCode: code, detail: null })}`,
+          );
+          return true;
+        }
+        return await runBrowserWork();
+      }
       if (work.authStateId) {
         const profile = await this.runtime.authProfile(proof);
         if (!profile || !(this.browser instanceof BrowserManager))
