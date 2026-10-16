@@ -22,7 +22,6 @@ import {
   DECISION_SCHEMA,
   AGENT_REPORT_SCHEMA,
   parseAgentReport,
-  loginReportText,
   sessionOutputSchema,
   sessionModelContext,
   parseSessionDecision,
@@ -605,18 +604,11 @@ export class Worker {
         );
         return true;
       }
-      if (work.loginBlocked) {
-        await this.reportBlocked(
-          proof,
-          work,
-          'LOGIN_BLOCKED',
-          `登录未成功，没有执行：${loginReportText(work.loginBlocked)}`,
-        );
-        return true;
-      }
       // Server-frozen current state is imported under a private lease.
       // Without a state the old fail-closed anonymous gate still applies.
       if (
+        !work.signIn &&
+        !work.withoutSignIn &&
         !work.authStateId &&
         !(await this.runtime.requireAnonymousOrInput(proof))
       )
