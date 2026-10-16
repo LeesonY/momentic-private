@@ -8286,7 +8286,7 @@
               "type": "string",
               "format": "uuid"
             },
-            "maxItems": 30,
+            "maxItems": 1000,
             "minItems": 0
           },
           "reproductionRef": {
@@ -8314,6 +8314,17 @@
           "version": {
             "type": "integer",
             "minimum": 1
+          },
+          "duplicateOf": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -8362,7 +8373,7 @@
                     "type": "string",
                     "format": "uuid"
                   },
-                  "maxItems": 30,
+                  "maxItems": 1000,
                   "minItems": 1
                 }
               }
@@ -8909,6 +8920,23 @@
             },
             "maxItems": 4,
             "minItems": 0
+          },
+          "duplicateFindings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionDuplicateFinding"
+            },
+            "maxItems": 30,
+            "minItems": 0
+          },
+          "retryCaseIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 30,
+            "minItems": 0
           }
         },
         "required": [
@@ -8917,6 +8945,30 @@
           "exploreTargets",
           "cases",
           "coverageGaps"
+        ],
+        "additionalProperties": false
+      },
+      "SessionDuplicateFinding": {
+        "type": "object",
+        "properties": {
+          "findingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sameAs": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "findingId",
+          "sameAs",
+          "reason"
         ],
         "additionalProperties": false
       },

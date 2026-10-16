@@ -1,6 +1,8 @@
 import { sanitizeText, withinWriteScope } from '@localqa/browser';
 import { randomUUID } from 'node:crypto';
 import { SessionAgent, type SessionContext } from './session-agent.js';
+import { parseSessionDecision } from './session-planning.js';
+import { linkMergedFindingEvidence } from './session-findings.js';
 import { parseAgentReport, verdictFromReport } from './agent-report.js';
 import { createRegressionPlan } from './regression-plan.js';
 import { AuthStateService, type AuthStateRef } from './auth-state-service.js';
@@ -33,6 +35,7 @@ import {
   type BudgetUsed,
   type BudgetLimits,
   type CaseDefinition,
+  type Finding,
   type Artifact,
   type BrowserSnapshot,
   type Step,
@@ -2326,6 +2329,8 @@ export class Coordinator {
               ),
             ) ?? definition.criteria[0]!;
           const refs = [...new Set(results.flatMap((r) => r.evidenceRefs))];
+          if (refs.some((ref) => !evidence.includes(ref)))
+            throw new StorageError('VALIDATION_ERROR');
           const sessionManaged =
             (await this.sessions.read(client, run)) !== null;
           const fingerprint = sessionManaged
@@ -2349,7 +2354,7 @@ export class Coordinator {
           const duplicate = sessionManaged
             ? (
                 await client.query<{ id: string; document: unknown }>(
-                  "SELECT id,document FROM findings WHERE project_id=$1 AND run_id=$2 AND fingerprint=$3 AND status IN ('suspected','confirmed') ORDER BY id LIMIT 1 FOR UPDATE",
+                  "SELECT id,document FROM findings WHERE project_id=$1 AND run_id=$2 AND fingerprint=$3 AND status IN ('suspected','confirmed') AND COALESCE(document->>'triageDisposition','open')<>'duplicate' AND document->>'duplicateOf' IS NULL ORDER BY id LIMIT 1 FOR UPDATE",
                   [scope.projectId, run.id, fingerprint],
                 )
               ).rows[0]
@@ -2366,11 +2371,7 @@ export class Coordinator {
               'UPDATE findings SET version=version+1,document=$2 WHERE id=$1 AND project_id=$3',
               [old.id, grouped, scope.projectId],
             );
-            for (const ref of refs)
-              await client.query(
-                'INSERT INTO finding_evidence(project_id,finding_id,artifact_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',
-                [scope.projectId, old.id, ref],
-              );
+            await linkMergedFindingEvidence(client, run, old.id, refs);
             await appendEvent(
               client,
               scope.projectId,
@@ -2692,6 +2693,7 @@ export class Coordinator {
     prompt: string,
     expiresMs = 60000,
     options?: string[],
+    sessionDecision?: unknown,
   ): Promise<InputRequest> {
     return this.tx(async (client) => {
       const { job, run } = await this.validateLease(client, scope, proof);
@@ -2712,6 +2714,25 @@ export class Coordinator {
         version: 1,
         ...(options?.length ? { options } : {}),
       });
+      if (sessionDecision !== undefined) {
+        if (
+          kind !== 'clarification' ||
+          job.role !== 'coordinator' ||
+          job.result?.['stage'] !== 'plan'
+        )
+          throw new StorageError('FORBIDDEN');
+        const { decision } = parseSessionDecision(sessionDecision);
+        if (
+          decision.action !== 'ask' ||
+          decision.question?.trim() !== prompt.trim() ||
+          decision.cases.length ||
+          decision.exploreTargets.length
+        )
+          throw new StorageError('VALIDATION_ERROR');
+        // A question must not discard this round's finding review. Apply it
+        // in the same transaction before releasing the manager's lease.
+        await this.sessions.applyPlan(client, run, job, sessionDecision);
+      }
       await client.query(
         'INSERT INTO input_requests(id,project_id,run_id,version,document) VALUES($1,$2,$3,1,$4)',
         [input.id, scope.projectId, run.id, input],
@@ -3322,15 +3343,28 @@ export class Coordinator {
     client: PoolClient,
     run: Run,
     jobs: JobRow[],
+    reviewedTaskIds?: readonly string[],
   ): Promise<number> {
     const findings = (
-      await client.query(
-        "SELECT f.* FROM findings f JOIN case_attempts a ON a.id=f.original_attempt_id AND a.project_id=f.project_id WHERE f.project_id=$1 AND f.run_id=$2 AND f.status='suspected' AND a.finished_at IS NOT NULL ORDER BY f.id",
+      await client.query<{
+        id: string;
+        case_id: string;
+        original_attempt_id: string;
+        original_task_id: string;
+        document: Finding;
+      }>(
+        "SELECT f.*,a.task_id AS original_task_id FROM findings f JOIN case_attempts a ON a.id=f.original_attempt_id AND a.project_id=f.project_id WHERE f.project_id=$1 AND f.run_id=$2 AND f.status='suspected' AND COALESCE(f.document->>'triageDisposition','open')<>'duplicate' AND f.document->>'duplicateOf' IS NULL AND a.finished_at IS NOT NULL ORDER BY f.id",
         [run.projectId, run.id],
       )
     ).rows;
+    // Session managers review new reports before paying for reproduction.
+    // Legacy/fallback runs omit this watermark and keep immediate dispatch.
+    const reviewed = reviewedTaskIds ? new Set(reviewedTaskIds) : null;
     const candidates = findings.filter(
       (f) =>
+        f.document.triageDisposition !== 'duplicate' &&
+        !f.document.duplicateOf &&
+        (!reviewed || reviewed.has(f.original_task_id)) &&
         !jobs.some(
           (j) => j.role === 'reproducer' && j.result?.['findingId'] === f.id,
         ),

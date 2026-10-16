@@ -225,6 +225,7 @@ export class RuntimeClient {
     prompt: string,
     expiresMs = 60000,
     options?: string[],
+    sessionDecision?: unknown,
   ): Promise<InputRequest> {
     return this.#coordinator.waitForInput(
       this.#scope,
@@ -233,6 +234,7 @@ export class RuntimeClient {
       prompt,
       expiresMs,
       options,
+      sessionDecision,
     );
   }
   poll(): Promise<void> {

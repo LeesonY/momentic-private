@@ -144,6 +144,7 @@ export type Contract =
   | SessionConclusion
   | SessionCriterion
   | SessionDecision
+  | SessionDuplicateFinding
   | SessionLocator
   | SessionReport
   | SessionRound
@@ -414,12 +415,13 @@ export type Finding = {
   reproSteps: string[];
   /**
    * @minItems 0
-   * @maxItems 30
+   * @maxItems 1000
    */
   evidenceRefs: string[];
   reproductionRef: string | null;
   triageDisposition: "open" | "accepted" | "duplicate" | "works_as_intended" | "cannot_reproduce" | "closed";
   version: number;
+  duplicateOf?: string | null;
 };
 export type ModelPart =
   | {
@@ -1883,6 +1885,21 @@ export interface SessionDecision {
    * @maxItems 4
    */
   options?: string[];
+  /**
+   * @minItems 0
+   * @maxItems 30
+   */
+  duplicateFindings?: SessionDuplicateFinding[];
+  /**
+   * @minItems 0
+   * @maxItems 30
+   */
+  retryCaseIds?: string[];
+}
+export interface SessionDuplicateFinding {
+  findingId: string;
+  sameAs: string;
+  reason: string;
 }
 export interface Step {
   id: string;
@@ -2130,6 +2147,7 @@ export interface ContractTypes {
   SessionConclusion: SessionConclusion;
   SessionCriterion: SessionCriterion;
   SessionDecision: SessionDecision;
+  SessionDuplicateFinding: SessionDuplicateFinding;
   SessionLocator: SessionLocator;
   SessionReport: SessionReport;
   SessionRound: SessionRound;

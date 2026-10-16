@@ -105,6 +105,8 @@ export function renderMarkdownReport(
 
     if (c.verdict) {
       lines.push(`- **Verdict ID**: \`${c.verdict.id}\``);
+      if (c.verdict.summary)
+        lines.push(`- **Latest Execution Report**: ${c.verdict.summary}`);
       lines.push(`- **Criteria Results**:`);
       for (const cr of c.verdict.criterionResults) {
         lines.push(
@@ -134,19 +136,31 @@ export function renderMarkdownReport(
     lines.push('');
   }
 
-  // Section 4: Findings & Reproductions
-  lines.push(`## 4. Findings & Reproductions`);
+  // Section 4: keep aliases for traceability, never as independent findings.
+  const findings = report.findings.filter(
+    (f) => f.triageDisposition !== 'duplicate',
+  );
+  const duplicates = report.findings.filter(
+    (f) => f.triageDisposition === 'duplicate',
+  );
+  lines.push(
+    `## 4. Findings & Reproductions (${findings.length} unique finding(s))`,
+  );
   lines.push('');
-  if (report.findings.length === 0) {
-    lines.push(`No findings recorded for this run.`);
+  if (findings.length === 0) {
+    lines.push(`No independent findings recorded for this run.`);
   } else {
     let findingIndex = 1;
-    for (const f of report.findings) {
+    for (const f of findings) {
       lines.push(`### 4.${findingIndex++} Finding: ${f.title}`);
       lines.push('');
       lines.push(`- **Finding ID**: \`${f.id}\``);
       lines.push(`- **Status**: \`${f.status}\``);
       lines.push(`- **Severity**: \`${f.severity}\``);
+      lines.push(`- **Triage**: \`${f.triageDisposition}\``);
+      lines.push(
+        `- **Related Cases**: ${f.caseIds.map((id) => `\`${id}\``).join(', ')}`,
+      );
       lines.push(
         `- **Expected**: ${f.expected} (Source: \`${f.expectedSource}\`)`,
       );
@@ -179,6 +193,15 @@ export function renderMarkdownReport(
       }
       lines.push('');
     }
+  }
+  if (duplicates.length) {
+    lines.push(`### Merged duplicate references (not counted)`);
+    lines.push('');
+    for (const duplicate of duplicates)
+      lines.push(
+        `- Duplicate \`${duplicate.id}\` (${duplicate.title}) → ${duplicate.duplicateOf ? `\`${duplicate.duplicateOf}\`` : 'retained finding not specified'}`,
+      );
+    lines.push('');
   }
   lines.push('');
 

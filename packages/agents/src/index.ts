@@ -1,6 +1,7 @@
 export {
   AGENT_ROLES,
   PROMPT_VERSION,
+  SESSION_AGENT_PROMPT,
   renderAssertionPrompt,
   renderPrompt,
   toolsForRole,

@@ -1818,7 +1818,7 @@
             "type": "string",
             "format": "uuid"
           },
-          "maxItems": 30,
+          "maxItems": 1000,
           "minItems": 0
         },
         "reproductionRef": {
@@ -1846,6 +1846,17 @@
         "version": {
           "type": "integer",
           "minimum": 1
+        },
+        "duplicateOf": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -1894,7 +1905,7 @@
                   "type": "string",
                   "format": "uuid"
                 },
-                "maxItems": 30,
+                "maxItems": 1000,
                 "minItems": 1
               }
             }

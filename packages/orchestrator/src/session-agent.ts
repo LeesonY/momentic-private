@@ -16,6 +16,12 @@ import {
   reviewSessionProposal,
   type SessionSource,
 } from './session-planning.js';
+import { mergeSessionFindings } from './session-findings.js';
+import {
+  readCaseRetries,
+  retrySessionCases,
+  type CaseRetryState,
+} from './session-retries.js';
 
 export const SESSION_ROUND_LIMIT = 64;
 const clean = (value: string) =>
@@ -25,6 +31,7 @@ const clean = (value: string) =>
   );
 export interface SessionContext {
   session: SessionReport;
+  targetUrl: string;
   sources: SessionSource[];
   observations: Array<
     Pick<
@@ -37,6 +44,7 @@ export interface SessionContext {
     }
   >;
   cases: CaseRecord[];
+  caseRetries?: CaseRetryState;
   findings: Finding[];
   activeTasks: Array<{
     id: string;
@@ -214,7 +222,7 @@ export class SessionAgent {
         outcome: string;
       }>(
         `SELECT c.document AS definition,v.document AS verdict,COALESCE(v.document->>'status',
-         CASE WHEN EXISTS(SELECT 1 FROM case_attempts a WHERE a.project_id=c.project_id AND a.case_id=c.id AND a.finished_at IS NOT NULL) THEN 'inconclusive' ELSE 'not_run' END) AS outcome
+         CASE WHEN EXISTS(SELECT 1 FROM case_attempts a WHERE a.project_id=c.project_id AND a.case_id=c.id AND a.status IN ('running','completed','interrupted','cancelled')) THEN 'inconclusive' ELSE 'not_run' END) AS outcome
        FROM run_cases c LEFT JOIN final_valid_verdicts v ON v.project_id=c.project_id AND v.case_id=c.id
        WHERE c.project_id=$1 AND c.run_id=$2 ORDER BY c.id`,
         [run.projectId, run.id],
@@ -254,9 +262,11 @@ export class SessionAgent {
     const login = await this.coordinator.loginOutcome(client, run);
     return {
       session,
+      targetUrl: run.targetUrl,
       sources,
       observations,
       cases,
+      caseRetries: await readCaseRetries(client, run),
       findings,
       activeTasks,
       login: {
@@ -372,7 +382,19 @@ export class SessionAgent {
         };
       }
     }
-    const caseIds: string[] = [];
+    const reviewNotes = await mergeSessionFindings(
+      client,
+      run,
+      accepted.duplicateFindings ?? [],
+    );
+    const retries = await retrySessionCases(
+      client,
+      this.coordinator,
+      run,
+      context.cases,
+      accepted.retryCaseIds ?? [],
+    );
+    const caseIds: string[] = [...retries.caseIds];
     const planningOnly = run.effectiveConfig.taskIntent === 'plan';
     if (fallbackToTechnicalSmoke && !planningOnly) {
       const c = smokeCase(run, run.targetUrl);
@@ -431,7 +453,12 @@ export class SessionAgent {
     )
       await this.coordinator.change(client, run, 'running', 'execute');
     const hasWork = caseIds.length > 0 || accepted.exploreTargets.length > 0;
-    const gaps = [...context.session.coverageGaps, ...accepted.coverageGaps];
+    const gaps = [
+      ...context.session.coverageGaps,
+      ...accepted.coverageGaps,
+      ...reviewNotes,
+      ...retries.notes,
+    ];
     if (!hasWork && accepted.action === 'dispatch')
       gaps.push('主 AI 未提出可执行的新任务，已停止重复派工。');
     if (!hasWork && !context.cases.length)
@@ -442,24 +469,26 @@ export class SessionAgent {
       // same planner after dispatching the fixed technical fallback. Finish
       // after its owned executor/reproducer work, retaining the coverage gap.
       status:
-        planningOnly || fallbackToTechnicalSmoke
-          ? 'finalizing'
-          : hasWork
-            ? 'working'
-            : 'finalizing',
+        accepted.action === 'ask'
+          ? 'reviewing'
+          : planningOnly || fallbackToTechnicalSmoke
+            ? 'finalizing'
+            : hasWork
+              ? 'working'
+              : 'finalizing',
       planningStopped: planningOnly || fallbackToTechnicalSmoke,
       plan: clean(accepted.rationale),
       ...(!context.session.title && accepted.title?.trim()
         ? { title: clean(accepted.title).slice(0, 60) }
         : {}),
-      caseIds: [...context.session.caseIds, ...caseIds],
+      caseIds: [...new Set([...context.session.caseIds, ...caseIds])],
       exploredUrls: [
         ...new Set([
           ...context.session.exploredUrls,
           ...accepted.exploreTargets,
         ]),
       ],
-      coverageGaps: [...new Set(gaps.map(clean))].slice(0, 100),
+      coverageGaps: [...new Set(gaps.map(clean))].slice(-100),
       history: [
         ...context.session.history,
         {
@@ -468,7 +497,7 @@ export class SessionAgent {
           caseIds,
           exploreTargets: accepted.exploreTargets,
         },
-      ],
+      ].slice(-SESSION_ROUND_LIMIT),
     };
     await this.write(client, run, document);
   }
@@ -491,7 +520,10 @@ export class SessionAgent {
             .filter((c) => !['passed', 'issue_found'].includes(c.outcome))
             .map((c) => `尚未验证：${c.definition.title}（${c.outcome}）`),
           ...context.findings
-            .filter((f) => f.status !== 'confirmed')
+            .filter(
+              (f) =>
+                f.triageDisposition !== 'duplicate' && f.status !== 'confirmed',
+            )
             .map((f) => `缺陷尚未复现确认：${f.title}（${f.status}）`),
         ]),
       ].slice(0, 100),
@@ -536,9 +568,22 @@ export class SessionAgent {
     const reviewed = new Set(session.reviewedTaskIds ?? []);
     const hasNewResult = completed.some((id) => !reviewed.has(id));
     const hasNewMessage = latestMessage !== (session.messageCursor ?? null);
+    const reviewDue =
+      run.phase !== 'finalize' &&
+      session.status !== 'complete' &&
+      !session.planningStopped &&
+      session.round < SESSION_ROUND_LIMIT &&
+      (session.round === 0 || hasNewResult || hasNewMessage);
     const reproduced =
-      run.phase !== 'finalize'
-        ? await this.coordinator.enqueueReproductions(client, run, jobs)
+      run.phase !== 'finalize' && !reviewDue
+        ? await this.coordinator.enqueueReproductions(
+            client,
+            run,
+            jobs,
+            session.planningStopped || session.round >= SESSION_ROUND_LIMIT
+              ? undefined
+              : (session.reviewedTaskIds ?? []),
+          )
         : 0;
     if (reproduced && run.phase !== 'reproduce')
       run = await this.coordinator.change(client, run, 'running', 'reproduce');
@@ -562,13 +607,7 @@ export class SessionAgent {
         return true;
       }
     }
-    if (
-      run.phase !== 'finalize' &&
-      session.status !== 'complete' &&
-      !session.planningStopped &&
-      session.round < SESSION_ROUND_LIMIT &&
-      (session.round === 0 || hasNewResult || hasNewMessage)
-    ) {
+    if (reviewDue) {
       const next: SessionReport = {
         ...session,
         round: session.round + 1,

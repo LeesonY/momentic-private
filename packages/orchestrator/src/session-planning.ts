@@ -26,6 +26,24 @@ export interface PlanningContext {
 }
 const normalize = (text: string) =>
   text.trim().replace(/\s+/g, ' ').toLowerCase();
+export function sessionEntryUrl(
+  c: CandidateCase & { entryUrl?: string },
+  fallback: string,
+): string {
+  const navigation = c.outline[0]?.startsWith('Navigate ')
+    ? c.outline[0].slice(9)
+    : undefined;
+  return displayUrl(c.entryUrl ?? navigation ?? fallback);
+}
+function entryTitleKey(
+  c: CandidateCase & { entryUrl?: string },
+  fallback: string,
+): string {
+  return hashPayload({
+    entry: sessionEntryUrl(c, fallback),
+    title: c.title.replace(/[\s\p{P}]/gu, '').toLowerCase(),
+  });
+}
 export function sessionCaseFingerprint(
   c: CandidateCase & { entryUrl?: string },
   fallback: string,
@@ -34,7 +52,7 @@ export function sessionCaseFingerprint(
     ? c.outline[0].slice(9)
     : null;
   return hashPayload({
-    entry: displayUrl(c.entryUrl ?? navigation ?? fallback),
+    entry: sessionEntryUrl(c, fallback),
     preconditions: c.preconditions.map(normalize),
     outline: (navigation ? c.outline.slice(1) : c.outline).map(normalize),
     criteria: c.criteria.map(({ id: _id, ...criterion }) => ({
@@ -49,24 +67,92 @@ export interface AcceptedSessionDecision {
   cases: PlannedSessionCase[];
   exploreTargets: string[];
   coverageGaps: string[];
+  duplicateFindings?: NonNullable<SessionDecision['duplicateFindings']>;
+  retryCaseIds?: string[];
   title?: string;
 }
-/** Proposal validation never gives the model database IDs or permission to change an old case. */
+/** Invalid review/retry entries are recorded independently of the rest of the plan. */
+export function parseSessionDecision(input: unknown): {
+  decision: SessionDecision;
+  notes: string[];
+} {
+  if (!input || typeof input !== 'object' || Array.isArray(input))
+    return { decision: parseContract('SessionDecision', input), notes: [] };
+  const { duplicateFindings, retryCaseIds, ...base } = input as Record<
+    string,
+    unknown
+  >;
+  const notes: string[] = [];
+  const entries = (value: unknown, field: string): unknown[] => {
+    if (value === undefined) return [];
+    if (!Array.isArray(value)) {
+      notes.push(`${field} 格式无效，已忽略。`);
+      return [];
+    }
+    if (value.length > 30)
+      notes.push(`${field} 超过 30 条，超出的条目已忽略。`);
+    return value.slice(0, 30);
+  };
+  const duplicates: NonNullable<SessionDecision['duplicateFindings']> = [];
+  for (const [index, item] of entries(
+    duplicateFindings,
+    'duplicateFindings',
+  ).entries()) {
+    try {
+      const entry = parseContract('SessionDuplicateFinding', item);
+      if (!entry.reason.trim()) throw new DomainError('VALIDATION_ERROR');
+      duplicates.push({
+        ...entry,
+        findingId: entry.findingId.toLowerCase(),
+        sameAs: entry.sameAs.toLowerCase(),
+      });
+    } catch {
+      notes.push(`缺陷合并第 ${index + 1} 条格式无效，已忽略。`);
+    }
+  }
+  const retries: string[] = [];
+  for (const [index, item] of entries(retryCaseIds, 'retryCaseIds').entries()) {
+    if (
+      typeof item === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        item,
+      )
+    )
+      retries.push(item.toLowerCase());
+    else notes.push(`用例重跑第 ${index + 1} 条标识无效，已忽略。`);
+  }
+  return {
+    decision: parseContract('SessionDecision', {
+      ...base,
+      duplicateFindings: duplicates,
+      retryCaseIds: retries,
+    }),
+    notes,
+  };
+}
+/** The model may reference old IDs, but only the server validates and applies changes. */
 export function reviewSessionProposal(
   input: unknown,
   context: PlanningContext,
 ): AcceptedSessionDecision {
-  const proposal = parseContract('SessionDecision', input);
+  const { decision: proposal, notes } = parseSessionDecision(input);
   if (
-    proposal.action === 'finish' &&
+    proposal.action !== 'dispatch' &&
     (proposal.cases.length || proposal.exploreTargets.length)
   )
     throw new DomainError('VALIDATION_ERROR');
-  const coverageGaps = [...proposal.coverageGaps];
+  if (proposal.action === 'ask' && !proposal.question?.trim())
+    throw new DomainError('VALIDATION_ERROR');
+  const coverageGaps = [...proposal.coverageGaps, ...notes];
+  if (proposal.action !== 'dispatch' && proposal.retryCaseIds?.length)
+    coverageGaps.push('用例重跑只允许 action=dispatch，已忽略本次重跑请求。');
   const seen = new Set(
     context.existingCases.map((c) =>
       sessionCaseFingerprint(c, context.targetUrl),
     ),
+  );
+  const seenTitles = new Set(
+    context.existingCases.map((c) => entryTitleKey(c, context.targetUrl)),
   );
   const cases: PlannedSessionCase[] = [];
   for (const candidate of proposal.cases) {
@@ -143,8 +229,11 @@ export function reviewSessionProposal(
       entryUrl,
     };
     const fingerprint = sessionCaseFingerprint(c, context.targetUrl);
-    if (seen.has(fingerprint)) {
-      coverageGaps.push(`重复用例已跳过：${candidate.title}`);
+    const titleKey = entryTitleKey(c, context.targetUrl);
+    if (seen.has(fingerprint) || seenTitles.has(titleKey)) {
+      coverageGaps.push(
+        `重复用例已跳过（${seen.has(fingerprint) ? '精确指纹' : '同一入口及规范化标题'}）：${candidate.title}`,
+      );
       continue;
     }
     if (cases.length >= context.remainingCases) {
@@ -152,6 +241,7 @@ export function reviewSessionProposal(
       continue;
     }
     seen.add(fingerprint);
+    seenTitles.add(titleKey);
     cases.push(c);
   }
   const explored = new Set(context.exploredUrls.map(displayUrl));
@@ -177,6 +267,9 @@ export function reviewSessionProposal(
     cases,
     exploreTargets,
     coverageGaps: [...new Set(coverageGaps)].slice(0, 100),
+    duplicateFindings: proposal.duplicateFindings ?? [],
+    retryCaseIds:
+      proposal.action === 'dispatch' ? (proposal.retryCaseIds ?? []) : [],
     ...(typeof proposal.title === 'string' && proposal.title.trim()
       ? { title: proposal.title.trim() }
       : {}),
