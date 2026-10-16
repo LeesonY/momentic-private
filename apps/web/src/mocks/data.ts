@@ -86,7 +86,7 @@ export const mockEnvironments: Environment[] = [
 export const mockAuthProfiles: AuthProfile[] = [
   {
     id: 'auth_mock_admin_01',
-    projectId: 'proj_mock_ecommerce_01',
+    projectId: MOCK_PROJECT_ID,
     environmentId: 'env_mock_staging_01',
     name: 'Admin 管理员凭据',
     mode: 'storage_state',
@@ -99,7 +99,7 @@ export const mockAuthProfiles: AuthProfile[] = [
   },
   {
     id: 'auth_mock_viewer_02',
-    projectId: 'proj_mock_ecommerce_01',
+    projectId: MOCK_PROJECT_ID,
     environmentId: 'env_mock_staging_01',
     name: 'Viewer 只读凭据',
     mode: 'form',

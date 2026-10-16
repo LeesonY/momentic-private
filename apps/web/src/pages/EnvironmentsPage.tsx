@@ -8,6 +8,7 @@ import { EmptyState } from '../components/ui/EmptyState.tsx';
 import { AppIcon } from '../components/ui/AppIcon.tsx';
 import { EnvironmentDialog } from '../components/environments/EnvironmentDialog.tsx';
 import { AuthProfileDialog } from '../components/environments/AuthProfileDialog.tsx';
+import { canEditAuthSecrets } from '../components/environments/authProfileSecrets.ts';
 import { Modal } from '../components/ui/Modal.tsx';
 
 /** Two AI paths: agent sign-in follows instructions; AI forms fill a fixed
@@ -36,6 +37,8 @@ export const EnvironmentsPage: React.FC = () => {
   const [loadError, setLoadError] = useState('');
   const [envDialog, setEnvDialog] = useState<EnvDialogState>(null);
   const [authDialogEnvId, setAuthDialogEnvId] = useState<string | null>(null);
+  const [editingAuthProfile, setEditingAuthProfile] = useState<AuthProfile | null>(null);
+  const [authSecretNotice, setAuthSecretNotice] = useState('');
   const [notice, setNotice] = useState('');
   const [switchingAuthId, setSwitchingAuthId] = useState<string | null>(null);
   const [authUpdateError, setAuthUpdateError] = useState('');
@@ -197,6 +200,8 @@ export const EnvironmentsPage: React.FC = () => {
     setAuthProfiles([]);
     setEnvDialog(null);
     setAuthDialogEnvId(null);
+    setEditingAuthProfile(null);
+    setAuthSecretNotice('');
     setDeleteTarget(null);
     setDeleteError('');
     setNotice('');
@@ -312,6 +317,22 @@ export const EnvironmentsPage: React.FC = () => {
                 {switchingAuthId === profile.id ? '切换中…' : '改用 AI 识别'}
               </button>
             )}
+            {canEdit && canEditAuthSecrets(profile) && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={deleting || authOriginsSaving || Boolean(switchingAuthId)}
+                data-testid={`btn-edit-auth-secret-${profile.id}`}
+                onClick={() => {
+                  setNotice('');
+                  setAuthSecretNotice('');
+                  setEditingAuthProfile(profile);
+                }}
+              >
+                <AppIcon name="edit" size={14} />
+                修改账号/密码
+              </button>
+            )}
             {canEdit && profile.status === 'active' && (
               <button
                 type="button"
@@ -371,6 +392,11 @@ export const EnvironmentsPage: React.FC = () => {
       {notice && (
         <Alert tone="warning" role="alert">
           {notice}
+        </Alert>
+      )}
+      {authSecretNotice && (
+        <Alert tone="success" role="status" testId="auth-secret-saved-notice">
+          {authSecretNotice}
         </Alert>
       )}
       {authUpdateError && (
@@ -567,7 +593,7 @@ export const EnvironmentsPage: React.FC = () => {
 
       <p className="lqa-models-footnote">
         <AppIcon name="lock" size={14} />
-        凭据密钥只能写入一次，由后台 SecretVault 加密保存，仅在获准的 Worker
+        凭据密钥仅支持写入或替换，由后台 SecretVault 加密保存，仅在获准的 Worker
         内解密；界面和接口都不会回显明文。
       </p>
 
@@ -592,11 +618,29 @@ export const EnvironmentsPage: React.FC = () => {
           projectId={currentProject.id}
           environment={authDialogEnvironment}
           onClose={() => setAuthDialogEnvId(null)}
-          onCreated={(profile, updatedEnvironment, warning) => {
+          onSaved={(profile, updatedEnvironment, warning) => {
             setAuthProfiles((old) => [...old, profile]);
             if (updatedEnvironment) replaceEnvironment(updatedEnvironment);
             if (warning) setNotice(warning);
             setAuthDialogEnvId(null);
+          }}
+        />
+      )}
+      {currentProject && canEdit && editingAuthProfile &&
+        editingAuthProfile.projectId === currentProject.id &&
+        canEditAuthSecrets(editingAuthProfile) && (
+        <AuthProfileDialog
+          key={`edit-${editingAuthProfile.id}-${editingAuthProfile.version}`}
+          projectId={currentProject.id}
+          profile={editingAuthProfile}
+          onClose={() => setEditingAuthProfile(null)}
+          onSaved={(profile, _environment, savedNotice) => {
+            if (projectRef.current !== editingAuthProfile.projectId) return;
+            setAuthProfiles((old) =>
+              old.map((item) => item.id === profile.id ? profile : item),
+            );
+            setAuthSecretNotice(savedNotice ?? '已保存为新版本。');
+            setEditingAuthProfile(null);
           }}
         />
       )}
