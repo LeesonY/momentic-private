@@ -23,6 +23,7 @@ import {
   DECISION_SCHEMA,
   AGENT_REPORT_SCHEMA,
   parseAgentReport,
+  loginReportText,
   sessionOutputSchema,
   sessionModelContext,
   parseSessionDecision,
