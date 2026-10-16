@@ -3328,6 +3328,46 @@
         "planningStopped": {
           "type": "boolean"
         },
+        "invalidPlanStreak": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 64
+        },
+        "lastPlanFailure": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "reasonCode": {
+                  "type": "string",
+                  "enum": [
+                    "MODEL_OUTPUT_TRUNCATED",
+                    "VALIDATION_ERROR",
+                    "TARGET_NOT_ALLOWED"
+                  ]
+                },
+                "schemaErrors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9_./*:-]{1,200}$"
+                  },
+                  "maxItems": 6,
+                  "minItems": 0
+                }
+              },
+              "required": [
+                "reasonCode",
+                "schemaErrors"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "title": {
           "anyOf": [
             {

@@ -55,6 +55,7 @@ const files = [
   'packages/orchestrator/test/self-sign-in.test.mjs',
   'packages/orchestrator/test/auth-profile-version.test.mjs',
   'packages/orchestrator/test/session-planning.test.mjs',
+  'packages/orchestrator/test/plan-invalid-retry.test.mjs',
   'packages/orchestrator/test/session-title.test.mjs',
   'packages/orchestrator/test/input-options.test.mjs',
   'packages/orchestrator/test/trusted-smoke.test.mjs',

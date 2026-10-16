@@ -24,6 +24,38 @@ import {
 } from './session-retries.js';
 
 export const SESSION_ROUND_LIMIT = 64;
+/**
+ * A malformed/unauthorized planner round no longer ends the session: up to two
+ * consecutive invalid rounds are retried. The third consecutive invalid round
+ * stops planning and finalizes, so a broken provider cannot loop or bill
+ * forever. Any accepted round clears the streak.
+ */
+export const INVALID_PLAN_STREAK_LIMIT = 3;
+type PlanFailureCode =
+  'MODEL_OUTPUT_TRUNCATED' | 'VALIDATION_ERROR' | 'TARGET_NOT_ALLOWED';
+/** Schema-path hints only; never model text, values or credentials. */
+const SCHEMA_PATH_HINT = /^[A-Za-z0-9_./*:-]{1,200}$/;
+
+function planFailure(
+  reasonCode: PlanFailureCode,
+  schemaErrors: readonly string[] | undefined,
+): PlanFailure {
+  if (schemaErrors === undefined) return { reasonCode, schemaErrors: [] };
+  if (!Array.isArray(schemaErrors) || schemaErrors.length > 6)
+    throw new StorageError('VALIDATION_ERROR');
+  const checked: string[] = [];
+  for (const entry of schemaErrors) {
+    if (typeof entry !== 'string' || !SCHEMA_PATH_HINT.test(entry))
+      throw new StorageError('VALIDATION_ERROR');
+    checked.push(entry);
+  }
+  return { reasonCode, schemaErrors: checked };
+}
+
+export interface PlanFailure {
+  reasonCode: PlanFailureCode;
+  schemaErrors: string[];
+}
 const clean = (value: string) =>
   sanitizeText(value).replace(
     /((?:密码|口令|password|secret|api[_ -]?key)\s*[:：=]\s*)\S+/gi,
@@ -283,6 +315,7 @@ export class SessionAgent {
     job: JobRow,
     input: unknown,
     plannerFailureCode?: string,
+    plannerFailureHint?: readonly string[],
   ): Promise<void> {
     if (job.role !== 'coordinator' || job.result?.['stage'] !== 'plan')
       throw new StorageError('FORBIDDEN');
@@ -295,6 +328,11 @@ export class SessionAgent {
       throw new StorageError('VERSION_CONFLICT');
     let accepted: ReturnType<typeof reviewSessionProposal>;
     let fallbackToTechnicalSmoke = false;
+    /** Set when this round's planner output was not acceptable as a plan. */
+    let invalidPlan: PlanFailure | null = null;
+    // A hint is only meaningful together with a trusted failure code.
+    if (plannerFailureCode === undefined && plannerFailureHint !== undefined)
+      throw new StorageError('VALIDATION_ERROR');
     if (plannerFailureCode !== undefined) {
       // Failure codes are emitted by the trusted model gateway, not inferred
       // from model text. Provider/network/billing failures must NOT fall back.
@@ -305,6 +343,16 @@ export class SessionAgent {
         )
       )
         throw new StorageError('VALIDATION_ERROR');
+      if (plannerFailureHint !== undefined)
+        invalidPlan = planFailure(
+          plannerFailureCode as PlanFailureCode,
+          plannerFailureHint,
+        );
+      else
+        invalidPlan = {
+          reasonCode: plannerFailureCode as PlanFailureCode,
+          schemaErrors: [],
+        };
       // Recover once by exploring the server-authorized entry URL.
       // A repeated planner failure still uses immutable technical smoke.
       const exploreBeforeFallback =
@@ -353,6 +401,10 @@ export class SessionAgent {
           (error instanceof DomainError || error instanceof StorageError) &&
           ['VALIDATION_ERROR', 'TARGET_NOT_ALLOWED'].includes(error.code);
         if (!invalidProposal) throw error;
+        invalidPlan = {
+          reasonCode: error.code as PlanFailureCode,
+          schemaErrors: [],
+        };
         fallbackToTechnicalSmoke =
           context.cases.length === 0 &&
           context.remainingCases > 0 &&
@@ -442,30 +494,47 @@ export class SessionAgent {
     )
       await this.coordinator.change(client, run, 'running', 'execute');
     const hasWork = caseIds.length > 0 || accepted.exploreTargets.length > 0;
+    const invalidPlanStreak = invalidPlan
+      ? (context.session.invalidPlanStreak ?? 0) + 1
+      : 0;
+    const planExhausted =
+      invalidPlan !== null && invalidPlanStreak >= INVALID_PLAN_STREAK_LIMIT;
     const gaps = [
       ...context.session.coverageGaps,
       ...accepted.coverageGaps,
       ...reviewNotes,
       ...retries.notes,
     ];
-    if (!hasWork && accepted.action === 'dispatch')
+    if (invalidPlan) {
+      gaps.push(
+        planExhausted
+          ? `主 AI 连续 ${INVALID_PLAN_STREAK_LIMIT} 轮规划输出不合格（${invalidPlan.reasonCode}），停止继续规划并进入收尾。`
+          : `主 AI 本轮规划输出不合格（${invalidPlan.reasonCode}），未采用其业务用例，稍后重试规划。`,
+      );
+    }
+    if (!hasWork && accepted.action === 'dispatch' && !invalidPlan)
       gaps.push('主 AI 未提出可执行的新任务，已停止重复派工。');
     if (!hasWork && !context.cases.length)
       gaps.push('本次没有可执行用例，不能据此认为目标系统通过测试。');
     const document: SessionReport = {
       ...context.session,
-      // An invalid model plan cannot be repaired by repeatedly prompting the
-      // same planner after dispatching the fixed technical fallback. Finish
-      // after its owned executor/reproducer work, retaining the coverage gap.
+      // An invalid round keeps the session reviewable so the planner gets
+      // another chance; only the streak limit (or an explicit plan-only run)
+      // stops planning. The fixed technical smoke is dispatched without
+      // stopping planning, so its result can still be reviewed and questioned.
       status:
         accepted.action === 'ask'
           ? 'reviewing'
-          : planningOnly || fallbackToTechnicalSmoke
+          : planningOnly || planExhausted
             ? 'finalizing'
             : hasWork
               ? 'working'
-              : 'finalizing',
-      planningStopped: planningOnly || fallbackToTechnicalSmoke,
+              : invalidPlan
+                ? 'reviewing'
+                : 'finalizing',
+      planningStopped: planningOnly || planExhausted,
+      invalidPlanStreak,
+      lastPlanFailure: invalidPlan,
       plan: clean(accepted.rationale),
       ...(!context.session.title && accepted.title?.trim()
         ? { title: clean(accepted.title).slice(0, 60) }
@@ -557,12 +626,24 @@ export class SessionAgent {
     const reviewed = new Set(session.reviewedTaskIds ?? []);
     const hasNewResult = completed.some((id) => !reviewed.has(id));
     const hasNewMessage = latestMessage !== (session.messageCursor ?? null);
+    const invalidPlanStreak = session.invalidPlanStreak ?? 0;
+    // An invalid round is immediately re-planned while nothing is in flight:
+    // there is no new result to wait for, and the streak limit plus the round
+    // limit and budget bound the number of paid attempts.
+    const retryInvalidPlan =
+      invalidPlanStreak > 0 &&
+      invalidPlanStreak < INVALID_PLAN_STREAK_LIMIT &&
+      !session.planningStopped &&
+      !children.some(pending);
     const reviewDue =
       run.phase !== 'finalize' &&
       session.status !== 'complete' &&
       !session.planningStopped &&
       session.round < SESSION_ROUND_LIMIT &&
-      (session.round === 0 || hasNewResult || hasNewMessage);
+      (session.round === 0 ||
+        hasNewResult ||
+        hasNewMessage ||
+        retryInvalidPlan);
     const reproduced =
       run.phase !== 'finalize' && !reviewDue
         ? await this.coordinator.enqueueReproductions(

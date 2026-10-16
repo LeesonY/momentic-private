@@ -158,18 +158,18 @@ test('an unverifiable AI citation keeps the session agent case, marked inferred'
   assert.equal(documented.status, 'working');
 });
 
-test('truncated Planner output may only create fixed technical smoke, not invented business cases', async () => {
+test('a truncated Planner round never invents business cases and no longer ends the session', async () => {
   const run = { ...makeRun(), phase: 'plan' };
   const { coordinator, events } = makeCoordinator();
   const agent = new SessionAgent(coordinator);
-  agent.context = async () => ({
+  const context = (exploredUrls = []) => ({
     session: {
       round: 1,
       status: 'planning',
       objective: 'Check login',
       plan: '',
       caseIds: [],
-      exploredUrls: [],
+      exploredUrls,
       coverageGaps: [],
       summary: '',
       history: [],
@@ -187,23 +187,58 @@ test('truncated Planner output may only create fixed technical smoke, not invent
       imageInput: false,
     },
   });
-  agent.write = async (_client, _run, document) => {
-    events.push({ action: 'session', document });
-  };
   const client = { query: async () => ({ rows: [{ run_id: run.id }] }) };
   const job = {
     role: 'coordinator',
     result: { stage: 'plan', sessionRound: 1 },
   };
+  // Round 1 with nothing explored yet: only the approved entry is explored
+  // again, and the session stays reviewable so the next round can plan.
+  agent.context = async () => context([]);
+  agent.write = async (_client, _run, document) => {
+    events.push({ action: 'session', document });
+  };
+  await agent.applyPlan(client, run, job, undefined, 'MODEL_OUTPUT_TRUNCATED', [
+    '/cases/*:required:title',
+  ]);
+  assert.equal(
+    events.some((event) => event.action === 'case'),
+    false,
+    'no business case may be invented from a truncated plan',
+  );
+  assert.deepEqual(
+    events
+      .filter((event) => event.action === 'enqueue')
+      .map((event) => [event.role, event.stage]),
+    [['explorer', 'explore']],
+  );
+  const first = events.find((event) => event.action === 'session').document;
+  assert.equal(first.status, 'working');
+  assert.equal(first.planningStopped, false);
+  assert.equal(first.invalidPlanStreak, 1);
+  assert.deepEqual(first.lastPlanFailure, {
+    reasonCode: 'MODEL_OUTPUT_TRUNCATED',
+    schemaErrors: ['/cases/*:required:title'],
+  });
+  assert.match(first.coverageGaps.join(' '), /规划输出不合格/);
+
+  // With the entry already explored, the fixed technical smoke is dispatched
+  // but planning stays open so its result can still be reviewed.
+  events.length = 0;
+  agent.context = async () => context([run.targetUrl]);
+  agent.write = async (_client, _run, document) => {
+    events.push({ action: 'session', document });
+  };
   await agent.applyPlan(client, run, job, undefined, 'MODEL_OUTPUT_TRUNCATED');
-  const c = events.find((e) => e.action === 'case')?.definition;
+  const c = events.find((event) => event.action === 'case')?.definition;
   assert.deepEqual(
     c.criteria.map((v) => v.id),
     ['smoke.http', 'smoke.visible'],
   );
-  assert.equal(events.filter((e) => e.action === 'enqueue').length, 1);
-  const report = events.find((e) => e.action === 'session').document;
-  assert.equal(report.status, 'finalizing');
+  assert.equal(events.filter((event) => event.action === 'enqueue').length, 1);
+  const report = events.find((event) => event.action === 'session').document;
+  assert.equal(report.status, 'working');
+  assert.equal(report.planningStopped, false);
   assert.match(report.coverageGaps.join(' '), /业务用例未得到确认/);
   const originalCount = events.length;
   await assert.rejects(

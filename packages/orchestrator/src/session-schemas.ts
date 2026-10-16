@@ -1,5 +1,8 @@
 import { getValidator, type ContractName } from '@localqa/contracts';
-import type { SessionContext } from './session-agent.js';
+import {
+  INVALID_PLAN_STREAK_LIMIT,
+  type SessionContext,
+} from './session-agent.js';
 import { CASE_RETRY_LIMIT } from './session-retries.js';
 import { sessionEntryUrl } from './session-planning.js';
 
@@ -27,6 +30,31 @@ export function sessionOutputSchema(
   };
   visit(definition(name));
   return { ...(definition(name) as Record<string, unknown>), $defs: selected };
+}
+
+/** Safe, schema-path-only account of why the previous round was rejected. */
+function rejectedPlanNotice(
+  context: SessionContext,
+): Record<string, unknown> | null {
+  const streak = context.session.invalidPlanStreak ?? 0;
+  const failure = context.session.lastPlanFailure ?? null;
+  if (streak <= 0 || !failure) return null;
+  const reason =
+    failure.reasonCode === 'MODEL_OUTPUT_TRUNCATED'
+      ? '上一轮结构化输出被截断，没有通过格式校验。'
+      : failure.reasonCode === 'TARGET_NOT_ALLOWED'
+        ? '上一轮方案引用了未授权地址，没有通过服务端校验。'
+        : '上一轮输出未通过格式校验（缺少必填字段、字段类型不符，或包含 schema 未定义的字段）。';
+  const where = failure.schemaErrors.length
+    ? `问题位置（schema 路径:关键词:属性名）：${failure.schemaErrors.join('；')}。`
+    : '';
+  return {
+    attempt: streak,
+    limit: INVALID_PLAN_STREAK_LIMIT,
+    reasonCode: failure.reasonCode,
+    schemaErrors: failure.schemaErrors,
+    instruction: `${reason}${where}请严格按 outputSchema 输出 SessionDecision：只输出 JSON，不要包含 schema 未定义的字段（例如 cases[] 里不要出现 id、report、retryCount），必填字段必须齐全。这是连续第 ${streak} 次不合格，达到 ${INVALID_PLAN_STREAK_LIMIT} 次将停止规划并收尾。`,
+  };
 }
 
 /** Keep identities, latest results, retry fences and finding review fields even
@@ -110,6 +138,7 @@ export function sessionModelContext(
     expected: f.expected.slice(0, compact === 2 ? 64 : compact ? 80 : 200),
     actual: f.actual.slice(0, compact === 2 ? 64 : compact ? 80 : 200),
   });
+  const rejectedPlan = purpose === 'plan' ? rejectedPlanNotice(context) : null;
   const result: Record<string, unknown> = {
     session: {
       ...context.session,
@@ -135,6 +164,7 @@ export function sessionModelContext(
     caseRetryLimit: CASE_RETRY_LIMIT,
     findingCount: findings.filter((f) => f.triageDisposition !== 'duplicate')
       .length,
+    ...(rejectedPlan ? { previousPlanRejected: rejectedPlan } : {}),
     activeTasks: context.activeTasks,
     sources: context.sources.slice(0, 8).map((source) => ({
       ...source,

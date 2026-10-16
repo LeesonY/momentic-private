@@ -1586,6 +1586,15 @@ export interface SessionReport {
    */
   reviewedTaskIds?: string[];
   planningStopped?: boolean;
+  invalidPlanStreak?: number;
+  lastPlanFailure?: {
+    reasonCode: "MODEL_OUTPUT_TRUNCATED" | "VALIDATION_ERROR" | "TARGET_NOT_ALLOWED";
+    /**
+     * @minItems 0
+     * @maxItems 6
+     */
+    schemaErrors: string[];
+  } | null;
   title?: string | null;
 }
 export interface SessionRound {

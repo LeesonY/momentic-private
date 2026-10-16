@@ -120,6 +120,10 @@ D["SessionReport"] = obj({"objective": text(4000), "round": integer(0, 64), "sta
 D["SessionReport"]["properties"]["messageCursor"] = nullable(UUID)
 D["SessionReport"]["properties"]["reviewedTaskIds"] = arr(UUID, 200)
 D["SessionReport"]["properties"]["planningStopped"] = BOOL
+# A malformed/unauthorized planner round keeps the session reviewable; only a
+# short consecutive streak stops planning. Hints are schema paths only.
+D["SessionReport"]["properties"]["invalidPlanStreak"] = integer(0, 64)
+D["SessionReport"]["properties"]["lastPlanFailure"] = nullable(obj({"reasonCode": enum("MODEL_OUTPUT_TRUNCATED", "VALIDATION_ERROR", "TARGET_NOT_ALLOWED"), "schemaErrors": arr(text(200, pattern="^[A-Za-z0-9_./*:-]{1,200}$"), 6)}))
 D["SessionReport"]["properties"]["title"] = nullable(text(60))
 D["Report"]["properties"]["session"] = ref("SessionReport")
 D["InputRequest"] = obj({"id": UUID, "runId": UUID, "kind": enum("auth_profile", "one_time_code", "clarification", "scope_extension", "write_action"), "status": enum("pending", "resolved", "rejected", "expired"), "prompt": text(2000), "expiresAt": DATE, "version": VER})
