@@ -111,6 +111,12 @@ export function loginReportText(report: {
   if (code === 'AGENT_STEP_LIMIT') return '登录代理在步数上限内没能完成登录。';
   if (code === 'OTP_UNAVAILABLE') return '需要验证码，但没有拿到。';
   if (code === 'AUTH_INTERRUPTED') return '登录过程被中断。';
+  if (code === 'POLICY_DENIED')
+    return '登录时页面发出的请求被网络策略拦截（超出登录配置声明的登录页/认证域名），没能完成登录。';
+  if (code === 'BROWSER_UNAVAILABLE')
+    return '登录页或认证服务连接失败（超时或不可达），没能完成登录。';
+  if (code === 'TARGET_NOT_ALLOWED')
+    return '登录地址或跳转目标不在登录配置声明的域名范围内，没能完成登录。';
   return `登录没有完成（${code}）。`;
 }
 

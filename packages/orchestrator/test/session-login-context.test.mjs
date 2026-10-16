@@ -125,3 +125,26 @@ test('task login report text still cleans credentials and explains failure codes
   ])
     assert.ok(loginReportText({ reasonCode, detail: null }).length > 0);
 });
+
+test('a refused or unreachable sign-in request is explained, not just named', () => {
+  assert.match(
+    loginReportText({ reasonCode: 'POLICY_DENIED', detail: null }),
+    /网络策略拦截/,
+  );
+  assert.match(
+    loginReportText({ reasonCode: 'BROWSER_UNAVAILABLE', detail: null }),
+    /连接失败/,
+  );
+  assert.match(
+    loginReportText({ reasonCode: 'TARGET_NOT_ALLOWED', detail: null }),
+    /域名范围/,
+  );
+  // A trusted primitive's bounded request label wins over the generic text.
+  assert.equal(
+    loginReportText({
+      reasonCode: 'POLICY_DENIED',
+      detail: 'POST http://192.168.111.66:9588/idp/authCenter/login',
+    }),
+    'POST http://192.168.111.66:9588/idp/authCenter/login',
+  );
+});
