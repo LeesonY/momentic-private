@@ -7,7 +7,14 @@ import { parseAgentReport, verdictFromReport } from './agent-report.js';
 import { createRegressionPlan } from './regression-plan.js';
 import { AuthStateService, type AuthStateRef } from './auth-state-service.js';
 import { AuthOtpService } from './auth-otp.js';
-import { readRunAuthProfile } from './auth-profile.js';
+import { readRunAuthProfile, readSavedAuthValues } from './auth-profile.js';
+import {
+  inputValueOf,
+  isHiddenInput,
+  isReleasedSensitiveTool,
+  isSensitiveInput,
+  matchesSavedCredential,
+} from './signed-out-input.js';
 import {
   AuthImportService,
   type AuthImportGrant,
@@ -1913,23 +1920,66 @@ export class Coordinator {
           hashPayload({ status: 'succeeded', snapshot: owned, evidence: [] })
         )
           throw new StorageError('POLICY_DENIED');
-        if (
-          node.sensitive ||
-          ['password', 'hidden'].includes(node.inputType ?? node.role) ||
-          (!withinWriteScope(
+        const hiddenInput = isHiddenInput(node);
+        const sensitiveInput = isSensitiveInput(node);
+        // Mo's subagents may TYPE into a password box. Only a session-managed
+        // smoke run's immutable signed-out case (requiresLogin=false) may do
+        // so, and only with a value that is not a saved credential.
+        const releasedSensitive =
+          sensitiveInput &&
+          !hiddenInput &&
+          signedOutCase &&
+          isReleasedSensitiveTool(call.name);
+        const outOfScopeMutation =
+          !withinWriteScope(
             owned!.displayUrl,
             run.effectiveConfig.actionPolicy === 'approved_workflows'
               ? (run.effectiveConfig.writeScope ?? [])
               : [],
           ) &&
-            ((call.name === 'press' && call.args.key === 'Enter') ||
-              (call.name === 'click' &&
-                (node.inputType === 'submit' ||
-                  /删除|新增|新建|创建|保存|提交|发送|购买|支付|启用|停用|禁用|授权|重置|发布|\b(delete|remove|create|save|submit|send|purchase|enable|disable|reset|publish)\b/i.test(
-                    `${node.name} ${node.text}`,
-                  )))))
+          ((call.name === 'press' && call.args.key === 'Enter') ||
+            (call.name === 'click' &&
+              (node.inputType === 'submit' ||
+                /删除|新增|新建|创建|保存|提交|发送|购买|支付|启用|停用|禁用|授权|重置|发布|\b(delete|remove|create|save|submit|send|purchase|enable|disable|reset|publish)\b/i.test(
+                  `${node.name} ${node.text}`,
+                ))));
+        if (
+          hiddenInput ||
+          (sensitiveInput && !releasedSensitive) ||
+          outOfScopeMutation
         )
           throw new StorageError('POLICY_DENIED');
+        if (releasedSensitive) {
+          const value = inputValueOf(call);
+          if (value !== null && value.length > 0) {
+            // Decrypt, compare, drop: neither value enters a log, event,
+            // result or error, and a failed read fails closed.
+            const saved = await readSavedAuthValues(
+              client,
+              this.vault,
+              run,
+              proof,
+            );
+            let matched: boolean;
+            try {
+              matched = matchesSavedCredential(value, saved);
+            } finally {
+              saved.length = 0;
+            }
+            if (matched) {
+              console.warn(
+                JSON.stringify({
+                  event: 'action.denied',
+                  reasonCode: 'SAVED_CREDENTIAL_INPUT',
+                  runId: run.id,
+                  taskId: job.id,
+                  tool: call.name,
+                }),
+              );
+              throw new StorageError('POLICY_DENIED');
+            }
+          }
+        }
       }
       let verifiedSource:
         import('@localqa/contracts').RegressionStepSource | undefined;

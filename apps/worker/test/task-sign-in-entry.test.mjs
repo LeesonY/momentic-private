@@ -172,6 +172,27 @@ test('missing loginUrl does not skip a distinct per-case entry in the same origi
     await fixture.cleanup();
   }
 });
+test('a signed-out case tells its executor that fictional password test values are allowed', async () => {
+  const fixture = signInFixture();
+  fixture.work.signIn = false;
+  fixture.work.withoutSignIn = true;
+  fixture.work.definition.requiresLogin = false;
+  fixture.work.targetUrl = `${appOrigin}/home`;
+  fixture.page.screenshot = async () =>
+    Buffer.from('anonymous-fixture-evidence');
+  try {
+    assert.equal(await workerFor(fixture).once(), true);
+    const input = firstWorkInput(fixture);
+    assert.match(input.signedOut, /requiresLogin=false/);
+    assert.match(input.signedOut, /WrongPwd_123/);
+    assert.match(input.signedOut, /不要使用真实账号或密码/);
+    assert.ok(!('authentication' in input));
+    assert.ok(!JSON.stringify(input).includes('平台已经用测试账号'));
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('without a successful task sign-in ordinary execution still navigates and has no signed-in notice', async () => {
   const fixture = signInFixture();
   fixture.work.signIn = false;

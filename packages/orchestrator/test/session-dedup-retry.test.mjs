@@ -77,6 +77,9 @@ test('session contracts add optional review/retry fields and duplicateOf without
   assert.match(SESSION_AGENT_PROMPT, /多个验收条件/);
   assert.match(SESSION_AGENT_PROMPT, /duplicateFindings/);
   assert.match(SESSION_AGENT_PROMPT, /retryCaseIds/);
+  assert.match(SESSION_AGENT_PROMPT, /requiresLogin=false/);
+  assert.match(SESSION_AGENT_PROMPT, /WrongPwd_123/);
+  assert.match(SESSION_AGENT_PROMPT, /不能使用真实账号密码/);
 });
 
 test('same entry and normalized title are rejected across rounds and leave an explicit record', () => {

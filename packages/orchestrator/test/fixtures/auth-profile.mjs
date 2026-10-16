@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { parseContract } from '@localqa/contracts';
+import { hashPayload } from '@localqa/storage';
 import { sessionFixture } from './session.mjs';
 
 /** SQL-aware unit fixture; no PostgreSQL, RLS or browser is simulated. */
@@ -34,6 +35,10 @@ export function authProfileFixture({
       [1, { document: profile, secret_id: randomUUID(), secret_version: 1 }],
     ]),
     sessions: new Map(),
+    snapshots: new Map(),
+    lastSnapshot: null,
+    /** secret_id values whose ciphertext row is unavailable. */
+    missingSecrets: new Set(),
     intents: new Map(),
     scope: null,
     seq: 0,
@@ -258,11 +263,12 @@ export function authProfileFixture({
     }
     if (
       sql.includes(
-        'SELECT v.ciphertext,v.nonce,v.auth_tag,v.key_version,s.purpose FROM secret_versions',
+        'SELECT v.ciphertext,v.nonce,v.auth_tag,v.key_version,s.purpose',
       )
     ) {
+      if (auth.missingSecrets.has(params[1])) return rows([]);
       const version = [...auth.versions.values()].find(
-        (v) => v.secret_id === params[1],
+        (v) => v.secret_id === params[1] && v.secret_version === params[2],
       );
       return rows(
         version
@@ -313,6 +319,59 @@ export function authProfileFixture({
     if (sql.includes('SELECT count(*)::integer n FROM action_intents'))
       return rows([{ n: 0 }]);
     if (sql.includes('SELECT COALESCE(max(seq)')) return rows([{ n: 1 }]);
+    if (sql.includes('AS frozen_version')) {
+      const pinned = [...auth.sessions.values()].find(
+        (s) =>
+          s.task_id === task.id &&
+          s.fencing_token === String(proof.fencingToken) &&
+          s.context_version === run.contextVersion,
+      );
+      return rows([
+        {
+          auth_profile_id: auth.deleted ? null : profileId,
+          frozen_version: 1,
+          current_version: auth.deleted ? null : auth.head,
+          task_version: pinned?.auth_profile_version ?? null,
+        },
+      ]);
+    }
+    if (
+      sql.includes(
+        'SELECT version,secret_id,secret_version FROM auth_profile_versions',
+      )
+    ) {
+      const versions = Array.isArray(params[2]) ? params[2] : [];
+      return rows(
+        versions
+          .filter((version) => auth.versions.has(version))
+          .map((version) => ({
+            version,
+            ...auth.versions.get(version),
+          })),
+      );
+    }
+    if (sql.includes('SELECT document FROM page_snapshots')) {
+      const snapshot = auth.snapshots.get(params[3]) ?? null;
+      auth.lastSnapshot = snapshot;
+      return rows(snapshot ? [{ document: snapshot }] : []);
+    }
+    if (sql.includes('FROM action_intents i JOIN steps s')) {
+      // The last granted action's snapshot must be the one the caller now
+      // cites, exactly as the real action ledger enforces it.
+      return rows(
+        auth.lastSnapshot
+          ? [
+              {
+                result_hash: hashPayload({
+                  status: 'succeeded',
+                  snapshot: auth.lastSnapshot,
+                  evidence: [],
+                }),
+              },
+            ]
+          : [],
+      );
+    }
     if (sql.includes('SELECT p.revoked,v.document,h.document')) {
       const version = versionFor(params[2]);
       return rows(
@@ -326,6 +385,8 @@ export function authProfileFixture({
                 scope_status: auth.scope?.status,
                 scope_context_version: auth.scope?.context_version,
                 scope_auth_epoch: auth.scope?.auth_epoch,
+                current_state_id: auth.scope?.current_state_id,
+                scope_profile_version: auth.scope?.auth_profile_version,
               },
             ],
       );

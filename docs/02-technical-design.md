@@ -161,7 +161,7 @@ AI 登录（`mode: agent`，与 Momentic Mo 的用法一致）是默认推荐方
 
 登录期间不开实时画面或 trace，console/pageerror/network 内容不进入录制；登记的页面观察先脱敏再交给模型或保存。私有端口结束后，已知账号、密码、验证码仍在该浏览器后续快照和日志中打码，任务关闭时清除脱敏值。登录失败、取消、异常均结束认证会话，任务最终关闭浏览器；不以重试掩盖未知动作结果。
 
-执行中凭据需要进入运行进程和浏览器内存，不能声称完全不接触运行进程。实际截图、DOM、network headers/bodies、URL 和日志都走同一 RedactionPolicy；截图生成前对已知敏感字段遮罩。脱敏影响验收时使用固定检查或明确受阻，不展示虚假的未脱敏证据。
+执行中凭据需要进入运行进程和浏览器内存，不能声称完全不接触运行进程。实际截图、DOM、network headers/bodies、URL 和日志都走同一 RedactionPolicy；截图生成前对已知敏感字段遮罩。未登录用例（requiresLogin=false）允许执行代理在密码框等敏感输入框输入明显虚构的测试值（如 WrongPwd_123）来验证错误提示和掩码，hidden 输入框仍禁止；服务端放行前用现有密钥服务临时解密本运行绑定的登录配置（自登录所用版本与运行冻结版本），输入值等于或包含任一已保存值即拒绝，日志只记固定原因 SAVED_CREDENTIAL_INPUT，不带出值本身。脱敏影响验收时使用固定检查或明确受阻，不展示虚假的未脱敏证据。
 
 API cookie 为 HttpOnly、Secure、SameSite，并验证 Origin/CSRF；后台 secret、模型 key 与 Worker service token 不进前端 bundle。模型网关仅访问已批准 endpoint，注册新 endpoint 为管理员动作。
 

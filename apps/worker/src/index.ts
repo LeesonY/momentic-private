@@ -85,6 +85,9 @@ function sameLoginEntry(targetUrl: string, loginUrl: URL | null): boolean {
 const SIGNED_IN_TASK_INSTRUCTION =
   '平台已经用测试账号为你登录（已登录），当前页面是登录后的页面。不要再尝试登录，也不要在登录表单里输入账号或密码。如果执行中页面回到了登录页或出现会话过期，说明登录状态失效；停止操作，提交 blocked 并在报告的 summary/gaps 中写明原因。';
 
+const SIGNED_OUT_TASK_INSTRUCTION =
+  '这条用例按未登录状态执行（requiresLogin=false）：可以往密码框或敏感输入框输入明显虚构的测试值（如 WrongPwd_123）来验证错误提示、掩码等；不要使用真实账号或密码，平台会拒绝任何已保存的凭据值。';
+
 /** Why an agent's work stopped, in words for the user and the session agent. */
 function blockedDetail(code: string): string {
   if (code === 'AUTH_FAILED')
@@ -1369,6 +1372,10 @@ export class Worker {
                       }),
                   ...(taskSignedIn
                     ? { authentication: SIGNED_IN_TASK_INSTRUCTION }
+                    : {}),
+                  ...(work.run.executionMode === 'smoke' &&
+                  work.definition?.requiresLogin === false
+                    ? { signedOut: SIGNED_OUT_TASK_INSTRUCTION }
                     : {}),
                   actionPolicy: work.run.effectiveConfig.actionPolicy,
                   writeScope: work.run.effectiveConfig.writeScope ?? [],

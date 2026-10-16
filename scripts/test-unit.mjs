@@ -19,6 +19,7 @@ const files = [
   'packages/orchestrator/test/agent-report.test.mjs',
   'packages/orchestrator/test/session-dedup-retry.test.mjs',
   'packages/orchestrator/test/session-requires-login.test.mjs',
+  'packages/orchestrator/test/signed-out-password.test.mjs',
   'packages/orchestrator/test/session-claim-serial.test.mjs',
   'packages/orchestrator/test/session-login-context.test.mjs',
   'apps/worker/test/session-dedup-retry.test.mjs',
