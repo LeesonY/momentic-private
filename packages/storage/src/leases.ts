@@ -113,6 +113,34 @@ export async function claimTask(
           WHERE b.run_id=r.id AND b.kind='concurrency' AND b.status='reserved' AND occupied.status='running' AND occupied.role IN ('coordinator','finalizer')))`
            : ''
        }
+       AND NOT (
+         -- Serial claim for session tasks using an exclusive sign-in credential:
+         -- leave queued if another self-signing task on this account is running.
+         r.execution_mode = 'smoke'
+         AND j.role IN ('executor', 'reproducer')
+         AND j.document->>'summary' IN ('execute', 'reproduce')
+         AND EXISTS(SELECT 1 FROM run_sessions s WHERE s.project_id = r.project_id AND s.run_id = r.id)
+         AND r.auth_profile_id IS NOT NULL
+         AND COALESCE((SELECT c.document->>'requiresLogin' FROM run_cases c WHERE c.project_id = j.project_id AND c.run_id = j.run_id AND c.id = j.case_id), 'true') <> 'false'
+         AND (
+           SELECT v.document->>'sharingPolicy'
+           FROM auth_profiles p
+           JOIN auth_profile_versions v ON v.project_id = p.project_id AND v.auth_profile_id = p.id AND v.version = p.version
+           WHERE p.project_id = r.project_id AND p.id = r.auth_profile_id AND p.deleted_at IS NULL AND NOT p.revoked
+         ) = 'exclusive_run'
+         AND EXISTS(
+           SELECT 1
+           FROM jobs other_j
+           JOIN runs other_r ON other_r.project_id = other_j.project_id AND other_r.id = other_j.run_id
+           WHERE other_j.status = 'running'
+             AND other_j.role IN ('executor', 'reproducer')
+             AND other_j.document->>'summary' IN ('execute', 'reproduce')
+             AND other_r.execution_mode = 'smoke'
+             AND other_r.auth_profile_id = r.auth_profile_id
+             AND EXISTS(SELECT 1 FROM run_sessions other_s WHERE other_s.project_id = other_r.project_id AND other_s.run_id = other_r.id)
+             AND COALESCE((SELECT other_c.document->>'requiresLogin' FROM run_cases other_c WHERE other_c.project_id = other_j.project_id AND other_c.run_id = other_j.run_id AND other_c.id = other_j.case_id), 'true') <> 'false'
+         )
+       )
        ORDER BY CASE WHEN j.role IN ('coordinator','finalizer') THEN 0 ELSE 1 END,j.available_at,j.id FOR UPDATE OF j SKIP LOCKED LIMIT 1`,
       admission
         ? [scope.projectId, admission.control, admission.children]

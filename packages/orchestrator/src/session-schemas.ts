@@ -50,6 +50,7 @@ export function sessionModelContext(
     return {
       caseId: c.definition.id,
       entryUrl: sessionEntryUrl(c.definition, context.targetUrl),
+      requiresLogin: c.definition.requiresLogin !== false,
       title: c.definition.title.slice(
         0,
         compact === 2 ? 60 : compact ? 80 : 120,

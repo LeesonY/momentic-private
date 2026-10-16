@@ -799,6 +799,10 @@
           },
           "maxItems": 20,
           "minItems": 1
+        },
+        "requiresLogin": {
+          "type": "boolean",
+          "default": true
         }
       },
       "required": [
@@ -863,6 +867,10 @@
           },
           "maxItems": 20,
           "minItems": 1
+        },
+        "requiresLogin": {
+          "type": "boolean",
+          "default": true
         },
         "regression": {
           "$ref": "#/$defs/RegressionBinding"
@@ -3011,6 +3019,10 @@
           "format": "uri",
           "maxLength": 8192,
           "pattern": "^https?://"
+        },
+        "requiresLogin": {
+          "type": "boolean",
+          "default": true
         }
       },
       "required": [
