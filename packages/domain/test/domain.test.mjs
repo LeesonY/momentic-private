@@ -7,6 +7,7 @@ import {
   TERMINAL,
   reserve,
   DEFAULT_LIMITS,
+  SESSION_DEFAULT_LIMITS,
   EMPTY_USED,
   validateTarget,
   validateBrowserTool,
@@ -73,6 +74,21 @@ test('all phase ordering and saved waiting phase', () => {
   assert.throws(() =>
     transition({ status: 'running', phase: 'execute' }, 'completed'),
   );
+});
+test('session defaults widen only tokens, calls and wall-clock; regression keeps the old limits', () => {
+  assert.deepEqual(SESSION_DEFAULT_LIMITS, {
+    ...DEFAULT_LIMITS,
+    maxActiveSeconds: 1800,
+    maxModelCalls: 300,
+    maxTotalTokens: 1500000,
+  });
+  for (const key of Object.keys(DEFAULT_LIMITS))
+    if (!['maxActiveSeconds', 'maxModelCalls', 'maxTotalTokens'].includes(key))
+      assert.equal(SESSION_DEFAULT_LIMITS[key], DEFAULT_LIMITS[key], key);
+  // The shared contract still allows the raised values.
+  assert.ok(SESSION_DEFAULT_LIMITS.maxTotalTokens <= 5000000);
+  assert.ok(SESSION_DEFAULT_LIMITS.maxModelCalls <= 500);
+  assert.ok(SESSION_DEFAULT_LIMITS.maxActiveSeconds <= 3600);
 });
 test('reservation boundary: exact limit, over limit, held reservations, negative/noninteger/unknown', () => {
   assert.equal(

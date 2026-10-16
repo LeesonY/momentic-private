@@ -53,7 +53,7 @@ LocalQA 采用基于 Docker Compose 的多容器隔离架构，划分为前端�
 | **Worker 内部身份**     | `deploy/secrets/worker_identity.json`                     | JSON，权限 `0400` 或 `0600`                     | Worker 进程向内部协调器/租约端口认证的私有令牌                                          |
 | **初始管理员密码**      | `deploy/secrets/admin_initial_password`                   | 单行纯文本（≥12字符）                           | 仅在系统初次初始化执行 `bootstrap-admin.mjs` 时消费一次，完成后入口关闭                 |
 
-nginx 仅 `/api/v1/runs/{runId}/events` SSE location 禁用 `proxy_buffering`（API 同时返回 `X-Accel-Buffering: no`；前者已足够，不依赖后者），其他 `/api/` 走普通代理，`/` 到 web:8080。应用侧 Node 出站 HTTPS 私有 CA 可放 `deploy/ca/company-ca.pem`（只读挂载 `/etc/localqa/ca`），在 `.env` 显式设置 `NODE_EXTRA_CA_CERTS=/etc/localqa/ca/company-ca.pem`。Chromium 独立证书信任链还需目标宿主/镜像验证，不可假设 Node CA 自动生效；入口 TLS 证书和私钥仅挂给 gateway 的 `/etc/nginx/certs`。
+nginx 仅 `/api/v1/runs/{runId}/events` SSE location 禁用 `proxy_buffering`（API 同时返回 `X-Accel-Buffering: no`；前者已足够，不依赖后者），其他 `/api/` 走普通代理，`/` 到 web:8080。`index.html` 和 SPA 回退路由返回 `Cache-Control: no-cache, no-store, must-revalidate`，带哈希的 `/assets/*` 返回 `public, max-age=31536000, immutable`；否则浏览器会继续用旧 HTML 指向已删除的 bundle（66 实际遇到过）。所有响应头都在 `deploy/config/nginx.conf` 的 http 层用 `map $uri $cache_control` 统一设置，web 容器自身（`deploy/images/web-entry.mjs`）也按同样规则发头。**66 上的 `/data/localqa-test/nginx.conf` 不在仓库里，需同步相同的 map/add_header，或确认该网关直接透传 web 容器的 Cache-Control。** 应用侧 Node 出站 HTTPS 私有 CA 可放 `deploy/ca/company-ca.pem`（只读挂载 `/etc/localqa/ca`），在 `.env` 显式设置 `NODE_EXTRA_CA_CERTS=/etc/localqa/ca/company-ca.pem`。Chromium 独立证书信任链还需目标宿主/镜像验证，不可假设 Node CA 自动生效；入口 TLS 证书和私钥仅挂给 gateway 的 `/etc/nginx/certs`。
 
 ### T09-B1 镜像构建与就绪边界
 

@@ -1,6 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { parseContract } from '@localqa/contracts';
-import type { Run, RunConfig, InputRequest } from '@localqa/contracts';
+import type {
+  Run,
+  RunConfig,
+  InputRequest,
+  BudgetLimits,
+  BudgetOverrides,
+} from '@localqa/contracts';
 import {
   StorageError,
   appendEvent,
@@ -9,7 +15,7 @@ import {
   audit,
 } from '@localqa/storage';
 import {
-  DEFAULT_LIMITS,
+  SESSION_DEFAULT_LIMITS,
   TERMINAL,
   assertPublicOrApprovedTarget,
 } from '@localqa/domain';
@@ -18,6 +24,14 @@ import { resolveRunAuth } from '../runAuth.js';
 import { selectRunModelBinding } from '../runModelSelection.js';
 import { ApiError } from '../errors.js';
 import { requireAuth } from '../auth.js';
+
+/** A Mo-style session starts from the wider session defaults; a caller may still
+ * override any limit explicitly. Regression runs keep DEFAULT_LIMITS. */
+export function resolveSessionBudget(
+  overrides?: BudgetOverrides,
+): BudgetLimits {
+  return { ...SESSION_DEFAULT_LIMITS, ...(overrides ?? {}) };
+}
 import { parsePagination, paginate, type Router } from '../router.js';
 import type { RequestContext } from '../types.js';
 
@@ -147,10 +161,10 @@ export async function startTrustedSmokeRun(
     },
   );
 
-  const budget = {
-    ...DEFAULT_LIMITS,
-    ...(input.budget ?? {}),
-  };
+  // A Mo-style session: each agent signs in itself and the manager re-reviews
+  // many rounds, so sessions start from the wider session defaults. Callers may
+  // still override any limit explicitly; regression runs keep DEFAULT_LIMITS.
+  const budget = resolveSessionBudget(input.budget);
 
   const runConfig: RunConfig = parseContract('RunConfig', {
     allowedOrigins,
