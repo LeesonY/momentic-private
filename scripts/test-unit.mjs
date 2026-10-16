@@ -68,6 +68,7 @@ const files = [
   'apps/worker/test/technical-smoke.test.mjs',
   'apps/worker/test/auth-flow.test.mjs',
   'apps/worker/test/task-sign-in.test.mjs',
+  'apps/worker/test/task-sign-in-entry.test.mjs',
   'apps/worker/test/auth-import.test.mjs',
   'apps/worker/test/auth-redaction.test.mjs',
   'apps/worker/test/auth-runtime.test.mjs',

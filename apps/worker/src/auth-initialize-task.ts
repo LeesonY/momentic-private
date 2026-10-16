@@ -86,6 +86,9 @@ export async function initializeBrowserAuthentication(
     session?: BrowserSessionImpl;
     /** The leased role whose model binding and budget the sign-in uses. */
     role?: 'executor' | 'reproducer';
+    /** Trusted Worker-only notice of the first server-authorized login URL.
+     * The raw URL stays private; it is never part of the auth outcome. */
+    onLoginStart?: (url: string) => void;
   },
   signal: AbortSignal,
 ): Promise<AuthFlowOutcome> {
@@ -225,6 +228,17 @@ export async function initializeBrowserAuthentication(
       session,
       profile.allowedOrigins,
     );
+    const navigate = primitives.navigate.bind(primitives);
+    let loginStarted = false;
+    primitives.navigate = async (url) => {
+      // This URL comes from navigate_auth's permit, not Work.targetUrl or the
+      // browser's about:blank/current page. Agent profiles may omit loginUrl.
+      if (!loginStarted) {
+        loginStarted = true;
+        options.onLoginStart?.(url);
+      }
+      return navigate(url);
+    };
     port = createPrivateAuthPort({
       binding: active,
       allowedOrigins: profile.allowedOrigins,

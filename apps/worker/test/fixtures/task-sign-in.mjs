@@ -29,13 +29,31 @@ export function signInFixture(config = {}) {
     projectId: randomUUID(),
     version: 1,
     status: 'active',
-    mode: 'agent',
+    mode: config.mode ?? 'agent',
     allowedOrigins: [loginOrigin],
     sharingPolicy: 'exclusive_run',
     hasSecret: true,
-    formConfig: null,
+    formConfig:
+      config.mode === 'form'
+        ? {
+            loginUrl: config.loginUrl ?? `${loginOrigin}/login`,
+            usernameTarget: { by: 'test_id', value: 'username' },
+            passwordTarget: { by: 'test_id', value: 'password' },
+            submitTarget: { by: 'test_id', value: 'submit' },
+            successCriterion: {
+              id: 'signed-in',
+              kind: 'element_visible',
+              description: '登录后主内容可见',
+              sourceKind: 'user_spec',
+              sourceRef: 'fixture',
+              locator: { by: 'test_id', value: 'content' },
+            },
+          }
+        : null,
     agentConfig: {
-      loginUrl: `${loginOrigin}/login`,
+      ...(config.omitLoginUrl
+        ? {}
+        : { loginUrl: config.loginUrl ?? `${loginOrigin}/login` }),
       instructions: '填写账号和密码，然后登录。',
       variables: [
         { name: 'QA_USERNAME', sensitive: false },
@@ -61,6 +79,8 @@ export function signInFixture(config = {}) {
   };
   const active = { ...allocated, status: 'active', ...config.active };
   const history = [];
+  const navigations = [];
+  const grants = [];
   const observations = [];
   const models = [];
   const finishes = [];
@@ -144,6 +164,7 @@ export function signInFixture(config = {}) {
   };
   page.goto = async (next) => {
     history.push('navigate');
+    navigations.push(next);
     url = next;
     page.emit('console', {
       type: () => 'log',
@@ -187,6 +208,19 @@ export function signInFixture(config = {}) {
       page,
       randomUUID(),
     );
+    if (profile.mode === 'form') {
+      session.resolveRegressionLocator = async (locator) => {
+        const snapshot = await session.getSnapshot();
+        const nodeId = `testid_${locator.value}`;
+        assert.ok(snapshot.nodes.some((node) => node.nodeId === nodeId));
+        return {
+          snapshotId: snapshot.snapshotId,
+          pageId: snapshot.pageId,
+          nodeId,
+          frameId: 'main',
+        };
+      };
+    }
     return session;
   };
   const newSession = () =>
@@ -223,8 +257,11 @@ export function signInFixture(config = {}) {
     async authMaterial() {
       history.push('material');
       return {
-        mode: 'agent',
-        material: { QA_USERNAME: account, QA_PASSWORD: password },
+        mode: profile.mode,
+        material:
+          profile.mode === 'form'
+            ? { username: account, password }
+            : { QA_USERNAME: account, QA_PASSWORD: password },
         expiresAt: allocated.expiresAt,
       };
     },
@@ -237,7 +274,14 @@ export function signInFixture(config = {}) {
         slot: request.slot,
         ...(request.target ? { target: request.target } : {}),
         ...(request.action === 'navigate_auth'
-          ? { url: profile.agentConfig.loginUrl }
+          ? {
+              url:
+                config.loginStartUrl ??
+                (profile.mode === 'form'
+                  ? profile.formConfig.loginUrl
+                  : profile.agentConfig?.loginUrl) ??
+                `${loginOrigin}/login`,
+            }
           : {}),
       };
     },
@@ -304,7 +348,7 @@ export function signInFixture(config = {}) {
             : steps[Math.min(authRound++, steps.length - 1)],
         };
       }
-      assert.equal(signedIn, true);
+      assert.equal(signedIn || !work.signIn, true);
       assert.equal(
         context.routes.size,
         0,
@@ -364,7 +408,8 @@ export function signInFixture(config = {}) {
     async requireAnonymousOrInput() {
       assert.fail('must not use the anonymous gate');
     },
-    async grant() {
+    async grant(_proof, call) {
+      grants.push(call);
       return { step: { id: randomUUID() } };
     },
     async record(_proof, _grant, status, observed) {
@@ -397,6 +442,8 @@ export function signInFixture(config = {}) {
     context,
     page,
     history,
+    navigations,
+    grants,
     observations,
     models,
     finishes,

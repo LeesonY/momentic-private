@@ -70,6 +70,21 @@ const RUN_LEVEL_STOPS: ReadonlySet<string> = new Set([
   'FORBIDDEN',
 ]);
 
+/** Login entry identity ignores query/hash and trailing slashes, not origin. */
+function sameLoginEntry(targetUrl: string, loginUrl: URL | null): boolean {
+  if (!loginUrl) return false;
+  try {
+    const target = new URL(targetUrl);
+    const path = (url: URL) => url.pathname.replace(/\/+$/, '');
+    return target.origin === loginUrl.origin && path(target) === path(loginUrl);
+  } catch {
+    return false;
+  }
+}
+
+const SIGNED_IN_TASK_INSTRUCTION =
+  '平台已经用测试账号为你登录（已登录），当前页面是登录后的页面。不要再尝试登录，也不要在登录表单里输入账号或密码。如果执行中页面回到了登录页或出现会话过期，说明登录状态失效；停止操作，提交 blocked 并在报告的 summary/gaps 中写明原因。';
+
 /** Why an agent's work stopped, in words for the user and the session agent. */
 function blockedDetail(code: string): string {
   if (code === 'AUTH_FAILED')
@@ -623,6 +638,9 @@ export class Worker {
       let reported = false;
       /** The agent's browser work began (so a later failure is not sign-in). */
       let browserWorkStarted = false;
+      /** Set only after private sign-in succeeds and its authority is closed. */
+      let taskSignedIn = false;
+      let taskLoginPage: URL | null = null;
       let approvedLoginPage: URL | null = null;
       let approvedLoginTestIds: readonly string[] | null = null;
       let intentionalLoginPage = false;
@@ -1286,7 +1304,13 @@ export class Worker {
           );
           return true;
         }
-        await execute({ name: 'navigate', args: { url: work.targetUrl } });
+        if (taskSignedIn && sameLoginEntry(work.targetUrl, taskLoginPage)) {
+          // Keep the page reached by sign-in (including sessionStorage). Going
+          // back to the login entry can show the form even while signed in.
+          await execute({ name: 'observe', args: {} });
+        } else {
+          await execute({ name: 'navigate', args: { url: work.targetUrl } });
+        }
         if (authResponseDenied) throw new DomainError('AUTH_FAILED');
         const role = work.task.role as AgentRole;
         if (
@@ -1333,6 +1357,9 @@ export class Worker {
                             ? '探索该区域的业务流程；只在 writeScope 内操作指定测试数据，不重复提交，清理未验证时说明，不确认 Bug。'
                             : '探索该区域的入口、控件和可观察流程；不执行提交操作，不确认 Bug。',
                       }),
+                  ...(taskSignedIn
+                    ? { authentication: SIGNED_IN_TASK_INSTRUCTION }
+                    : {}),
                   actionPolicy: work.run.effectiveConfig.actionPolicy,
                   writeScope: work.run.effectiveConfig.writeScope ?? [],
                 }),
@@ -1545,6 +1572,11 @@ export class Worker {
             !['executor', 'reproducer'].includes(work.task.role)
           )
             throw new DomainError('AUTH_FAILED');
+          const loginUrl =
+            profile.mode === 'form'
+              ? profile.formConfig?.loginUrl
+              : profile.agentConfig?.loginUrl;
+          taskLoginPage = loginUrl ? new URL(loginUrl) : null;
           const origins = [
             ...new Set([
               ...work.run.effectiveConfig.allowedOrigins,
@@ -1578,6 +1610,9 @@ export class Worker {
               tlsPolicy: work.tlsPolicy,
               session: created,
               role: work.task.role as 'executor' | 'reproducer',
+              onLoginStart: (url) => {
+                if (!taskLoginPage) taskLoginPage = new URL(url);
+              },
             },
             signal,
           );
@@ -1598,6 +1633,7 @@ export class Worker {
             );
             return true;
           }
+          taskSignedIn = true;
         } catch (error) {
           const code =
             error instanceof StorageError || error instanceof DomainError
