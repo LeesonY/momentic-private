@@ -1,4 +1,3 @@
-import { loginReportText } from './session-agent.js';
 import { getValidator, type ContractName } from '@localqa/contracts';
 import type { SessionContext } from './session-agent.js';
 import { CASE_RETRY_LIMIT } from './session-retries.js';
@@ -129,10 +128,6 @@ export function sessionModelContext(
     taskIntent: context.taskIntent,
     writeScope: context.writeScope,
     assertionCapabilities: context.assertionCapabilities,
-    login:
-      context.login.status === 'blocked'
-        ? { ...context.login, detail: loginReportText(context.login) }
-        : context.login,
     remainingCases: context.remainingCases,
     remainingPages: context.remainingPages,
     concurrency: context.concurrency,

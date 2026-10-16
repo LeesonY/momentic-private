@@ -340,6 +340,13 @@ export class AuthActionsManager {
     }
 
     const profile = parseContract('AuthProfile', runProfile.document);
+    if (
+      profile.status !== 'active' ||
+      profile.id !== runProfile.auth_profile_id ||
+      profile.projectId !== scope.projectId ||
+      profile.version !== runProfile.auth_profile_version
+    )
+      throw new StorageError('AUTH_FAILED');
     if (profile.mode === 'none') {
       throw new StorageError('POLICY_DENIED');
     }
@@ -434,16 +441,26 @@ export class AuthActionsManager {
 
     // 3. Lock profile FOR SHARE
     const profileRow = (
-      await client.query<{ id: string; revoked: boolean }>(
-        `SELECT p.id, p.revoked
+      await client.query<{
+        id: string;
+        revoked: boolean;
+        current_status: string;
+      }>(
+        `SELECT p.id,p.revoked,h.document->>'status' AS current_status
          FROM auth_profiles p
-         WHERE p.project_id = $1 AND p.id = $2
+         JOIN auth_profile_versions h ON h.project_id=p.project_id
+           AND h.auth_profile_id=p.id AND h.version=p.version
+         WHERE p.project_id=$1 AND p.id=$2 AND p.deleted_at IS NULL
          FOR SHARE OF p`,
         [scope.projectId, profile.id],
       )
     ).rows[0];
 
-    if (!profileRow || profileRow.revoked !== false) {
+    if (
+      !profileRow ||
+      profileRow.revoked !== false ||
+      (kind === 'self' && profileRow.current_status !== 'active')
+    ) {
       throw new StorageError('AUTH_FAILED');
     }
 
@@ -822,14 +839,19 @@ export class AuthActionsManager {
         id: string;
         revoked: boolean;
         sharing_policy: string;
+        current_status: string;
+        selected_status: string;
       }>(
-        `SELECT p.id, p.revoked, (v.document->>'sharingPolicy') AS sharing_policy
+        `SELECT p.id,p.revoked,v.document->>'sharingPolicy' AS sharing_policy,
+           h.document->>'status' AS current_status,v.document->>'status' AS selected_status
          FROM auth_profiles p
+         JOIN auth_profile_versions h ON h.project_id=p.project_id
+           AND h.auth_profile_id=p.id AND h.version=p.version
          JOIN auth_profile_versions v
-           ON v.project_id = p.project_id AND v.auth_profile_id = p.id
-         JOIN runs r ON r.auth_profile_id = p.id
-         WHERE p.project_id = $1 AND r.id = $2
-           AND v.version = CASE WHEN $3::boolean
+           ON v.project_id=p.project_id AND v.auth_profile_id=p.id
+         JOIN runs r ON r.project_id=p.project_id AND r.auth_profile_id=p.id
+         WHERE p.project_id=$1 AND r.id=$2 AND p.deleted_at IS NULL
+           AND p.id=$5::uuid AND v.version=CASE WHEN $3::boolean
              THEN $4::integer ELSE r.auth_profile_version END
          FOR SHARE OF p`,
         [
@@ -837,11 +859,18 @@ export class AuthActionsManager {
           run.id,
           kind === 'self',
           session.auth_profile_version,
+          session.auth_profile_id,
         ],
       )
     ).rows[0];
 
-    if (!profileRow || profileRow.revoked !== false) {
+    if (
+      !profileRow ||
+      profileRow.revoked !== false ||
+      (kind === 'self' &&
+        (profileRow.current_status !== 'active' ||
+          profileRow.selected_status !== 'active'))
+    ) {
       throw new StorageError('AUTH_FAILED');
     }
 

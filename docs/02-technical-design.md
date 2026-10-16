@@ -153,6 +153,10 @@ AI 登录（`mode: agent`，与 Momentic Mo 的用法一致）是默认推荐方
 
 会话管理的 smoke 运行没有运行级登录任务。每个 executor / reproducer 按运行策略创建自己的浏览器，允许来源为运行与登录配置来源的并集；私有认证动作和登录网络请求仍严格限于登录配置的 allowedOrigins。登录用该任务角色的冻结模型绑定和共享运行预算。成功登记后只调用 `endAuthSession(..., 'signed_in')` 结束私有认证会话，不抓取/导出登录态、不导入其他任务的状态；关闭私有端口并移除其认证路由后，在同一浏览器内继续执行，因此 sessionStorage 也留在原 context。登录失败（包括模型调用失败、账号占用）只将本条用例/复现工作判为 blocked，清洗后的原因写入 summary/gaps，任务正常结束，会话继续；主 AI 读取各条报告后决定提问或补测。取消、租约失效和预算耗尽仍按原停止逻辑收尾。
 
+冒烟会话没有运行级 auth 任务或 `SessionContext.login`：每个 executor/reproducer 在自己的任务浏览器里登录，成功后沿用该浏览器执行，不抓取或跨任务复用登录态；explorer 只在未登录范围内观察。登录失败（包括配置撤销、删除或非 active）只让该用例受阻，原因保存在最近一次 `cases[].report.summary/gaps` 并进入主 AI 上下文。主 AI 停止派发同样需要登录的新用例，以 `action=ask` 说明原因并询问可用账号及是否已在“环境与认证”更新；确认修正后通过 `retryCaseIds` 重跑已有用例。
+
+更新账号/密码会新增 `auth_profile_versions`，新版本绑定新建的加密 secret；历史配置版本仍绑定原密钥。会话自登录只选同 id、同项目、同环境且未删除/撤销、active 的最新配置；分配认证会话后将版本固定在该任务的 `auth_execution_sessions`，私有许可、密钥读取和后续浏览器授权保持一致。版本不同于运行冻结值时按任务写 `auth.profile_version_changed`（taskId、authProfileId、frozenVersion、selectedVersion），不记录凭据、不修改运行冻结配置，也不提升兄弟任务的认证 epoch。分配时若发现配置在读取与加锁之间变化，拒绝此次登录并报告受阻，不默默采用不一致的元数据。回归和非会话 smoke 仍使用运行冻结版本、运行级登录和获准登录态导入；表单（AI 识别/固定定位）与 storage state 均保留，回归登录失败仍按 setup_failure 处理。
+
 回归运行和非会话 smoke 运行保留运行级登录与获准 storageState 导入，每个子 context 导入同一运行的登录态；回归登录失败仍按 setup_failure 处理。表单登录（`detectionMode: ai` 按固定槽位识别字段，`manual` 使用固定定位器）和 storage state 保留为可选方式。同一登录按钮在页面没有变化时不会被再次提交；单次认证最多 12 次决策、最多 1 次向用户索取验证码。
 
 登录期间不开实时画面或 trace，console/pageerror/network 内容不进入录制；登记的页面观察先脱敏再交给模型或保存。私有端口结束后，已知账号、密码、验证码仍在该浏览器后续快照和日志中打码，任务关闭时清除脱敏值。登录失败、取消、异常均结束认证会话，任务最终关闭浏览器；不以重试掩盖未知动作结果。

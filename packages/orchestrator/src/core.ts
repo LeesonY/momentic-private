@@ -7,6 +7,7 @@ import { parseAgentReport, verdictFromReport } from './agent-report.js';
 import { createRegressionPlan } from './regression-plan.js';
 import { AuthStateService, type AuthStateRef } from './auth-state-service.js';
 import { AuthOtpService } from './auth-otp.js';
+import { readRunAuthProfile } from './auth-profile.js';
 import {
   AuthImportService,
   type AuthImportGrant,
@@ -651,6 +652,15 @@ export class Coordinator {
    * signs in inside its own browser (Work.signIn), so it goes straight on.
    */
   async startSmokeAfterPreflight(client: PoolClient, run: Run): Promise<Run> {
+    // Session credentials are checked by each task's private sign-in; an edit
+    // or revocation between preflight and dispatch must not fail the run.
+    if (
+      run.executionMode === 'smoke' &&
+      (await this.sessions.read(client, run)) !== null
+    ) {
+      run = await this.change(client, run, 'running', 'auth');
+      return this.startSmokeAfterAuth(client, run);
+    }
     const bound = (
       await client.query<{ document: unknown; revoked: boolean }>(
         `SELECT v.document,p.revoked FROM runs r
@@ -805,64 +815,21 @@ export class Coordinator {
       throw error;
     }
   }
-  /** Frozen metadata only: callers cannot select a profile or obtain secrets here. */
+  /** Same bound profile, latest for self sign-in; never returns secrets. */
   async authProfile(
     scope: WorkerScope,
     proof: LeaseProof,
+    versionPolicy: 'task' | 'frozen' = 'task',
   ): Promise<AuthProfile | null> {
     return this.tx(async (client) => {
-      const { run } = await this.validateLease(client, scope, proof);
-      const row = (
-        await client.query<{
-          auth_profile_id: string | null;
-          auth_profile_version: number | null;
-          environment_id: string | null;
-          revoked: boolean | null;
-          document: unknown;
-        }>(
-          `SELECT r.auth_profile_id,r.auth_profile_version,r.environment_id,p.revoked,v.document
-           FROM runs r
-           LEFT JOIN auth_profiles p ON p.project_id=r.project_id AND p.id=r.auth_profile_id
-           LEFT JOIN auth_profile_versions v ON v.project_id=r.project_id AND v.auth_profile_id=r.auth_profile_id AND v.version=r.auth_profile_version
-           WHERE r.project_id=$1 AND r.id=$2`,
-          [scope.projectId, run.id],
-        )
-      ).rows[0];
-      if (!row) throw new StorageError('AUTH_FAILED');
-      if (
-        row.auth_profile_id === null &&
-        row.auth_profile_version === null &&
-        run.effectiveConfig.authProfileVersion === null
-      )
-        return null;
-      if (
-        !row.auth_profile_id ||
-        row.auth_profile_version !== run.effectiveConfig.authProfileVersion ||
-        row.revoked !== false ||
-        !row.document
-      )
-        throw new StorageError('AUTH_FAILED');
-      const profile = parseContract('AuthProfile', row.document);
-      if (
-        profile.id !== row.auth_profile_id ||
-        profile.projectId !== scope.projectId ||
-        profile.version !== row.auth_profile_version ||
-        profile.status !== 'active' ||
-        (profile.environmentId !== null &&
-          profile.environmentId !== row.environment_id)
-      )
-        throw new StorageError('AUTH_FAILED');
-      const approvedOrigins = new Set(
-        profile.allowedOrigins.map((origin) => new URL(origin).origin),
+      const { job, run } = await this.validateLease(client, scope, proof);
+      return readRunAuthProfile(
+        client,
+        run,
+        versionPolicy === 'task' &&
+          (await signInKind(this, client, job, run)) === 'self',
+        proof,
       );
-      if (
-        run.effectiveConfig.allowedOrigins.some(
-          (origin) => !approvedOrigins.has(new URL(origin).origin),
-        )
-      ) {
-        throw new StorageError('TARGET_NOT_ALLOWED');
-      }
-      return profile;
     });
   }
   allocateAuthSession(
@@ -1334,32 +1301,32 @@ export class Coordinator {
         ['explore', 'execute', 'reproduce'].includes(stage) &&
         run.effectiveConfig.authProfileVersion !== null
       ) {
-        const bound = (
-          await client.query<{ document: unknown; revoked: boolean }>(
-            `SELECT v.document,p.revoked FROM runs r
-             JOIN auth_profiles p ON p.project_id=r.project_id AND p.id=r.auth_profile_id
-             JOIN auth_profile_versions v ON v.project_id=r.project_id
-               AND v.auth_profile_id=p.id AND v.version=r.auth_profile_version
-             WHERE r.project_id=$1 AND r.id=$2`,
-            [scope.projectId, run.id],
-          )
-        ).rows[0];
         const sessionManaged =
           run.executionMode === 'smoke' &&
           (await this.sessions.read(client, run)) !== null;
-        if (sessionManaged && bound) {
-          // No run-level state to import: a revoked or edited profile is
-          // the sign-in's own concern, reported per task, not a run failure.
-          if (parseContract('AuthProfile', bound.document).mode !== 'none') {
-            if ((await signInKind(this, client, job, run)) === 'self')
-              signIn = true;
+        if (sessionManaged) {
+          // Unavailable credentials are blocked by the task's sign-in, not
+          // work() or the whole run. Read the current mode, never import state.
+          const self = (await signInKind(this, client, job, run)) === 'self';
+          let needsSignIn = true;
+          try {
+            needsSignIn =
+              (await readRunAuthProfile(client, run, true, proof))?.mode !==
+              'none';
+          } catch (error) {
+            if (
+              !(error instanceof StorageError) ||
+              !['AUTH_FAILED', 'TARGET_NOT_ALLOWED'].includes(error.code)
+            )
+              throw error;
+          }
+          if (needsSignIn) {
+            if (self) signIn = true;
             else withoutSignIn = true;
           }
         } else {
-          if (!bound || bound.revoked) throw new StorageError('AUTH_FAILED');
-          const profile = parseContract('AuthProfile', bound.document);
-          if (profile.status !== 'active')
-            throw new StorageError('AUTH_FAILED');
+          const profile = await readRunAuthProfile(client, run);
+          if (!profile) throw new StorageError('AUTH_FAILED');
           if (profile.mode !== 'none') {
             const authority = (
               await client.query<{
@@ -1608,43 +1575,6 @@ export class Coordinator {
       };
     });
   }
-  /**
-   * The run's sign-in report: the latest auth job's outcome. `blocked` keeps
-   * the sign-in agent's own reason code and short account of what it saw.
-   */
-  async loginOutcome(
-    client: PoolClient,
-    run: Pick<Run, 'id' | 'projectId'>,
-  ): Promise<{
-    status: 'none' | 'pending' | 'succeeded' | 'blocked';
-    reasonCode: string | null;
-    detail: string | null;
-  }> {
-    const row = (
-      await client.query<{
-        status: JobRow['status'];
-        result: Record<string, unknown> | null;
-      }>(
-        "SELECT status,result FROM jobs WHERE project_id=$1 AND run_id=$2 AND document->>'summary'='auth' ORDER BY available_at DESC,id DESC LIMIT 1",
-        [run.projectId, run.id],
-      )
-    ).rows[0];
-    if (!row) return { status: 'none', reasonCode: null, detail: null };
-    if (['queued', 'running', 'waiting'].includes(row.status))
-      return { status: 'pending', reasonCode: null, detail: null };
-    if (row.status === 'succeeded')
-      return { status: 'succeeded', reasonCode: null, detail: null };
-    const report = row.result?.['loginBlocked'] as
-      { reasonCode?: unknown; detail?: unknown } | undefined;
-    return {
-      status: 'blocked',
-      reasonCode:
-        typeof report?.reasonCode === 'string'
-          ? report.reasonCode
-          : 'AUTH_INTERRUPTED',
-      detail: typeof report?.detail === 'string' ? report.detail : null,
-    };
-  }
   async reserve(
     client: PoolClient,
     scope: WorkerScope,
@@ -1823,51 +1753,90 @@ export class Coordinator {
           String(job.result?.['stage'] ?? job.document.summary),
         )
       ) {
-        // The Work item was authorized when claimed, but the profile or
-        // captured state may have been revoked since then. Serialize each
-        // new browser grant against profile revocation; do not rely on the
-        // previously imported browser cookie for continuing authority.
+        // Check the task-pinned version for self sign-in, and the frozen run
+        // version for imported auth. Revocation is serialized against grants.
+        const selfSignIn =
+          (await signInKind(this, client, job, run)) === 'self';
         const bound = (
           await client.query<{
             revoked: boolean;
             document: unknown;
+            current_status: string | null;
             scope_status: string | null;
             current_state_id: string | null;
             scope_context_version: number | null;
+            scope_auth_epoch: number | null;
             scope_profile_version: number | null;
           }>(
-            `SELECT p.revoked,v.document,s.status AS scope_status,
+            `SELECT p.revoked,v.document,h.document->>'status' AS current_status,
+               s.status AS scope_status,
                s.current_state_id,s.context_version AS scope_context_version,
+               s.auth_epoch AS scope_auth_epoch,
                s.auth_profile_version AS scope_profile_version
              FROM runs r
              JOIN auth_profiles p ON p.project_id=r.project_id AND p.id=r.auth_profile_id
+               AND p.deleted_at IS NULL
+             JOIN auth_profile_versions h ON h.project_id=p.project_id
+               AND h.auth_profile_id=p.id AND h.version=p.version
              JOIN auth_profile_versions v ON v.project_id=p.project_id
-               AND v.auth_profile_id=p.id AND v.version=r.auth_profile_version
+               AND v.auth_profile_id=p.id
+               AND v.version=CASE WHEN $3::boolean THEN COALESCE((
+                 SELECT a.auth_profile_version FROM auth_execution_sessions a
+                 WHERE a.project_id=r.project_id AND a.run_id=r.id AND a.task_id=$4::uuid
+                   AND a.fencing_token=$5 AND a.context_version=$6 AND a.purpose='initializer'
+               ),p.version) ELSE r.auth_profile_version END
              LEFT JOIN run_auth_scopes s ON s.project_id=r.project_id AND s.run_id=r.id
              WHERE r.project_id=$1 AND r.id=$2 FOR SHARE OF p`,
-            [scope.projectId, run.id],
+            [
+              scope.projectId,
+              run.id,
+              selfSignIn,
+              job.id,
+              proof.fencingToken,
+              proof.contextVersion,
+            ],
           )
         ).rows[0];
-        if (!bound || bound.revoked) throw new StorageError('AUTH_FAILED');
+        if (
+          !bound ||
+          bound.revoked ||
+          (selfSignIn && bound.current_status !== 'active')
+        )
+          throw new StorageError('AUTH_FAILED');
         const profile = parseContract('AuthProfile', bound.document);
         const sessionManaged =
           run.executionMode === 'smoke' &&
           (await this.sessions.read(client, run)) !== null;
         if (sessionManaged && profile.mode !== 'none') {
+          if (profile.status !== 'active')
+            throw new StorageError('AUTH_FAILED');
           // A session agent acts only after its own server-verified sign-in
           // in this lease; an explorer of the run looks around signed out.
-          if ((await signInKind(this, client, job, run)) === 'self') {
+          if (selfSignIn) {
+            if (
+              !bound.scope_status ||
+              bound.scope_status === 'revoked' ||
+              bound.scope_context_version !== proof.contextVersion
+            )
+              throw new StorageError('AUTH_FAILED');
             const signedIn = await client.query(
               `SELECT 1 FROM auth_success_gates g
                JOIN auth_execution_sessions s ON s.id=g.auth_session_id
                WHERE s.project_id=$1 AND s.task_id=$2 AND s.fencing_token=$3
                  AND s.context_version=$4 AND s.purpose='initializer'
+                 AND s.context_id=$5::uuid AND s.auth_profile_id=$6::uuid
+                 AND s.auth_profile_version=$7 AND s.auth_epoch=$8
+                 AND s.end_reason='signed_in' AND s.status='ended'
                  AND g.result='passed' LIMIT 1`,
               [
                 scope.projectId,
                 job.id,
                 proof.fencingToken,
                 proof.contextVersion,
+                job.result?.['authContextId'],
+                profile.id,
+                profile.version,
+                bound.scope_auth_epoch,
               ],
             );
             if (!signedIn.rowCount) throw new StorageError('AUTH_FAILED');

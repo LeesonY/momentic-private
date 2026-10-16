@@ -85,3 +85,34 @@ test('named session.updated event reaches run projection once and cursor resumes
   client.disconnect();
   assert.equal(resumed.closed, true);
 });
+
+test('named auth profile version event is delivered once and advances the resume cursor', () => {
+  instances.length = 0;
+  const events = [];
+  const client = new exports.SseClient({
+    runId: 'run-1',
+    onEvent: (event) => events.push(event),
+  });
+  client.connect();
+  const stream = instances.at(-1);
+  const event = {
+    schemaVersion: 1,
+    id: '29',
+    seq: 29,
+    runId: 'run-1',
+    at: '2026-01-01T00:00:00Z',
+    type: 'auth.profile_version_changed',
+    payload: {
+      taskId: 'task-1',
+      authProfileId: 'profile-1',
+      frozenVersion: 1,
+      selectedVersion: 2,
+    },
+  };
+  stream.emit(event.type, event);
+  stream.emit(event.type, event);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].payload.selectedVersion, 2);
+  assert.equal(client.getLastSeq(), 29);
+  client.disconnect();
+});

@@ -452,7 +452,8 @@ export type RunEvent = {
     | "artifact.updated"
     | "report.ready"
     | "run.finished"
-    | "session.updated";
+    | "session.updated"
+    | "auth.profile_version_changed";
   at: string;
   payload: {
     [k: string]: JsonValue | undefined;

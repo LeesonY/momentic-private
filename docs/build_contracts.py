@@ -131,7 +131,7 @@ D["TriageCommit"] = obj({**copy.deepcopy(D["TriageInput"]["properties"]), "confi
 D["ExportInput"] = obj({"format": enum("json", "markdown", "zip"), "includeArtifacts": BOOL, "requireTerminal": BOOL}, ["format"])
 D["Export"] = obj({"id": UUID, "runId": UUID, "status": enum("queued", "running", "ready", "failed"), "format": enum("json", "markdown", "zip"), "artifactId": nullable(UUID), "snapshotAt": DATE, "error": nullable(text(1000))})
 EVENTS = ["run.updated", "phase.changed", "task.updated", "case.created", "case.result", "finding.updated", "step.recorded", "budget.updated", "input.requested", "input.resolved", "artifact.updated", "report.ready", "run.finished"]
-EVENTS.append("session.updated")
+EVENTS.extend(["session.updated", "auth.profile_version_changed"])
 D["RunEvent"] = obj({"schemaVersion": {"const": 1}, "id": text(30, pattern="^[1-9][0-9]*$"), "runId": UUID, "seq": VER, "type": enum(*EVENTS), "at": DATE, "payload": {"type": "object", "additionalProperties": ref("JsonValue")}})
 D["NodeTarget"] = obj({"snapshotId": UUID, "pageId": UUID, "frameId": text(120), "nodeId": text(120)}, ["snapshotId", "pageId", "nodeId"])
 D["WorkerClaim"] = obj({"workerId": text(120, minLength=1), "capabilities": arr(enum("chromium", "images", "recording"), 10, 1)})
@@ -202,6 +202,7 @@ D["AuthProfile"]["required"].extend(["status", "formConfig"])
 for auth_name in ("AuthProfile", "AuthProfileCreate", "AuthProfilePatch"):
     D[auth_name]["properties"]["storageCriterion"] = ref("Criterion")
 event_payloads = {
+    "auth.profile_version_changed": obj({"taskId": UUID, "authProfileId": UUID, "frozenVersion": VER, "selectedVersion": VER}),
     "session.updated": ref("SessionReport"),
     "run.updated": ref("Run"), "phase.changed": obj({"phase": enum(*PHASE), "contextVersion": VER}),
     "task.updated": ref("Task"), "case.created": ref("CaseDefinition"), "case.result": ref("CaseRecord"),
