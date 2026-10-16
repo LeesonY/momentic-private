@@ -125,7 +125,7 @@ test('editable session defaults mirror the server session defaults', () => {
   assert.equal(SESSION_BUDGET_DEFAULTS.maxPages, 6);
   assert.equal(SESSION_BUDGET_DEFAULTS.maxDepth, 2);
   assert.equal(SESSION_BUDGET_DEFAULTS.maxActions, 120);
-  assert.equal(SESSION_BUDGET_DEFAULTS.maxActionsPerCase, 12);
+  assert.equal(SESSION_BUDGET_DEFAULTS.maxActionsPerCase, 24);
   assert.equal(SESSION_BUDGET_DEFAULTS.concurrency, 2);
 });
 
@@ -172,7 +172,7 @@ test('new session sends only user-editable budget fields with 1800s default', as
     'maxPages',
   ]);
   assert.equal(budget.maxActiveSeconds, 1800);
-  assert.equal(budget.maxActionsPerCase, 12);
+  assert.equal(budget.maxActionsPerCase, 24);
 });
 
 test('non-editable limits never reach the create request', async () => {

@@ -8,8 +8,16 @@ test('session runs start from the wider defaults and regression keeps the old on
   assert.equal(budget.maxTotalTokens, 1500000);
   assert.equal(budget.maxModelCalls, 300);
   assert.equal(budget.maxActiveSeconds, 1800);
+  assert.equal(budget.maxActionsPerCase, 24);
   for (const key of Object.keys(DEFAULT_LIMITS))
-    if (!['maxActiveSeconds', 'maxModelCalls', 'maxTotalTokens'].includes(key))
+    if (
+      ![
+        'maxActiveSeconds',
+        'maxActionsPerCase',
+        'maxModelCalls',
+        'maxTotalTokens',
+      ].includes(key)
+    )
       assert.equal(budget[key], DEFAULT_LIMITS[key], key);
   // The regression path merges DEFAULT_LIMITS unchanged.
   assert.equal(DEFAULT_LIMITS.maxTotalTokens, 300000);

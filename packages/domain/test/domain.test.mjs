@@ -75,15 +75,23 @@ test('all phase ordering and saved waiting phase', () => {
     transition({ status: 'running', phase: 'execute' }, 'completed'),
   );
 });
-test('session defaults widen only tokens, calls and wall-clock; regression keeps the old limits', () => {
+test('session defaults widen only tokens, calls, wall-clock and per-case actions; regression keeps the old limits', () => {
   assert.deepEqual(SESSION_DEFAULT_LIMITS, {
     ...DEFAULT_LIMITS,
     maxActiveSeconds: 1800,
+    maxActionsPerCase: 24,
     maxModelCalls: 300,
     maxTotalTokens: 1500000,
   });
   for (const key of Object.keys(DEFAULT_LIMITS))
-    if (!['maxActiveSeconds', 'maxModelCalls', 'maxTotalTokens'].includes(key))
+    if (
+      ![
+        'maxActiveSeconds',
+        'maxActionsPerCase',
+        'maxModelCalls',
+        'maxTotalTokens',
+      ].includes(key)
+    )
       assert.equal(SESSION_DEFAULT_LIMITS[key], DEFAULT_LIMITS[key], key);
   // The shared contract still allows the raised values.
   assert.ok(SESSION_DEFAULT_LIMITS.maxTotalTokens <= 5000000);

@@ -99,6 +99,8 @@ export const DEFAULT_LIMITS: BudgetLimits = Object.freeze({
 export const SESSION_DEFAULT_LIMITS: BudgetLimits = Object.freeze({
   ...DEFAULT_LIMITS,
   maxActiveSeconds: 1800,
+  // Mo-style agents also handle post-login landings and their own retries.
+  maxActionsPerCase: 24,
   maxModelCalls: 300,
   maxTotalTokens: 1500000,
 });

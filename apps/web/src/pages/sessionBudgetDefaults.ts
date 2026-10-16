@@ -3,7 +3,8 @@
  *
  * Mirrors the server's SESSION_DEFAULT_LIMITS (packages/domain/src/index.ts,
  * merged to deploy/mo-next-66 in 631540e): `{ ...DEFAULT_LIMITS,
- * maxActiveSeconds: 1800, maxModelCalls: 300, maxTotalTokens: 1500000 }`.
+ * maxActiveSeconds: 1800, maxActionsPerCase: 24, maxModelCalls: 300,
+ * maxTotalTokens: 1500000 }`.
  * This branch predates that merge, so the constant is copied here with the
  * source noted; switch to importing it from @localqa/domain once available.
  *
@@ -17,6 +18,6 @@ export const SESSION_BUDGET_DEFAULTS = {
   maxDepth: 2,
   maxActiveSeconds: 1800,
   maxActions: 120,
-  maxActionsPerCase: 12,
+  maxActionsPerCase: 24,
   concurrency: 2,
 };
