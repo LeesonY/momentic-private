@@ -2328,9 +2328,11 @@ export class Coordinator {
                 (r) => r.criterionId === k.id && r.result === 'failed',
               ),
             ) ?? definition.criteria[0]!;
-          const refs = [...new Set(results.flatMap((r) => r.evidenceRefs))];
-          if (refs.some((ref) => !evidence.includes(ref)))
-            throw new StorageError('VALIDATION_ERROR');
+          // Only this attempt's usable material may back the finding; a stray
+          // reference is dropped rather than failing the agent's report.
+          const refs = [
+            ...new Set(results.flatMap((r) => r.evidenceRefs)),
+          ].filter((ref) => evidence.includes(ref));
           const sessionManaged =
             (await this.sessions.read(client, run)) !== null;
           const fingerprint = sessionManaged
