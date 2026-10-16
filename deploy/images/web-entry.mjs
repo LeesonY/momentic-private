@@ -59,6 +59,10 @@ const server = http.createServer(async (req, res) => {
     const pathname = decodeURIComponent(
       new URL(req.url, 'http://localhost').pathname,
     );
+    // Vite emits content-hashed names under /assets/: they are immutable for
+    // the life of that hash. Everything else (index.html and every SPA
+    // fallback route) must be revalidated, or browsers keep loading an old
+    // HTML that points at a removed bundle.
     const file = resolve(root, `.${pathname}`);
     if (file !== root && !file.startsWith(`${root}${sep}`)) {
       res.writeHead(403);
@@ -72,9 +76,13 @@ const server = http.createServer(async (req, res) => {
       target = `${root}/index.html`;
     }
     const bytes = await readFile(target);
+    // Only a real hashed asset may be cached long; a fallback index.html is not.
+    const immutable = target.startsWith(`${root}${sep}assets${sep}`);
     res.writeHead(200, {
       'content-type': mime[extname(target)] || 'application/octet-stream',
-      'cache-control': 'no-store',
+      'cache-control': immutable
+        ? 'public, max-age=31536000, immutable'
+        : 'no-cache, no-store, must-revalidate',
     });
     res.end(bytes);
   } catch {
@@ -82,6 +90,6 @@ const server = http.createServer(async (req, res) => {
     res.end();
   }
 });
-server.listen(8080, '0.0.0.0');
+server.listen(Number(process.env.WEB_PORT || 8080), '0.0.0.0');
 for (const signal of ['SIGTERM', 'SIGINT'])
   process.once(signal, () => server.close());

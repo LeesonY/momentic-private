@@ -49,6 +49,30 @@ export type DecisionPayload = Pick<
   'purpose' | 'messages' | 'outputSchema' | 'maxOutputTokens'
 >;
 
+/**
+ * Worst-case output reserved for one call, per purpose. The model profile's
+ * maxOutputTokens is the provider ceiling, but reserving all of it (for example
+ * 32k on a reasoning profile) denies calls while used+reserved is still far
+ * below the run limit. These caps bound both the reservation and the request,
+ * so settlement never exceeds what was reserved. A caller asking for less keeps
+ * its lower ceiling; reasoning models count thinking as output, so planning
+ * keeps the largest allowance.
+ */
+export const OUTPUT_TOKEN_RESERVE: Record<string, number> = {
+  plan: 16384,
+  summarize: 8192,
+  decide: 8192,
+  assert: 4096,
+  probe: 1024,
+};
+export function reservedOutputTokens(
+  purpose: CallInput['purpose'],
+  requested?: number,
+): number {
+  const cap = OUTPUT_TOKEN_RESERVE[purpose] ?? 8192;
+  return requested === undefined ? cap : Math.min(requested, cap);
+}
+
 export function modelCallTimeoutMs(
   purpose: DecisionPayload['purpose'],
 ): number {
@@ -608,6 +632,12 @@ export class BoundModel {
       // 4k truncated otherwise valid coordinator/planner inputs before any
       // provider call. Use the gateway's still-bounded 12k input allowance.
       maxInputTokens: 12000,
+      // Budget reservation is input estimate + this value; keep it per-purpose
+      // instead of the whole profile ceiling.
+      maxOutputTokens: reservedOutputTokens(
+        payload.purpose,
+        payload.maxOutputTokens,
+      ),
       knownEvidenceIds: bound.evidence,
       ...(bound.criterion ? { criterion: bound.criterion } : {}),
     };
@@ -698,6 +728,7 @@ export class BoundModel {
       toolSchemas: [],
       timeoutMs: modelCallTimeoutMs(payload.purpose),
       maxInputTokens: 12000,
+      maxOutputTokens: reservedOutputTokens('decide'),
     });
     return this.finish(proof, budgetDenied, record);
   }
@@ -736,15 +767,24 @@ export class BoundModel {
         modelCallTimeoutMs(request.purpose),
       ),
     });
-    const record = await gateway.complete(request, {
-      role: bound.role,
-      promptVersion: '1.0',
-      approvedImageIds: bound.images.map((image) => image.id),
-      toolSchemas: roleToolSchemas(bound.role),
-      timeoutMs: modelCallTimeoutMs(request.purpose),
-      knownEvidenceIds: bound.evidence,
-      ...(bound.criterion ? { criterion: bound.criterion } : {}),
-    });
+    const record = await gateway.complete(
+      {
+        ...request,
+        maxOutputTokens: reservedOutputTokens(
+          request.purpose,
+          request.maxOutputTokens,
+        ),
+      },
+      {
+        role: bound.role,
+        promptVersion: '1.0',
+        approvedImageIds: bound.images.map((image) => image.id),
+        toolSchemas: roleToolSchemas(bound.role),
+        timeoutMs: modelCallTimeoutMs(request.purpose),
+        knownEvidenceIds: bound.evidence,
+        ...(bound.criterion ? { criterion: bound.criterion } : {}),
+      },
+    );
     return this.finish(proof, budgetDenied, record);
   }
 }

@@ -88,6 +88,20 @@ export const DEFAULT_LIMITS: BudgetLimits = Object.freeze({
   concurrency: 2,
   maxTotalTokens: 300000,
 });
+/**
+ * A Mo-style session signs every executor/reproducer in itself (each sign-in
+ * calls the model), queues exclusive accounts, reviews reports over several
+ * planning rounds and can re-run cases after a question. Measured sessions used
+ * 255k-259k tokens over 44 calls and stopped on tokens, not time, so sessions
+ * get more tokens, calls and wall-clock while regression keeps DEFAULT_LIMITS.
+ * Only the three session-specific limits change; the rest stay identical.
+ */
+export const SESSION_DEFAULT_LIMITS: BudgetLimits = Object.freeze({
+  ...DEFAULT_LIMITS,
+  maxActiveSeconds: 1800,
+  maxModelCalls: 300,
+  maxTotalTokens: 1500000,
+});
 export const EMPTY_USED: BudgetUsed = {
   activeSeconds: 0,
   actions: 0,

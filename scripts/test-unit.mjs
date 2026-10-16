@@ -24,6 +24,7 @@ const files = [
   'apps/worker/test/session-dedup-retry.test.mjs',
   'packages/report/test/dedup-retry.test.mjs',
   'packages/orchestrator/test/model-timeout.test.mjs',
+  'packages/orchestrator/test/model-output-cap.test.mjs',
   'packages/model-gateway/test/rate-limit-retry.test.mjs',
   'apps/worker/test/preflight-model.test.mjs',
   'apps/worker/test/session-permission.test.mjs',
@@ -32,6 +33,7 @@ const files = [
   'apps/web/scripts/runEventHistory.test.mjs',
   'apps/web/scripts/sseClient.test.mjs',
   'apps/web/scripts/sseNamedEvents.test.mjs',
+  'apps/web/scripts/webStaticCache.test.mjs',
   'apps/web/scripts/testTaskStepHistoryOffline.mjs',
   'apps/web/scripts/locatorMaintenanceDraft.test.mjs',
   'apps/web/scripts/testTaskStepSignal.mjs',
@@ -87,6 +89,7 @@ const files = [
   'apps/api/test/t10-policy-error-controller.test.mjs',
   'apps/api/test/t14-anthropic-probe.test.mjs',
   'apps/api/test/t39-run-model-selection.test.mjs',
+  'apps/api/test/budget-defaults.test.mjs',
   'apps/cli/localqa.test.mjs',
 ];
 

@@ -90,14 +90,18 @@ try {
     !nginx.includes('proxy_pass http://web:8080;') ||
     !nginx.includes('proxy_pass http://api:3000;') ||
     !nginx.includes('proxy_buffering off;') ||
-    !nginx.includes('ssl_certificate /etc/nginx/certs/tls.crt;')
+    !nginx.includes('ssl_certificate /etc/nginx/certs/tls.crt;') ||
+    !nginx.includes('add_header Cache-Control $cache_control always;') ||
+    !nginx.includes('public, max-age=31536000, immutable')
   )
-    throw new Error('Gateway route/TLS/SSE config mismatch');
+    throw new Error('Gateway route/TLS/SSE/cache config mismatch');
   facts.gatewayConfig = {
     web: 'web:8080',
     api: 'api:3000',
     sseBuffering: false,
     tlsCertMount: '/etc/nginx/certs',
+    htmlCacheControl: 'no-cache, no-store, must-revalidate',
+    assetCacheControl: 'public, max-age=31536000, immutable',
     validated: 'static only',
   };
   run(['network', 'create', net]);
