@@ -162,6 +162,14 @@ export interface AgentLoginStepInput {
   history: readonly AgentLoginHistoryEntry[];
   /** Constant code for why the previous proposal was not executed. */
   issue: string | null;
+  /**
+   * Page texts that appeared while a confirmed submit was settling and were
+   * gone again from the final observation (a failed-login notice, for example).
+   * Already redacted by the private port, bounded, and never a credential
+   * value; they let the agent name the real reason it is blocked instead of
+   * only reporting that the sign-in form is still there.
+   */
+  notices?: readonly string[] | undefined;
 }
 
 export interface AgentLoginHistoryEntry {
@@ -298,7 +306,65 @@ function failure(error: unknown, fallback: string): Stop {
   if (code === 'CANCELLED' || code === 'USER_CANCELLED') {
     return new Stop('cancelled', 'CANCELLED');
   }
-  return new Stop('blocked', code ?? fallback);
+  return new Stop('blocked', code ?? fallback, technicalDetail(error));
+}
+
+/** Bounded label of the request a trusted primitive refused or could not reach. */
+const TECHNICAL_DETAIL_LIMIT = 200;
+const TECHNICAL_DETAIL_PATTERN =
+  /^(?:GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS) https?:\/\/[^\s?#@]{1,180}$/;
+
+/**
+ * A trusted browser primitive may attach one `safeDetail` label to a refused or
+ * unreachable auth request: method, origin and path, already stripped of any
+ * query, fragment or userinfo by the private gate. Only that shape crosses into
+ * an outcome; raw browser or page text never does.
+ */
+function technicalDetail(error: unknown): string | null {
+  let value: unknown;
+  try {
+    value =
+      error && typeof error === 'object'
+        ? (error as { safeDetail?: unknown }).safeDetail
+        : undefined;
+  } catch {
+    return null;
+  }
+  if (typeof value !== 'string' || value.length > TECHNICAL_DETAIL_LIMIT)
+    return null;
+  return TECHNICAL_DETAIL_PATTERN.test(value) ? value : null;
+}
+
+/** Roles a post-submit banner, toast or inline error is rendered with. */
+const NOTICE_ROLES = new Set(['alert', 'status', 'dialog', 'tooltip', 'log']);
+const NOTICE_LIMIT = 200;
+const MAX_NOTICES = 3;
+
+function noticeKey(node: BrowserSnapshot['nodes'][number]): string {
+  return `${node.role}\u0000${node.name}\u0000${node.text}`;
+}
+
+/** Notice keys already visible before a submit: not new evidence. */
+function noticeKeys(snapshot: BrowserSnapshot): ReadonlySet<string> {
+  const keys = new Set<string>();
+  for (const node of snapshot.nodes ?? []) {
+    if (node.visible && NOTICE_ROLES.has(node.role)) keys.add(noticeKey(node));
+  }
+  return keys;
+}
+
+/** First new visible notice text after a submit, flattened and bounded. */
+function noticeText(
+  snapshot: BrowserSnapshot,
+  baseline: ReadonlySet<string>,
+): string | null {
+  for (const node of snapshot.nodes ?? []) {
+    if (!node.visible || !NOTICE_ROLES.has(node.role)) continue;
+    if (baseline.has(noticeKey(node))) continue;
+    const text = `${node.name || node.text || ''}`.replace(/\s+/g, ' ').trim();
+    if (text) return text.slice(0, NOTICE_LIMIT);
+  }
+  return null;
 }
 
 function isRecord(value: JsonValue | undefined): value is {
@@ -940,6 +1006,14 @@ export async function runAuthFlow(
     let staleReobservations = 0;
     let stalledAfterSubmit = false;
     let lastSubmittedTarget: string | null = null;
+    // Sign-in notices that appeared while a submit settled and were gone from
+    // the final observation. They stay for the rest of this flow so the last
+    // decision can still explain a stalled or rejected sign-in.
+    const notices: string[] = [];
+    function rememberNotice(text: string | null): void {
+      if (text && !notices.includes(text) && notices.length < MAX_NOTICES)
+        notices.push(text);
+    }
     const loginFormVisible = (snapshot: BrowserSnapshot) =>
       snapshot.nodes.some((node) => node.role === 'password' && node.visible);
     const sameLoginForm = (snapshot: BrowserSnapshot) =>
@@ -948,8 +1022,12 @@ export async function runAuthFlow(
       loginFormVisible(snapshot);
     // Read-only, bounded settlement after a known successful click. No extra
     // model request, auth permit, credential fill or submit is issued here.
-    async function settleAfterSubmit(): Promise<BrowserSnapshot> {
+    async function settleAfterSubmit(
+      before: BrowserSnapshot,
+    ): Promise<BrowserSnapshot> {
+      const baseline = noticeKeys(before);
       let observed = await observeFresh();
+      rememberNotice(noticeText(observed, baseline));
       const pollMs = options.postSubmitPollMs ?? 600;
       for (let attempt = 0; attempt < 5 && sameLoginForm(observed); attempt++) {
         check();
@@ -961,6 +1039,7 @@ export async function runAuthFlow(
           }
         }
         observed = await observeFresh();
+        rememberNotice(noticeText(observed, baseline));
       }
       stalledAfterSubmit = sameLoginForm(observed);
       return observed;
@@ -976,6 +1055,7 @@ export async function runAuthFlow(
             snapshot: current,
             history,
             issue,
+            ...(notices.length > 0 ? { notices: [...notices] } : {}),
           },
           signal,
         );
@@ -1092,7 +1172,7 @@ export async function runAuthFlow(
         );
         lastSubmittedTarget = target.nodeId;
         history.push({ action: 'click', nodeId: target.nodeId, label });
-        current = await settleAfterSubmit();
+        current = await settleAfterSubmit(current);
       } else {
         // At most one code per session; the user types it in the run page.
         if (otpUsed) throw new Stop('blocked', 'OTP_UNAVAILABLE');

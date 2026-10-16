@@ -4,7 +4,10 @@
 // assertion below claims a service-verified ticket or a distributed capture.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createPrivateAuthPort } from '@localqa/browser';
+import {
+  createPrivateAuthPort,
+  AuthRequestBlockedError,
+} from '@localqa/browser';
 import { runAuthFlow } from '../dist/auth-flow.js';
 
 const user = 'vault-username-6a';
@@ -153,6 +156,7 @@ function fakeBrowser(hooks = {}) {
     primitives: {
       async navigate(url) {
         calls.push({ kind: 'navigate', url });
+        if (hooks.navigateError) throw hooks.navigateError;
         return snapshot('login');
       },
       async fill(target, value) {
@@ -1108,6 +1112,53 @@ test('missing or unsupported configuration is blocked, never passed', async () =
     assert.equal(outcome.reasonCode, scenario.code, scenario.name);
     assert.equal(outcome.stateRef, null, scenario.name);
   }
+});
+
+test('a refused login request names the request, and never a query or raw text', async () => {
+  const refused = new AuthRequestBlockedError(
+    'POLICY_DENIED',
+    `GET ${origin}/idp/authCenter/authenticate`,
+  );
+  const blocked = options();
+  blocked.value.port = newPort({ hooks: { navigateError: refused } }).port;
+  const outcome = await runAuthFlow(
+    blocked.value,
+    new AbortController().signal,
+  );
+  assert.equal(outcome.status, 'blocked');
+  assert.equal(outcome.reasonCode, 'POLICY_DENIED');
+  assert.equal(outcome.detail, `GET ${origin}/idp/authCenter/authenticate`);
+
+  // Only the bounded method + origin + path shape crosses into an outcome: a
+  // query string, a raw browser message or a credential value never does.
+  const leaky = new AuthRequestBlockedError(
+    'BROWSER_UNAVAILABLE',
+    `GET ${origin}/login?token=${secret}`,
+  );
+  const unreachable = options();
+  unreachable.value.port = newPort({ hooks: { navigateError: leaky } }).port;
+  const second = await runAuthFlow(
+    unreachable.value,
+    new AbortController().signal,
+  );
+  assert.equal(second.status, 'blocked');
+  assert.equal(second.reasonCode, 'BROWSER_UNAVAILABLE');
+  // The outcome's own detail stays null; session-login-context.ts turns the
+  // code into the message the user reads.
+  assert.equal(second.detail, undefined);
+  assert.equal(JSON.stringify(second).includes(secret), false);
+  assert.equal(JSON.stringify(second).includes('token'), false);
+
+  const raw = options();
+  raw.value.port = newPort({
+    hooks: { navigateError: new Error(`browser said ${secret}`) },
+  }).port;
+  const third = await runAuthFlow(raw.value, new AbortController().signal);
+  // An unattributed browser error keeps the port's constant code.
+  assert.equal(third.reasonCode, 'VALIDATION_ERROR');
+  assert.equal(third.detail, undefined);
+  assert.equal(JSON.stringify(third).includes(secret), false);
+  assert.equal(JSON.stringify(third).includes('browser said'), false);
 });
 
 test('unknown, raw, or getter-throwing codes fall back to constants', async () => {

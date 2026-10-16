@@ -125,14 +125,24 @@ function snapshot(
 function fakeBrowser(config = {}) {
   const calls = [];
   let page = 'login';
+  // A notice that appears once right after a submit, then disappears again —
+  // the shape of a real failed-login banner (for example an element-plus toast).
+  let noticePending = 0;
   let current = snapshot(page, [], config.otpVisible, config.truncated);
-  const observe = () =>
-    (current = snapshot(
+  const observe = () => {
+    const notice =
+      noticePending > 0 && config.transientNoticeAfterSubmit
+        ? [node('notice', 'alert', config.transientNoticeAfterSubmit)]
+        : [];
+    if (noticePending > 0) noticePending -= 1;
+    current = snapshot(
       page,
-      config.extraNodes?.(page),
+      [...(config.extraNodes?.(page) ?? []), ...notice],
       config.otpVisible,
       config.truncated,
-    ));
+    );
+    return current;
+  };
   return {
     calls,
     session: {
@@ -157,14 +167,20 @@ function fakeBrowser(config = {}) {
       },
       async submit(target) {
         calls.push({ kind: 'click', nodeId: target.nodeId });
-        if (target.nodeId === 'submit' && !config.loginFails) {
-          if (config.loginNavigationDelayMs)
-            setTimeout(() => {
-              page = 'dashboard';
-            }, config.loginNavigationDelayMs);
-          else page = 'dashboard';
+        // The click's own observation precedes any banner the app shows after
+        // the sign-in request comes back, exactly as the real primitives see it.
+        const observed = observe();
+        if (target.nodeId === 'submit') {
+          if (config.transientNoticeAfterSubmit) noticePending = 1;
+          if (!config.loginFails) {
+            if (config.loginNavigationDelayMs)
+              setTimeout(() => {
+                page = 'dashboard';
+              }, config.loginNavigationDelayMs);
+            else page = 'dashboard';
+          }
         }
-        return observe();
+        return observed;
       },
       async prepareState() {
         throw new Error('not used');
@@ -510,6 +526,42 @@ test('a repeated submit on a stalled page is not executed; the agent then report
   );
   assert.equal(issues[4], 'SUBMIT_ALREADY_TRIED');
   assert.ok(!JSON.stringify(result).includes(secret));
+});
+
+test('a sign-in notice that disappears is still reported as the failure reason', async () => {
+  // The failed-login banner shows once after the click and is gone from the
+  // settled page. The agent must still be able to name it, and the private
+  // port must redact the account the banner echoes back.
+  const attempt = run({
+    browser: {
+      loginFails: true,
+      transientNoticeAfterSubmit: `身份不存在或状态不可用：${user}`,
+    },
+    steps: [
+      ...signIn.slice(0, 3),
+      (input) => ({
+        action: 'blocked',
+        reason: `页面提示：${(input.notices ?? []).join('；') || '当前页面无提示'}`,
+      }),
+    ],
+  });
+  const result = await attempt.outcome;
+  assert.equal(result.status, 'blocked');
+  assert.equal(result.reasonCode, 'AGENT_LOGIN_BLOCKED');
+  assert.equal(result.detail, '页面提示：身份不存在或状态不可用：•');
+  const readInput = (index) =>
+    JSON.parse(attempt.model.requests[index].messages[1].content[0].text);
+  // Nothing to report before the submit actually happened.
+  assert.deepEqual(readInput(2).notices, []);
+  assert.deepEqual(readInput(3).notices, ['身份不存在或状态不可用：•']);
+  // The settled observation really did lose the banner.
+  assert.equal(
+    readInput(3).observation.nodes.some((entry) => entry.role === 'alert'),
+    false,
+  );
+  const evidence = JSON.stringify({ result, requests: attempt.model.requests });
+  assert.equal(evidence.includes(user), false);
+  assert.equal(evidence.includes(secret), false);
 });
 
 test("a blocked decision stands with the agent's own reason; no server recheck", async () => {
