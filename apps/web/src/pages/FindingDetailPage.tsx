@@ -7,8 +7,13 @@ import { StatusBadge } from '../components/ui/Badge.tsx';
 import { Section } from '../components/ui/Section.tsx';
 import { AppIcon } from '../components/ui/AppIcon.tsx';
 import { EmptyState } from '../components/ui/EmptyState.tsx';
+import { Alert } from '../components/ui/Alert.tsx';
 import { FindingEvidencePanel } from '../components/workbench/FindingEvidencePanel.tsx';
 import { TriageModal } from '../components/workbench/TriageModal.tsx';
+import {
+  findingDuplicateOf,
+  isDuplicateFinding,
+} from '../components/session/findingDedup.ts';
 
 export const FindingDetailPage: React.FC = () => {
   const { routeParams, setRoute } = useApp();
@@ -16,15 +21,26 @@ export const FindingDetailPage: React.FC = () => {
   const runId = routeParams.runId || 'run_mock_001_completed';
 
   const [finding, setFinding] = useState<Finding | null>(null);
+  const [retainedTarget, setRetainedTarget] = useState<Finding | null>(null);
   const [loading, setLoading] = useState(true);
   const [isTriageOpen, setIsTriageOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
+      setRetainedTarget(null);
       try {
         const f = await defaultApiClient.getFinding(findingId);
         setFinding(f);
+        // Newer backends point a merged finding at the retained one; load
+        // it for the banner link when it is a different record.
+        const targetId = findingDuplicateOf(f);
+        if (targetId && targetId !== f.id) {
+          const target = await defaultApiClient
+            .getFinding(targetId)
+            .catch(() => null);
+          if (target?.id === targetId) setRetainedTarget(target);
+        }
       } catch (err) {
         console.warn('Failed to load finding:', err);
       } finally {
@@ -85,8 +101,44 @@ export const FindingDetailPage: React.FC = () => {
         <span className="badge badge-info">
           审查状态 {finding.triageDisposition}
         </span>
+        {isDuplicateFinding(finding) && (
+          <span
+            className="badge badge-neutral"
+            data-testid="badge-finding-duplicate"
+          >
+            已合并的重复报告
+          </span>
+        )}
         <span className="subtle text-xs">所属运行 {runId}</span>
       </div>
+
+      {isDuplicateFinding(finding) && (
+        <Alert tone="info" testId="finding-duplicate-banner">
+          这条报告与
+          {retainedTarget ? (
+            <>
+              {' '}
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() =>
+                  setRoute('finding-detail', {
+                    findingId: retainedTarget.id,
+                    runId,
+                  })
+                }
+                data-testid="btn-open-retained-finding"
+              >
+                {retainedTarget.title}
+                <AppIcon name="arrow-right" size={12} />
+              </button>{' '}
+            </>
+          ) : (
+            ' 另一条报告 '
+          )}
+          是同一个问题，已合并；后续统计与列表都以保留的那条为准。
+        </Alert>
+      )}
 
       <div className="grid-2 lqa-compare">
         <div className="lqa-compare-box is-expected">

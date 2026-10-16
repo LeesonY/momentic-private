@@ -18,6 +18,7 @@ import {
   type PaneTab,
 } from './SessionTimeline.tsx';
 import { agentKind, agentTitle, elapsedLabel } from './sessionFeed.ts';
+import { countFindings, groupFindings } from './findingDedup.ts';
 import { isRunActive } from '../sessions/sessionMeta.ts';
 import { latestTaskStepSignal } from './taskStepSignal.ts';
 
@@ -181,7 +182,15 @@ const AgentList: React.FC<{
               </span>
               <span className="mo-card-meta">
                 <span className="mo-chip">{agentKind(task)}</span>
-                {task.attempt > 1 && <span>第 {task.attempt} 次尝试</span>}
+                {task.attempt > 1 && (
+                  <span
+                    className="mo-chip"
+                    data-testid={`task-attempt-${task.id}`}
+                  >
+                    <AppIcon name="rotate-ccw" size={11} />第 {task.attempt}{' '}
+                    次执行
+                  </span>
+                )}
               </span>
             </button>
           );
@@ -191,10 +200,17 @@ const AgentList: React.FC<{
   );
 };
 
+/** How many times a case has been dispatched: executor tasks bound to it.
+ * Attempt 2+ means the coordinator asked for a re-run. */
+const caseAttemptCount = (caseId: string, tasks: Task[]) =>
+  tasks.filter((task) => task.caseId === caseId && task.role === 'executor')
+    .length;
+
 const CaseList: React.FC<{
   cases: CaseRecord[];
+  tasks: Task[];
   onOpen: (caseId: string) => void;
-}> = ({ cases, onOpen }) => {
+}> = ({ cases, tasks, onOpen }) => {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | CaseStatus>('all');
   const needle = query.trim().toLowerCase();
@@ -235,6 +251,7 @@ const CaseList: React.FC<{
       ) : (
         visible.map((record) => {
           const meta = caseStatusMeta[caseStatus(record)];
+          const attempts = caseAttemptCount(record.definition.id, tasks);
           return (
             <button
               type="button"
@@ -252,6 +269,14 @@ const CaseList: React.FC<{
                 <span className="mo-card-title">{record.definition.title}</span>
                 {record.definition.regression && (
                   <span className="mo-chip">回归</span>
+                )}
+                {attempts > 1 && (
+                  <span
+                    className="mo-chip"
+                    data-testid={`case-attempt-${record.definition.id}`}
+                  >
+                    <AppIcon name="rotate-ccw" size={11} />第 {attempts} 次执行
+                  </span>
                 )}
               </span>
               {record.definition.summary && (
@@ -272,7 +297,10 @@ const BugList: React.FC<{ findings: Finding[]; runId: string }> = ({
   runId,
 }) => {
   const { setRoute } = useApp();
-  if (findings.length === 0)
+  const groups = groupFindings(findings);
+  const openFinding = (id: string) =>
+    setRoute('finding-detail', { findingId: id, runId });
+  if (groups.length === 0)
     return (
       <div className="mo-pane-empty" data-testid="tab-content-findings">
         <AppIcon name="bug" size={20} />
@@ -281,43 +309,86 @@ const BugList: React.FC<{ findings: Finding[]; runId: string }> = ({
     );
   return (
     <div className="mo-pane-list" data-testid="tab-content-findings">
-      {findings.map((finding) => (
-        <button
-          type="button"
-          key={finding.id}
-          className="mo-card"
-          onClick={() =>
-            setRoute('finding-detail', { findingId: finding.id, runId })
-          }
-          data-testid={`finding-item-${finding.id}`}
-        >
-          <span className="mo-card-head">
-            <AppIcon
-              name="bug"
-              size={15}
-              className={`mo-status-icon is-${finding.status === 'confirmed' ? 'danger' : 'warning'}`}
-            />
-            <span className="mo-card-title">{finding.title}</span>
-            <span className="mo-chip">{severityLabel[finding.severity]}</span>
-          </span>
-          <span className="mo-card-meta">
-            <span>{findingStatusLabel[finding.status]}</span>
-            {finding.actual && (
-              <span className="mo-card-text">{finding.actual}</span>
-            )}
-          </span>
-        </button>
+      {groups.map((group) => (
+        <div className="mo-card-stack" key={group.finding.id}>
+          <button
+            type="button"
+            className="mo-card"
+            onClick={() => openFinding(group.finding.id)}
+            data-testid={`finding-item-${group.finding.id}`}
+          >
+            <span className="mo-card-head">
+              <AppIcon
+                name="bug"
+                size={15}
+                className={`mo-status-icon is-${group.finding.status === 'confirmed' ? 'danger' : 'warning'}`}
+              />
+              <span className="mo-card-title">{group.finding.title}</span>
+              <span className="mo-chip">
+                {severityLabel[group.finding.severity]}
+              </span>
+              {group.orphan && (
+                <span className="mo-pill is-muted">
+                  <AppIcon name="link" size={11} />
+                  重复
+                </span>
+              )}
+            </span>
+            <span className="mo-card-meta">
+              <span>{findingStatusLabel[group.finding.status]}</span>
+              {group.finding.actual && (
+                <span className="mo-card-text">{group.finding.actual}</span>
+              )}
+            </span>
+          </button>
+          {group.orphan && (
+            <p
+              className="mo-merged-note"
+              data-testid={`finding-orphan-note-${group.finding.id}`}
+            >
+              这条与另一条报告是同一个问题，已合并；保留的那条不在本列表中。
+            </p>
+          )}
+          {group.merged.length > 0 && (
+            <details
+              className="mo-merged"
+              data-testid={`finding-merged-${group.finding.id}`}
+            >
+              <summary>
+                <AppIcon name="link" size={12} />
+                另有 {group.merged.length} 条重复报告已合并
+              </summary>
+              {group.merged.map((merged) => (
+                <button
+                  type="button"
+                  key={merged.id}
+                  className="mo-merged-row"
+                  onClick={() => openFinding(merged.id)}
+                  data-testid={`finding-item-${merged.id}`}
+                >
+                  <span className="mo-card-title">{merged.title}</span>
+                  <span className="mo-chip">
+                    {severityLabel[merged.severity]}
+                  </span>
+                  <span className="mo-pill is-muted">重复</span>
+                </button>
+              ))}
+            </details>
+          )}
+        </div>
       ))}
     </div>
   );
 };
 
-const CaseDetail: React.FC<{ record: CaseRecord; runId: string }> = ({
-  record,
-  runId,
-}) => {
+const CaseDetail: React.FC<{
+  record: CaseRecord;
+  runId: string;
+  tasks: Task[];
+}> = ({ record, runId, tasks }) => {
   const { setRoute } = useApp();
   const meta = caseStatusMeta[caseStatus(record)];
+  const attempts = caseAttemptCount(record.definition.id, tasks);
   const results = record.verdict?.criterionResults ?? [];
   const passed = results.filter((r) => r.result === 'passed');
   const others = results.filter((r) => r.result !== 'passed');
@@ -333,6 +404,15 @@ const CaseDetail: React.FC<{ record: CaseRecord; runId: string }> = ({
         <AppIcon name={meta.icon} size={12} />
         {meta.label}
       </span>
+      {attempts > 1 && (
+        <span
+          className="mo-pill is-info"
+          data-testid={`case-detail-attempt-${record.definition.id}`}
+        >
+          <AppIcon name="rotate-ccw" size={12} />第 {attempts} 次执行 ·
+          结论以最近一次为准
+        </span>
+      )}
       <h3 className="mo-detail-title">{record.definition.title}</h3>
       {record.definition.summary && (
         <p className="mo-detail-sub">{record.definition.summary}</p>
@@ -454,7 +534,7 @@ const AgentDetail: React.FC<{
       {elapsedLabel(task.elapsedSeconds)
         ? ` · ${elapsedLabel(task.elapsedSeconds)}`
         : ''}
-      {task.attempt > 1 ? ` · 第 ${task.attempt} 次尝试` : ''}
+      {task.attempt > 1 ? ` · 第 ${task.attempt} 次执行` : ''}
     </p>
     {BROWSER_ROLES.includes(task.role) ? (
       <ScreenPanel
@@ -531,7 +611,7 @@ export const SessionPane: React.FC<{
   }[] = [
     { key: 'agents', label: '代理', icon: 'cpu', count: agents.length },
     { key: 'cases', label: '用例', icon: 'list', count: cases.length },
-    { key: 'bugs', label: '缺陷', icon: 'bug', count: findings.length },
+    { key: 'bugs', label: '缺陷', icon: 'bug', count: countFindings(findings) },
     { key: 'screen', label: '画面', icon: 'monitor' },
     { key: 'report', label: '报告', icon: 'file-text' },
   ];
@@ -613,6 +693,7 @@ export const SessionPane: React.FC<{
         {tab === 'cases' && (
           <CaseList
             cases={cases}
+            tasks={tasks}
             onOpen={(id) => {
               onDetail({ type: 'case', id });
               onTab('detail');
@@ -654,7 +735,7 @@ export const SessionPane: React.FC<{
               events={events}
             />
           ) : detailCase ? (
-            <CaseDetail record={detailCase} runId={run.id} />
+            <CaseDetail record={detailCase} runId={run.id} tasks={tasks} />
           ) : (
             <div className="mo-pane-empty">
               <p>这一项已不在当前会话里。</p>

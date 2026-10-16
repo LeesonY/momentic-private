@@ -322,6 +322,29 @@ export const mockRuns: Run[] = [
     updatedAt: '2026-10-04T10:05:00.000Z',
     version: 1,
   },
+  {
+    id: 'run_mock_006_clarification',
+    projectId: 'proj_mock_ecommerce_01',
+    creatorId: 'usr_mock_admin_001',
+    targetUrl: 'http://localhost:8080/fix-10-rules.html',
+    executionMode: 'smoke',
+    status: 'awaiting_input',
+    phase: 'plan',
+    completion: 'none',
+    terminationReason: null,
+    contextVersion: 1,
+    effectiveConfig: defaultRunConfig,
+    budgetUsed: {
+      activeSeconds: 18,
+      actions: 2,
+      modelCalls: 3,
+      totalTokens: 4100,
+      reproductions: 0,
+    },
+    createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    version: 2,
+  },
 ];
 
 export const mockInputRequest: InputRequest = {
@@ -333,6 +356,20 @@ export const mockInputRequest: InputRequest = {
   expiresAt: '2026-10-02T08:35:00.000Z',
   status: 'pending',
   version: 1,
+};
+
+/** Mo-style clarification: the coordinator asks and waits, up to 24 hours.
+ * Relative expiry keeps the hint meaningful whenever the mock is opened. */
+export const mockClarificationRequest: InputRequest = {
+  id: 'inp_mock_req_02',
+  runId: 'run_mock_006_clarification',
+  kind: 'clarification',
+  prompt:
+    '结算页的优惠券抵扣规则有歧义：满 300 减 10 是否可与会员 95 折叠加？回复后我继续写用例。',
+  expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+  status: 'pending',
+  version: 1,
+  options: ['可以叠加', '只能二选一', '以 BR-101 文档为准'],
 };
 
 export const mockRegressionDocument1: RegressionDocument = {
@@ -697,6 +734,48 @@ export const mockCases: CaseRecord[] = [
       createdAt: '2026-10-04T10:00:55.000Z',
     },
   },
+  {
+    definition: {
+      id: 'case_mock_20_retried',
+      runId: 'run_mock_001_completed',
+      projectId: 'proj_mock_ecommerce_01',
+      version: 1,
+      title: 'FIX-11: 结算流程（登录态）第二次执行后通过',
+      summary: '首次执行因会话过期受阻，主 AI 重跑后完成验证。',
+      preconditions: ['已登录测试账号'],
+      outline: ['进入结算页', '提交订单', '断言支付跳转'],
+      criteria: [
+        {
+          id: 'crit_fix_11_checkout',
+          kind: 'element_visible',
+          description: '提交后跳转到支付页',
+          sourceKind: 'generic_smoke',
+          sourceRef: 'smoke_standard',
+        },
+      ],
+    },
+    // The verdict is the latest attempt's; attempt 1 was blocked and the
+    // re-run passed, so the case shows as passed.
+    outcome: 'passed',
+    verdict: {
+      id: 'verdict_mock_20_2',
+      caseId: 'case_mock_20_retried',
+      attemptId: 'att_mock_20_2',
+      status: 'passed',
+      reasonCode: 'ALL_CRITERIA_SATISFIED',
+      summary: '第二次执行登录态正常，结算提交后跳转支付页。',
+      criterionResults: [
+        {
+          criterionId: 'crit_fix_11_checkout',
+          result: 'passed',
+          reason: '跳转支付页',
+          evidenceRefs: [],
+        },
+      ],
+      gaps: [],
+      createdAt: '2026-10-02T08:03:40.000Z',
+    },
+  },
 ];
 
 export const mockFindings: Finding[] = [
@@ -740,6 +819,28 @@ export const mockFindings: Finding[] = [
     triageDisposition: 'open',
     version: 1,
   },
+  {
+    id: 'find_mock_03_calc_duplicate',
+    runId: 'run_mock_001_completed',
+    caseIds: ['case_mock_02'],
+    kind: 'functional',
+    status: 'confirmed',
+    title: '结算页金额计算重复上报（应收 290 元实际 999 元）',
+    severity: 'high',
+    expected: '依据业务规则 BR-101：实收金额 = 100 * 3 - 10 = 290.00 元。',
+    actual: '另一个用例再次发现同样的结算金额异常（999.00 元）。',
+    expectedSource: 'project_knowledge',
+    reproSteps: [
+      '1. 打开结算页',
+      '2. 数量 3 + 满 300 减 10 优惠券',
+      '3. 观察实收总额',
+    ],
+    evidenceRefs: ['art_mock_screenshot_error'],
+    reproductionRef: null,
+    triageDisposition: 'duplicate',
+    duplicateOf: 'find_mock_01_calc_error',
+    version: 2,
+  } as Finding & { duplicateOf?: string | null },
 ];
 
 export const mockSteps: Step[] = [
@@ -869,6 +970,26 @@ export const mockTasks: Task[] = [
     elapsedSeconds: 24,
   },
   {
+    id: 'task_mock_exec_20_1',
+    runId: 'run_mock_001_completed',
+    role: 'executor',
+    status: 'failed',
+    caseId: 'case_mock_20_retried',
+    attempt: 1,
+    summary: '执行 FIX-11 结算流程，会话过期导致受阻',
+    elapsedSeconds: 31,
+  },
+  {
+    id: 'task_mock_exec_20_2',
+    runId: 'run_mock_001_completed',
+    role: 'executor',
+    status: 'succeeded',
+    caseId: 'case_mock_20_retried',
+    attempt: 2,
+    summary: '重跑 FIX-11 结算流程，验证通过',
+    elapsedSeconds: 27,
+  },
+  {
     id: 'task_mock_final_01',
     runId: 'run_mock_001_completed',
     role: 'finalizer',
@@ -907,15 +1028,15 @@ export const mockReport: Report = {
   generatedAt: '2026-10-02T08:02:25.000Z',
   run: mockRuns[0],
   summary: {
-    planned: 4,
-    passed: 3,
+    planned: 5,
+    passed: 4,
     issueFound: 1,
     blocked: 0,
     inconclusive: 0,
     notRun: 0,
-    attempted: 4,
-    evaluated: 4,
-    passRate: 0.75,
+    attempted: 5,
+    evaluated: 5,
+    passRate: 0.8,
     attemptRate: 1.0,
   },
   cases: mockCases,

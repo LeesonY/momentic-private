@@ -17,6 +17,7 @@ import {
   spanLabel,
   type FeedItem,
 } from './sessionFeed.ts';
+import { countFindings } from './findingDedup.ts';
 import { isRunActive } from '../sessions/sessionMeta.ts';
 
 export type PaneTab = 'agents' | 'cases' | 'bugs' | 'screen' | 'report';
@@ -277,7 +278,9 @@ export const SessionTimeline: React.FC<{
             <span>
               缺陷 <AppIcon name="external-link" size={12} />
             </span>
-            <strong>{findings.length}</strong>
+            <strong data-testid="session-status-finding-count">
+              {countFindings(findings)}
+            </strong>
           </button>
           {!active && cases.length === 0 && (
             <p className="mo-status-note" data-testid="mo-no-verification">

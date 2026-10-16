@@ -128,6 +128,8 @@ import {
   mockArtifacts,
   mockReport,
   mockTriagePreview,
+  mockInputRequest,
+  mockClarificationRequest,
   defaultRunConfig,
   mockSavedCases,
   mockSavedCaseVersions,
@@ -303,6 +305,14 @@ export class MockApiClient implements ApiClient {
     string,
     RegressionModuleReviewPreview
   > = {};
+  // Pending questions the coordinator is waiting on, keyed by run.
+  private pendingInputs: InputRequest[] = [mockClarificationRequest];
+  private inputResponseLog: {
+    runId: string;
+    inputId: string;
+    decision: string;
+    text?: string;
+  }[] = [];
 
   public async login(_input: LoginInput): Promise<LoginResult> {
     return {
@@ -772,8 +782,12 @@ export class MockApiClient implements ApiClient {
     return { items: [], nextCursor: null };
   }
 
-  public async listRunInputs(_runId: string): Promise<InputRequestPage> {
-    return { items: [] };
+  public async listRunInputs(runId: string): Promise<InputRequestPage> {
+    return {
+      items: this.pendingInputs
+        .filter((input) => input.runId === runId)
+        .map((input) => ({ ...input })),
+    };
   }
   public async continueRun(runId: string, input: FollowUpInput): Promise<Run> {
     const parent = this.runs.find((run) => run.id === runId);
@@ -785,18 +799,34 @@ export class MockApiClient implements ApiClient {
     });
   }
   public async respondToInput(
-    _runId: string,
-    _inputId: string,
-    _response: InputResponse,
+    runId: string,
+    inputId: string,
+    response: InputResponse,
   ): Promise<InputRequest> {
+    const idx = this.pendingInputs.findIndex(
+      (input) => input.id === inputId && input.runId === runId,
+    );
+    if (idx !== -1) {
+      const input = this.pendingInputs[idx];
+      if (response.expectedVersion !== input.version)
+        throw new Error('提问已更新，请刷新后重试');
+      this.pendingInputs.splice(idx, 1);
+      this.inputResponseLog.push({
+        runId,
+        inputId,
+        decision: response.decision,
+        text: response.text,
+      });
+      return {
+        ...input,
+        status: response.decision === 'reject' ? 'rejected' : 'resolved',
+        version: input.version + 1,
+      };
+    }
     return {
-      id: 'input_mock_01',
-      runId: this.runs[0]?.id || 'mock_run',
-      kind: 'auth_profile',
-      status: 'resolved',
-      prompt: 'Mock input response resolved',
-      expiresAt: new Date(Date.now() + 300000).toISOString(),
-      version: 2,
+      ...mockInputRequest,
+      status: response.decision === 'reject' ? 'rejected' : 'resolved',
+      version: response.expectedVersion + 1,
     };
   }
 
@@ -825,6 +855,37 @@ export class MockApiClient implements ApiClient {
     caseId: string,
     _query?: PaginationQuery,
   ): Promise<CaseAttemptPage> {
+    // A retried case has one attempt per executor task; the verdict lives on
+    // the latest one.
+    if (caseId === 'case_mock_20_retried') {
+      return {
+        items: [
+          {
+            id: 'att_mock_20_1',
+            caseId,
+            taskId: 'task_mock_exec_20_1',
+            attemptNumber: 1,
+            status: 'completed',
+            verdict: null,
+            startedAt: '2026-10-02T08:02:55.000Z',
+            finishedAt: '2026-10-02T08:03:26.000Z',
+          },
+          {
+            id: 'att_mock_20_2',
+            caseId,
+            taskId: 'task_mock_exec_20_2',
+            attemptNumber: 2,
+            status: 'completed',
+            verdict:
+              this.cases.find((c) => c.definition.id === caseId)?.verdict ??
+              null,
+            startedAt: '2026-10-02T08:03:30.000Z',
+            finishedAt: '2026-10-02T08:03:57.000Z',
+          },
+        ],
+        nextCursor: null,
+      };
+    }
     return {
       items: [
         {
@@ -844,10 +905,14 @@ export class MockApiClient implements ApiClient {
   }
 
   public async listRunTasks(
-    _runId: string,
+    runId: string,
     _query?: PaginationQuery,
   ): Promise<TaskPage> {
-    return { items: mockTasks, nextCursor: null };
+    const matched = mockTasks.filter((task) => task.runId === runId);
+    return {
+      items: matched.length > 0 ? matched : mockTasks,
+      nextCursor: null,
+    };
   }
 
   public async listTaskSteps(

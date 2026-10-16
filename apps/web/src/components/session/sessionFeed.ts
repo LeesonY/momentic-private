@@ -8,6 +8,7 @@ import type {
   Task,
 } from '@localqa/contracts';
 import type { RunMessage } from '../../api/index.ts';
+import { isDuplicateFinding } from './findingDedup.ts';
 import {
   taskRoleLabel,
   taskStageLabel,
@@ -198,7 +199,9 @@ export function buildSessionFeed(input: {
       }
       case 'finding.updated': {
         const finding = data as unknown as Finding;
-        if (finding.title)
+        // Merged duplicates settle quietly; they fold into the retained
+        // finding instead of surfacing as another discovery.
+        if (finding.title && !isDuplicateFinding(finding))
           push(findingLabel[finding.status] ?? '缺陷更新', [finding.title]);
         break;
       }
