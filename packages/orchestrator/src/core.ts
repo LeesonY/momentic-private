@@ -2549,6 +2549,13 @@ export class Coordinator {
         scope,
         proof,
       );
+      // A task that signed in itself releases its account with its result.
+      await this.authExecution.endTaskSignIn(
+        client,
+        scope.projectId,
+        job.id,
+        'task_finished',
+      );
       const finishTime = (
         await client.query<{
           started_at: Date | null;
@@ -3407,6 +3414,12 @@ export class Coordinator {
     await client.query(
       "UPDATE auth_profile_run_locks SET status='released', released_at=clock_timestamp(), release_reason='interrupted' WHERE project_id=$1 AND run_id=$2 AND phase='initializing' AND status='held'",
       [run.projectId, run.id],
+    );
+    await this.authExecution.endTaskSignIn(
+      client,
+      run.projectId,
+      job.id,
+      'interrupted',
     );
     const uncertainSteps = (
       await client.query(

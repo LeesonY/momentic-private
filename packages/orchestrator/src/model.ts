@@ -22,6 +22,7 @@ import {
   type LeaseProof,
 } from '@localqa/storage';
 import type { Coordinator } from './core.js';
+import { signInKind } from './auth-execution.js';
 
 export type AgentRoleName = CallInput['role'];
 export interface ModelOptions {
@@ -608,14 +609,22 @@ export class BoundModel {
     signal?: AbortSignal,
     sensitiveValues: readonly string[] = [],
   ): Promise<CallRecord> {
-    await this.coordinator.tx(async (client) => {
-      const { job } = await this.coordinator.validateLease(
+    // The run's auth job uses the executor binding; a session agent signing
+    // in itself uses its own role's binding and budget.
+    const role = await this.coordinator.tx(async (client) => {
+      const { job, run } = await this.coordinator.validateLease(
         client,
         this.scope,
         proof,
       );
-      if (job.document.summary !== 'auth' || job.role !== 'executor')
+      const kind = await signInKind(this.coordinator, client, job, run);
+      if (
+        !kind ||
+        (job.role !== 'executor' && job.role !== 'reproducer') ||
+        (kind === 'auth' && job.role !== 'executor')
+      )
         throw new StorageError('POLICY_DENIED');
+      return job.role;
     });
     if (
       payload.purpose !== 'decide' ||
@@ -627,7 +636,7 @@ export class BoundModel {
     const bound = await this.loadFrozen(
       proof,
       'decide',
-      'executor',
+      role,
       undefined,
       undefined,
       payload.messages,
@@ -655,7 +664,7 @@ export class BoundModel {
       decryptKey: this.options.decryptKey,
       adapter: this.budgetAdapter(
         proof,
-        'executor',
+        role,
         bound.profile,
         budgetDenied,
         signal,
@@ -667,7 +676,7 @@ export class BoundModel {
       taskId: proof.taskId,
       profileId: bound.profile.id,
       contextVersion: proof.contextVersion,
-      role: 'executor',
+      role,
       promptVersion: 'auth.ai.1',
       approvedImageIds: [],
       toolSchemas: [],

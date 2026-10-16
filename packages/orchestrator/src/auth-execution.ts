@@ -7,7 +7,31 @@ import {
   type WorkerScope,
   type LeaseProof,
 } from '@localqa/storage';
-import type { Coordinator } from './core.js';
+import type { Coordinator, JobRow } from './core.js';
+import type { Run } from '@localqa/contracts';
+
+/**
+ * Which tasks may run the private sign-in flow: the run-level auth job, or
+ * (Mo-style) an executor/reproducer of a session-managed smoke run signing in
+ * inside its own browser. `self` sign-ins never capture or import state.
+ */
+export async function signInKind(
+  coordinator: Pick<Coordinator, 'sessions'>,
+  client: PoolClient,
+  job: Pick<JobRow, 'role' | 'document'>,
+  run: Run,
+): Promise<'auth' | 'self' | null> {
+  const stage = job.document.summary;
+  if (stage === 'auth') return 'auth';
+  if (
+    run.executionMode === 'smoke' &&
+    ((job.role === 'executor' && stage === 'execute') ||
+      (job.role === 'reproducer' && stage === 'reproduce')) &&
+    (await coordinator.sessions.read(client, run)) !== null
+  )
+    return 'self';
+  return null;
+}
 
 export type AuthSessionPurpose = 'initializer' | 'importer';
 export type AuthSessionStatus = 'allocated' | 'active' | 'ended' | 'revoked';
@@ -244,9 +268,10 @@ export class AuthExecutionManager {
       proof,
     );
 
-    // Initializer only permits tasks whose server Task.summary === 'auth'.
-    // Importer is rejected in this baseline until state capture/import wiring.
-    if (job.document.summary !== 'auth') {
+    // Initializer permits the run's auth job, and (Mo-style) a session
+    // executor/reproducer signing in inside its own browser.
+    const kind = await signInKind(this.coordinator, client, job, run);
+    if (!kind) {
       throw new StorageError('POLICY_DENIED');
     }
 
@@ -393,7 +418,16 @@ export class AuthExecutionManager {
     }
 
     const sessionId = randomUUID();
-    const contextId = randomUUID();
+    // A self sign-in happens in the task's own, already opened browser: bind
+    // the server session to that exact context, never invent another one.
+    const taskContext = job.result?.['authContextId'];
+    if (
+      kind === 'self' &&
+      (typeof taskContext !== 'string' ||
+        !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(taskContext))
+    )
+      throw new StorageError('VALIDATION_ERROR');
+    const contextId = kind === 'self' ? (taskContext as string) : randomUUID();
 
     const inserted = (
       await client.query<RawSessionRow>(
@@ -423,7 +457,72 @@ export class AuthExecutionManager {
       )
     ).rows[0]!;
 
+    if (kind === 'self' && profileDoc.sharingPolicy === 'exclusive_run')
+      await this.holdCredential(client, scope, run.id, inserted);
+
     return toBinding(inserted);
+  }
+
+  /**
+   * An exclusive account is signed in by one task at a time. A self sign-in
+   * takes the existing run lock for its own session and keeps it until its
+   * task ends; it never queues. A lock left by a task that no longer runs is
+   * stale and reclaimed. Busy means RATE_LIMITED: that case is blocked.
+   */
+  private async holdCredential(
+    client: PoolClient,
+    scope: WorkerScope,
+    runId: string,
+    session: RawSessionRow,
+  ): Promise<void> {
+    const held = (
+      await client.query<{
+        id: string;
+        run_id: string;
+        holder_running: boolean;
+      }>(
+        `SELECT l.id,l.run_id,
+           (j.status='running' AND j.fencing_token=s.fencing_token
+             AND j.document->>'summary'<>'auth') AS holder_running
+         FROM auth_profile_run_locks l
+         JOIN auth_execution_sessions s ON s.id=l.auth_session_id
+         JOIN jobs j ON j.id=s.task_id
+         WHERE l.project_id=$1 AND l.auth_profile_id=$2 AND l.status='held'
+         FOR UPDATE OF l`,
+        [scope.projectId, session.auth_profile_id],
+      )
+    ).rows[0];
+    if (held) {
+      // Another run's lock (or its run-level auth state) stays untouched.
+      if (held.run_id !== runId || held.holder_running)
+        throw new StorageError('RATE_LIMITED');
+      await client.query(
+        "UPDATE auth_profile_run_locks SET status='released',released_at=clock_timestamp(),release_reason='holder_ended' WHERE id=$1",
+        [held.id],
+      );
+    }
+    await client.query(
+      `INSERT INTO auth_profile_run_locks(
+         id,project_id,auth_profile_id,run_id,auth_session_id,auth_epoch,status,phase,held_at
+       ) VALUES($1,$2,$3,$4,$5,$6,'held','initializing',clock_timestamp())
+       ON CONFLICT DO NOTHING`,
+      [
+        randomUUID(),
+        scope.projectId,
+        session.auth_profile_id,
+        runId,
+        session.id,
+        session.auth_epoch,
+      ],
+    );
+    const acquired = (
+      await client.query<{ auth_session_id: string }>(
+        "SELECT auth_session_id FROM auth_profile_run_locks WHERE project_id=$1 AND auth_profile_id=$2 AND status='held'",
+        [scope.projectId, session.auth_profile_id],
+      )
+    ).rows[0];
+    if (acquired?.auth_session_id !== session.id)
+      throw new StorageError('RATE_LIMITED');
   }
 
   async issueAuthActivationTicket(
@@ -661,7 +760,11 @@ export class AuthExecutionManager {
     reason = 'completed',
   ): Promise<AuthSessionBinding> {
     // 1. Lock job/lease, then run
-    const { run } = await this.coordinator.validateLease(client, scope, proof);
+    const { job, run } = await this.coordinator.validateLease(
+      client,
+      scope,
+      proof,
+    );
     await this.validateImporterCaller(client, scope, proof, sessionId);
 
     // 2. Lock scope FOR UPDATE
@@ -739,6 +842,12 @@ export class AuthExecutionManager {
         row.task_id,
       );
     }
+    if (
+      row.purpose === 'initializer' &&
+      (await signInKind(this.coordinator, client, job, run)) === 'self'
+    )
+      reason = await this.endSelfSignIn(client, scope, proof, row, reason);
+    else if (reason === 'signed_in') throw new StorageError('POLICY_DENIED');
     const updated = (
       await client.query<RawSessionRow>(
         `UPDATE auth_execution_sessions
@@ -754,5 +863,85 @@ export class AuthExecutionManager {
       await verifySessionNotExpired(client, sessionId);
     }
     return toBinding(updated);
+  }
+
+  /**
+   * A self sign-in leaves no private authority behind. `signed_in` is the
+   * only success ending and needs this session's server-verified success
+   * gate; the exclusive lock then stays with the task until it ends. Any
+   * other ending releases the lock. Unsettled private intents are charged as
+   * unknown, never replayed, so the task can still report its result.
+   */
+  private async endSelfSignIn(
+    client: PoolClient,
+    scope: WorkerScope,
+    proof: LeaseProof,
+    row: RawSessionRow,
+    reason: string,
+  ): Promise<string> {
+    const open = (
+      await client.query<{ id: string; reservation_id: string }>(
+        "SELECT id,reservation_id FROM action_intents WHERE project_id=$1 AND auth_session_id=$2 AND outcome='pending' FOR UPDATE",
+        [scope.projectId, row.id],
+      )
+    ).rows;
+    for (const intent of open) {
+      await this.coordinator.settleIn(
+        client,
+        scope,
+        proof,
+        intent.reservation_id,
+        { actions: 1 },
+        'unknown',
+      );
+      await client.query(
+        "UPDATE action_intents SET outcome='unknown',execution_state='completed' WHERE id=$1",
+        [intent.id],
+      );
+      await client.query(
+        `UPDATE steps SET document=document||'{"status":"unknown","summary":"Auth unknown"}'::jsonb
+         WHERE action_id=$1`,
+        [intent.id],
+      );
+    }
+    const signedIn =
+      reason === 'signed_in' &&
+      open.length === 0 &&
+      Boolean(
+        (
+          await client.query(
+            "SELECT 1 FROM auth_success_gates WHERE project_id=$1 AND auth_session_id=$2 AND result='passed' LIMIT 1",
+            [scope.projectId, row.id],
+          )
+        ).rowCount,
+      );
+    if (reason === 'signed_in' && !signedIn)
+      throw new StorageError('POLICY_DENIED');
+    await client.query(
+      signedIn
+        ? "UPDATE auth_profile_run_locks SET phase='granted' WHERE project_id=$1 AND auth_session_id=$2 AND status='held'"
+        : "UPDATE auth_profile_run_locks SET status='released',released_at=clock_timestamp(),release_reason='sign_in_ended' WHERE project_id=$1 AND auth_session_id=$2 AND status='held'",
+      [scope.projectId, row.id],
+    );
+    return reason;
+  }
+
+  /** A task's self sign-in authority ends with the task: session and lock. */
+  async endTaskSignIn(
+    client: PoolClient,
+    projectId: string,
+    taskId: string,
+    reason: string,
+  ): Promise<void> {
+    await client.query(
+      "UPDATE auth_execution_sessions SET status='ended',ended_at=clock_timestamp(),end_reason=$3 WHERE project_id=$1 AND task_id=$2 AND purpose='initializer' AND status IN ('allocated','active')",
+      [projectId, taskId, reason],
+    );
+    await client.query(
+      `UPDATE auth_profile_run_locks l SET status='released',released_at=clock_timestamp(),release_reason=$3
+       FROM auth_execution_sessions s
+       WHERE s.id=l.auth_session_id AND l.project_id=$1 AND s.task_id=$2 AND l.status='held'`,
+      [projectId, taskId, reason],
+    );
   }
 }

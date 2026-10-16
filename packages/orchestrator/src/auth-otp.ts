@@ -10,6 +10,7 @@ import {
   type WorkerScope,
 } from '@localqa/storage';
 import type { Coordinator } from './core.js';
+import { signInKind } from './auth-execution.js';
 
 type Status = 'pending' | 'submitted' | 'consumed' | 'rejected' | 'expired';
 type Challenge = {
@@ -45,7 +46,11 @@ export class AuthOtpService {
         scope,
         proof,
       );
-      if (job.document.summary !== 'auth' || ttlMs < 1000 || ttlMs > 180000)
+      if (
+        !(await signInKind(this.coordinator, client, job, run)) ||
+        ttlMs < 1000 ||
+        ttlMs > 180000
+      )
         throw new StorageError('POLICY_DENIED');
       const authority = (
         await client.query<{
@@ -335,7 +340,7 @@ export class AuthOtpService {
         scope,
         proof,
       );
-      if (job.document.summary !== 'auth')
+      if (!(await signInKind(this.coordinator, client, job, run)))
         throw new StorageError('POLICY_DENIED');
       const session = (
         await client.query<{

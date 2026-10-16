@@ -27,6 +27,7 @@ import {
   type AuthExportGrant,
 } from '@localqa/browser';
 import type { Coordinator } from './core.js';
+import { signInKind } from './auth-execution.js';
 import {
   validateAuthRecognition,
   type AuthRecognitionResult,
@@ -71,6 +72,8 @@ interface Authority extends Awaited<ReturnType<Coordinator['validateLease']>> {
   profile: AuthProfile;
   secretId: string | null;
   secretVersion: number | null;
+  /** A session agent signing in inside its own browser: never captures. */
+  selfSignIn?: boolean;
 }
 interface CaptureGrant {
   id: string;
@@ -277,8 +280,9 @@ export class AuthStateService {
   ): Promise<Authority> {
     const leased = await this.coordinator.validateLease(client, scope, proof);
     const { job, run } = leased;
+    const kind = await signInKind(this.coordinator, client, job, run);
     if (
-      job.document.summary !== 'auth' ||
+      !kind ||
       (run.executionMode !== 'smoke' && run.executionMode !== 'regression')
     )
       throw new StorageError('POLICY_DENIED');
@@ -316,6 +320,12 @@ export class AuthStateService {
         [scope.projectId, run.id],
       )
     ).rows[0];
+    // A self sign-in uses the version its session pinned at allocation (the
+    // profile's latest then); the run-level auth job keeps the frozen one.
+    const version =
+      kind === 'self'
+        ? session.auth_profile_version
+        : frozen?.auth_profile_version;
     if (
       !authScope ||
       !frozen ||
@@ -323,9 +333,10 @@ export class AuthStateService {
       authScope.context_version !== proof.contextVersion ||
       authScope.auth_epoch !== session.auth_epoch ||
       authScope.auth_profile_id !== frozen.auth_profile_id ||
-      authScope.auth_profile_version !== frozen.auth_profile_version ||
+      (kind === 'auth' &&
+        authScope.auth_profile_version !== frozen.auth_profile_version) ||
       session.auth_profile_id !== frozen.auth_profile_id ||
-      session.auth_profile_version !== frozen.auth_profile_version ||
+      session.auth_profile_version !== version ||
       session.context_id === session.id
     )
       throw new StorageError('AUTH_FAILED');
@@ -339,7 +350,7 @@ export class AuthStateService {
         `SELECT v.document,v.secret_id,v.secret_version,p.revoked FROM auth_profiles p
        JOIN auth_profile_versions v ON v.project_id=p.project_id AND v.auth_profile_id=p.id AND v.version=$3
        WHERE p.project_id=$1 AND p.id=$2 FOR SHARE OF p,v`,
-        [scope.projectId, frozen.auth_profile_id, frozen.auth_profile_version],
+        [scope.projectId, frozen.auth_profile_id, version],
       )
     ).rows[0];
     if (!profileRow || profileRow.revoked)
@@ -348,7 +359,7 @@ export class AuthStateService {
     if (
       profile.id !== frozen.auth_profile_id ||
       profile.projectId !== scope.projectId ||
-      profile.version !== frozen.auth_profile_version ||
+      profile.version !== version ||
       profile.status !== 'active'
     )
       throw new StorageError('AUTH_FAILED');
@@ -369,6 +380,7 @@ export class AuthStateService {
       profile,
       secretId: profileRow.secret_id,
       secretVersion: profileRow.secret_version,
+      selfSignIn: kind === 'self',
     };
     await this.live(client, proof, result);
     return result;
@@ -396,6 +408,11 @@ export class AuthStateService {
     const deadline =
       row.lease_until < row.expires_at ? row.lease_until : row.expires_at;
     return grant && grant.deadline < deadline ? grant.deadline : deadline;
+  }
+
+  /** A self sign-in keeps its login in its own browser: no state capture. */
+  private noSelfCapture(auth: Authority): void {
+    if (auth.selfSignIn) throw new StorageError('POLICY_DENIED');
   }
 
   private initializing(auth: Authority): void {
@@ -583,6 +600,7 @@ export class AuthStateService {
       return; // Historical completion only: never reissue material or state authority.
     }
     const auth = await this.authority(client, scope, proof, sessionId);
+    this.noSelfCapture(auth);
     if (
       auth.job.role !== 'executor' ||
       auth.job.case_id !== null ||
@@ -781,6 +799,7 @@ export class AuthStateService {
     gateId: string,
   ): Promise<{ grant: AuthExportGrant; captureTicket: string }> {
     const auth = await this.authority(client, scope, proof, sessionId);
+    this.noSelfCapture(auth);
     this.initializing(auth);
     await this.verifyGate(client, auth, gateId);
     const prior = await client.query(
@@ -840,6 +859,7 @@ export class AuthStateService {
     ticket: string,
   ): Promise<void> {
     const auth = await this.authority(client, scope, proof, sessionId);
+    this.noSelfCapture(auth);
     this.initializing(auth);
     const grant = await this.grant(client, auth, grantId, ticket);
     if (grant.status !== 'issued') throw new StorageError('VERSION_CONFLICT');
@@ -1042,6 +1062,7 @@ export class AuthStateService {
     input: ApprovedAuthState,
   ): Promise<AuthStateRef> {
     const auth = await this.authority(client, scope, proof, sessionId);
+    this.noSelfCapture(auth);
     const grant = await this.grant(client, auth, grantId, ticket);
     if (!['started', 'consumed'].includes(grant.status))
       throw new StorageError('VALIDATION_ERROR');
