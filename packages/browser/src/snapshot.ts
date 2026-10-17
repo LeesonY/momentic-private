@@ -545,6 +545,8 @@ async function extractNodesFromFrame(
       inputType?: string;
       value?: string;
       relatedNodeId?: string;
+      placeholder?: string;
+      invalid?: boolean;
     }> = [];
     const byNodeId = new Map<string, Element>();
     const nodeIdByElement = new Map<Element, string>();
@@ -674,6 +676,15 @@ async function extractNodesFromFrame(
         name: name.slice(0, 1000),
         text: text.slice(0, TEXT_LIMIT),
         ...(value !== undefined ? { value } : {}),
+        // The control's own hint stays a separate field: a rendered validation
+        // message often repeats the placeholder text word for word.
+        ...(placeholder
+          ? { placeholder: placeholder.slice(0, VALUE_LIMIT) }
+          : {}),
+        // Only the standard attribute counts; a class name is not an API.
+        ...(el.getAttribute('aria-invalid') === 'true'
+          ? { invalid: true }
+          : {}),
         visible: isVisible,
         enabled: isEnabled,
         bounds: {
@@ -839,6 +850,8 @@ async function extractNodesFromFrame(
       inputType?: string;
       value?: string;
       relatedNodeId?: string;
+      placeholder?: string;
+      invalid?: boolean;
     }>;
     truncated: boolean;
   };
@@ -866,6 +879,10 @@ async function extractNodesFromFrame(
         ? { value: sanitizeText(rn.value).slice(0, 200) }
         : {}),
       ...(rn.relatedNodeId ? { relatedNodeId: rn.relatedNodeId } : {}),
+      ...(rn.placeholder
+        ? { placeholder: sanitizeText(rn.placeholder).slice(0, 200) }
+        : {}),
+      ...(rn.invalid ? { invalid: true } : {}),
       visible: rn.visible,
       enabled: rn.enabled,
       bounds: rn.bounds,

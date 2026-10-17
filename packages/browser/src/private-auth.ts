@@ -439,9 +439,13 @@ function redactSnapshot(
         role: scrub(node.role, secrets),
         name: targeted ? '•' : scrub(node.name, secrets),
         text: targeted ? '•' : scrub(node.text, secrets),
-        // A filled control's current content is that very secret.
+        // A filled control's current content is that very secret, and its
+        // placeholder hint may carry it too.
         ...(node.value !== undefined
           ? { value: targeted ? '•' : scrub(node.value, secrets) }
+          : {}),
+        ...(node.placeholder !== undefined
+          ? { placeholder: targeted ? '•' : scrub(node.placeholder, secrets) }
           : {}),
       };
     }),

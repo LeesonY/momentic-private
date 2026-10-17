@@ -264,8 +264,12 @@ export class BrowserSessionImpl implements BrowserSession {
         text: text(node.text),
         // A control's current content is redacted like any other visible text:
         // after an in-place sign-in the account box already holds the saved
-        // account, and the model must never read it back.
+        // account, and the model must never read it back. Its placeholder hint
+        // can carry the same account.
         ...(node.value !== undefined ? { value: text(node.value) } : {}),
+        ...(node.placeholder !== undefined
+          ? { placeholder: text(node.placeholder) }
+          : {}),
       })),
       consoleSummary: snapshot.consoleSummary.map(text),
       networkSummary: snapshot.networkSummary.map((entry) => ({

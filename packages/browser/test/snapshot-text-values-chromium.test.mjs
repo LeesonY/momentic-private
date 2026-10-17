@@ -530,3 +530,87 @@ test("a long form's labels cannot crowd out its validation message", async () =>
     await host.close();
   }
 });
+
+test('a placeholder stays its own field and an invalid control says so', async () => {
+  // The 114 shape: the validation message repeats the placeholder word for word,
+  // so only `placeholder` vs a rendered text node tells them apart.
+  const host = await listen((req, res) => {
+    if (req.url === '/same-text') {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.end(`<!doctype html><html><head><style>
+        .msg { display: none; }
+        .msg.shown { display: block; }
+      </style></head><body><main><form>
+        <div class="item">
+          <input id="user" placeholder="请输入账号">
+          <div class="msg" id="user-msg">请输入账号</div>
+        </div>
+        <div class="item">
+          <input id="pass" type="password" placeholder="请输入密码">
+          <div class="msg" id="pass-msg">请输入密码</div>
+        </div>
+        <button type="button" id="go">登录</button>
+      </form></main>
+      <script>
+        document.getElementById('go').addEventListener('click', () => {
+          for (const id of ['user', 'pass']) {
+            document.getElementById(id).setAttribute('aria-invalid', 'true');
+            document.getElementById(id + '-msg').classList.add('shown');
+          }
+        });
+      </script></body></html>`);
+      return;
+    }
+    res.writeHead(404).end();
+  });
+  const manager = new BrowserManager();
+  try {
+    const browser = await session(manager, host.origin);
+    await browser.executeTool({
+      name: 'navigate',
+      args: { url: `${host.origin}/same-text` },
+    });
+    const before = await browser.getSnapshot({ forceFresh: true });
+    const textNodesBefore = before.nodes.filter(
+      (node) => node.role === 'statictext' && node.name === '请输入账号',
+    );
+    assert.equal(textNodesBefore.length, 0, 'no message before the click');
+
+    await browser.executeTool({
+      name: 'click',
+      args: {
+        target: target(
+          before,
+          before.nodes.find((node) => node.role === 'button'),
+        ),
+      },
+    });
+    const after = await browser.getSnapshot({ forceFresh: true });
+    const field = after.nodes.find(
+      (node) => node.role === 'text' && node.placeholder === '请输入账号',
+    );
+    assert.ok(field, 'the control keeps its own placeholder field');
+    assert.equal(field.name, '请输入账号');
+    assert.equal(field.invalid, true, 'aria-invalid marks the control');
+    const hints = after.nodes.filter(
+      (node) => node.role === 'statictext' && node.name === '请输入账号',
+    );
+    assert.equal(hints.length, 1, 'the message is a rendered text node');
+    assert.equal(hints[0].relatedNodeId, field.nodeId);
+    assert.equal(hints[0].placeholder, undefined, 'a message is not a hint');
+    // The password field reports the same two pieces.
+    const password = after.nodes.find((node) => node.role === 'password');
+    assert.equal(password.placeholder, '请输入密码');
+    assert.equal(password.invalid, true);
+    assert.equal(
+      after.nodes.find(
+        (node) => node.role === 'statictext' && node.name === '请输入密码',
+      ).relatedNodeId,
+      password.nodeId,
+    );
+    await browser.close();
+  } finally {
+    await manager.close();
+    await host.close();
+  }
+});

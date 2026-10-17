@@ -116,8 +116,10 @@ test('later task snapshots redact credentials without exporting browser storage'
         name: account,
         text: password,
         // The account box really holds the saved account after an in-place
-        // sign-in; its current value must be redacted like any other text.
+        // sign-in; its current value must be redacted like any other text, and
+        // so must its placeholder hint.
         value: account,
+        placeholder: account,
         nodeId: 'observed',
       },
     ],
@@ -133,6 +135,7 @@ test('later task snapshots redact credentials without exporting browser storage'
   assert.ok(!text.includes(password));
   assert.ok(!text.includes('storageState'));
   assert.equal(snapshot.nodes[0].value, '•');
+  assert.equal(snapshot.nodes[0].placeholder, '•');
   assert.equal(snapshot.snapshotId, original.snapshotId);
   assert.equal(snapshot.nodes[0].nodeId, 'observed');
   assert.equal(original.title, account);
@@ -227,6 +230,7 @@ test('post-login tool results redact snapshots but preserve network arrays and f
         name: account,
         text: password,
         value: account,
+        placeholder: account,
       },
     ],
     consoleSummary: [],
