@@ -10,6 +10,7 @@ import type {
   AgentLoginDriver,
   AgentLoginStepInput,
 } from './auth-flow.js';
+import { observeWindow } from './observation-window.js';
 
 /**
  * One structured step. The model names a variable, never a value. Every field
@@ -84,10 +85,15 @@ function clip(value: string, max: number): string {
 /** Compact, already-redacted page view for the model. */
 export function agentObservation(snapshot: BrowserSnapshot) {
   const visible = snapshot.nodes.filter((node) => node.visible);
-  const ranked = [
-    ...visible.filter((node) => INTERACTIVE.has(node.role)),
-    ...visible.filter((node) => !INTERACTIVE.has(node.role)),
-  ].slice(0, MAX_NODES);
+  // Interactive roles first, but a field's message and the field it describes
+  // are promoted so a control-heavy page cannot hide them (see observeWindow).
+  const ranked = observeWindow(
+    [
+      ...visible.filter((node) => INTERACTIVE.has(node.role)),
+      ...visible.filter((node) => !INTERACTIVE.has(node.role)),
+    ],
+    MAX_NODES,
+  );
   return {
     url: snapshot.displayUrl,
     title: clip(snapshot.title, 200),

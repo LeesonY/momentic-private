@@ -36,6 +36,7 @@ const files = [
   'apps/worker/test/browser-action-scope.test.mjs',
   'apps/worker/test/session-denial-recovery.test.mjs',
   'apps/worker/test/session-tool-parity.test.mjs',
+  'apps/worker/test/observation-window.test.mjs',
   'apps/web/scripts/phaseTermination.test.mjs',
   'apps/web/scripts/runEventHistory.test.mjs',
   'apps/web/scripts/sseClient.test.mjs',

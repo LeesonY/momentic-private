@@ -764,3 +764,27 @@ test('agentObservation carries a field value and the text tied to it', () => {
   // A control without content still reports an empty value, never a guess.
   assert.equal(seen('submit').value, undefined);
 });
+
+test('agentObservation keeps a late field message on a control-heavy page', () => {
+  // 250 fields, the last one showing a validation message: the login agent must
+  // still see it and the field it belongs to.
+  const observed = snapshot('login');
+  const nodes = [];
+  for (let index = 0; index < 250; index += 1)
+    nodes.push(node(`field-${index}`, 'text', `请输入字段 ${index}`));
+  nodes.push(
+    node('late-error', 'statictext', '此字段不能为空', {
+      relatedNodeId: 'field-230',
+    }),
+  );
+  observed.nodes = nodes;
+  const view = agentObservation(observed);
+  const seen = view.nodes.map((entry) => entry.nodeId);
+  assert.ok(seen.includes('late-error'), 'the message is not crowded out');
+  assert.ok(seen.includes('field-230'), 'its field is promoted with it');
+  assert.equal(
+    view.nodes.find((entry) => entry.nodeId === 'late-error').relatedNodeId,
+    'field-230',
+  );
+  assert.ok(view.truncated);
+});

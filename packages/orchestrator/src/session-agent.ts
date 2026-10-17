@@ -73,7 +73,7 @@ export interface SessionContext {
       nodes: Array<
         Pick<
           BrowserSnapshot['nodes'][number],
-          'role' | 'name' | 'text' | 'value' | 'relatedNodeId'
+          'nodeId' | 'role' | 'name' | 'text' | 'value' | 'relatedNodeId'
         >
       >;
     }
@@ -238,6 +238,8 @@ export class SessionAgent {
           .filter((n) => n.visible)
           .slice(0, 40)
           .map((n) => ({
+            // nodeId keeps the relatedNodeId references resolvable.
+            nodeId: n.nodeId,
             role: n.role,
             name: clean(n.name).slice(0, 160),
             text: clean(n.text).slice(0, 240),

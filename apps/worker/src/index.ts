@@ -55,6 +55,7 @@ import { initializeBrowserAuthentication } from './auth-initialize-task.js';
 import { withApprovedBrowserAuth } from './auth-import-task.js';
 import { finishPermissionLockedQuestion } from './session-permission.js';
 import { hasReadableMainContent } from './technical-smoke.js';
+import { observeWindow } from './observation-window.js';
 export { CandidateVerifier } from './candidate-verifier.js';
 
 /** Expected failed browser effects are scoped to their job, never the run. */
@@ -185,8 +186,9 @@ function trailEntry(
  * The page as an agent acts on it: visible nodes with the ids its tool calls
  * need, without layout boxes, network rows or hidden nodes. Sending the raw
  * snapshot at every step spent most of a session's token budget.
+ * Exported for the observation-window tests; the Worker is its only caller.
  */
-function actionObservation(snapshot: BrowserSnapshot | null) {
+export function actionObservation(snapshot: BrowserSnapshot | null) {
   if (!snapshot) return null;
   const visible = snapshot.nodes.filter((node) => node.visible);
   return {
@@ -196,7 +198,7 @@ function actionObservation(snapshot: BrowserSnapshot | null) {
     title: clip(snapshot.title, 200),
     status: snapshot.responseStatus,
     truncated: snapshot.truncated || visible.length > 200,
-    nodes: visible.slice(0, 200).map((node) => {
+    nodes: observeWindow(visible, 200).map((node) => {
       const name = clip(node.name, 100);
       const text = clip(node.text, 160);
       return {
@@ -225,14 +227,14 @@ function actionObservation(snapshot: BrowserSnapshot | null) {
 }
 
 /** The final page as the agent reads it for its report: visible nodes only. */
-function compactObservation(snapshot: BrowserSnapshot) {
+export function compactObservation(snapshot: BrowserSnapshot) {
   const visible = snapshot.nodes.filter((node) => node.visible);
   return {
     url: snapshot.displayUrl,
     title: clip(snapshot.title, 200),
     status: snapshot.responseStatus,
     truncated: snapshot.truncated || visible.length > 150,
-    nodes: visible.slice(0, 150).map((node) => {
+    nodes: observeWindow(visible, 150).map((node) => {
       const name = clip(node.name, 80);
       const text = clip(node.text, 160);
       return {
