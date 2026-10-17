@@ -691,6 +691,8 @@ export interface SnapshotNode {
   bounds: Bounds;
   inputType?: string;
   sensitive?: boolean;
+  value?: string;
+  relatedNodeId?: string;
 }
 export interface NetworkEntry {
   url: string;

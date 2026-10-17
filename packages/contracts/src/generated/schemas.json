@@ -5204,6 +5204,15 @@
           },
           "sensitive": {
             "type": "boolean"
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "relatedNodeId": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
           }
         },
         "required": [
@@ -22202,6 +22211,15 @@
             },
             "sensitive": {
               "type": "boolean"
+            },
+            "value": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "relatedNodeId": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1
             }
           },
           "required": [
@@ -28992,6 +29010,15 @@
           },
           "sensitive": {
             "type": "boolean"
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "relatedNodeId": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
           }
         },
         "required": [
