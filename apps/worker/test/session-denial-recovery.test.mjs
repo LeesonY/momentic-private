@@ -41,7 +41,7 @@ const snapshot = (stateVersion, nodeId) =>
  * One explorer job with a fake runtime and browser. `decisions` is consumed
  * per model round; `executeTool` decides the browser receipt per call.
  */
-async function runExplorer({ decisions, executeTool }) {
+async function runExplorer({ decisions, executeTool, grant }) {
   const ids = {
     project: randomUUID(),
     run: randomUUID(),
@@ -54,6 +54,7 @@ async function runExplorer({ decisions, executeTool }) {
   const records = [];
   const finishes = [];
   const modelPayloads = [];
+  let latestSnapshotId = null;
   let round = 0;
   const runtime = {
     async claim() {
@@ -93,10 +94,13 @@ async function runExplorer({ decisions, executeTool }) {
       round += 1;
       return { requestResult: 'ok', data: decision };
     },
-    async grant() {
+    async grant(_proof, call) {
+      if (grant) return grant(call, { latestSnapshotId });
       return { step: { id: randomUUID() } };
     },
     async record(_proof, _grant, status, recorded, evidence, reasonCode) {
+      if (status === 'succeeded' && recorded)
+        latestSnapshotId = recorded.snapshotId;
       records.push({
         status,
         reasonCode: reasonCode ?? null,
@@ -226,4 +230,121 @@ test('an action denied before its grant is counted by reason code', async () => 
   assert.equal(settled.modelActionDenials, 1);
   assert.deepEqual(settled.modelActionDenialReasons, { POLICY_DENIED: 1 });
   assert.match(text(modelPayloads[1]), /POLICY_DENIED/);
+});
+
+test('a grant-stage stale snapshot is a version conflict and recovers after the automatic observe', async () => {
+  const afterAccount = snapshot(3, 'main_node_0');
+  const afterPassword = snapshot(4, 'main_node_1');
+  const typed = [];
+  const { records, finishes, modelPayloads, refreshed } = await runExplorer({
+    decisions: ({ first, refreshed: observed }) => [
+      {
+        done: false,
+        toolCalls: [
+          {
+            name: 'type_text',
+            args: {
+              target: {
+                snapshotId: first.snapshotId,
+                pageId: first.pageId,
+                nodeId: 'main_node_0',
+              },
+              text: 'WrongUser_123',
+            },
+          },
+        ],
+      },
+      {
+        done: false,
+        // Still cites the navigate observation; the account action advanced it.
+        toolCalls: [
+          {
+            name: 'type_text',
+            args: {
+              target: {
+                snapshotId: first.snapshotId,
+                pageId: first.pageId,
+                nodeId: 'main_node_1',
+              },
+              text: 'WrongPwd_123',
+            },
+          },
+        ],
+      },
+      {
+        done: false,
+        toolCalls: [
+          {
+            name: 'type_text',
+            args: {
+              target: {
+                snapshotId: observed.snapshotId,
+                pageId: observed.pageId,
+                nodeId: 'main_node_1',
+              },
+              text: 'WrongPwd_123',
+            },
+          },
+        ],
+      },
+      { done: true, toolCalls: [] },
+    ],
+    grant: (call, { latestSnapshotId }) => {
+      const target = call.args?.target;
+      if (target && target.snapshotId !== latestSnapshotId) {
+        throw Object.assign(new Error('stale'), {
+          code: 'VERSION_CONFLICT',
+          denial: { role: 'password', name: '请输入密码' },
+        });
+      }
+      return { step: { id: randomUUID() } };
+    },
+    executeTool: (call, { first: initial, refreshed: fresh }) => {
+      if (call.name === 'navigate')
+        return { status: 'succeeded', reasonCode: null, data: initial };
+      if (call.name === 'observe')
+        return { status: 'succeeded', reasonCode: null, data: fresh };
+      if (call.name === 'type_text') {
+        typed.push({ nodeId: call.args.target.nodeId, text: call.args.text });
+        return {
+          status: 'succeeded',
+          reasonCode: null,
+          data:
+            call.args.target.nodeId === 'main_node_0'
+              ? afterAccount
+              : afterPassword,
+        };
+      }
+      return { status: 'failed', reasonCode: 'TARGET_NOT_FOUND', data: null };
+    },
+  });
+  // The stale attempt was refused before the browser; the retry after the
+  // platform's automatic observe reached the password field.
+  assert.deepEqual(typed, [
+    { nodeId: 'main_node_0', text: 'WrongUser_123' },
+    { nodeId: 'main_node_1', text: 'WrongPwd_123' },
+  ]);
+  assert.deepEqual(
+    records.map((record) => record.status),
+    ['succeeded', 'succeeded', 'succeeded', 'succeeded'],
+  );
+  const settled = finishes.at(-1);
+  assert.equal(settled.modelActionDenials, 1);
+  assert.deepEqual(settled.modelActionDenialReasons, {
+    VERSION_CONFLICT: 1,
+  });
+  assert.deepEqual(settled.grantDenials, [
+    {
+      tool: 'type_text',
+      reasonCode: 'VERSION_CONFLICT',
+      role: 'password',
+      name: '请输入密码',
+    },
+  ]);
+  const persisted = JSON.stringify(settled);
+  assert.equal(persisted.includes('WrongPwd_123'), false);
+  assert.equal(persisted.includes('WrongUser_123'), false);
+  const third = text(modelPayloads[2]);
+  assert.match(third, /VERSION_CONFLICT/);
+  assert.match(third, new RegExp(refreshed.snapshotId));
 });

@@ -9,6 +9,7 @@ import {
   type BrowserSession,
 } from '@localqa/browser';
 import {
+  isActionDenialCode,
   parseContract,
   type BrowserSnapshot,
   type ToolCall,
@@ -109,11 +110,19 @@ const SIGNED_OUT_TASK_INSTRUCTION =
  */
 function denialGuidance(reasonCode: string): string {
   if (reasonCode === 'VERSION_CONFLICT' || reasonCode === 'TARGET_NOT_FOUND')
-    return '页面在你引用的快照之后发生了变化，这个动作没有执行。不要重复提交同一个目标；平台已重新观察，请只使用最新观察里的 nodeId。';
+    return '快照已过期：页面在你引用的快照之后发生了变化，这个动作没有执行。不要重复提交同一个目标；平台已重新观察，请只使用最新观察里的 nodeId 重试。';
   if (reasonCode === 'TARGET_AMBIGUOUS')
     return '这个目标在页面上匹配到多个元素，动作没有执行。请换一个唯一的目标，或改用其他方式。';
   if (reasonCode === 'TARGET_HIDDEN' || reasonCode === 'TARGET_DISABLED')
     return '目标当前不可见或被禁用，动作没有执行。等待它可用，或换一个目标。';
+  if (reasonCode === 'HIDDEN_INPUT_FORBIDDEN')
+    return '这是隐藏输入框，按设计禁止操作，不会执行。不要再尝试这个目标。';
+  if (reasonCode === 'SENSITIVE_INPUT_FORBIDDEN')
+    return '敏感输入框未放行（只有未登录用例可以用明显虚构的值输入），这个动作不会执行。不要再尝试，也不要使用真实账号密码。';
+  if (reasonCode === 'SAVED_CREDENTIAL_INPUT')
+    return '输入的值与已保存凭据相同，已被拒绝。请改用明显虚构的测试值，不要使用真实账号密码。';
+  if (reasonCode === 'OUT_OF_SCOPE_MUTATION')
+    return '非提交策略下禁止 Enter 或提交类按钮，这个动作不会执行。不要再尝试这个动作。';
   if (reasonCode === 'POLICY_DENIED')
     return '这个动作被当前运行策略拒绝，没有执行。不要重复它；只使用工具列表里的工具，需要时先 observe 再用最新快照重试。';
   if (reasonCode === 'REPEATED_ACTION_LIMIT')
@@ -778,6 +787,15 @@ export class Worker {
         const graph = new PageGraph(work.run.effectiveConfig.budget);
         let depth = 0;
         const knownEvidenceIds = new Set<string>();
+        // Grant-stage refusals never reach the action ledger, so the task
+        // result keeps a bounded, value-free trace of what was refused and
+        // why (role/name come from the recorded snapshot node, never input).
+        const grantDenials: Array<{
+          tool: string;
+          reasonCode: string;
+          role: string | null;
+          name: string | null;
+        }> = [];
         const execute = async (
           call: ToolCall,
           regressionSource?: import('@localqa/orchestrator').CompiledRegressionStep['source'],
@@ -805,13 +823,33 @@ export class Worker {
             !graph.canNavigate(call.args.url, depth + 1)
           )
             throw new StorageError('BUDGET_EXCEEDED');
-          const grant = await this.runtime.grant(
-            proof,
-            actual,
-            regressionSource
-              ? parseContract('RegressionStepSource', regressionSource)
-              : undefined,
-          );
+          let grant;
+          try {
+            grant = await this.runtime.grant(
+              proof,
+              actual,
+              regressionSource
+                ? parseContract('RegressionStepSource', regressionSource)
+                : undefined,
+            );
+          } catch (error) {
+            const code = (error as { code?: unknown } | null)?.code;
+            if (isActionDenialCode(code)) {
+              const denial = (
+                error as {
+                  denial?: { role?: string | null; name?: string | null };
+                } | null
+              )?.denial;
+              grantDenials.push({
+                tool: actual.name,
+                reasonCode: code,
+                role: denial?.role ?? null,
+                name: denial?.name ?? null,
+              });
+              if (grantDenials.length > 20) grantDenials.shift();
+            }
+            throw error;
+          }
           if (this.options.onActionIntent)
             await this.options.onActionIntent(grant);
           if (signal.aborted) {
@@ -1432,6 +1470,7 @@ export class Worker {
               sourceVersionId: work.definition.regression!.sourceVersionId,
               sourceDocumentSha256:
                 work.definition.regression!.sourceDocumentSha256,
+              ...(grantDenials.length ? { grantDenials } : {}),
             },
             results,
             replay.reasonCode ?? undefined,
@@ -1642,6 +1681,7 @@ export class Worker {
                   ],
                 }
               : {}),
+            ...(grantDenials.length ? { grantDenials } : {}),
           });
           reported = true;
           return true;
@@ -1685,6 +1725,7 @@ export class Worker {
                   modelActionDenialReasons,
                 }
               : {}),
+            ...(grantDenials.length ? { grantDenials } : {}),
             contextId: session!.id,
           },
           results,
