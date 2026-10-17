@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   getRootValidator,
   getToolResultValidator,
+  isActionDenialCode,
   parseContract,
   type JsonValue,
   type ToolCall,
@@ -89,10 +90,12 @@ export function createPolicyDispatcher(
       } catch (error) {
         const code = (error as { code?: unknown } | null)?.code;
         // A model may ask for a role-permitted tool that the *current run's*
-        // stricter action policy forbids. Do not misclassify this safe denial
-        // as a Worker/setup outage or mark the action as executed.
-        if (code === 'POLICY_DENIED' || code === 'TARGET_NOT_ALLOWED')
-          return denied(code);
+        // stricter action policy (or its action ledger) refuses. Every
+        // grant-stage refusal carries its own code so the model can tell a
+        // stale snapshot (retry with the newest observation) from a forbidden
+        // action (stop). Do not misclassify these safe denials as a
+        // Worker/setup outage or mark the action as executed.
+        if (isActionDenialCode(code)) return denied(code);
         throw error;
       }
       const resultValidator = getToolResultValidator(call.name);

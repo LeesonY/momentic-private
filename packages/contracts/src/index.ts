@@ -5,6 +5,7 @@ import documents from './generated/schemas.json' with { type: 'json' };
 import type { ContractTypes } from './generated/types.js';
 
 export type * from './generated/types.js';
+export * from './action-denial.js';
 export * from './errors.js';
 export * from './config.js';
 export * from './model-limits.js';

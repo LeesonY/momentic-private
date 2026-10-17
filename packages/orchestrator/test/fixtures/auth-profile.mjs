@@ -37,6 +37,8 @@ export function authProfileFixture({
     sessions: new Map(),
     snapshots: new Map(),
     lastSnapshot: null,
+    /** When set, the ledger's last-action snapshot (the cited one otherwise). */
+    latestSnapshot: null,
     /** secret_id values whose ciphertext row is unavailable. */
     missingSecrets: new Set(),
     intents: new Map(),
@@ -357,14 +359,16 @@ export function authProfileFixture({
     }
     if (sql.includes('FROM action_intents i JOIN steps s')) {
       // The last granted action's snapshot must be the one the caller now
-      // cites, exactly as the real action ledger enforces it.
+      // cites, exactly as the real action ledger enforces it. A test may pin
+      // `latestSnapshot` to simulate an action that already advanced it.
+      const latest = auth.latestSnapshot ?? auth.lastSnapshot;
       return rows(
-        auth.lastSnapshot
+        latest
           ? [
               {
                 result_hash: hashPayload({
                   status: 'succeeded',
-                  snapshot: auth.lastSnapshot,
+                  snapshot: latest,
                   evidence: [],
                 }),
               },

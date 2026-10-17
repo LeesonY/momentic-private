@@ -225,8 +225,14 @@ enum 不能让前端通过解析自然语言猜状态。新 provider 的原始�
 | TARGET_DISABLED | 同上 | 目标被禁用：属产品观察，可由断言判定，不当作执行失败 |
 | ACTION_TIMEOUT | BROWSER_UNAVAILABLE（基础设施类） | 动作超时：有限次非破坏性恢复后转 blocked |
 | REPEATED_ACTION_LIMIT | POLICY_DENIED | 同动作与页面指纹重复达上限：停止该用例，防循环 |
+| VERSION_CONFLICT | VERSION_CONFLICT（授权阶段） | 目标快照不是本任务最近一次动作的结果：用最新观察重试，不当作策略禁止 |
+| TARGET_NOT_FOUND / TARGET_HIDDEN / TARGET_DISABLED | 同上 | 授权阶段目标不存在/不可见/被禁用：换目标或等待，不当作策略禁止 |
+| HIDDEN_INPUT_FORBIDDEN | POLICY_DENIED | 隐藏输入框：按设计永远不可操作，不重试 |
+| SENSITIVE_INPUT_FORBIDDEN | POLICY_DENIED | 敏感输入未放行（仅未登录用例可用虚构值）：不重试 |
+| SAVED_CREDENTIAL_INPUT | POLICY_DENIED | 输入值与已保存凭据相同：改用虚构测试值，不重试 |
+| OUT_OF_SCOPE_MUTATION | POLICY_DENIED | 非提交策略下的 Enter/提交类按钮：不重试 |
 
-定位失败、策略拒绝、取消、入参校验失败等其他执行层含义一律使用本节既有错误码，不再另设同义词；新增执行层码须先在此登记并说明归类。
+定位失败、策略拒绝、取消、入参校验失败等其他执行层含义一律使用本节既有错误码，不再另设同义词；新增执行层码须先在此登记并说明归类。授权阶段（`grantAction`）的拒绝同样写进步骤的 `reasonCode`，但只记录码和目标的 role/name，不记录输入值或凭据。
 
 ## 8. 导出和审查
 

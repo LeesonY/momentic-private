@@ -226,7 +226,7 @@ test('a signed-out session case may click a password box but not a hidden input'
         text: 'WrongPwd_123',
       },
     }),
-    (error) => error.code === 'POLICY_DENIED',
+    (error) => error.code === 'HIDDEN_INPUT_FORBIDDEN',
   );
 });
 
@@ -240,7 +240,7 @@ test('typing the saved password, an echoed account or a value containing it is r
     const fixture = signedOutFixture();
     const snapshot = addSnapshot(fixture, [snapshotNode()]);
     await assert.rejects(typed(fixture, snapshot, text), (error) => {
-      assert.equal(error.code, 'POLICY_DENIED');
+      assert.equal(error.code, 'SAVED_CREDENTIAL_INPUT');
       assert.ok(!JSON.stringify(error).includes(text));
       return true;
     });
@@ -261,7 +261,7 @@ test('a short saved value only refuses equality, never a substring match', async
   const snapshot = addSnapshot(fixture, [snapshotNode()]);
   await assert.rejects(
     typed(fixture, snapshot, 'ab'),
-    (error) => error.code === 'POLICY_DENIED',
+    (error) => error.code === 'SAVED_CREDENTIAL_INPUT',
   );
   const grant = await typed(fixture, snapshot, 'xaby');
   assert.equal(grant.call.args.text, 'xaby');
@@ -282,11 +282,11 @@ test('both the current profile version and the frozen run version are compared',
   const snapshot = addSnapshot(fixture, [snapshotNode()]);
   await assert.rejects(
     typed(fixture, snapshot, 'CurrentPass_2'),
-    (error) => error.code === 'POLICY_DENIED',
+    (error) => error.code === 'SAVED_CREDENTIAL_INPUT',
   );
   await assert.rejects(
     typed(fixture, snapshot, savedPassword),
-    (error) => error.code === 'POLICY_DENIED',
+    (error) => error.code === 'SAVED_CREDENTIAL_INPUT',
   );
   const grant = await typed(fixture, snapshot, 'WrongPwd_123');
   assert.equal(grant.call.name, 'type_text');
@@ -299,7 +299,7 @@ test('a signed-in case, an explorer and a regression run still refuse password i
   const signedInSnapshot = addSnapshot(signedIn, [snapshotNode()]);
   await assert.rejects(
     typed(signedIn, signedInSnapshot, 'WrongPwd_123'),
-    (error) => error.code === 'POLICY_DENIED',
+    (error) => error.code === 'SENSITIVE_INPUT_FORBIDDEN',
   );
   assert.equal(credentialRead(signedIn), false);
 
@@ -316,7 +316,7 @@ test('a signed-in case, an explorer and a regression run still refuse password i
   const explorerSnapshot = addSnapshot(explorer, [snapshotNode()]);
   await assert.rejects(
     typed(explorer, explorerSnapshot, 'WrongPwd_123'),
-    (error) => error.code === 'POLICY_DENIED',
+    (error) => error.code === 'SENSITIVE_INPUT_FORBIDDEN',
   );
   assert.equal(credentialRead(explorer), false);
 
@@ -326,7 +326,7 @@ test('a signed-in case, an explorer and a regression run still refuse password i
   const regressionSnapshot = addSnapshot(regression, [snapshotNode()]);
   await assert.rejects(
     typed(regression, regressionSnapshot, 'WrongPwd_123'),
-    (error) => error.code === 'POLICY_DENIED',
+    (error) => error.code === 'SENSITIVE_INPUT_FORBIDDEN',
   );
   assert.equal(credentialRead(regression), false);
 });
@@ -364,4 +364,146 @@ test('ordinary text fields and observe keep their existing allowance', async () 
   // The released lane is about password/sensitive nodes: a text field never
   // triggers a credential read (unchanged behavior).
   assert.equal(credentialRead(fixture), false);
+});
+
+test('a stale target snapshot is a version conflict, not a policy denial', async () => {
+  const fixture = signedOutFixture();
+  const nodes = [
+    snapshotNode({
+      nodeId: 'account-field',
+      role: 'text',
+      inputType: 'text',
+      sensitive: false,
+      name: '账号',
+    }),
+    snapshotNode(),
+  ];
+  const observed = addSnapshot(fixture, nodes);
+  const afterAccount = addSnapshot(fixture, nodes);
+  const account = await typed(
+    fixture,
+    observed,
+    'WrongUser_123',
+    'account-field',
+  );
+  assert.equal(account.call.name, 'type_text');
+  // The account action advanced the ledger to its post-action snapshot.
+  fixture.auth.latestSnapshot = afterAccount;
+  await assert.rejects(
+    typed(fixture, observed, 'WrongPwd_123', 'password-field'),
+    (error) => {
+      assert.equal(error.code, 'VERSION_CONFLICT');
+      assert.deepEqual(error.denial, { role: 'password', name: '密码' });
+      assert.equal(JSON.stringify(error).includes('WrongPwd_123'), false);
+      return true;
+    },
+  );
+  // A fresh observation makes the same action valid again.
+  const observedAgain = addSnapshot(fixture, nodes);
+  fixture.auth.latestSnapshot = observedAgain;
+  const retry = await typed(
+    fixture,
+    observedAgain,
+    'WrongPwd_123',
+    'password-field',
+  );
+  assert.equal(retry.call.args.text, 'WrongPwd_123');
+});
+
+test('each grant refusal carries its own reason code', async () => {
+  const fixture = signedOutFixture();
+  const snapshot = addSnapshot(fixture, [
+    snapshotNode({
+      nodeId: 'account-field',
+      role: 'text',
+      inputType: 'text',
+      sensitive: false,
+      name: '账号',
+    }),
+    snapshotNode(),
+    snapshotNode({
+      nodeId: 'hidden-field',
+      inputType: 'hidden',
+      sensitive: false,
+    }),
+    snapshotNode({
+      nodeId: 'invisible-node',
+      role: 'text',
+      inputType: 'text',
+      sensitive: false,
+      name: '不可见',
+      visible: false,
+    }),
+    snapshotNode({
+      nodeId: 'disabled-node',
+      role: 'text',
+      inputType: 'text',
+      sensitive: false,
+      name: '禁用',
+      enabled: false,
+    }),
+    snapshotNode({
+      nodeId: 'submit-node',
+      role: 'button',
+      inputType: 'submit',
+      sensitive: false,
+      name: '登录',
+      text: '登录',
+    }),
+  ]);
+  const deny = async (call, code) => {
+    await assert.rejects(
+      fixture.coordinator.grantAction(fixture.scope, fixture.proof, call),
+      (error) => {
+        assert.equal(error.code, code);
+        return true;
+      },
+    );
+  };
+  const target = (nodeId) => targetFor(snapshot, nodeId);
+  await deny(
+    { name: 'type_text', args: { target: target('missing'), text: 'x' } },
+    'TARGET_NOT_FOUND',
+  );
+  await deny(
+    {
+      name: 'type_text',
+      args: {
+        target: { ...target('account-field'), pageId: randomUUID() },
+        text: 'x',
+      },
+    },
+    'TARGET_NOT_FOUND',
+  );
+  await deny(
+    {
+      name: 'type_text',
+      args: { target: target('invisible-node'), text: 'x' },
+    },
+    'TARGET_HIDDEN',
+  );
+  await deny(
+    { name: 'type_text', args: { target: target('disabled-node'), text: 'x' } },
+    'TARGET_DISABLED',
+  );
+  await deny(
+    { name: 'type_text', args: { target: target('hidden-field'), text: 'x' } },
+    'HIDDEN_INPUT_FORBIDDEN',
+  );
+  await deny(
+    { name: 'press', args: { target: target('account-field'), key: 'Enter' } },
+    'OUT_OF_SCOPE_MUTATION',
+  );
+  await deny(
+    { name: 'click', args: { target: target('submit-node') } },
+    'OUT_OF_SCOPE_MUTATION',
+  );
+  // A signed-in case keeps the original sensitive-input refusal.
+  const signedIn = savedFixture();
+  signedInAuth(signedIn);
+  const signedInSnapshot = addSnapshot(signedIn, [snapshotNode()]);
+  await assert.rejects(
+    typed(signedIn, signedInSnapshot, 'WrongPwd_123'),
+    (error) => error.code === 'SENSITIVE_INPUT_FORBIDDEN',
+  );
 });

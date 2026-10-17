@@ -1,19 +1,17 @@
-import { sanitizeText, withinWriteScope } from '@localqa/browser';
+import { sanitizeText } from '@localqa/browser';
 import { randomUUID } from 'node:crypto';
 import { SessionAgent, type SessionContext } from './session-agent.js';
 import { parseSessionDecision } from './session-planning.js';
 import { linkMergedFindingEvidence } from './session-findings.js';
 import { parseAgentReport, verdictFromReport } from './agent-report.js';
 import { settledStep } from './step-settlement.js';
+import { actionDenied, evaluateTargetGrant } from './action-grant.js';
 import { createRegressionPlan } from './regression-plan.js';
 import { AuthStateService, type AuthStateRef } from './auth-state-service.js';
 import { AuthOtpService } from './auth-otp.js';
 import { readRunAuthProfile, readSavedAuthValues } from './auth-profile.js';
 import {
   inputValueOf,
-  isHiddenInput,
-  isReleasedSensitiveTool,
-  isSensitiveInput,
   matchesSavedCredential,
 } from './signed-out-input.js';
 import {
@@ -1912,60 +1910,24 @@ export class Coordinator {
             [scope.projectId, run.id, job.id, target.snapshotId],
           )
         ).rows[0]?.document;
-        const node = owned?.nodes.find(
-          (node) =>
-            node.nodeId === target.nodeId &&
-            node.frameId === (target.frameId ?? 'main'),
-        );
-        if (
-          !owned ||
-          owned.pageId !== target.pageId ||
-          !node ||
-          !node.visible ||
-          !node.enabled
-        )
-          throw new StorageError('POLICY_DENIED');
         const latest = (
           await client.query<{ result_hash: string }>(
             "SELECT i.result_hash FROM action_intents i JOIN steps s ON s.action_id=i.id WHERE i.project_id=$1 AND i.run_id=$2 AND i.task_id=$3 AND i.outcome='succeeded' AND i.tool_call->>'name'<>'capture' ORDER BY s.seq DESC LIMIT 1",
             [scope.projectId, run.id, job.id],
           )
         ).rows[0];
-        if (
-          latest?.result_hash !==
-          hashPayload({ status: 'succeeded', snapshot: owned, evidence: [] })
-        )
-          throw new StorageError('POLICY_DENIED');
-        const hiddenInput = isHiddenInput(node);
-        const sensitiveInput = isSensitiveInput(node);
-        // Mo's subagents may TYPE into a password box. Only a session-managed
-        // smoke run's immutable signed-out case (requiresLogin=false) may do
-        // so, and only with a value that is not a saved credential.
-        const releasedSensitive =
-          sensitiveInput &&
-          !hiddenInput &&
-          signedOutCase &&
-          isReleasedSensitiveTool(call.name);
-        const outOfScopeMutation =
-          !withinWriteScope(
-            owned!.displayUrl,
-            run.effectiveConfig.actionPolicy === 'approved_workflows'
-              ? (run.effectiveConfig.writeScope ?? [])
-              : [],
-          ) &&
-          ((call.name === 'press' && call.args.key === 'Enter') ||
-            (call.name === 'click' &&
-              (node.inputType === 'submit' ||
-                /删除|新增|新建|创建|保存|提交|发送|购买|支付|启用|停用|禁用|授权|重置|发布|\b(delete|remove|create|save|submit|send|purchase|enable|disable|reset|publish)\b/i.test(
-                  `${node.name} ${node.text}`,
-                ))));
-        if (
-          hiddenInput ||
-          (sensitiveInput && !releasedSensitive) ||
-          outOfScopeMutation
-        )
-          throw new StorageError('POLICY_DENIED');
-        if (releasedSensitive) {
+        const decision = evaluateTargetGrant({
+          target,
+          owned,
+          latestResultHash: latest?.result_hash ?? null,
+          call,
+          signedOutCase,
+          actionPolicy: run.effectiveConfig.actionPolicy,
+          writeScope: run.effectiveConfig.writeScope ?? [],
+        });
+        if (decision.denial)
+          throw actionDenied(decision.denial, decision.node);
+        if (decision.releasedSensitive) {
           const value = inputValueOf(call);
           if (value !== null && value.length > 0) {
             // Decrypt, compare, drop: neither value enters a log, event,
@@ -1992,7 +1954,7 @@ export class Coordinator {
                   tool: call.name,
                 }),
               );
-              throw new StorageError('POLICY_DENIED');
+              throw actionDenied('SAVED_CREDENTIAL_INPUT', decision.node);
             }
           }
         }
