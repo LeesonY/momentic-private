@@ -289,3 +289,21 @@ test('a focused child frame control wins over the iframe that hosts it', () => {
   ]);
   assert.equal(focusLabel(frame), '账号');
 });
+
+test('a notice seen only in the action observation is reported both ways', () => {
+  // The settle window keeps a ~1.5 s notice inside the action observation; by
+  // report time it is gone. Both ends of the story must reach the report.
+  const before = snapshot();
+  const actionResult = snapshot([
+    message('main_text_9', '登录失败，请检查账号'),
+  ]);
+  const atReport = snapshot();
+  assert.deepEqual(textChanges(before, actionResult), {
+    appeared: ['登录失败，请检查账号'],
+    disappeared: [],
+  });
+  assert.deepEqual(textChanges(actionResult, atReport), {
+    appeared: [],
+    disappeared: ['登录失败，请检查账号'],
+  });
+});

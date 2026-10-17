@@ -231,6 +231,8 @@ export function actionObservation(
     title: clip(snapshot.title, 200),
     status: snapshot.responseStatus,
     truncated: snapshot.truncated || visible.length > 200,
+    // The action's settle cap was reached: the page was still changing.
+    ...(snapshot.settled === false ? { settled: false } : {}),
     ...(changes ? { textChanges: changes } : {}),
     ...(focus ? { focusChange: focus } : {}),
     nodes: observeWindow(visible, 200).map((node) => {
@@ -281,6 +283,7 @@ export function compactObservation(snapshot: BrowserSnapshot) {
     title: clip(snapshot.title, 200),
     status: snapshot.responseStatus,
     truncated: snapshot.truncated || visible.length > 150,
+    ...(snapshot.settled === false ? { settled: false } : {}),
     nodes: observeWindow(visible, 150).map((node) => {
       const name = clip(node.name, 80);
       const text = clip(node.text, 160);
@@ -330,6 +333,7 @@ function reportPrompt(reproducing: boolean): string {
     '账号或密码被拒、缺少测试数据、操作被权限策略拦下，都是 blocked，不是产品缺陷。',
     'summary：一两句话说明做了什么、看到了什么。verified：已经确认符合预期的点。gaps：没能确认的点和原因。',
     '最终页面观察里除了控件，还有页面上看得见的文字节点（nodeId、role=statictext/paragraph/label、relatedNodeId 指向相关控件）、控件的当前值 value（敏感值为 [redacted]，空串就是空的）、控件自己的占位提示 placeholder，以及控件的错误状态 invalid。占位符只在 placeholder 里；与占位符同文的 statictext 是页面上真实渲染的文字，不是占位符。',
+    'finalObservation 是提交报告前重新采集的当前页面，不是最后一个动作那一刻的状态；sinceLastAction 是最后一个动作之后到现在新出现/消失的文字（「文字（所属控件）」）。判断页面现在是否有提示、提示是否已经消失，以 finalObservation 和 sinceLastAction 为准，不要用 actions[] 里更早的观察。',
     '操作记录 actions[] 里 textChanges 记录了这一步之后新出现/消失的文字（例如「点击后新出现：请输入账号（账号框）」），它比最终页面更能说明页面是否对操作做出了提示。说“页面没有提示/没有回显”之前先看这些文字、value 和 textChanges；只看到 placeholder 或节点被裁剪不算没有提示。',
     '观察里 focused=true 的节点是当前真正获得键盘焦点的控件，没有就没有；操作记录的 focusChange（例如「按键后焦点：账号 → 密码」）记录了每一步之后焦点落在哪，判断 Tab 顺序/回车提交/快捷键是否按预期走，依据就是它，不要靠猜。',
     '焦点环、高亮、outline 这类“焦点指示是否看得见”的样式不要从节点字段、class 或颜色值推断，只能看截图。截图里看不清时：把这一点写进 gaps，对应那条验收标准的结论给 unknown；不要因为这一点把整条用例判成 blocked——焦点顺序本身已经能用 focusChange 验证。只有当这条用例的验收标准本身只关心焦点指示的可见样式时，才按 unknown 处理并在 gaps 里说清需要人工看图。',
@@ -1691,6 +1695,29 @@ export class Worker {
           name: 'capture',
           args: { pageId: session!.activePageId, reason: 'Case evidence' },
         })) as Artifact;
+        // The report must describe the page as it is now, not the page as it
+        // was one action ago: a validation message can finish its leave
+        // transition and a toast can expire in between. No model action
+        // follows, so refreshing cannot invalidate a target the model still
+        // holds — the reason a capture no longer replaces the working
+        // snapshot does not apply at this point. The refreshed snapshot goes
+        // through the same redacted session path and is persisted by the
+        // action ledger like any other observation.
+        const lastActionSnapshot = snapshot;
+        let changesSinceLastAction: TextChangeSummary | null = null;
+        try {
+          await execute({ name: 'observe', args: {} });
+          changesSinceLastAction = textChanges(lastActionSnapshot, snapshot);
+        } catch (error) {
+          // A spent action allowance or one failed observation must not cost an
+          // otherwise complete case: the last observation is reported instead.
+          const code = (error as { code?: unknown } | null)?.code;
+          if (
+            !(error instanceof ScopedBrowserActionFailure) &&
+            code !== 'BUDGET_EXCEEDED'
+          )
+            throw error;
+        }
         // Mo-style: the agent that did the work submits the verdict.
         const report = await this.agentReport(
           proof,
@@ -1699,6 +1726,7 @@ export class Worker {
           snapshot,
           trail,
           signal,
+          changesSinceLastAction,
         );
         const results = work.definition.criteria.map((criterion) => {
           const judged = report?.criteria.find(
@@ -2066,6 +2094,7 @@ export class Worker {
     snapshot: BrowserSnapshot,
     trail: readonly AgentTrailEntry[],
     signal: AbortSignal,
+    changesSinceLastAction: TextChangeSummary | null = null,
   ): Promise<AgentReport | null> {
     const definition = work.definition!;
     let record;
@@ -2110,6 +2139,9 @@ export class Worker {
                       : {}),
                     actions: trail.slice(-30),
                     finalObservation: compactObservation(snapshot),
+                    ...(changesSinceLastAction
+                      ? { sinceLastAction: changesSinceLastAction }
+                      : {}),
                   }),
                 },
               ],
