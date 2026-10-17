@@ -563,6 +563,9 @@ export class ToolExecutor {
           } finally {
             await resolved.elementHandle.dispose().catch(() => undefined);
           }
+          // Typing changes form state the page fingerprint cannot see; it
+          // must break a run of identical clicks, not count as one.
+          ctx.waiter.recordStateChange('type_text', target.nodeId);
 
           const snapshot = await captureBrowserSnapshot(targetPage, {
             pageId: target.pageId,
@@ -656,6 +659,7 @@ export class ToolExecutor {
           } finally {
             await resolved.elementHandle.dispose().catch(() => undefined);
           }
+          ctx.waiter.recordStateChange('select_option', target.nodeId);
 
           const snapshot = await captureBrowserSnapshot(targetPage, {
             pageId: target.pageId,
@@ -749,6 +753,12 @@ export class ToolExecutor {
           } else {
             await targetPage.keyboard.press(key);
           }
+          // A key press can change form state (submit, tab, clear) without
+          // changing the page fingerprint; it breaks a run of identical clicks.
+          ctx.waiter.recordStateChange(
+            'press',
+            target?.nodeId ?? `key:${key}`,
+          );
 
           const snapshot = await captureBrowserSnapshot(targetPage, {
             pageId: target?.pageId || ctx.pageId,
@@ -931,13 +941,13 @@ export class ToolExecutor {
             );
           }
 
+          // A capture is read-only evidence. It must not replace the
+          // observation the model is acting on: the model only receives the
+          // screenshot artifact, so a new snapshot id would silently
+          // invalidate every target it still holds (the action ledger already
+          // excludes capture from its "latest snapshot" rule for the same
+          // reason). Keep the current snapshot and its DOM witness/registry.
           const artifact = await ctx.recorder.captureScreenshot(targetPage);
-          const snapshot = await captureBrowserSnapshot(targetPage, {
-            pageId,
-            stateVersion: ctx.stateVersion,
-            screenshotRef: artifact.id,
-            recorder: ctx.recorder,
-          });
 
           return this.finalizeResult(
             {
@@ -950,7 +960,7 @@ export class ToolExecutor {
               evidenceRefs: [artifact.id],
             },
             toolCall,
-            snapshot,
+            ctx.currentSnapshot!,
           );
         }
 

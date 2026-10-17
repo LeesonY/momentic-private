@@ -393,6 +393,77 @@ test('a transient alert rendered after a mutating click is part of the action ob
   }
 });
 
+test('capture does not invalidate the observation the model is acting on', async () => {
+  const manager = new BrowserManager();
+  const session = await manager.createSession({
+    ...identity(),
+    mode: 'non_submitting',
+  });
+  try {
+    const page = session.getPage();
+    await page.setContent(
+      '<input placeholder="账号"><button data-testid="submit">登录</button>',
+    );
+    const before = await session.getSnapshot({ forceFresh: true });
+    const account = before.nodes.find((n) => n.name === '账号');
+    assert.ok(account);
+    const captured = await session.executeTool({
+      name: 'capture',
+      args: { pageId: session.activePageId, reason: 'evidence' },
+    });
+    assert.equal(captured.status, 'succeeded');
+    assert.equal(
+      (await session.getSnapshot()).snapshotId,
+      before.snapshotId,
+      'capture must not replace the current snapshot',
+    );
+    const typed = await session.executeTool({
+      name: 'type_text',
+      args: { target: targetFor(before, account), text: 'smoke_user_114' },
+    });
+    assert.equal(typed.status, 'succeeded');
+    assert.equal(await page.inputValue('input'), 'smoke_user_114');
+  } finally {
+    await session.close();
+    await manager.close();
+  }
+});
+
+test('a target replaced between observe and capture is still refused', async () => {
+  const manager = new BrowserManager();
+  const session = await manager.createSession({
+    ...identity(),
+    mode: 'non_submitting',
+  });
+  try {
+    const page = session.getPage();
+    await page.setContent(
+      '<div id="slot"><button data-testid="confirm">Confirm</button></div>',
+    );
+    const before = await session.getSnapshot({ forceFresh: true });
+    const node = before.nodes.find((n) => n.nodeId === 'testid_confirm');
+    assert.ok(node);
+    await page.evaluate(() => {
+      document.querySelector('#slot').innerHTML =
+        '<button data-testid="confirm">Confirm</button>';
+    });
+    const captured = await session.executeTool({
+      name: 'capture',
+      args: { pageId: session.activePageId, reason: 'evidence' },
+    });
+    assert.equal(captured.status, 'succeeded');
+    const clicked = await session.executeTool({
+      name: 'click',
+      args: { target: targetFor(before, node) },
+    });
+    assert.equal(clicked.status, 'failed');
+    assert.equal(clicked.reasonCode, 'VERSION_CONFLICT');
+  } finally {
+    await session.close();
+    await manager.close();
+  }
+});
+
 test('a complete DOM is not marked truncated when summaries overflow', async () => {
   await withPage(async (page) => {
     await page.setContent('<button data-testid="confirm">Confirm</button>');
@@ -411,4 +482,81 @@ test('a complete DOM is not marked truncated when summaries overflow', async () 
     assert.equal(snapshot.truncated, false);
     assert.equal(recorder.getSnapshotSummaries().truncated, true);
   });
+});
+
+test('typing between two submissions is not mistaken for a repeated click', async () => {
+  const manager = new BrowserManager();
+  const session = await manager.createSession({
+    ...identity(),
+    mode: 'non_submitting',
+  });
+  try {
+    const page = session.getPage();
+    await page.setContent(
+      '<input data-testid="account" placeholder="账号"><input data-testid="password" type="password" placeholder="密码"><button data-testid="login-button" type="button">登录</button>',
+    );
+    const act = async (name, nodeId, extra = {}) => {
+      const current = await session.getSnapshot();
+      const node = current.nodes.find((n) => n.nodeId === nodeId);
+      assert.ok(node, `${nodeId} present in the current observation`);
+      return session.executeTool({
+        name,
+        args: { target: targetFor(current, node), ...extra },
+      });
+    };
+    assert.equal((await act('click', 'testid_login-button')).status, 'succeeded');
+    assert.equal(
+      (await act('type_text', 'testid_account', { text: 'smoke_user_114' }))
+        .status,
+      'succeeded',
+    );
+    assert.equal((await act('click', 'testid_login-button')).status, 'succeeded');
+    assert.equal(
+      (await act('type_text', 'testid_password', { text: 'WrongPwd_123' }))
+        .status,
+      'succeeded',
+    );
+    assert.equal((await act('click', 'testid_login-button')).status, 'succeeded');
+  } finally {
+    await session.close();
+    await manager.close();
+  }
+});
+
+test('repeated clicks on an unchanged page are still stopped, and a state change clears it', async () => {
+  const manager = new BrowserManager();
+  const session = await manager.createSession({
+    ...identity(),
+    mode: 'non_submitting',
+  });
+  try {
+    const page = session.getPage();
+    await page.setContent(
+      '<input data-testid="account" placeholder="账号"><button data-testid="login-button" type="button">登录</button>',
+    );
+    const act = async (name, nodeId, extra = {}) => {
+      const current = await session.getSnapshot();
+      const node = current.nodes.find((n) => n.nodeId === nodeId);
+      assert.ok(node);
+      return session.executeTool({
+        name,
+        args: { target: targetFor(current, node), ...extra },
+      });
+    };
+    assert.equal((await act('click', 'testid_login-button')).status, 'succeeded');
+    assert.equal((await act('click', 'testid_login-button')).status, 'succeeded');
+    const stopped = await act('click', 'testid_login-button');
+    assert.equal(stopped.status, 'failed');
+    assert.equal(stopped.reasonCode, 'REPEATED_ACTION_LIMIT');
+    // A successful state-changing action clears the consecutive run.
+    assert.equal(
+      (await act('type_text', 'testid_account', { text: 'smoke_user_114' }))
+        .status,
+      'succeeded',
+    );
+    assert.equal((await act('click', 'testid_login-button')).status, 'succeeded');
+  } finally {
+    await session.close();
+    await manager.close();
+  }
 });

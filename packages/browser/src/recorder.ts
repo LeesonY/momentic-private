@@ -407,8 +407,13 @@ export class SessionRecorder {
     options: { fullPage?: boolean } = {},
   ): Promise<Artifact> {
     const screenshotId = randomUUID();
+    // `caret: 'hide'` (Playwright's default) writes `caret-color` into the
+    // active input's inline style and restores it, which trips the DOM
+    // witness and makes the observation the model is acting on look stale.
+    // Evidence screenshots keep the caret instead.
     const buffer = await page.screenshot({
       fullPage: options.fullPage ?? true,
+      caret: 'initial',
     });
     const sha256 = createHash('sha256').update(buffer).digest('hex');
 

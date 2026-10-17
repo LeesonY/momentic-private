@@ -43,3 +43,28 @@ test('node ID or capture identity churn alone cannot evade loop detection', () =
     /REPEATED_ACTION_LIMIT/,
   );
 });
+
+test('a state-changing action between two clicks breaks the repeat run', () => {
+  const waiter = new WaitAndRecoveryManager();
+  const fingerprint = waiter.computeFingerprint(snapshot('Submit'));
+  waiter.recordAction('click', 'submit', fingerprint);
+  waiter.recordStateChange('type_text', 'account');
+  waiter.recordAction('click', 'submit', fingerprint);
+  waiter.recordStateChange('type_text', 'password');
+  waiter.recordAction('click', 'submit', fingerprint);
+});
+
+test('a rejected click followed by a state change is allowed again', () => {
+  const waiter = new WaitAndRecoveryManager();
+  const fingerprint = waiter.computeFingerprint(snapshot('Submit'));
+  waiter.recordAction('click', 'submit', fingerprint);
+  waiter.recordAction('click', 'submit', fingerprint);
+  assert.throws(
+    () => waiter.recordAction('click', 'submit', fingerprint),
+    /REPEATED_ACTION_LIMIT/,
+  );
+  // The rejected click never entered the history; one real state change
+  // clears the consecutive run.
+  waiter.recordStateChange('type_text', 'account');
+  waiter.recordAction('click', 'submit', fingerprint);
+});

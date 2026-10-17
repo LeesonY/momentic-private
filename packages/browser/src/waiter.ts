@@ -171,6 +171,21 @@ export class WaitAndRecoveryManager {
   }
 
   /**
+   * Records a successful action that can change page or form state. It does
+   * not participate in the repeat guard itself, but it breaks a run of
+   * identical clicks so "submit, fix a field, submit" is not mistaken for a
+   * loop. The page fingerprint cannot see typed values, so the action itself
+   * is the evidence that the state moved.
+   */
+  public recordStateChange(actionName: string, targetKey: string): void {
+    this.actionHistory.push({
+      actionKey: `${actionName}:${targetKey}`,
+      fingerprint: '',
+    });
+    if (this.actionHistory.length > 50) this.actionHistory.shift();
+  }
+
+  /**
    * Calculates a structural page fingerprint to detect loops.
    */
   public computeFingerprint(snapshot: BrowserSnapshot): string {

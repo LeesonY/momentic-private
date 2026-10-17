@@ -106,7 +106,9 @@ export function startLiveFrameCapture(
         quality: 55,
         fullPage: false,
         animations: 'disabled',
-        caret: 'hide',
+        // Hiding the caret writes `caret-color` into the active input's inline
+        // style, which the DOM witness reports as a target mutation.
+        caret: 'initial',
         timeout: 1800,
         mask: [
           page.locator('input'),
