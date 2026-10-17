@@ -614,3 +614,54 @@ test('invalid canonical target and cancellation during resolution never enter to
   assert.equal(cancelled.status, 'cancelled');
   assert.equal(attempts, 0);
 });
+
+test('grant denials keep their own code and still classify the step as failed', async () => {
+  for (const code of [
+    'VERSION_CONFLICT',
+    'TARGET_NOT_FOUND',
+    'TARGET_HIDDEN',
+    'TARGET_DISABLED',
+    'HIDDEN_INPUT_FORBIDDEN',
+    'SENSITIVE_INPUT_FORBIDDEN',
+    'SAVED_CREDENTIAL_INPUT',
+    'OUT_OF_SCOPE_MUTATION',
+  ]) {
+    const { ports } = fake({
+      executeTool: async () => {
+        throw Object.assign(new Error('denied'), { code });
+      },
+    });
+    const result = await replayRegression(
+      compile([navigate, navigate]),
+      ports,
+      new AbortController().signal,
+    );
+    assert.equal(result.status, 'failed', code);
+    assert.equal(result.reasonCode, code);
+    assert.equal(result.steps.length, 1);
+    assert.equal(result.steps[0].status, 'failed');
+    assert.equal(result.steps[0].reasonCode, code);
+  }
+});
+
+test('an AI action denied by the ledger keeps its own code', async () => {
+  const { ports } = fake({
+    executeTool: async () => {
+      throw Object.assign(new Error('denied'), { code: 'VERSION_CONFLICT' });
+    },
+  });
+  ports.aiAction = async ({ executeTool }) => {
+    await executeTool({
+      name: 'navigate',
+      args: { url: 'https://fixture.test/ai' },
+    });
+  };
+  const result = await replayRegression(
+    compile([ai, click]),
+    ports,
+    new AbortController().signal,
+  );
+  assert.equal(result.status, 'failed');
+  assert.equal(result.reasonCode, 'VERSION_CONFLICT');
+  assert.equal(result.steps.length, 1);
+});

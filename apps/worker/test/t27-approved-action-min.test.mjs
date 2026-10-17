@@ -939,3 +939,60 @@ test('T36 cancellation during pending model decision never dispatches the propos
   assert.equal(decisions, 1);
   assert.equal(clicks, 0);
 });
+
+test('T28 grant denials keep their own code instead of a generic policy denial', async () => {
+  for (const code of [
+    'VERSION_CONFLICT',
+    'TARGET_NOT_FOUND',
+    'TARGET_HIDDEN',
+    'TARGET_DISABLED',
+    'HIDDEN_INPUT_FORBIDDEN',
+    'SENSITIVE_INPUT_FORBIDDEN',
+    'SAVED_CREDENTIAL_INPUT',
+    'OUT_OF_SCOPE_MUTATION',
+  ]) {
+    let decisions = 0;
+    const ai = createRegressionAiAction({
+      role: 'executor',
+      observation: () => makeSnapshot(0),
+      evidence: () => [],
+      decide: async () => {
+        decisions++;
+        return {
+          requestResult: 'ok',
+          data: {
+            done: false,
+            toolCalls: [
+              {
+                name: 'click',
+                args: {
+                  target: { snapshotId: snapId, pageId, nodeId: 'first' },
+                },
+              },
+            ],
+          },
+        };
+      },
+    });
+    await assert.rejects(
+      ai({
+        goal: 'Denied by the action ledger',
+        maxToolCalls: 2,
+        minToolCalls: 2,
+        criteria: [],
+        source: {},
+        signal: new AbortController().signal,
+        executeTool: async (call) => {
+          if (call.name === 'observe')
+            return {
+              status: 'succeeded',
+              data: parseContract('BrowserSnapshot', makeSnapshot(0)),
+            };
+          throw Object.assign(new Error('denied'), { code });
+        },
+      }),
+      (error) => error?.code === code,
+    );
+    assert.equal(decisions, 1);
+  }
+});
