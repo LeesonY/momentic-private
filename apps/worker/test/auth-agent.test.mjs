@@ -745,3 +745,22 @@ test('agentObservation keeps visible nodes, interactive roles first', () => {
   assert.equal(view.nodes.at(-1).nodeId, 'heading');
   assert.ok(!view.nodes.some((entry) => entry.nodeId === 'hidden'));
 });
+
+test('agentObservation carries a field value and the text tied to it', () => {
+  const observed = snapshot('login');
+  // The account box already holds a value; a validation message names it.
+  const field = observed.nodes.find((entry) => entry.nodeId === 'user-field');
+  field.value = 'agent-user-7c@example.test';
+  observed.nodes.push(
+    node('user-error', 'statictext', '身份不存在或状态不可用', {
+      relatedNodeId: 'user-field',
+    }),
+  );
+  const view = agentObservation(observed);
+  const seen = (nodeId) => view.nodes.find((entry) => entry.nodeId === nodeId);
+  assert.equal(seen('user-field').value, 'agent-user-7c@example.test');
+  assert.equal(seen('user-error').relatedNodeId, 'user-field');
+  assert.equal(seen('user-error').name, '身份不存在或状态不可用');
+  // A control without content still reports an empty value, never a guess.
+  assert.equal(seen('submit').value, undefined);
+});
