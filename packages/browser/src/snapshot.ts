@@ -414,12 +414,48 @@ async function extractNodesFromFrame(
     // Live regions that already become a control node carrying their text.
     const LIVE_REGION =
       '[role="alert"],[role="status"],[role="log"],[role="tooltip"]';
-    // The control a validation message or hint belongs to.
-    const FIELD =
-      'input:not([type="hidden"]),select,textarea,[contenteditable]:not([contenteditable="false"])';
+    // How far above a text run its form item may sit.
+    const GROUP_DEPTH = 6;
+    // Page-level containers are never "the form item" a text belongs to: their
+    // text is body copy, not a field's hint, even when the page happens to hold
+    // a single field.
+    const STRUCTURAL_TAGS = new Set([
+      'form',
+      'main',
+      'section',
+      'article',
+      'aside',
+      'header',
+      'footer',
+      'nav',
+      'table',
+      'dialog',
+      'fieldset',
+      'ul',
+      'ol',
+      'body',
+      'html',
+    ]);
+    const STRUCTURAL_ROLES = new Set([
+      'form',
+      'dialog',
+      'main',
+      'region',
+      'group',
+      'list',
+      'navigation',
+      'table',
+    ]);
+    const isStructural = (el: Element): boolean => {
+      if (STRUCTURAL_TAGS.has(el.tagName.toLowerCase())) return true;
+      const role = el.getAttribute('role');
+      return typeof role === 'string' && STRUCTURAL_ROLES.has(role);
+    };
     const MAX_CONTROLS = 1000;
+    // Visible text is admitted in two classes so ordinary body copy can never
+    // spend the budget a validation message needs.
     const MAX_TEXT_NODES = 400;
-    const MAX_TEXT_CANDIDATES = 600;
+    const MAX_TEXT_CANDIDATES = 2000;
     const MAX_SCAN = 5000;
     const VALUE_LIMIT = 200;
     const TEXT_LIMIT = 2000;
@@ -440,14 +476,38 @@ async function extractNodesFromFrame(
     // Traverse open roots only, with a hard shared work cap. Closed roots
     // remain opaque; there is no shadow-root piercing or instrumentation.
     const elements: Element[] = [];
-    // Cheap candidates for visible text; visibility is proven in a second pass
-    // so the (more expensive) style/rect work stays bounded.
-    const textCandidates: Element[] = [];
+    // Visible text candidates. A hidden element must never take a candidate
+    // slot: a collapsed menu or an unexpanded select can hold hundreds of
+    // invisible strings ahead of the one visible notice appended to the body.
+    const textCandidates: Array<{ el: Element; rect: DOMRect }> = [];
+    let textCandidateOverflow = false;
     const directText = (el: Element): string => {
       let out = '';
       for (const child of el.childNodes)
         if (child.nodeType === 3) out += child.nodeValue ?? '';
       return out.replace(/\s+/g, ' ').trim();
+    };
+    const checkVisibility = (
+      el: Element & {
+        checkVisibility?: (options?: {
+          checkOpacity?: boolean;
+          checkVisibilityCSS?: boolean;
+        }) => boolean;
+      },
+    ): boolean => {
+      if (el.closest('[aria-hidden="true"]')) return false;
+      if (typeof el.checkVisibility === 'function') {
+        try {
+          return el.checkVisibility({
+            checkOpacity: true,
+            checkVisibilityCSS: true,
+          });
+        } catch {
+          /* fall through to the explicit checks */
+        }
+      }
+      const style = window.getComputedStyle(el);
+      return style.display !== 'none' && style.visibility === 'visible';
     };
     let scanned = 0;
     const scan = (root: Document | ShadowRoot): void => {
@@ -456,11 +516,18 @@ async function extractNodesFromFrame(
         if (scanned++ >= MAX_SCAN || elements.length >= MAX_CONTROLS) return;
         if (el.matches(selector)) elements.push(el);
         else if (
-          textCandidates.length < MAX_TEXT_CANDIDATES &&
           !el.matches('script,style,noscript,template') &&
-          directText(el).length > 0
-        )
-          textCandidates.push(el);
+          directText(el).length > 0 &&
+          checkVisibility(el)
+        ) {
+          const rect = el.getBoundingClientRect();
+          // Zero-size text is not readable, so it is not a candidate either.
+          if (rect.width > 0 && rect.height > 0) {
+            if (textCandidates.length < MAX_TEXT_CANDIDATES)
+              textCandidates.push({ el, rect });
+            else textCandidateOverflow = true;
+          }
+        }
         if (el.shadowRoot) scan(el.shadowRoot);
       }
     };
@@ -622,68 +689,91 @@ async function extractNodesFromFrame(
     }
 
     // ---- visible text that is not itself a control ---------------------
-    // A zero-size, display:none, visibility:hidden, aria-hidden or empty
-    // element is not text a user can read and is never reported.
-    const visibleTextRect = (el: Element): DOMRect | null => {
-      if (el.closest('[aria-hidden="true"]')) return null;
-      const rect = el.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) return null;
-      const style = window.getComputedStyle(el);
+    // Which ancestor each form field owns ("one form item = one field"). A text
+    // run sitting in such a group belongs to that field. Counted once per
+    // field instead of running a subtree query per text candidate.
+    const groupCounts = new Map<Element, { count: number; field: Element }>();
+    for (const el of elements) {
       if (
-        style.display === 'none' ||
-        style.visibility !== 'visible' ||
-        style.opacity === '0'
+        !(el instanceof HTMLInputElement) &&
+        !(el instanceof HTMLSelectElement) &&
+        !(el instanceof HTMLTextAreaElement)
       )
-        return null;
-      return rect;
-    };
+        continue;
+      if (el instanceof HTMLInputElement && el.type.toLowerCase() === 'hidden')
+        continue;
+      let ancestor = el.parentElement;
+      for (let depth = 0; ancestor && depth < GROUP_DEPTH; depth += 1) {
+        if (isStructural(ancestor)) break;
+        const entry = groupCounts.get(ancestor);
+        if (entry) entry.count += 1;
+        else groupCounts.set(ancestor, { count: 1, field: el });
+        ancestor = ancestor.parentElement;
+      }
+    }
     // The control a text run describes: an explicit ARIA reference wins, else
     // the nearest ancestor that holds exactly one form field (one form item).
     const relatedControl = (el: Element): Element | null => {
       const explicit = referenceOwner.get(el.id);
       if (explicit) return explicit;
       let ancestor = el.parentElement;
-      for (let depth = 0; ancestor && depth < 4; depth += 1) {
-        const ancestorTag = ancestor.tagName.toLowerCase();
-        if (ancestorTag === 'body' || ancestorTag === 'html') break;
-        const fields = ancestor.querySelectorAll(FIELD);
-        if (fields.length === 1) return fields[0]!;
-        if (fields.length > 1) return null;
+      for (let depth = 0; ancestor && depth < GROUP_DEPTH; depth += 1) {
+        if (isStructural(ancestor)) return null;
+        const entry = groupCounts.get(ancestor);
+        if (entry) return entry.count === 1 ? entry.field : null;
         ancestor = ancestor.parentElement;
       }
       return null;
     };
-    const ranked: Array<{
+    type TextItem = {
       el: Element;
       text: string;
       rect: DOMRect;
       order: number;
-      priority: number;
       related: Element | null;
-    }> = [];
+      label: boolean;
+    };
+    // Admitted in this order, so a notice at the end of a long page is not lost
+    // to the labels and body copy that came before it.
+    const critical: TextItem[] = []; // live region / ARIA-referenced message
+    const messages: TextItem[] = []; // field hint that is not just a label
+    const labels: TextItem[] = []; // a field's label (its text is the name too)
+    const ordinary: TextItem[] = []; // body copy
     let order = 0;
-    for (const el of textCandidates) {
+    for (const candidate of textCandidates) {
+      const el = candidate.el;
       if (el.closest(CONTROL_TEXT_OWNER)) continue;
       if (el.closest('svg')) continue;
       if (el.closest(LIVE_REGION)) continue;
       const text = directText(el);
       if (!text) continue;
-      const rect = visibleTextRect(el);
-      if (!rect) continue;
       const related = relatedControl(el);
-      let priority = 3;
-      if (el.closest('[aria-live]') || referenceOwner.has(el.id)) priority = 0;
-      else if (related) priority = 1;
-      else if (el.closest('form,[role="form"],[role="dialog"],dialog'))
-        priority = 2;
-      ranked.push({ el, text, rect, order: order++, priority, related });
+      const tag = el.tagName.toLowerCase();
+      const label = tag === 'label' || el.getAttribute('role') === 'label';
+      const item = {
+        el,
+        text,
+        rect: candidate.rect,
+        order: order++,
+        related,
+        label,
+      };
+      if (el.closest('[aria-live]') || referenceOwner.has(el.id))
+        critical.push(item);
+      else if (related && !label) messages.push(item);
+      else if (related) labels.push(item);
+      else ordinary.push(item);
     }
-    ranked.sort((left, right) =>
-      left.priority === right.priority
-        ? left.order - right.order
-        : left.priority - right.priority,
-    );
-    const keptText = ranked.slice(0, MAX_TEXT_NODES);
+    const budget = (taken: number) => Math.max(0, MAX_TEXT_NODES - taken);
+    const keptText = [
+      ...critical.slice(0, MAX_TEXT_NODES),
+      ...messages.slice(0, budget(critical.length)),
+      ...labels.slice(0, budget(critical.length + messages.length)),
+      ...ordinary.slice(
+        0,
+        budget(critical.length + messages.length + labels.length),
+      ),
+    ].sort((left, right) => left.order - right.order);
     let textCounter = 0;
     for (const item of keptText) {
       const relatedId = item.related
@@ -721,13 +811,12 @@ async function extractNodesFromFrame(
       });
     }
 
-    // Clipping is reported only when something a reader could see was left
-    // out: the scan/control caps, dropped visible text, or a candidate cap that
-    // was reached while the text budget was still full.
+    // Any visible text that did not make it in is a clipped observation, no
+    // matter which cap dropped it.
     const textClipped =
-      ranked.length > keptText.length ||
-      (textCandidates.length >= MAX_TEXT_CANDIDATES &&
-        keptText.length >= MAX_TEXT_NODES);
+      textCandidateOverflow ||
+      keptText.length <
+        critical.length + messages.length + labels.length + ordinary.length;
     return {
       results,
       truncated:

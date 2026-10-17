@@ -369,3 +369,164 @@ test('unreadable text never marks a complete observation as clipped', async () =
     await host.close();
   }
 });
+
+test('hidden text never spends the candidate budget a visible notice needs', async () => {
+  // A collapsed menu / unexpanded select ahead of the one visible notice is the
+  // common real shape: 800 invisible strings, then the message that matters.
+  const hidden = Array.from(
+    { length: 800 },
+    (_, index) => `<div style="display:none">隐藏多语言串 ${index}</div>`,
+  ).join('');
+  const host = await listen((req, res) => {
+    if (req.url === '/trailing') {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.end(`<!doctype html><html><body>
+        ${hidden}
+        <main><form>
+          <div class="el-form-item">
+            <input id="user" placeholder="请输入账号">
+            <div class="el-form-item__error">请输入账号</div>
+          </div>
+        </form></main>
+      </body></html>`);
+      return;
+    }
+    res.writeHead(404).end();
+  });
+  const manager = new BrowserManager();
+  try {
+    const browser = await session(manager, host.origin);
+    await browser.executeTool({
+      name: 'navigate',
+      args: { url: `${host.origin}/trailing` },
+    });
+    const snapshot = await browser.getSnapshot({ forceFresh: true });
+    const message = textNodes(snapshot, '请输入账号');
+    assert.equal(
+      message.length,
+      1,
+      'the hidden strings did not use the budget',
+    );
+    const field = snapshot.nodes.find(
+      (node) => node.role === 'text' && node.name === '请输入账号',
+    );
+    assert.ok(field);
+    assert.equal(message[0].relatedNodeId, field.nodeId);
+    assert.equal(
+      snapshot.truncated,
+      false,
+      'nothing readable was dropped, so the observation is complete',
+    );
+    await browser.close();
+  } finally {
+    await manager.close();
+    await host.close();
+  }
+});
+
+test('a field message survives a page of body copy and clipping is reported', async () => {
+  const lines = Array.from(
+    { length: 700 },
+    (_, index) => `<p>正文第 ${index} 段</p>`,
+  ).join('');
+  const host = await listen((req, res) => {
+    if (req.url === '/busy') {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.end(`<!doctype html><html><body><main>
+        ${lines}
+        <form><div class="el-form-item">
+          <input id="user" placeholder="请输入账号">
+          <div class="el-form-item__error">请输入账号</div>
+        </div></form>
+      </main></body></html>`);
+      return;
+    }
+    res.writeHead(404).end();
+  });
+  const manager = new BrowserManager();
+  try {
+    const browser = await session(manager, host.origin);
+    await browser.executeTool({
+      name: 'navigate',
+      args: { url: `${host.origin}/busy` },
+    });
+    const snapshot = await browser.getSnapshot({ forceFresh: true });
+    const message = textNodes(snapshot, '请输入账号');
+    assert.equal(
+      message.length,
+      1,
+      'the field message outranks ordinary body copy',
+    );
+    const field = snapshot.nodes.find(
+      (node) => node.role === 'text' && node.name === '请输入账号',
+    );
+    assert.ok(field);
+    assert.equal(message[0].relatedNodeId, field.nodeId);
+    const texts = snapshot.nodes.filter((node) =>
+      ['statictext', 'paragraph', 'label', 'cell', 'listitem'].includes(
+        node.role,
+      ),
+    );
+    assert.ok(
+      texts.length <= 400,
+      `text budget respected (got ${texts.length})`,
+    );
+    assert.equal(
+      snapshot.truncated,
+      true,
+      'dropped visible body copy is reported',
+    );
+    await browser.close();
+  } finally {
+    await manager.close();
+    await host.close();
+  }
+});
+
+test("a long form's labels cannot crowd out its validation message", async () => {
+  const fields = Array.from(
+    { length: 460 },
+    (_, index) =>
+      `<div class="item"><label>字段 ${index}</label><input id="f${index}" placeholder="字段 ${index}">${
+        index === 450 ? '<div class="msg">此字段不能为空</div>' : ''
+      }</div>`,
+  ).join('');
+  const host = await listen((req, res) => {
+    if (req.url === '/labels') {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.end(
+        `<!doctype html><html><body><main><form>${fields}</form></main></body></html>`,
+      );
+      return;
+    }
+    res.writeHead(404).end();
+  });
+  const manager = new BrowserManager();
+  try {
+    const browser = await session(manager, host.origin);
+    await browser.executeTool({
+      name: 'navigate',
+      args: { url: `${host.origin}/labels` },
+    });
+    const snapshot = await browser.getSnapshot({ forceFresh: true });
+    const message = textNodes(snapshot, '此字段不能为空');
+    assert.equal(message.length, 1, 'the message outranks the labels');
+    const field = snapshot.nodes.find(
+      (node) => node.value === '' && node.nodeId === message[0].relatedNodeId,
+    );
+    assert.ok(field, 'the message names a field that is in the snapshot');
+    const labels = snapshot.nodes.filter((node) => node.role === 'label');
+    assert.ok(labels.length < 460, 'labels were clipped, not the message');
+    const texts = snapshot.nodes.filter((node) =>
+      ['statictext', 'paragraph', 'label', 'cell', 'listitem'].includes(
+        node.role,
+      ),
+    );
+    assert.ok(texts.length <= 400);
+    assert.equal(snapshot.truncated, true);
+    await browser.close();
+  } finally {
+    await manager.close();
+    await host.close();
+  }
+});
