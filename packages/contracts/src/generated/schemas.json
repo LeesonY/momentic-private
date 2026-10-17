@@ -5213,6 +5213,13 @@
             "type": "string",
             "maxLength": 120,
             "minLength": 1
+          },
+          "placeholder": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "invalid": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -22220,6 +22227,13 @@
               "type": "string",
               "maxLength": 120,
               "minLength": 1
+            },
+            "placeholder": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "invalid": {
+              "type": "boolean"
             }
           },
           "required": [
@@ -29019,6 +29033,13 @@
             "type": "string",
             "maxLength": 120,
             "minLength": 1
+          },
+          "placeholder": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "invalid": {
+            "type": "boolean"
           }
         },
         "required": [

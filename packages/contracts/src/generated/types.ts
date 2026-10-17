@@ -693,6 +693,8 @@ export interface SnapshotNode {
   sensitive?: boolean;
   value?: string;
   relatedNodeId?: string;
+  placeholder?: string;
+  invalid?: boolean;
 }
 export interface NetworkEntry {
   url: string;
