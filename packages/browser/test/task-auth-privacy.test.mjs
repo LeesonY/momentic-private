@@ -111,7 +111,15 @@ test('later task snapshots redact credentials without exporting browser storage'
     displayUrl: `https://app.example.test/${account}`,
     title: account,
     nodes: [
-      { role: 'textbox', name: account, text: password, nodeId: 'observed' },
+      {
+        role: 'textbox',
+        name: account,
+        text: password,
+        // The account box really holds the saved account after an in-place
+        // sign-in; its current value must be redacted like any other text.
+        value: account,
+        nodeId: 'observed',
+      },
     ],
     consoleSummary: [password],
     networkSummary: [{ url: account, summary: password }],
@@ -124,6 +132,7 @@ test('later task snapshots redact credentials without exporting browser storage'
   assert.ok(!text.includes(account));
   assert.ok(!text.includes(password));
   assert.ok(!text.includes('storageState'));
+  assert.equal(snapshot.nodes[0].value, '•');
   assert.equal(snapshot.snapshotId, original.snapshotId);
   assert.equal(snapshot.nodes[0].nodeId, 'observed');
   assert.equal(original.title, account);
@@ -212,7 +221,13 @@ test('post-login tool results redact snapshots but preserve network arrays and f
     displayUrl: `https://app.example.test/${account}`,
     title: password,
     nodes: [
-      { nodeId: 'observed', role: 'textbox', name: account, text: password },
+      {
+        nodeId: 'observed',
+        role: 'textbox',
+        name: account,
+        text: password,
+        value: account,
+      },
     ],
     consoleSummary: [],
     networkSummary: [],

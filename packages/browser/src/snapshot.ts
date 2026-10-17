@@ -368,6 +368,12 @@ export async function captureBrowserSnapshot(
 /**
  * Extracts interactive and content nodes from a Playwright Frame.
  * Strictly redacts passwords, hidden inputs, storage, and sensitive queries.
+ *
+ * Beside the legacy interactive/content selector, the snapshot now also records
+ * what a user can actually read: visible text that is not itself a control
+ * (form validation messages, toasts, hints, body copy) and the current content
+ * of value-bearing controls. Text nodes are appended *after* every control and
+ * have their own budget, so they can never crowd a control out of the snapshot.
  */
 async function extractNodesFromFrame(
   frame: Frame,
@@ -401,6 +407,32 @@ async function extractNodesFromFrame(
       '[data-test]',
       '[tabindex]',
     ].join(',');
+    // Controls whose own text already covers everything inside them. A text run
+    // nested in one of these would only duplicate the control's text.
+    const CONTROL_TEXT_OWNER =
+      'button,a[href],select,textarea,input,option,optgroup,summary,canvas';
+    // Live regions that already become a control node carrying their text.
+    const LIVE_REGION =
+      '[role="alert"],[role="status"],[role="log"],[role="tooltip"]';
+    // The control a validation message or hint belongs to.
+    const FIELD =
+      'input:not([type="hidden"]),select,textarea,[contenteditable]:not([contenteditable="false"])';
+    const MAX_CONTROLS = 1000;
+    const MAX_TEXT_NODES = 400;
+    const MAX_TEXT_CANDIDATES = 600;
+    const MAX_SCAN = 5000;
+    const VALUE_LIMIT = 200;
+    const TEXT_LIMIT = 2000;
+    // Types whose value is not user-visible content: never read them.
+    const UNREAD_VALUE_TYPES = new Set([
+      'checkbox',
+      'radio',
+      'file',
+      'submit',
+      'button',
+      'reset',
+      'image',
+    ]);
 
     // The legacy snapshot only traversed light DOM. Open Shadow Roots are
     // accessible browser DOM but excluded by document.querySelectorAll,
@@ -408,12 +440,27 @@ async function extractNodesFromFrame(
     // Traverse open roots only, with a hard shared work cap. Closed roots
     // remain opaque; there is no shadow-root piercing or instrumentation.
     const elements: Element[] = [];
+    // Cheap candidates for visible text; visibility is proven in a second pass
+    // so the (more expensive) style/rect work stays bounded.
+    const textCandidates: Element[] = [];
+    const directText = (el: Element): string => {
+      let out = '';
+      for (const child of el.childNodes)
+        if (child.nodeType === 3) out += child.nodeValue ?? '';
+      return out.replace(/\s+/g, ' ').trim();
+    };
     let scanned = 0;
     const scan = (root: Document | ShadowRoot): void => {
-      if (scanned >= 5000 || elements.length >= 1000) return;
+      if (scanned >= MAX_SCAN || elements.length >= MAX_CONTROLS) return;
       for (const el of root.querySelectorAll('*')) {
-        if (scanned++ >= 5000 || elements.length >= 1000) return;
+        if (scanned++ >= MAX_SCAN || elements.length >= MAX_CONTROLS) return;
         if (el.matches(selector)) elements.push(el);
+        else if (
+          textCandidates.length < MAX_TEXT_CANDIDATES &&
+          !el.matches('script,style,noscript,template') &&
+          directText(el).length > 0
+        )
+          textCandidates.push(el);
         if (el.shadowRoot) scan(el.shadowRoot);
       }
     };
@@ -429,13 +476,18 @@ async function extractNodesFromFrame(
       bounds: { left: number; top: number; width: number; height: number };
       isSensitive: boolean;
       inputType?: string;
+      value?: string;
+      relatedNodeId?: string;
     }> = [];
     const byNodeId = new Map<string, Element>();
+    const nodeIdByElement = new Map<Element, string>();
+    // id referenced by a control through ARIA -> that control.
+    const referenceOwner = new Map<string, Element>();
 
     let counter = 0;
 
     for (const el of elements) {
-      if (counter >= 1000) break;
+      if (counter >= MAX_CONTROLS) break;
 
       const tag = el.tagName.toLowerCase();
       const inputType =
@@ -446,6 +498,7 @@ async function extractNodesFromFrame(
         el.getAttribute('data-sensitive') === 'true' ||
         el.getAttribute('autocomplete') === 'current-password' ||
         el.getAttribute('autocomplete') === 'new-password';
+      const isSensitive = isPassword || isHiddenInput || isSensitiveAttr;
 
       const rect = el.getBoundingClientRect();
       const style = window.getComputedStyle(el);
@@ -481,10 +534,34 @@ async function extractNodesFromFrame(
 
       // Text and Name calculation
       let text: string;
-      if (!isPassword && !isHiddenInput && !isSensitiveAttr) {
+      if (!isSensitive) {
         text = (el.textContent || '').trim().replace(/\s+/g, ' ');
       } else {
         text = '[redacted]';
+      }
+
+      // Current content of a value-bearing control, separate from the
+      // placeholder/label in `name`. A sensitive control only reveals whether
+      // it holds anything, never the value itself.
+      let value: string | undefined;
+      if (isPassword || isHiddenInput) {
+        value = (el as HTMLInputElement).value ? '[redacted]' : '';
+      } else if (el instanceof HTMLSelectElement) {
+        const option = el.selectedOptions[0];
+        value = (option ? option.textContent || option.value : '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, VALUE_LIMIT);
+      } else if (
+        el instanceof HTMLTextAreaElement ||
+        (el instanceof HTMLInputElement && !UNREAD_VALUE_TYPES.has(inputType))
+      ) {
+        const raw = el.value ?? '';
+        value = isSensitiveAttr
+          ? raw
+            ? '[redacted]'
+            : ''
+          : raw.replace(/\s+/g, ' ').trim().slice(0, VALUE_LIMIT);
       }
 
       let name =
@@ -507,6 +584,16 @@ async function extractNodesFromFrame(
         testId ? `testid_${testId}` : `${fId}_node_${counter}`
       ).slice(0, 120);
       byNodeId.set(nodeId, el);
+      nodeIdByElement.set(el, nodeId);
+      for (const attribute of [
+        'aria-describedby',
+        'aria-errormessage',
+        'aria-labelledby',
+      ]) {
+        for (const id of (el.getAttribute(attribute) || '').split(' ')) {
+          if (id && !referenceOwner.has(id)) referenceOwner.set(id, el);
+        }
+      }
 
       results.push({
         nodeId,
@@ -518,7 +605,8 @@ async function extractNodesFromFrame(
             ? { inputType: el.type }
             : {}),
         name: name.slice(0, 1000),
-        text: text.slice(0, 2000),
+        text: text.slice(0, TEXT_LIMIT),
+        ...(value !== undefined ? { value } : {}),
         visible: isVisible,
         enabled: isEnabled,
         bounds: {
@@ -527,15 +615,123 @@ async function extractNodesFromFrame(
           width: Math.max(0, Math.round(rect.width)),
           height: Math.max(0, Math.round(rect.height)),
         },
-        isSensitive: isPassword || isHiddenInput || isSensitiveAttr,
+        isSensitive,
       });
 
       counter++;
     }
 
+    // ---- visible text that is not itself a control ---------------------
+    // A zero-size, display:none, visibility:hidden, aria-hidden or empty
+    // element is not text a user can read and is never reported.
+    const visibleTextRect = (el: Element): DOMRect | null => {
+      if (el.closest('[aria-hidden="true"]')) return null;
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return null;
+      const style = window.getComputedStyle(el);
+      if (
+        style.display === 'none' ||
+        style.visibility !== 'visible' ||
+        style.opacity === '0'
+      )
+        return null;
+      return rect;
+    };
+    // The control a text run describes: an explicit ARIA reference wins, else
+    // the nearest ancestor that holds exactly one form field (one form item).
+    const relatedControl = (el: Element): Element | null => {
+      const explicit = referenceOwner.get(el.id);
+      if (explicit) return explicit;
+      let ancestor = el.parentElement;
+      for (let depth = 0; ancestor && depth < 4; depth += 1) {
+        const ancestorTag = ancestor.tagName.toLowerCase();
+        if (ancestorTag === 'body' || ancestorTag === 'html') break;
+        const fields = ancestor.querySelectorAll(FIELD);
+        if (fields.length === 1) return fields[0]!;
+        if (fields.length > 1) return null;
+        ancestor = ancestor.parentElement;
+      }
+      return null;
+    };
+    const ranked: Array<{
+      el: Element;
+      text: string;
+      rect: DOMRect;
+      order: number;
+      priority: number;
+      related: Element | null;
+    }> = [];
+    let order = 0;
+    for (const el of textCandidates) {
+      if (el.closest(CONTROL_TEXT_OWNER)) continue;
+      if (el.closest('svg')) continue;
+      if (el.closest(LIVE_REGION)) continue;
+      const text = directText(el);
+      if (!text) continue;
+      const rect = visibleTextRect(el);
+      if (!rect) continue;
+      const related = relatedControl(el);
+      let priority = 3;
+      if (el.closest('[aria-live]') || referenceOwner.has(el.id)) priority = 0;
+      else if (related) priority = 1;
+      else if (el.closest('form,[role="form"],[role="dialog"],dialog'))
+        priority = 2;
+      ranked.push({ el, text, rect, order: order++, priority, related });
+    }
+    ranked.sort((left, right) =>
+      left.priority === right.priority
+        ? left.order - right.order
+        : left.priority - right.priority,
+    );
+    const keptText = ranked.slice(0, MAX_TEXT_NODES);
+    let textCounter = 0;
+    for (const item of keptText) {
+      const relatedId = item.related
+        ? nodeIdByElement.get(item.related)
+        : undefined;
+      const tag = item.el.tagName.toLowerCase();
+      const role =
+        tag === 'p'
+          ? 'paragraph'
+          : tag === 'li'
+            ? 'listitem'
+            : tag === 'td' || tag === 'th'
+              ? 'cell'
+              : tag === 'label'
+                ? 'label'
+                : 'statictext';
+      const nodeId = `${fId}_text_${textCounter++}`.slice(0, 120);
+      byNodeId.set(nodeId, item.el);
+      results.push({
+        nodeId,
+        frameId: fId,
+        role,
+        name: item.text.slice(0, 1000),
+        text: item.text.slice(0, TEXT_LIMIT),
+        visible: true,
+        enabled: true,
+        bounds: {
+          left: Math.round(item.rect.left),
+          top: Math.round(item.rect.top),
+          width: Math.max(0, Math.round(item.rect.width)),
+          height: Math.max(0, Math.round(item.rect.height)),
+        },
+        isSensitive: false,
+        ...(relatedId ? { relatedNodeId: relatedId } : {}),
+      });
+    }
+
+    // Clipping is reported only when something a reader could see was left
+    // out: the scan/control caps, dropped visible text, or a candidate cap that
+    // was reached while the text budget was still full.
+    const textClipped =
+      ranked.length > keptText.length ||
+      (textCandidates.length >= MAX_TEXT_CANDIDATES &&
+        keptText.length >= MAX_TEXT_NODES);
     return {
       results,
-      truncated: scanned >= 5000 || elements.length >= 1000,
+      truncated:
+        scanned >= MAX_SCAN || elements.length >= MAX_CONTROLS || textClipped,
       byNodeId,
     };
   }, frameId);
@@ -552,6 +748,8 @@ async function extractNodesFromFrame(
       bounds: { left: number; top: number; width: number; height: number };
       isSensitive: boolean;
       inputType?: string;
+      value?: string;
+      relatedNodeId?: string;
     }>;
     truncated: boolean;
   };
@@ -575,6 +773,10 @@ async function extractNodesFromFrame(
       ...(rn.isSensitive ? { sensitive: true } : {}),
       name: sanitizeText(rn.name),
       text: sanitizeText(rn.text),
+      ...(rn.value !== undefined
+        ? { value: sanitizeText(rn.value).slice(0, 200) }
+        : {}),
+      ...(rn.relatedNodeId ? { relatedNodeId: rn.relatedNodeId } : {}),
       visible: rn.visible,
       enabled: rn.enabled,
       bounds: rn.bounds,

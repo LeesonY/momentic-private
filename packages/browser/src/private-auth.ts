@@ -439,6 +439,10 @@ function redactSnapshot(
         role: scrub(node.role, secrets),
         name: targeted ? '•' : scrub(node.name, secrets),
         text: targeted ? '•' : scrub(node.text, secrets),
+        // A filled control's current content is that very secret.
+        ...(node.value !== undefined
+          ? { value: targeted ? '•' : scrub(node.value, secrets) }
+          : {}),
       };
     }),
   };

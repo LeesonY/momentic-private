@@ -93,13 +93,16 @@ function snapshot({ title, displayUrl, nodes }) {
   };
 }
 
-function node(nodeId, name, text) {
+function node(nodeId, name, text, value) {
   return {
     nodeId,
     frameId: 'main',
     role: 'textbox',
     name,
     text,
+    // A control's current content is a snapshot field of its own now; the
+    // auto-filled login page therefore carries the credentials twice.
+    ...(value !== undefined ? { value } : {}),
     visible: true,
     enabled: true,
     bounds: { left: 0, top: 0, width: 10, height: 10 },
@@ -117,8 +120,8 @@ function scenario({ withOtp = false } = {}) {
         title: `Sign in as ${user}`,
         displayUrl: `${permitUrl}?filled=${encodeURIComponent(secret)}`,
         nodes: [
-          node('user-field', user, user),
-          node('pass-field', 'Password', secret),
+          node('user-field', user, user, user),
+          node('pass-field', 'Password', secret, secret),
         ],
       });
     },
@@ -267,6 +270,10 @@ test('the first observation after an auto-filled navigation carries no secret', 
   assert.equal(firstJson.includes(encodeURIComponent(secret)), false);
   assert.equal(firstJson.includes(user), false);
   assert.equal(firstJson.includes('•'), true);
+  // The filled controls' current values are secrets too.
+  const filled = (nodeId) => first.nodes.find((n) => n.nodeId === nodeId);
+  assert.equal(filled('user-field').value, '•');
+  assert.equal(filled('pass-field').value, '•');
 
   // No later observation, step, or outcome shows the material either.
   for (const observation of world.observed) {
