@@ -5390,6 +5390,9 @@
           },
           "redacted": {
             "type": "boolean"
+          },
+          "settled": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -22407,6 +22410,9 @@
             },
             "redacted": {
               "type": "boolean"
+            },
+            "settled": {
+              "type": "boolean"
             }
           },
           "required": [
@@ -28969,6 +28975,9 @@
             "type": "boolean"
           },
           "redacted": {
+            "type": "boolean"
+          },
+          "settled": {
             "type": "boolean"
           }
         },

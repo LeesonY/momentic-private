@@ -5389,6 +5389,9 @@
         },
         "redacted": {
           "type": "boolean"
+        },
+        "settled": {
+          "type": "boolean"
         }
       },
       "required": [

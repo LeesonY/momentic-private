@@ -209,6 +209,9 @@ D["SnapshotNode"]["properties"]["focused"] = BOOL
 D["NetworkEntry"] = obj({"url": text(8192), "method": text(20), "status": nullable(integer(100, 599)), "resourceType": text(40), "summary": text(1000)})
 D["NetworkEntries"] = arr(ref("NetworkEntry"), 100)
 D["BrowserSnapshot"] = obj({"snapshotId": UUID, "pageId": UUID, "frameIds": arr(text(120), 100), "displayUrl": text(8192), "title": text(500), "responseStatus": nullable(integer(100, 599)), "capturedAt": DATE, "stateVersion": VER, "viewport": obj({"width": integer(100, 10000), "height": integer(100, 10000)}), "nodes": arr(ref("SnapshotNode"), 1000), "screenshotRef": nullable(UUID), "networkSummary": ref("NetworkEntries"), "consoleSummary": arr(text(1000), 50), "truncated": BOOL, "redacted": BOOL})
+# Optional and only set when false: the page was still changing when the
+# observation was captured (the settle cap was reached).
+D["BrowserSnapshot"]["properties"]["settled"] = BOOL
 D["ToolResult"] = obj({"requestId": UUID, "actionId": nullable(UUID), "status": enum("succeeded", "failed", "denied", "blocked", "cancelled"), "data": ref("JsonValue"), "reasonCode": nullable(text(80)), "evidenceRefs": arr(UUID, 30)})
 D["Criterion"]["allOf"] = [
     {"if": {"properties": {"kind": {"enum": ["element_visible", "text_equals"]}}, "required": ["kind"]}, "then": {"required": ["locator"]}},

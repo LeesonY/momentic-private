@@ -679,6 +679,7 @@ export interface BrowserSnapshot {
   consoleSummary: string[];
   truncated: boolean;
   redacted: boolean;
+  settled?: boolean;
 }
 export interface SnapshotNode {
   nodeId: string;
