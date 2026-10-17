@@ -29,6 +29,16 @@ export const ERROR_HTTP_STATUS = Object.freeze({
   MODEL_SCHEMA_MISMATCH: null,
   MODEL_TOOL_CONTRACT_INVALID: null,
   POLICY_DENIED: null,
+  // Action-ledger refusals (docs/03 §7.1): run/action reasons, not HTTP
+  // statuses. StorageError carries them so Coordinator.tx and Database do not
+  // rewrite a refusal into a generic infrastructure error.
+  TARGET_NOT_FOUND: null,
+  TARGET_HIDDEN: null,
+  TARGET_DISABLED: null,
+  HIDDEN_INPUT_FORBIDDEN: null,
+  SENSITIVE_INPUT_FORBIDDEN: null,
+  SAVED_CREDENTIAL_INPUT: null,
+  OUT_OF_SCOPE_MUTATION: null,
   SCOPE_CHANGED: null,
   BUDGET_EXCEEDED: null,
   INPUT_TIMEOUT: null,

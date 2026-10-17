@@ -8,8 +8,9 @@ import { sessionFixture } from './session.mjs';
 export function authProfileFixture({
   managed = true,
   executionMode = 'smoke',
+  realTx = false,
 } = {}) {
-  const fixture = sessionFixture({ executionMode });
+  const fixture = sessionFixture({ executionMode }, { realTx });
   const { run, coordinator, state } = fixture;
   run.effectiveConfig.authProfileVersion = 1;
   const profileId = randomUUID();

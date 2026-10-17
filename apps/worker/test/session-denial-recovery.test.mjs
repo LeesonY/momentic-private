@@ -348,3 +348,87 @@ test('a grant-stage stale snapshot is a version conflict and recovers after the 
   assert.match(third, /VERSION_CONFLICT/);
   assert.match(third, new RegExp(refreshed.snapshotId));
 });
+
+test('an out-of-scope refusal is explained and the case continues', async () => {
+  const afterAccount = snapshot(3, 'main_node_0');
+  const typed = [];
+  const { records, finishes, modelPayloads } = await runExplorer({
+    decisions: ({ first }) => [
+      {
+        done: false,
+        toolCalls: [
+          {
+            name: 'press',
+            args: {
+              target: {
+                snapshotId: first.snapshotId,
+                pageId: first.pageId,
+                nodeId: 'main_node_0',
+              },
+              key: 'Enter',
+            },
+          },
+        ],
+      },
+      {
+        done: false,
+        toolCalls: [
+          {
+            name: 'type_text',
+            args: {
+              target: {
+                snapshotId: first.snapshotId,
+                pageId: first.pageId,
+                nodeId: 'main_node_0',
+              },
+              text: 'WrongUser_123',
+            },
+          },
+        ],
+      },
+      { done: true, toolCalls: [] },
+    ],
+    grant: (call, { latestSnapshotId }) => {
+      if (call.name === 'press' && call.args.key === 'Enter')
+        throw Object.assign(new Error('denied'), {
+          code: 'OUT_OF_SCOPE_MUTATION',
+          denial: { role: 'text', name: '请输入账号' },
+        });
+      const target = call.args?.target;
+      if (target && target.snapshotId !== latestSnapshotId)
+        throw Object.assign(new Error('stale'), { code: 'VERSION_CONFLICT' });
+      return { step: { id: randomUUID() } };
+    },
+    executeTool: (call, { first: initial }) => {
+      if (call.name === 'navigate')
+        return { status: 'succeeded', reasonCode: null, data: initial };
+      if (call.name === 'type_text') {
+        typed.push(call.args.text);
+        return { status: 'succeeded', reasonCode: null, data: afterAccount };
+      }
+      return { status: 'succeeded', reasonCode: null, data: initial };
+    },
+  });
+  // The refusal is reported, not fatal: the next round still typed.
+  assert.deepEqual(typed, ['WrongUser_123']);
+  assert.deepEqual(
+    records.map((record) => record.status),
+    ['succeeded', 'succeeded'],
+  );
+  const settled = finishes.at(-1);
+  assert.equal(settled.stage, 'explore');
+  assert.equal(settled.modelActionDenials, 1);
+  assert.deepEqual(settled.modelActionDenialReasons, {
+    OUT_OF_SCOPE_MUTATION: 1,
+  });
+  assert.deepEqual(settled.grantDenials, [
+    {
+      tool: 'press',
+      reasonCode: 'OUT_OF_SCOPE_MUTATION',
+      role: 'text',
+      name: '请输入账号',
+    },
+  ]);
+  assert.equal(JSON.stringify(settled).includes('WrongUser_123'), false);
+  assert.match(text(modelPayloads[1]), /非提交策略下禁止 Enter/);
+});

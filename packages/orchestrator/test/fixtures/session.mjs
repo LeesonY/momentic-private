@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { parseContract } from '@localqa/contracts';
+import { StorageError } from '@localqa/storage';
 import { Coordinator } from '../../dist/core.js';
 
 const example = JSON.parse(
@@ -49,7 +50,7 @@ export function candidate(
 
 /** SQL-aware test double: exercises service projections and writes, not the
  * PostgreSQL engine, migrations, RLS or confirmation/evidence triggers. */
-export function sessionFixture(extra = {}) {
+export function sessionFixture(extra = {}, options = {}) {
   const run = parseContract('Run', {
     ...structuredClone(example.run),
     id: randomUUID(),
@@ -507,6 +508,8 @@ export function sessionFixture(extra = {}) {
       }
       if (sql.includes("SELECT j.result->>'entryUrl'"))
         return rows([{ url: run.targetUrl }]);
+      if (sql.includes('SELECT is_admin() AS allowed'))
+        return rows([{ allowed: true }]);
       if (sql.includes('INSERT INTO budget_reservations')) return rows();
       throw new Error(`Unhandled fixture query: ${sql}`);
     },
@@ -516,7 +519,23 @@ export function sessionFixture(extra = {}) {
     vault: {},
     serviceActor: { userId: run.creatorId },
   });
-  coordinator.tx = async (fn) => fn(client);
+  if (options.realTx) {
+    // Exercise the real Coordinator.tx error mapping (and a Database-like
+    // actor) over the fake client. Database.#transaction rethrows
+    // StorageError as-is and maps anything else to an infrastructure error.
+    coordinator.db = {
+      actor: async (_actor, work) => {
+        try {
+          return await work(client);
+        } catch (error) {
+          if (error instanceof StorageError) throw error;
+          throw new StorageError('SERVICE_UNAVAILABLE');
+        }
+      },
+    };
+  } else {
+    coordinator.tx = async (fn) => fn(client);
+  }
   coordinator.change = async (
     _client,
     current,

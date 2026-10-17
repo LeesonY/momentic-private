@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { parseContract } from '@localqa/contracts';
+import { DomainError } from '@localqa/domain';
+import { StorageError } from '@localqa/storage';
 import {
   SAVED_VALUE_CONTAINMENT_MIN,
   inputValueOf,
@@ -62,8 +64,14 @@ const targetFor = (snapshot, nodeId) => ({
   frameId: 'main',
 });
 
-function savedFixture({ executionMode = 'smoke', material } = {}) {
-  const fixture = authProfileFixture({ executionMode });
+function savedFixture({
+  executionMode = 'smoke',
+  material,
+  realTx = true,
+} = {}) {
+  // Run the real Coordinator.tx error mapping: a DomainError thrown inside the
+  // grant used to be rewritten to VALIDATION_ERROR, hiding the refusal code.
+  const fixture = authProfileFixture({ executionMode, realTx });
   fixture.auth.versions.get(1).material = material ?? {
     username: savedUsername,
     password: savedPassword,
@@ -505,5 +513,26 @@ test('each grant refusal carries its own reason code', async () => {
   await assert.rejects(
     typed(signedIn, signedInSnapshot, 'WrongPwd_123'),
     (error) => error.code === 'SENSITIVE_INPUT_FORBIDDEN',
+  );
+});
+
+test('Coordinator.tx preserves an action-denial code instead of VALIDATION_ERROR', async () => {
+  const fixture = savedFixture();
+  await assert.rejects(
+    fixture.coordinator.tx(async () => {
+      throw new DomainError('OUT_OF_SCOPE_MUTATION');
+    }),
+    (error) => {
+      assert.equal(error.code, 'OUT_OF_SCOPE_MUTATION');
+      assert.ok(error instanceof StorageError);
+      return true;
+    },
+  );
+  // An unrelated DomainError keeps the old conservative mapping.
+  await assert.rejects(
+    fixture.coordinator.tx(async () => {
+      throw new DomainError('SOMETHING_UNEXPECTED');
+    }),
+    (error) => error.code === 'VALIDATION_ERROR',
   );
 });

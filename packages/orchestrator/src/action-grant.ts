@@ -5,8 +5,7 @@ import type {
   SnapshotNode,
   ToolCall,
 } from '@localqa/contracts';
-import { hashPayload } from '@localqa/storage';
-import { DomainError } from '@localqa/domain';
+import { hashPayload, StorageError } from '@localqa/storage';
 import { withinWriteScope } from '@localqa/browser';
 import {
   isHiddenInput,
@@ -107,11 +106,15 @@ export function evaluateTargetGrant(
 export function actionDenied(
   code: ActionDenialCode,
   node?: Pick<SnapshotNode, 'role' | 'name'> | null,
-): DomainError {
-  const error = new DomainError(code);
+): StorageError {
+  // A StorageError, not a DomainError: Coordinator.tx rewrites DomainError
+  // codes outside its short allowlist to VALIDATION_ERROR, and Database then
+  // maps non-StorageError failures to SERVICE_UNAVAILABLE. A refusal must
+  // reach the dispatcher with its own code.
+  const error = new StorageError(code);
   if (node)
     (
-      error as DomainError & {
+      error as StorageError & {
         denial?: { role: string | null; name: string | null };
       }
     ).denial = {

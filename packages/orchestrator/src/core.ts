@@ -34,6 +34,7 @@ import {
 } from './auth-actions.js';
 import type { PoolClient } from 'pg';
 import {
+  isActionDenialCode,
   parseContract,
   type Run,
   type RunConfig,
@@ -200,17 +201,20 @@ export class Coordinator {
       try {
         return await work(client);
       } catch (error) {
-        if (error instanceof DomainError)
+        if (error instanceof DomainError) {
+          // Preserve the codes the rest of the system acts on. Action-ledger
+          // refusals (stale snapshot, hidden input, saved credential, ...)
+          // must reach the dispatcher unchanged: rewriting them to
+          // VALIDATION_ERROR turned a recoverable refusal into a case-ending
+          // infrastructure error.
+          const preserved =
+            isActionDenialCode(error.code) ||
+            error.code === 'BUDGET_EXCEEDED' ||
+            error.code === 'VALIDATION_ERROR';
           throw new StorageError(
-            [
-              'BUDGET_EXCEEDED',
-              'POLICY_DENIED',
-              'TARGET_NOT_ALLOWED',
-              'VALIDATION_ERROR',
-            ].includes(error.code)
-              ? (error.code as 'VALIDATION_ERROR')
-              : 'VALIDATION_ERROR',
+            preserved ? (error.code as 'VALIDATION_ERROR') : 'VALIDATION_ERROR',
           );
+        }
         throw error;
       }
     });

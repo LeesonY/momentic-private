@@ -33,6 +33,15 @@ const STATUS_MAP: Record<string, number> = {
   ARTIFACT_TOO_LARGE: 413,
   LEASE_EXPIRED: 409,
   ACTION_OUTCOME_UNKNOWN: 409,
+  // Action-ledger refusals. They stay inside the Worker/internal boundary;
+  // mapping them keeps a leaked one from surfacing as a 500.
+  TARGET_NOT_FOUND: 422,
+  TARGET_HIDDEN: 422,
+  TARGET_DISABLED: 422,
+  HIDDEN_INPUT_FORBIDDEN: 403,
+  SENSITIVE_INPUT_FORBIDDEN: 403,
+  SAVED_CREDENTIAL_INPUT: 403,
+  OUT_OF_SCOPE_MUTATION: 403,
 };
 
 export function toApiErrorResponse(
