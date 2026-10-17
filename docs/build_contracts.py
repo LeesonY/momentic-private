@@ -203,6 +203,9 @@ D["SnapshotNode"]["properties"]["relatedNodeId"] = text(120, minLength=1)
 # (which often repeats the placeholder text) apart from the hint itself.
 D["SnapshotNode"]["properties"]["placeholder"] = text(200)
 D["SnapshotNode"]["properties"]["invalid"] = BOOL
+# The element that currently has keyboard focus in this frame. Keyboard cases
+# (Tab order, Enter submits) are otherwise unverifiable from a snapshot.
+D["SnapshotNode"]["properties"]["focused"] = BOOL
 D["NetworkEntry"] = obj({"url": text(8192), "method": text(20), "status": nullable(integer(100, 599)), "resourceType": text(40), "summary": text(1000)})
 D["NetworkEntries"] = arr(ref("NetworkEntry"), 100)
 D["BrowserSnapshot"] = obj({"snapshotId": UUID, "pageId": UUID, "frameIds": arr(text(120), 100), "displayUrl": text(8192), "title": text(500), "responseStatus": nullable(integer(100, 599)), "capturedAt": DATE, "stateVersion": VER, "viewport": obj({"width": integer(100, 10000), "height": integer(100, 10000)}), "nodes": arr(ref("SnapshotNode"), 1000), "screenshotRef": nullable(UUID), "networkSummary": ref("NetworkEntries"), "consoleSummary": arr(text(1000), 50), "truncated": BOOL, "redacted": BOOL})

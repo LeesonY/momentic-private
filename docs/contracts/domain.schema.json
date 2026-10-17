@@ -5219,6 +5219,9 @@
         },
         "invalid": {
           "type": "boolean"
+        },
+        "focused": {
+          "type": "boolean"
         }
       },
       "required": [

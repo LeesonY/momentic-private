@@ -695,6 +695,7 @@ export interface SnapshotNode {
   relatedNodeId?: string;
   placeholder?: string;
   invalid?: boolean;
+  focused?: boolean;
 }
 export interface NetworkEntry {
   url: string;
