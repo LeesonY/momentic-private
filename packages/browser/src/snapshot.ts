@@ -510,6 +510,22 @@ async function extractNodesFromFrame(
       return style.display !== 'none' && style.visibility === 'visible';
     };
     let scanned = 0;
+    // Keyboard focus. `document.activeElement` names the shadow host, so an
+    // input inside an open shadow root needs one more hop; a same-origin child
+    // frame resolves this in its own document, so each frame reports its own
+    // focus and only the frame that really has it marks a node.
+    const deepActiveElement = (): Element | null => {
+      let active: Element | null = document.activeElement;
+      while (active?.shadowRoot?.activeElement)
+        active = active.shadowRoot.activeElement;
+      return active;
+    };
+    const focusedElement = deepActiveElement();
+    const pageLevelFocus =
+      !focusedElement ||
+      focusedElement === document.body ||
+      focusedElement === document.documentElement ||
+      ['body', 'html'].includes(focusedElement.tagName.toLowerCase());
     const scan = (root: Document | ShadowRoot): void => {
       if (scanned >= MAX_SCAN || elements.length >= MAX_CONTROLS) return;
       for (const el of root.querySelectorAll('*')) {
@@ -532,6 +548,17 @@ async function extractNodesFromFrame(
       }
     };
     scan(document);
+    // A focused element the selector does not cover (a contenteditable block, an
+    // iframe that owns the focus) is still where Tab went: report it, marked
+    // focused, instead of dropping the only focus evidence the page has. Focus
+    // on body/html means "nothing in the page is focused" and marks no node.
+    if (
+      !pageLevelFocus &&
+      focusedElement &&
+      !elements.includes(focusedElement) &&
+      elements.length < MAX_CONTROLS
+    )
+      elements.push(focusedElement);
     const results: Array<{
       nodeId: string;
       frameId: string;
@@ -547,6 +574,7 @@ async function extractNodesFromFrame(
       relatedNodeId?: string;
       placeholder?: string;
       invalid?: boolean;
+      focused?: boolean;
     }> = [];
     const byNodeId = new Map<string, Element>();
     const nodeIdByElement = new Map<Element, string>();
@@ -685,6 +713,7 @@ async function extractNodesFromFrame(
         ...(el.getAttribute('aria-invalid') === 'true'
           ? { invalid: true }
           : {}),
+        ...(el === focusedElement ? { focused: true } : {}),
         visible: isVisible,
         enabled: isEnabled,
         bounds: {
@@ -753,6 +782,8 @@ async function extractNodesFromFrame(
     let order = 0;
     for (const candidate of textCandidates) {
       const el = candidate.el;
+      // A focused element pushed in above is reported as a control, once.
+      if (nodeIdByElement.has(el)) continue;
       if (el.closest(CONTROL_TEXT_OWNER)) continue;
       if (el.closest('svg')) continue;
       if (el.closest(LIVE_REGION)) continue;
@@ -852,6 +883,7 @@ async function extractNodesFromFrame(
       relatedNodeId?: string;
       placeholder?: string;
       invalid?: boolean;
+      focused?: boolean;
     }>;
     truncated: boolean;
   };
@@ -883,6 +915,7 @@ async function extractNodesFromFrame(
         ? { placeholder: sanitizeText(rn.placeholder).slice(0, 200) }
         : {}),
       ...(rn.invalid ? { invalid: true } : {}),
+      ...(rn.focused ? { focused: true } : {}),
       visible: rn.visible,
       enabled: rn.enabled,
       bounds: rn.bounds,
