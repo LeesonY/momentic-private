@@ -3,7 +3,13 @@
 // the same string, and every snapshot renumbers its node ids.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { textChanges, textChangeLine } from '../dist/observation-text-diff.js';
+import {
+  focusChange,
+  focusChangeLine,
+  focusLabel,
+  textChanges,
+  textChangeLine,
+} from '../dist/observation-text-diff.js';
 import {
   actionObservation,
   compactObservation,
@@ -189,4 +195,97 @@ test('a control flagged aria-invalid is marked for the model', () => {
     ).invalid,
     undefined,
   );
+});
+
+const withFocus = (snapshot, nodeId, extra = []) => ({
+  ...snapshot,
+  nodes: [
+    ...snapshot.nodes.map((node) => ({
+      ...node,
+      ...(node.nodeId === nodeId ? { focused: true } : {}),
+    })),
+    ...extra,
+  ],
+});
+
+test('focus moving between two steps is reported in words', () => {
+  const before = withFocus(snapshot(), 'main_node_0');
+  const after = withFocus(snapshot(), 'main_node_1');
+  const change = focusChange(before, after);
+  assert.deepEqual(change, { from: '请输入账号', to: '请输入密码' });
+  assert.equal(
+    focusChangeLine('press', change),
+    '按键后焦点：请输入账号 → 请输入密码',
+  );
+
+  // A Tab that does not move focus is not a change.
+  assert.equal(focusChange(after, withFocus(snapshot(), 'main_node_1')), null);
+  // Focus leaving the page is reported as well.
+  assert.deepEqual(focusChange(after, snapshot()), {
+    from: '请输入密码',
+    to: null,
+  });
+  assert.equal(
+    focusChangeLine('press', focusChange(after, snapshot())),
+    '按键后焦点：请输入密码 → 无',
+  );
+  assert.equal(focusChange(null, after), null);
+});
+
+test('the trail and the action observation both carry the focus move', () => {
+  const before = withFocus(snapshot(), 'main_node_0');
+  const after = withFocus(snapshot(), 'main_node_1');
+  const change = focusChange(before, after);
+  const entry = trailEntry(
+    { name: 'press', args: { target: { nodeId: 'main_node_0' } } },
+    before,
+    true,
+    null,
+    null,
+    change,
+  );
+  assert.equal(entry.focusChange, '按键后焦点：请输入账号 → 请输入密码');
+  assert.equal(entry.textChanges, undefined);
+
+  const observation = actionObservation(after, null, change);
+  assert.deepEqual(observation.focusChange, change);
+  assert.equal(
+    observation.nodes.find((node) => node.nodeId === 'main_node_1').focused,
+    true,
+  );
+  // The report view keeps the same flag (it carries ids only for referenced
+  // nodes, so the field is found by its role).
+  const report = compactObservation(after);
+  assert.equal(
+    report.nodes.find((node) => node.role === 'password').focused,
+    true,
+  );
+});
+
+test('a focused child frame control wins over the iframe that hosts it', () => {
+  const frame = snapshot([
+    {
+      nodeId: 'frame_node',
+      frameId: 'frame-1',
+      role: 'iframe',
+      name: '登录框',
+      text: '',
+      visible: true,
+      enabled: true,
+      bounds: { left: 0, top: 0, width: 10, height: 10 },
+      focused: true,
+    },
+    {
+      nodeId: 'frame_input',
+      frameId: 'frame-1',
+      role: 'textbox',
+      name: '账号',
+      text: '',
+      visible: true,
+      enabled: true,
+      bounds: { left: 0, top: 0, width: 10, height: 10 },
+      focused: true,
+    },
+  ]);
+  assert.equal(focusLabel(frame), '账号');
 });

@@ -81,6 +81,7 @@ export interface SessionContext {
           | 'relatedNodeId'
           | 'placeholder'
           | 'invalid'
+          | 'focused'
         >
       >;
     }
@@ -258,6 +259,7 @@ export class SessionAgent {
               ? { placeholder: clean(n.placeholder).slice(0, 120) }
               : {}),
             ...(n.invalid ? { invalid: true } : {}),
+            ...(n.focused ? { focused: true } : {}),
           })),
       };
       observations.push(observed);

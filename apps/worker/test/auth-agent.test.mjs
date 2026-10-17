@@ -753,6 +753,7 @@ test('agentObservation carries a field value and the text tied to it', () => {
   field.value = 'agent-user-7c@example.test';
   field.placeholder = '请输入账号';
   field.invalid = true;
+  field.focused = true;
   observed.nodes.push(
     node('user-error', 'statictext', '身份不存在或状态不可用', {
       relatedNodeId: 'user-field',
@@ -763,6 +764,7 @@ test('agentObservation carries a field value and the text tied to it', () => {
   assert.equal(seen('user-field').value, 'agent-user-7c@example.test');
   assert.equal(seen('user-field').placeholder, '请输入账号');
   assert.equal(seen('user-field').invalid, true);
+  assert.equal(seen('user-field').focused, true);
   assert.equal(seen('user-error').relatedNodeId, 'user-field');
   assert.equal(seen('user-error').name, '身份不存在或状态不可用');
   // A control without content still reports an empty value, never a guess.

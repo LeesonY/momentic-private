@@ -101,6 +101,37 @@ export function textChanges(
   return { appeared, disappeared };
 }
 
+/**
+ * Where keyboard focus is, in words: the focused control's own name (falling
+ * back to its role), or null when the page itself has no focused control.
+ */
+export function focusLabel(snapshot: BrowserSnapshot | null): string | null {
+  if (!snapshot) return null;
+  const focused = snapshot.nodes.filter((node) => node.focused && node.visible);
+  // A child frame's control is more specific than the iframe that hosts it.
+  const node =
+    focused.find((entry) => entry.role !== 'iframe') ?? focused[0] ?? null;
+  if (!node) return null;
+  return clip(node.name || node.text || node.role, 60) || node.role;
+}
+
+export interface FocusChange {
+  from: string | null;
+  to: string | null;
+}
+
+/** Focus moving between two observations; null when it did not move. */
+export function focusChange(
+  before: BrowserSnapshot | null,
+  after: BrowserSnapshot | null,
+): FocusChange | null {
+  if (!before || !after) return null;
+  const from = focusLabel(before);
+  const to = focusLabel(after);
+  if (from === to) return null;
+  return { from, to };
+}
+
 /** How the trail names an action, so the line reads like the report's prose. */
 const ACTION_VERBS: Record<string, string> = {
   click: '点击',
@@ -111,6 +142,18 @@ const ACTION_VERBS: Record<string, string> = {
   scroll: '滚动',
   wait_for: '等待',
 };
+
+/** One trail line for the report: 「按键后焦点：账号 → 密码」 */
+export function focusChangeLine(
+  action: string,
+  change: FocusChange | null,
+): string | null {
+  if (!change) return null;
+  const verb = ACTION_VERBS[action] ?? action;
+  const from = change.from ?? '无';
+  const to = change.to ?? '无';
+  return `${verb}后焦点：${from} → ${to}`;
+}
 
 /** One trail line for the report: 「点击后新出现：请输入账号（账号框）」 */
 export function textChangeLine(
