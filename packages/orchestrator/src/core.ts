@@ -4,6 +4,7 @@ import { SessionAgent, type SessionContext } from './session-agent.js';
 import { parseSessionDecision } from './session-planning.js';
 import { linkMergedFindingEvidence } from './session-findings.js';
 import { parseAgentReport, verdictFromReport } from './agent-report.js';
+import { settledStep } from './step-settlement.js';
 import { createRegressionPlan } from './regression-plan.js';
 import { AuthStateService, type AuthStateRef } from './auth-state-service.js';
 import { AuthOtpService } from './auth-otp.js';
@@ -2146,6 +2147,7 @@ export class Coordinator {
     status: 'succeeded' | 'failed' | 'cancelled' | 'unknown',
     snapshot: BrowserSnapshot | null,
     evidence: string[] = [],
+    reasonCode?: string | null,
   ): Promise<void> {
     await this.tx((client) =>
       this.recordActionIn(
@@ -2156,6 +2158,8 @@ export class Coordinator {
         status,
         snapshot,
         evidence,
+        undefined,
+        reasonCode,
       ),
     );
   }
@@ -2229,6 +2233,7 @@ export class Coordinator {
     snapshot: BrowserSnapshot | null,
     evidence: string[],
     transportFingerprint?: string,
+    reasonCode?: string | null,
   ): Promise<void> {
     const { job, run } = await this.validateLease(client, scope, proof);
     const hash = hashPayload({
@@ -2290,13 +2295,7 @@ export class Coordinator {
       'UPDATE action_intents SET outcome=$2,result_hash=$3 WHERE id=$1',
       [grant.id, status, hash],
     );
-    const step = {
-      ...current,
-      status,
-      evidenceRefs: evidence,
-      finishedAt: new Date().toISOString(),
-      summary: `Browser ${status}`,
-    };
+    const step = settledStep(current, status, evidence, reasonCode);
     await client.query('UPDATE steps SET document=$2 WHERE id=$1', [
       step.id,
       step,

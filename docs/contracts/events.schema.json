@@ -2072,6 +2072,17 @@
             }
           ]
         },
+        "reasonCode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 80
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "regressionSource": {
           "$ref": "#/$defs/RegressionStepSource"
         }

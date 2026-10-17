@@ -1931,6 +1931,7 @@ export interface Step {
   evidenceRefs: string[];
   createdAt: string;
   finishedAt: string | null;
+  reasonCode?: string | null;
   regressionSource?: RegressionStepSource;
 }
 export interface StepPage {

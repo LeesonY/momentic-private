@@ -15,3 +15,4 @@ export * from './session-agent.js';
 export * from './session-schemas.js';
 export { parseSessionDecision } from './session-planning.js';
 export * from './agent-report.js';
+export * from './step-settlement.js';

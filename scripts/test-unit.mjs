@@ -17,6 +17,7 @@ const files = [
   'packages/model-gateway/test/context-window.test.mjs',
   'packages/orchestrator/test/continuous-scheduling.test.mjs',
   'packages/orchestrator/test/agent-report.test.mjs',
+  'packages/orchestrator/test/step-settlement.test.mjs',
   'packages/orchestrator/test/session-dedup-retry.test.mjs',
   'packages/orchestrator/test/session-requires-login.test.mjs',
   'packages/orchestrator/test/signed-out-password.test.mjs',

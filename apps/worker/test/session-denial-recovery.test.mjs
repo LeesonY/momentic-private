@@ -37,19 +37,24 @@ const snapshot = (stateVersion, nodeId) =>
     redacted: true,
   });
 
-test('a version conflict refreshes the observation and tells the model why', async () => {
+/**
+ * One explorer job with a fake runtime and browser. `decisions` is consumed
+ * per model round; `executeTool` decides the browser receipt per call.
+ */
+async function runExplorer({ decisions, executeTool }) {
   const ids = {
     project: randomUUID(),
     run: randomUUID(),
     task: randomUUID(),
     context: randomUUID(),
   };
-  const scratch = mkdtempSync(join(tmpdir(), 'localqa-denial-recovery-'));
   const first = snapshot(1, 'main_node_0');
   const refreshed = snapshot(2, 'main_node_0');
-  const modelPayloads = [];
+  const scratch = mkdtempSync(join(tmpdir(), 'localqa-denial-recovery-'));
   const records = [];
-  let decisions = 0;
+  const finishes = [];
+  const modelPayloads = [];
+  let round = 0;
   const runtime = {
     async claim() {
       return {
@@ -83,37 +88,24 @@ test('a version conflict refreshes the observation and tells the model why', asy
     },
     async model(_proof, _role, payload) {
       modelPayloads.push(payload);
-      decisions += 1;
-      if (decisions === 1)
-        return {
-          requestResult: 'ok',
-          data: {
-            done: false,
-            toolCalls: [
-              {
-                name: 'type_text',
-                args: {
-                  target: {
-                    snapshotId: first.snapshotId,
-                    pageId: first.pageId,
-                    nodeId: 'main_node_0',
-                  },
-                  text: 'smoke_user_114',
-                },
-              },
-            ],
-          },
-        };
-      return { requestResult: 'ok', data: { done: true, toolCalls: [] } };
+      const planned = decisions({ first, refreshed });
+      const decision = planned[round] ?? { done: true, toolCalls: [] };
+      round += 1;
+      return { requestResult: 'ok', data: decision };
     },
     async grant() {
       return { step: { id: randomUUID() } };
     },
-    async record(_proof, _grant, status) {
-      records.push(status);
+    async record(_proof, _grant, status, recorded, evidence, reasonCode) {
+      records.push({
+        status,
+        reasonCode: reasonCode ?? null,
+        snapshot: recorded,
+        evidence: evidence ?? [],
+      });
     },
     async finish(_proof, result) {
-      records.push(result);
+      finishes.push(result);
     },
     async stop() {
       throw new Error('unexpected run termination');
@@ -130,19 +122,7 @@ test('a version conflict refreshes the observation and tells the model why', asy
         getPageById() {
           return undefined;
         },
-        async executeTool(call) {
-          if (call.name === 'navigate')
-            return { status: 'succeeded', reasonCode: null, data: first };
-          if (call.name === 'observe')
-            return { status: 'succeeded', reasonCode: null, data: refreshed };
-          if (call.name === 'type_text')
-            return {
-              status: 'failed',
-              reasonCode: 'VERSION_CONFLICT',
-              data: first,
-            };
-          return { status: 'failed', reasonCode: 'TARGET_NOT_FOUND', data: null };
-        },
+        executeTool: (call) => executeTool(call, { first, refreshed }),
         async close() {},
       };
     },
@@ -155,21 +135,95 @@ test('a version conflict refreshes the observation and tells the model why', asy
       heartbeatMs: 10000,
     });
     assert.equal(await worker.once(), true);
-    // The failed action is settled, then the platform re-observes so the next
-    // decision starts from a snapshot the action ledger will accept.
-    assert.deepEqual(records.slice(0, 3), ['succeeded', 'failed', 'succeeded']);
-    const settled = records.at(-1);
-    assert.equal(settled.stage, 'explore');
-    assert.equal(settled.modelActionDenials, 1);
-    assert.equal(decisions, 2);
-    const second = modelPayloads[1];
-    const text = second.messages
-      .flatMap((message) => message.content.map((part) => part.text ?? ''))
-      .join('\n');
-    assert.match(text, /VERSION_CONFLICT/);
-    assert.match(text, /不要重复提交同一个目标/);
-    assert.match(text, new RegExp(refreshed.snapshotId));
+    return { records, finishes, modelPayloads, first, refreshed };
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
+}
+
+const text = (payload) =>
+  payload.messages
+    .flatMap((message) => message.content.map((part) => part.text ?? ''))
+    .join('\n');
+
+test('a version conflict refreshes the observation and tells the model why', async () => {
+  const { records, finishes, modelPayloads, refreshed } = await runExplorer({
+    decisions: ({ first }) => [
+      {
+        done: false,
+        toolCalls: [
+          {
+            name: 'type_text',
+            args: {
+              target: {
+                snapshotId: first.snapshotId,
+                pageId: first.pageId,
+                nodeId: 'main_node_0',
+              },
+              text: 'smoke_user_114',
+            },
+          },
+        ],
+      },
+      { done: true, toolCalls: [] },
+    ],
+    executeTool: (call, { first: initial, refreshed: fresh }) => {
+      if (call.name === 'navigate')
+        return { status: 'succeeded', reasonCode: null, data: initial };
+      if (call.name === 'observe')
+        return { status: 'succeeded', reasonCode: null, data: fresh };
+      if (call.name === 'type_text')
+        return { status: 'failed', reasonCode: 'VERSION_CONFLICT', data: null };
+      return { status: 'failed', reasonCode: 'TARGET_NOT_FOUND', data: null };
+    },
+  });
+  // The failed action is settled with its reason code, then the platform
+  // re-observes so the next decision starts from an accepted snapshot.
+  assert.deepEqual(
+    records.map((record) => [record.status, record.reasonCode]),
+    [
+      ['succeeded', null],
+      ['failed', 'VERSION_CONFLICT'],
+      ['succeeded', null],
+    ],
+  );
+  assert.equal(JSON.stringify(records).includes('smoke_user_114'), false);
+  const settled = finishes.at(-1);
+  assert.equal(settled.stage, 'explore');
+  assert.equal(settled.modelActionDenials, 1);
+  assert.deepEqual(settled.modelActionDenialReasons, {
+    VERSION_CONFLICT: 1,
+  });
+  const second = text(modelPayloads[1]);
+  assert.match(second, /VERSION_CONFLICT/);
+  assert.match(second, /不要重复提交同一个目标/);
+  assert.match(second, new RegExp(refreshed.snapshotId));
+});
+
+test('an action denied before its grant is counted by reason code', async () => {
+  const { records, finishes, modelPayloads } = await runExplorer({
+    decisions: () => [
+      {
+        done: false,
+        toolCalls: [
+          { name: 'finish_case', args: { summary: '越权', gaps: [] } },
+        ],
+      },
+      { done: true, toolCalls: [] },
+    ],
+    executeTool: (call, { first }) => {
+      if (call.name === 'navigate')
+        return { status: 'succeeded', reasonCode: null, data: first };
+      return { status: 'failed', reasonCode: 'TARGET_NOT_FOUND', data: null };
+    },
+  });
+  // The dispatcher denied the tool before any grant/action intent existed.
+  assert.deepEqual(
+    records.map((record) => record.status),
+    ['succeeded'],
+  );
+  const settled = finishes.at(-1);
+  assert.equal(settled.modelActionDenials, 1);
+  assert.deepEqual(settled.modelActionDenialReasons, { POLICY_DENIED: 1 });
+  assert.match(text(modelPayloads[1]), /POLICY_DENIED/);
 });

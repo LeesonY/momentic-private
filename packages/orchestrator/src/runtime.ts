@@ -168,6 +168,7 @@ export class RuntimeClient {
     status: 'succeeded' | 'failed' | 'cancelled' | 'unknown',
     snapshot: BrowserSnapshot | null,
     evidence: string[] = [],
+    reasonCode?: string | null,
   ): Promise<void> {
     return this.#coordinator.recordAction(
       this.#scope,
@@ -176,6 +177,7 @@ export class RuntimeClient {
       status,
       snapshot,
       evidence,
+      reasonCode,
     );
   }
   upload(

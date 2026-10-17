@@ -185,6 +185,9 @@ for key in ["taskId", "stepId", "caseId", "snapshotId"]:
     D["Artifact"]["properties"][key] = nullable(UUID)
     D["Artifact"]["required"].append(key)
 D["Step"] = obj({"id": UUID, "runId": UUID, "taskId": UUID, "caseId": nullable(UUID), "seq": VER, "toolName": text(80), "status": enum("running", "succeeded", "failed", "unknown", "cancelled", "skipped"), "summary": text(2000), "targetDescription": text(1000), "evidenceRefs": arr(UUID, 30), "createdAt": DATE, "finishedAt": nullable(DATE)})
+# Why a browser action failed, for post-hoc diagnosis. Optional: only failed or
+# denied actions carry it, and it is a bounded code, never input text or URLs.
+D["Step"]["properties"]["reasonCode"] = nullable(text(80))
 D["CaseAttempt"] = obj({"id": UUID, "caseId": UUID, "taskId": UUID, "attemptNumber": VER, "status": enum("queued", "running", "completed", "interrupted", "cancelled"), "verdict": nullable(ref("Verdict")), "startedAt": nullable(DATE), "finishedAt": nullable(DATE)})
 D["Bounds"] = obj({"left": {"type": "number"}, "top": {"type": "number"}, "width": {"type": "number", "minimum": 0}, "height": {"type": "number", "minimum": 0}})
 D["SnapshotNode"] = obj({"nodeId": text(120, minLength=1), "frameId": text(120), "role": text(120), "name": text(1000), "text": text(2000), "visible": BOOL, "enabled": BOOL, "bounds": ref("Bounds")})

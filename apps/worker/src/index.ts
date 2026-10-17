@@ -753,7 +753,7 @@ export class Worker {
             await this.options.onActionIntent(grant);
           if (signal.aborted) {
             await this.runtime
-              .record(proof, grant, 'cancelled', null)
+              .record(proof, grant, 'cancelled', null, [], 'CANCELLED')
               .catch(() => {});
             throw new DomainError('CANCELLED');
           }
@@ -762,7 +762,17 @@ export class Worker {
             result = await session!.executeTool(actual, { signal });
           } catch (error) {
             await this.runtime
-              .record(proof, grant, 'failed', null)
+              .record(
+                proof,
+                grant,
+                'failed',
+                null,
+                [],
+                (error as { code?: unknown } | null)?.code as
+                  | string
+                  | null
+                  | undefined,
+              )
               .catch(() => {});
             throw error;
           }
@@ -772,6 +782,11 @@ export class Worker {
               grant,
               result.status === 'cancelled' ? 'cancelled' : 'failed',
               null,
+              [],
+              result.reasonCode ??
+                (result.status === 'cancelled'
+                  ? 'CANCELLED'
+                  : 'BROWSER_FAILED'),
             );
             if (result.status === 'cancelled')
               throw new DomainError('CANCELLED');
@@ -877,7 +892,17 @@ export class Worker {
             // A completed browser call with unusable evidence has an uncertain
             // outcome; charge it conservatively and close its pending Step.
             await this.runtime
-              .record(proof, grant, 'unknown', null)
+              .record(
+                proof,
+                grant,
+                'unknown',
+                null,
+                [],
+                (error as { code?: unknown } | null)?.code as
+                  | string
+                  | null
+                  | undefined,
+              )
               .catch(() => {});
             throw error;
           }
@@ -1418,7 +1443,9 @@ export class Worker {
           },
         ];
         const trail: AgentTrailEntry[] = [];
-        let modelActionDenials = 0;
+        let modelActionDenialCount = 0;
+        /** Denied (never granted) model actions, grouped by reason code. */
+        const modelActionDenialReasons: Record<string, number> = {};
         for (
           let round = 0;
           round < work.run.effectiveConfig.budget.maxActionsPerCase;
@@ -1454,8 +1481,10 @@ export class Worker {
             trail.push(trailEntry(call, before, executed, dispatch.reasonCode));
             if (!executed) {
               // The agent is told and decides what to do next, as in Mo.
-              modelActionDenials++;
               const reasonCode = dispatch.reasonCode ?? 'POLICY_DENIED';
+              modelActionDenialCount++;
+              modelActionDenialReasons[reasonCode] =
+                (modelActionDenialReasons[reasonCode] ?? 0) + 1;
               const content: ModelMessage['content'] = [
                 {
                   type: 'text',
@@ -1528,9 +1557,10 @@ export class Worker {
             stage: 'explore',
             pages: graph.pages,
             coverage: 'Only observed in-scope pages, not the whole site',
-            modelActionDenials,
-            ...(modelActionDenials
+            modelActionDenials: modelActionDenialCount,
+            ...(modelActionDenialCount
               ? {
+                  modelActionDenialReasons,
                   warnings: [
                     'Proposed model actions were denied by active run policy',
                   ],
@@ -1573,7 +1603,12 @@ export class Worker {
             stage: work.stage,
             oracle: 'agent_report',
             agentReport: report as unknown as JsonValue,
-            ...(modelActionDenials ? { modelActionDenials } : {}),
+            ...(modelActionDenialCount
+              ? {
+                  modelActionDenials: modelActionDenialCount,
+                  modelActionDenialReasons,
+                }
+              : {}),
             contextId: session!.id,
           },
           results,

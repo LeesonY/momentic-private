@@ -5034,6 +5034,17 @@
               }
             ]
           },
+          "reasonCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "regressionSource": {
             "$ref": "#/$defs/RegressionStepSource"
           }
@@ -10838,6 +10849,17 @@
               {
                 "type": "string",
                 "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reasonCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
               },
               {
                 "type": "null"
@@ -22004,6 +22026,17 @@
                 {
                   "type": "string",
                   "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "reasonCode": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 80
                 },
                 {
                   "type": "null"
