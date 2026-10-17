@@ -48,7 +48,7 @@ const SYSTEM_PROMPT = [
   '除非登录说明要求，不要点击注册、忘记密码、第三方登录或任何会修改业务数据的按钮。',
   '已填写过的输入框名称显示为 •；history 记录了已执行的步骤，不要重复同一步，除非页面已刷新。',
   'observation.truncated 表示页面整体 DOM 已裁剪，observation.nodes 仍是可见节点，照常判断。',
-  'observation.nodes 除了输入框和按钮，还有页面上看得见的文字（role=statictext/paragraph，relatedNodeId 指向它属于哪个输入框），输入框的 value 是它当前的内容（密码等敏感值是 [redacted]，空串就是空的）。判断“是否提示账号或密码错误/必填”时先看这些文字；字段下方与输入框对应的 statictext 就是该校验提示，不要把它和占位符混为一谈。',
+  'observation.nodes 除了输入框和按钮，还有页面上看得见的文字（role=statictext/paragraph，relatedNodeId 指向它属于哪个输入框）。占位符只出现在输入框的 placeholder 字段；statictext 是页面上真实渲染的文字，即使和占位符一模一样也不是占位符。输入框的 value 是它当前的内容（密码等敏感值是 [redacted]，空串就是空的），invalid=true 表示控件被标为错误。判断“是否提示账号或密码错误/必填”时先看这些文字；字段下方与输入框对应的 statictext 通常就是该校验提示。',
   'issue 非空表示上一次提议没有执行，按原因换一个提议。issue=SUBMIT_ALREADY_TRIED 表示同一个登录按钮已经点过而页面没有变化，不能再点：根据页面判断 done 或 blocked，或换别的步骤。',
   '只输出 JSON，五个字段都要有，不用的填 null：{"action":"fill","variable":"QA_PASSWORD","nodeId":"...","frameId":null,"reason":"填写密码"}。',
 ].join('\n');
@@ -115,6 +115,10 @@ export function agentObservation(snapshot: BrowserSnapshot) {
         ...(text && text !== name ? { text } : {}),
         ...(node.value !== undefined ? { value: clip(node.value, 120) } : {}),
         ...(node.relatedNodeId ? { relatedNodeId: node.relatedNodeId } : {}),
+        ...(node.placeholder
+          ? { placeholder: clip(node.placeholder, 80) }
+          : {}),
+        ...(node.invalid ? { invalid: true } : {}),
         ...(node.enabled ? {} : { enabled: false }),
       };
     }),

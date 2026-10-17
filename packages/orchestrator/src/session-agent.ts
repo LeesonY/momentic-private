@@ -73,7 +73,14 @@ export interface SessionContext {
       nodes: Array<
         Pick<
           BrowserSnapshot['nodes'][number],
-          'nodeId' | 'role' | 'name' | 'text' | 'value' | 'relatedNodeId'
+          | 'nodeId'
+          | 'role'
+          | 'name'
+          | 'text'
+          | 'value'
+          | 'relatedNodeId'
+          | 'placeholder'
+          | 'invalid'
         >
       >;
     }
@@ -247,6 +254,10 @@ export class SessionAgent {
               ? { value: clean(n.value).slice(0, 120) }
               : {}),
             ...(n.relatedNodeId ? { relatedNodeId: n.relatedNodeId } : {}),
+            ...(n.placeholder
+              ? { placeholder: clean(n.placeholder).slice(0, 120) }
+              : {}),
+            ...(n.invalid ? { invalid: true } : {}),
           })),
       };
       observations.push(observed);

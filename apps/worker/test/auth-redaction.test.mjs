@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createPrivateAuthPort } from '@localqa/browser';
 import { runAuthFlow } from '../dist/auth-flow.js';
+import { textChanges } from '../dist/observation-text-diff.js';
 
 const user = 'vault-username-8c';
 const secret = 'vault-password-8c';
@@ -100,9 +101,10 @@ function node(nodeId, name, text, value) {
     role: 'textbox',
     name,
     text,
-    // A control's current content is a snapshot field of its own now; the
-    // auto-filled login page therefore carries the credentials twice.
-    ...(value !== undefined ? { value } : {}),
+    // A control's current content and its placeholder hint are snapshot fields
+    // of their own now; the auto-filled login page carries the credentials
+    // through all of them.
+    ...(value !== undefined ? { value, placeholder: value } : {}),
     visible: true,
     enabled: true,
     bounds: { left: 0, top: 0, width: 10, height: 10 },
@@ -274,6 +276,7 @@ test('the first observation after an auto-filled navigation carries no secret', 
   const filled = (nodeId) => first.nodes.find((n) => n.nodeId === nodeId);
   assert.equal(filled('user-field').value, '•');
   assert.equal(filled('pass-field').value, '•');
+  assert.equal(filled('user-field').placeholder, '•');
 
   // No later observation, step, or outcome shows the material either.
   for (const observation of world.observed) {
@@ -285,6 +288,12 @@ test('the first observation after an auto-filled navigation carries no secret', 
   assert.equal(outcomeJson.includes(secret), false);
   assert.equal(outcomeJson.includes(user), false);
   assert.equal(outcomeJson.includes('•'), false);
+
+  // "New text" derived from those observations cannot reintroduce them either.
+  const changes = textChanges(world.observed[0], world.observed[1]);
+  const changesJson = JSON.stringify(changes);
+  assert.equal(changesJson.includes(secret), false);
+  assert.equal(changesJson.includes(user), false);
 
   // The credentials still reach the fill primitive, which is their only channel.
   assert.deepEqual(
