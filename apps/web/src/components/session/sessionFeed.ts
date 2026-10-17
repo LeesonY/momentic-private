@@ -9,6 +9,7 @@ import type {
 } from '@localqa/contracts';
 import type { RunMessage } from '../../api/index.ts';
 import { isDuplicateFinding } from './findingDedup.ts';
+import { stepReasonText } from './stepReason.ts';
 import {
   taskRoleLabel,
   taskStageLabel,
@@ -163,7 +164,13 @@ export function buildSessionFeed(input: {
         // A tool name repeated as its own description says nothing new.
         const chip =
           raw && raw.toLowerCase() !== step.toolName.toLowerCase() ? raw : '';
-        const label = `浏览器步骤 · ${stepLabel(step)}${step.status === 'failed' ? '（失败）' : ''}`;
+        const reason =
+          step.status === 'failed' ? stepReasonText(step.reasonCode) : null;
+        const label = `浏览器步骤 · ${stepLabel(step)}${
+          step.status === 'failed'
+            ? `（失败${reason ? `：${reason}` : ''}）`
+            : ''
+        }`;
         // A step is recorded when it starts and again when it settles;
         // show it once, with its latest state.
         const seen = step.id ? stepActions.get(step.id) : undefined;

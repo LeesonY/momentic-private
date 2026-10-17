@@ -46,6 +46,7 @@ const files = [
   'apps/web/scripts/locatorMaintenanceDraft.test.mjs',
   'apps/web/scripts/testTaskStepSignal.mjs',
   'apps/web/scripts/sessionMoFollowups.test.mjs',
+  'apps/web/scripts/stepReason.test.mjs',
   'apps/web/scripts/readAllPages.test.mjs',
   'apps/web/scripts/sessionBudget.test.mjs',
   'apps/web/scripts/authProfileSecrets.test.mjs',
