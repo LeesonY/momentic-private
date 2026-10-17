@@ -1,4 +1,4 @@
-import type { Page, Response, Request } from 'playwright';
+import type { JSHandle, Page, Response, Request } from 'playwright';
 import { createHash } from 'node:crypto';
 import type { BrowserSnapshot, NodeTarget } from '@localqa/contracts';
 import { STABLE_REASON_CODES } from './types.js';
@@ -166,6 +166,101 @@ export class WaitAndRecoveryManager {
         } finally {
           stop();
         }
+      },
+    };
+  }
+
+  /**
+   * Watches the page's *structure* while an action takes effect, so the
+   * observation is captured after the UI has finished rearranging itself.
+   *
+   * A click re-renders validation messages with an enter/leave transition: the
+   * old message is removed a few hundred milliseconds after the click, and a
+   * snapshot taken before that shows a state the user never sees (the 66 run
+   * reported "密码已填写却仍提示请输入密码" exactly this way).
+   *
+   * The criterion is deliberately narrow: only childList mutations (a node
+   * added or removed) count as "the page is still changing". Attribute-only
+   * changes are Vue/Element transition classes and inline styles, and
+   * characterData changes are timers and counters; neither means the page is
+   * still rearranging, and treating them as churn made every animated page wait
+   * out the cap. A page with no structural change settles immediately.
+   */
+  public async beginDomSettle(
+    page: Page,
+    options: { quietMs?: number | undefined; maxMs?: number | undefined } = {},
+  ): Promise<{
+    settle: (signal?: AbortSignal) => Promise<{
+      stable: boolean;
+      waitedMs: number;
+    }>;
+    stop: () => Promise<void>;
+  }> {
+    const quietMs = options.quietMs ?? 300;
+    const maxMs = options.maxMs ?? 1500;
+    const pollMs = 50;
+    let installed: JSHandle<{
+      state: () => { structural: number; lastAt: number; now: number };
+      stop: () => void;
+    }>;
+    try {
+      installed = await page.evaluateHandle(() => {
+        let structural = 0;
+        let lastAt = performance.now();
+        const observer = new MutationObserver((records) => {
+          for (const record of records) {
+            if (record.type !== 'childList') continue;
+            if (!record.addedNodes.length && !record.removedNodes.length)
+              continue;
+            structural += 1;
+            lastAt = performance.now();
+            return;
+          }
+        });
+        observer.observe(document, { childList: true, subtree: true });
+        return {
+          state: () => ({ structural, lastAt, now: performance.now() }),
+          stop: () => observer.disconnect(),
+        };
+      });
+    } catch {
+      // A page that cannot be instrumented (closing, detached) simply does not
+      // settle; the action still returns its own snapshot.
+      return {
+        settle: async () => ({ stable: true, waitedMs: 0 }),
+        stop: async () => {},
+      };
+    }
+    let stopped = false;
+    return {
+      settle: async (signal?: AbortSignal) => {
+        const started = Date.now();
+        try {
+          for (;;) {
+            if (signal?.aborted)
+              return { stable: false, waitedMs: Date.now() - started };
+            const state = await installed
+              .evaluate((probe) => probe.state())
+              .catch(() => null);
+            if (!state) return { stable: true, waitedMs: Date.now() - started };
+            const elapsed = Date.now() - started;
+            // With no structural change yet the page is already as it will be
+            // (a value change does not rearrange anything): wait out the quiet
+            // window once and stop. After a change, wait for the UI to finish.
+            const quietFor =
+              state.structural > 0 ? state.now - state.lastAt : elapsed;
+            if (quietFor >= quietMs) return { stable: true, waitedMs: elapsed };
+            if (elapsed >= maxMs) return { stable: false, waitedMs: elapsed };
+            await new Promise((resolve) => setTimeout(resolve, pollMs));
+          }
+        } finally {
+          await installed.evaluate((probe) => probe.stop()).catch(() => {});
+        }
+      },
+      stop: async () => {
+        if (stopped) return;
+        stopped = true;
+        await installed.dispose().catch(() => {});
       },
     };
   }

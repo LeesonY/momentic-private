@@ -11,6 +11,11 @@ export interface SnapshotOptions {
   screenshotRef?: string | null;
   recorder?: SessionRecorder;
   lastResponseStatus?: number | null;
+  /**
+   * Set only when the page was still changing after the action that produced
+   * this observation (the settle cap was reached). Absent means stable.
+   */
+  settled?: boolean | undefined;
 }
 
 type DomWitness = {
@@ -332,6 +337,7 @@ export async function captureBrowserSnapshot(
     // consumers use this flag to decide whether the observed page can prove
     // an element's absence and whether the sign-in page really came back.
     truncated: isTruncated,
+    ...(options.settled === false ? { settled: false } : {}),
     redacted: true,
   };
 

@@ -100,6 +100,26 @@ async function inspectedTargetMetadata(
   };
 }
 
+/**
+ * Captures the observation of an action after the page stopped rearranging.
+ * A snapshot taken while a validation message is still leaving its transition
+ * shows a state the user never sees; when the cap is reached anyway the
+ * observation says so instead of pretending to be settled.
+ */
+async function captureSettledSnapshot(
+  ctx: { stateVersion: number; recorder: SessionRecorder },
+  page: Page,
+  pageId: string,
+  settled: { stable: boolean },
+): Promise<BrowserSnapshot> {
+  return captureBrowserSnapshot(page, {
+    pageId,
+    stateVersion: ++ctx.stateVersion,
+    recorder: ctx.recorder,
+    ...(settled.stable ? {} : { settled: false }),
+  });
+}
+
 export class ToolExecutor {
   private readonly toolValidator = getRootValidator('tools');
 
@@ -443,6 +463,8 @@ export class ToolExecutor {
           // observation. A click with no such request returns after a short
           // grace period.
           const settle = ctx.waiter.beginNetworkSettle(targetPage);
+          const domSettle = await ctx.waiter.beginDomSettle(targetPage);
+          let settled: { stable: boolean; waitedMs: number };
           try {
             try {
               // Detect inert repeats before dispatch. Previously the third
@@ -460,15 +482,18 @@ export class ToolExecutor {
               await resolved.elementHandle.dispose().catch(() => undefined);
             }
             if (!ctx.signal?.aborted) await settle.settle(ctx.signal);
+            settled = await domSettle.settle(ctx.signal);
           } finally {
             settle.stop();
+            await domSettle.stop();
           }
 
-          const snapshot = await captureBrowserSnapshot(targetPage, {
-            pageId: target.pageId,
-            stateVersion: ++ctx.stateVersion,
-            recorder: ctx.recorder,
-          });
+          const snapshot = await captureSettledSnapshot(
+            ctx,
+            targetPage,
+            target.pageId,
+            settled,
+          );
 
           const fingerprint = ctx.waiter.computeFingerprint(snapshot);
           ctx.waiter.recordAction('click', target.nodeId, fingerprint);
@@ -556,22 +581,27 @@ export class ToolExecutor {
             );
           }
 
+          const domSettle = await ctx.waiter.beginDomSettle(targetPage);
+          let settled: { stable: boolean; waitedMs: number };
           try {
             if (ctx.signal?.aborted)
               throw new Error(STABLE_REASON_CODES.USER_CANCELLED);
             await resolved.elementHandle.fill(text, { timeout: 15000 });
+            settled = await domSettle.settle(ctx.signal);
           } finally {
             await resolved.elementHandle.dispose().catch(() => undefined);
+            await domSettle.stop();
           }
           // Typing changes form state the page fingerprint cannot see; it
           // must break a run of identical clicks, not count as one.
           ctx.waiter.recordStateChange('type_text', target.nodeId);
 
-          const snapshot = await captureBrowserSnapshot(targetPage, {
-            pageId: target.pageId,
-            stateVersion: ++ctx.stateVersion,
-            recorder: ctx.recorder,
-          });
+          const snapshot = await captureSettledSnapshot(
+            ctx,
+            targetPage,
+            target.pageId,
+            settled,
+          );
 
           return this.finalizeResult(
             {
@@ -650,22 +680,27 @@ export class ToolExecutor {
             );
           }
 
+          const domSettle = await ctx.waiter.beginDomSettle(targetPage);
+          let settled: { stable: boolean; waitedMs: number };
           try {
             if (ctx.signal?.aborted)
               throw new Error(STABLE_REASON_CODES.USER_CANCELLED);
             await resolved.elementHandle.selectOption(value, {
               timeout: 15000,
             });
+            settled = await domSettle.settle(ctx.signal);
           } finally {
             await resolved.elementHandle.dispose().catch(() => undefined);
+            await domSettle.stop();
           }
           ctx.waiter.recordStateChange('select_option', target.nodeId);
 
-          const snapshot = await captureBrowserSnapshot(targetPage, {
-            pageId: target.pageId,
-            stateVersion: ++ctx.stateVersion,
-            recorder: ctx.recorder,
-          });
+          const snapshot = await captureSettledSnapshot(
+            ctx,
+            targetPage,
+            target.pageId,
+            settled,
+          );
 
           return this.finalizeResult(
             {
@@ -701,70 +736,78 @@ export class ToolExecutor {
             );
           }
 
-          if (target) {
-            const resolved = await resolveTarget(
-              targetPage,
-              target,
-              ctx.currentSnapshot!,
-            );
-            if (resolved.status === 'rejected') {
-              return this.finalizeResult(
-                {
-                  requestId,
-                  actionId,
-                  status: 'failed',
-                  // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
-                  data: ctx.currentSnapshot as unknown as JsonValue,
-                  reasonCode: resolved.reasonCode,
-                  evidenceRefs: [],
-                },
-                toolCall,
+          // Watch the page before the key: a blur-triggered validation message
+          // appears as a structure change right after Tab or Enter.
+          const domSettle = await ctx.waiter.beginDomSettle(targetPage);
+          let settled: { stable: boolean; waitedMs: number };
+          try {
+            if (target) {
+              const resolved = await resolveTarget(
+                targetPage,
+                target,
                 ctx.currentSnapshot!,
               );
-            }
-            const pressPolicy = ctx.policy.checkAction(
-              toolCall,
-              await inspectedTargetMetadata(resolved, targetPage),
-              targetPage.url(),
-            );
-            if (!pressPolicy.allowed) {
-              await resolved.elementHandle.dispose().catch(() => undefined);
-              return this.finalizeResult(
-                {
-                  requestId,
-                  actionId,
-                  status: 'denied',
-                  data: ctx.currentSnapshot as unknown as JsonValue,
-                  reasonCode:
-                    pressPolicy.reasonCode ?? STABLE_REASON_CODES.POLICY_DENIED,
-                  evidenceRefs: [],
-                },
+              if (resolved.status === 'rejected') {
+                return this.finalizeResult(
+                  {
+                    requestId,
+                    actionId,
+                    status: 'failed',
+                    // SAFETY: the snapshot/result object is JSON-serializable; the ToolResult contract types data as JsonValue.
+                    data: ctx.currentSnapshot as unknown as JsonValue,
+                    reasonCode: resolved.reasonCode,
+                    evidenceRefs: [],
+                  },
+                  toolCall,
+                  ctx.currentSnapshot!,
+                );
+              }
+              const pressPolicy = ctx.policy.checkAction(
                 toolCall,
-                ctx.currentSnapshot!,
+                await inspectedTargetMetadata(resolved, targetPage),
+                targetPage.url(),
               );
+              if (!pressPolicy.allowed) {
+                await resolved.elementHandle.dispose().catch(() => undefined);
+                return this.finalizeResult(
+                  {
+                    requestId,
+                    actionId,
+                    status: 'denied',
+                    data: ctx.currentSnapshot as unknown as JsonValue,
+                    reasonCode:
+                      pressPolicy.reasonCode ??
+                      STABLE_REASON_CODES.POLICY_DENIED,
+                    evidenceRefs: [],
+                  },
+                  toolCall,
+                  ctx.currentSnapshot!,
+                );
+              }
+              try {
+                if (ctx.signal?.aborted)
+                  throw new Error(STABLE_REASON_CODES.USER_CANCELLED);
+                await resolved.elementHandle.press(key, { timeout: 15000 });
+              } finally {
+                await resolved.elementHandle.dispose().catch(() => undefined);
+              }
+            } else {
+              await targetPage.keyboard.press(key);
             }
-            try {
-              if (ctx.signal?.aborted)
-                throw new Error(STABLE_REASON_CODES.USER_CANCELLED);
-              await resolved.elementHandle.press(key, { timeout: 15000 });
-            } finally {
-              await resolved.elementHandle.dispose().catch(() => undefined);
-            }
-          } else {
-            await targetPage.keyboard.press(key);
+            settled = await domSettle.settle(ctx.signal);
+          } finally {
+            await domSettle.stop();
           }
           // A key press can change form state (submit, tab, clear) without
           // changing the page fingerprint; it breaks a run of identical clicks.
-          ctx.waiter.recordStateChange(
-            'press',
-            target?.nodeId ?? `key:${key}`,
-          );
+          ctx.waiter.recordStateChange('press', target?.nodeId ?? `key:${key}`);
 
-          const snapshot = await captureBrowserSnapshot(targetPage, {
-            pageId: target?.pageId || ctx.pageId,
-            stateVersion: ++ctx.stateVersion,
-            recorder: ctx.recorder,
-          });
+          const snapshot = await captureSettledSnapshot(
+            ctx,
+            targetPage,
+            target?.pageId || ctx.pageId,
+            settled,
+          );
 
           return this.finalizeResult(
             {
