@@ -19,14 +19,12 @@ export const ACTION_DENIAL_CODES = Object.freeze({
   SENSITIVE_INPUT_FORBIDDEN: 'SENSITIVE_INPUT_FORBIDDEN',
   SAVED_CREDENTIAL_INPUT: 'SAVED_CREDENTIAL_INPUT',
   OUT_OF_SCOPE_MUTATION: 'OUT_OF_SCOPE_MUTATION',
+  CASE_ACTION_LIMIT: 'CASE_ACTION_LIMIT',
 } as const);
 
 export type ActionDenialCode =
   (typeof ACTION_DENIAL_CODES)[keyof typeof ACTION_DENIAL_CODES];
 
 export function isActionDenialCode(code: unknown): code is ActionDenialCode {
-  return (
-    typeof code === 'string' &&
-    Object.hasOwn(ACTION_DENIAL_CODES, code)
-  );
+  return typeof code === 'string' && Object.hasOwn(ACTION_DENIAL_CODES, code);
 }

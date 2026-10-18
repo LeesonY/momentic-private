@@ -42,6 +42,8 @@ const STATUS_MAP: Record<string, number> = {
   SENSITIVE_INPUT_FORBIDDEN: 403,
   SAVED_CREDENTIAL_INPUT: 403,
   OUT_OF_SCOPE_MUTATION: 403,
+  // A case-level refusal, not a run-level budget stop.
+  CASE_ACTION_LIMIT: 409,
 };
 
 export function toApiErrorResponse(

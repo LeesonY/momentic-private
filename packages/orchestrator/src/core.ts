@@ -10,10 +10,7 @@ import { createRegressionPlan } from './regression-plan.js';
 import { AuthStateService, type AuthStateRef } from './auth-state-service.js';
 import { AuthOtpService } from './auth-otp.js';
 import { readRunAuthProfile, readSavedAuthValues } from './auth-profile.js';
-import {
-  inputValueOf,
-  matchesSavedCredential,
-} from './signed-out-input.js';
+import { inputValueOf, matchesSavedCredential } from './signed-out-input.js';
 import {
   AuthImportService,
   type AuthImportGrant,
@@ -2037,22 +2034,26 @@ export class Coordinator {
             throw new StorageError('VERSION_CONFLICT');
         }
       } else if (regressionSource) throw new StorageError('VALIDATION_ERROR');
-      if (
-        job.case_id &&
-        (
+      if (job.case_id) {
+        const caseActions = (
           await client.query(
             // A task's own sign-in steps are private and bounded on their own;
-            // they do not use up the case's action allowance.
-            'SELECT count(*)::integer n FROM action_intents WHERE project_id=$1 AND task_id=$2 AND ($3::boolean OR auth_session_id IS NULL)',
+            // they do not use up the case's action allowance. Evidence
+            // captures do not either: they are read-only screenshots, and the
+            // report phase needs one after the last test step.
+            "SELECT count(*)::integer n FROM action_intents WHERE project_id=$1 AND task_id=$2 AND tool_call->>'name' <> 'capture' AND ($3::boolean OR auth_session_id IS NULL)",
             [
               scope.projectId,
               job.id,
               (await signInKind(this, client, job, run)) !== 'self',
             ],
           )
-        ).rows[0].n >= run.effectiveConfig.budget.maxActionsPerCase
-      )
-        throw new StorageError('BUDGET_EXCEEDED');
+        ).rows[0].n;
+        // A spent case allowance is the agent's to handle (report from the
+        // evidence it has); it must not look like a run-wide budget stop.
+        if (caseActions >= run.effectiveConfig.budget.maxActionsPerCase)
+          throw actionDenied('CASE_ACTION_LIMIT');
+      }
       const reservation = await this.reserve(client, scope, proof, 'action', {
         actions: 1,
       });

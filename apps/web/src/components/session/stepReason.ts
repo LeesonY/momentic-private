@@ -16,6 +16,7 @@ const stepReasonLabel: Record<string, string> = {
   SENSITIVE_INPUT_FORBIDDEN: '敏感输入未放行',
   SAVED_CREDENTIAL_INPUT: '与已保存凭据相同',
   OUT_OF_SCOPE_MUTATION: '非提交策略禁止的写操作',
+  CASE_ACTION_LIMIT: '用例动作上限已用完',
   ACTION_TIMEOUT: '动作超时',
   VALIDATION_ERROR: '参数无效',
   USER_CANCELLED: '已取消',

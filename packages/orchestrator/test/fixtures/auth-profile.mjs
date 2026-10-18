@@ -45,6 +45,8 @@ export function authProfileFixture({
     intents: new Map(),
     scope: null,
     seq: 0,
+    /** Non-capture action intents already recorded for this task. */
+    caseActionCount: 0,
     queries: [],
     events: [],
     leaseUntil: new Date(Date.now() + 60000),
@@ -319,8 +321,11 @@ export function authProfileFixture({
       sql.includes('INSERT INTO steps')
     )
       return rows();
-    if (sql.includes('SELECT count(*)::integer n FROM action_intents'))
-      return rows([{ n: 0 }]);
+    if (sql.includes('SELECT count(*)::integer n FROM action_intents')) {
+      // Captures are evidence, not test steps: they never spend the allowance.
+      assert.match(sql, /tool_call->>'name' <> 'capture'/);
+      return rows([{ n: auth.caseActionCount }]);
+    }
     if (sql.includes('SELECT COALESCE(max(seq)')) return rows([{ n: 1 }]);
     if (sql.includes('AS frozen_version')) {
       const pinned = [...auth.sessions.values()].find(

@@ -39,6 +39,9 @@ export const ERROR_HTTP_STATUS = Object.freeze({
   SENSITIVE_INPUT_FORBIDDEN: null,
   SAVED_CREDENTIAL_INPUT: null,
   OUT_OF_SCOPE_MUTATION: null,
+  // The case's own action allowance is spent. The action does not execute;
+  // the agent reports from the evidence it already has and the session goes on.
+  CASE_ACTION_LIMIT: null,
   SCOPE_CHANGED: null,
   BUDGET_EXCEEDED: null,
   INPUT_TIMEOUT: null,

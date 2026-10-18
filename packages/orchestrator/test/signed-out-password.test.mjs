@@ -751,3 +751,29 @@ test('an explorer still gets the sensitive-input refusal before the Enter rule',
     (error) => error.code === 'SENSITIVE_INPUT_FORBIDDEN',
   );
 });
+
+test('a spent case action allowance is a case limit, not a run budget stop', async () => {
+  const fixture = signedOutFixture();
+  const snapshot = addSnapshot(fixture, [
+    snapshotNode({ enterButtonNodeId: 'login-button' }),
+    snapshotNode({
+      nodeId: 'login-button',
+      role: 'button',
+      inputType: 'button',
+      sensitive: false,
+      name: '登录',
+      text: '登录',
+    }),
+  ]);
+  const max = fixture.run.effectiveConfig.budget.maxActionsPerCase;
+  fixture.auth.caseActionCount = max;
+  await assert.rejects(
+    press(fixture, snapshot),
+    (error) => error.code === 'CASE_ACTION_LIMIT',
+  );
+  // One below the limit still executes; the query excludes captures so the
+  // report's evidence capture is not blocked by the same allowance.
+  fixture.auth.caseActionCount = max - 1;
+  const grant = await press(fixture, snapshot);
+  assert.equal(grant.call.name, 'press');
+});

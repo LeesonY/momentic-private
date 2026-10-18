@@ -10,7 +10,11 @@ test('a failed browser step names its cause in Chinese', () => {
   assert.equal(stepReasonText('HIDDEN_INPUT_FORBIDDEN'), '隐藏输入框禁止操作');
   assert.equal(stepReasonText('SENSITIVE_INPUT_FORBIDDEN'), '敏感输入未放行');
   assert.equal(stepReasonText('SAVED_CREDENTIAL_INPUT'), '与已保存凭据相同');
-  assert.equal(stepReasonText('OUT_OF_SCOPE_MUTATION'), '非提交策略禁止的写操作');
+  assert.equal(
+    stepReasonText('OUT_OF_SCOPE_MUTATION'),
+    '非提交策略禁止的写操作',
+  );
+  assert.equal(stepReasonText('CASE_ACTION_LIMIT'), '用例动作上限已用完');
   assert.equal(stepReasonText('BROWSER_FAILED'), '浏览器执行失败');
 });
 
