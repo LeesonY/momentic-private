@@ -8,6 +8,7 @@ import { STABLE_REASON_CODES, type StableReasonCode } from './types.js';
 import {
   isSameOriginOwnedFrame,
   snapshotFrameUnchanged,
+  snapshotRegistryElement,
   snapshotTargetIdentity,
   snapshotTargetUnchanged,
 } from './snapshot.js';
@@ -95,8 +96,37 @@ export async function resolveTarget(
   if (located.status === 'rejected') return located;
   const frame = located.frame;
 
-  // 4-7. Bind the unique owned element and validate visibility/operability.
-  const bound = await bindUniqueTarget(node, frame, options);
+  // 4-7. Bind the element the snapshot pinned for this node, and only fall back
+  // to locator uniqueness when the registry cannot prove it. A list page with
+  // eleven identical 「详情」 buttons has no unique role+name locator, yet the
+  // snapshot already recorded one DOM object per row: the model chose a node id,
+  // not "the only element that looks like this".
+  const pinned = await bindPinnedTarget(
+    page,
+    node,
+    frame,
+    currentSnapshot.snapshotId,
+    options,
+  );
+  let bound: Awaited<ReturnType<typeof bindUniqueTarget>>;
+  if (pinned.status === 'bound') {
+    bound = pinned;
+  } else {
+    bound = await bindUniqueTarget(node, frame, options);
+    // The snapshot's own element is gone, yet the page still has look-alikes:
+    // the honest answer is "this observation is stale", not "ambiguous".
+    if (
+      pinned.status === 'gone' &&
+      bound.status === 'rejected' &&
+      bound.reasonCode === STABLE_REASON_CODES.TARGET_AMBIGUOUS
+    )
+      return {
+        status: 'rejected',
+        reasonCode: STABLE_REASON_CODES.VERSION_CONFLICT,
+        message:
+          'The element this snapshot pinned is no longer in the document and the page now has several matching elements; capture a fresh snapshot before acting.',
+      };
+  }
   if (bound.status === 'rejected') return bound;
 
   // 8. Freshness of the bound element. The document may have changed for
@@ -105,12 +135,14 @@ export async function resolveTarget(
   // and its own content was left untouched. A locator that rebound to a
   // same-named element revealed through an ancestor's visibility change is
   // therefore rejected instead of acted on.
-  if (!(await snapshotFrameUnchanged(
-    page,
-    currentSnapshot.snapshotId,
-    node.frameId,
-    frame,
-  ))) {
+  if (
+    !(await snapshotFrameUnchanged(
+      page,
+      currentSnapshot.snapshotId,
+      node.frameId,
+      frame,
+    ))
+  ) {
     const sameElement = await snapshotTargetIdentity(
       page,
       currentSnapshot.snapshotId,
@@ -181,18 +213,11 @@ function locateOwnedFrame(
  * unique match, and checks visibility/operability. Returns the pinned element
  * handle so no later locator resolution can auto-rebind to another element.
  */
-async function bindUniqueTarget(
+/** The stable candidate locators for a snapshot node, in priority order. */
+function candidateLocatorsFor(
   node: SnapshotNode,
   frame: Frame,
-  options: ResolveTargetOptions,
-): Promise<
-  | {
-      status: 'bound';
-      locator: Locator;
-      elementHandle: ElementHandle<SVGElement | HTMLElement>;
-    }
-  | ResolveTargetFailure
-> {
+): Array<{ strategy: string; locator: Locator }> {
   const candidateLocators: Array<{ strategy: string; locator: Locator }> = [];
 
   // Priority 1: test_id contract
@@ -301,20 +326,120 @@ async function bindUniqueTarget(
   }
 
   // Fallback: If no candidate was formed, fallback to testid or bounds
-  if (candidateLocators.length === 0) {
-    if (node.name) {
-      candidateLocators.push({
-        strategy: 'name_fallback',
-        locator: frame.locator(`text="${node.name}"`),
-      });
-    } else {
+  if (candidateLocators.length === 0 && node.name) {
+    candidateLocators.push({
+      strategy: 'name_fallback',
+      locator: frame.locator(`text="${node.name}"`),
+    });
+  }
+  return candidateLocators;
+}
+
+type BoundTarget = {
+  status: 'bound';
+  locator: Locator;
+  elementHandle: ElementHandle<SVGElement | HTMLElement>;
+};
+
+type PinnedBinding =
+  | BoundTarget
+  /** The snapshot pinned an element and it is no longer in the document. */
+  | { status: 'gone' }
+  /** No usable registry entry, or it is hidden: let the locator path decide. */
+  | { status: 'unusable' };
+
+/**
+ * A locator that names exactly the pinned element: the first candidate strategy
+ * that matches it, narrowed to its position among the matches (a list page has
+ * one per row). Null when no strategy describes it any more, which means the
+ * element no longer looks like what the snapshot recorded.
+ */
+async function pinnedLocatorFor(
+  node: SnapshotNode,
+  frame: Frame,
+  element: ElementHandle<SVGElement | HTMLElement>,
+): Promise<Locator | null> {
+  for (const { locator } of candidateLocatorsFor(node, frame)) {
+    const index = await locator
+      .evaluateAll(
+        (elements, target) =>
+          elements.findIndex((candidate) => candidate === target),
+        element as ElementHandle<SVGElement>,
+      )
+      .catch(() => -1);
+    if (index < 0) continue;
+    const count = await locator.count().catch(() => 0);
+    return count === 1 ? locator : locator.nth(index);
+  }
+  return null;
+}
+
+/**
+ * Bind the DOM object the snapshot recorded for this node, when it is still the
+ * element the model chose: still in the document, still visible, still enabled,
+ * and still matching the recorded role/name (the candidate strategy must find
+ * it). Locator uniqueness is not required — that is the whole point on a table
+ * where every row has a 「详情」 button.
+ *
+ * Being the recorded object is what keeps the ancestor-visibility defense
+ * intact: a look-alike revealed by a style swap is a different object, so the
+ * freshness check below still rejects it.
+ */
+async function bindPinnedTarget(
+  page: Page,
+  node: SnapshotNode,
+  frame: Frame,
+  snapshotId: string,
+  options: ResolveTargetOptions,
+): Promise<PinnedBinding | ResolveTargetFailure> {
+  const elementHandle = await snapshotRegistryElement(
+    page,
+    snapshotId,
+    node.frameId,
+    frame,
+    node.nodeId,
+  );
+  if (!elementHandle) return { status: 'unusable' };
+  let keep = false;
+  try {
+    const connected = await elementHandle
+      .evaluate((element) => element.isConnected)
+      .catch(() => false);
+    // Gone: the caller decides between "not found" (nothing similar left) and
+    // "stale observation" (look-alikes remain).
+    if (!connected) return { status: 'gone' };
+    const visible = await elementHandle.isVisible().catch(() => false);
+    // A hidden pinned element defers to the locator path: it knows how to tell
+    // TARGET_HIDDEN from "another element was revealed" (VERSION_CONFLICT).
+    if (!visible && !options.allowHiddenForWait) return { status: 'unusable' };
+    const enabled = await elementHandle.isEnabled().catch(() => true);
+    if (!enabled)
       return {
         status: 'rejected',
-        reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
-        message: `Cannot form any stable locator for node '${node.nodeId}'.`,
+        reasonCode: STABLE_REASON_CODES.TARGET_DISABLED,
+        message: `Target element '${node.name || node.nodeId}' is disabled or has aria-disabled='true'. Refusing interaction.`,
       };
-    }
+    const locator = await pinnedLocatorFor(node, frame, elementHandle);
+    if (!locator) return { status: 'unusable' };
+    keep = true;
+    return { status: 'bound', locator, elementHandle };
+  } finally {
+    if (!keep) await elementHandle.dispose().catch(() => undefined);
   }
+}
+
+async function bindUniqueTarget(
+  node: SnapshotNode,
+  frame: Frame,
+  options: ResolveTargetOptions,
+): Promise<BoundTarget | ResolveTargetFailure> {
+  const candidateLocators = candidateLocatorsFor(node, frame);
+  if (candidateLocators.length === 0)
+    return {
+      status: 'rejected',
+      reasonCode: STABLE_REASON_CODES.TARGET_NOT_FOUND,
+      message: `Cannot form any stable locator for node '${node.nodeId}'.`,
+    };
 
   // 5. Evaluate Locators for Uniqueness and Validity
   let bestLocator: Locator | null = null;

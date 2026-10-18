@@ -95,6 +95,41 @@ export async function snapshotTargetUnchanged(
 }
 
 /**
+ * The exact DOM object the snapshot recorded for this node, or null when this
+ * observation has no usable registry (evicted, another document, an older
+ * snapshot). The caller owns the returned handle and must dispose it.
+ *
+ * This is the snapshot's own statement of "which element I meant": a list page
+ * with eleven identical 「详情」 buttons cannot be disambiguated by role and
+ * name, but the snapshot already pinned one object per node id.
+ */
+export async function snapshotRegistryElement(
+  page: Page,
+  snapshotId: string,
+  frameId: string,
+  frame: Frame,
+  nodeId: string,
+): Promise<ElementHandle<SVGElement | HTMLElement> | null> {
+  const record = pageWitnesses.get(page)?.get(snapshotId)?.get(frameId);
+  if (!record || record.frame !== frame || !record.registry) return null;
+  let handle: JSHandle<unknown>;
+  try {
+    handle = await record.registry.evaluateHandle(
+      (registry, id) => registry.byNodeId.get(id) ?? null,
+      nodeId,
+    );
+  } catch {
+    return null;
+  }
+  const element = handle.asElement();
+  if (!element) {
+    await handle.dispose().catch(() => undefined);
+    return null;
+  }
+  return element as ElementHandle<SVGElement | HTMLElement>;
+}
+
+/**
  * True when the bound element is the exact DOM object the snapshot recorded
  * for this node. A locator can silently rebind to another element with the
  * same role and name when the page reveals it through an ancestor's
@@ -201,38 +236,35 @@ async function enterButtonNodeIds(
   witness: DomWitness,
   registry: JSHandle<{ byNodeId: Map<string, Element> }>,
 ): Promise<Record<string, string>> {
-  return witness.handle.evaluate(
-    (w, reg: unknown) => {
-      const registry = reg as { byNodeId: Map<string, Element> };
-      const nodeIdByElement = new Map<Element, string>();
-      for (const [nodeId, element] of registry.byNodeId)
-        nodeIdByElement.set(element, nodeId);
-      const out: Record<string, string> = {};
-      for (const [nodeId, element] of registry.byNodeId) {
-        const tag = element.tagName.toLowerCase();
-        const textLike =
-          tag === 'textarea' ||
-          (tag === 'input' &&
-            [
-              'text',
-              'email',
-              'tel',
-              'url',
-              'search',
-              'number',
-              'password',
-              '',
-            ].includes((element as HTMLInputElement).type.toLowerCase()));
-        if (!textLike) continue;
-        const button = w.enterButton(element);
-        if (!button) continue;
-        const buttonNodeId = nodeIdByElement.get(button);
-        if (buttonNodeId) out[nodeId] = buttonNodeId;
-      }
-      return out;
-    },
-    registry as unknown,
-  );
+  return witness.handle.evaluate((w, reg: unknown) => {
+    const registry = reg as { byNodeId: Map<string, Element> };
+    const nodeIdByElement = new Map<Element, string>();
+    for (const [nodeId, element] of registry.byNodeId)
+      nodeIdByElement.set(element, nodeId);
+    const out: Record<string, string> = {};
+    for (const [nodeId, element] of registry.byNodeId) {
+      const tag = element.tagName.toLowerCase();
+      const textLike =
+        tag === 'textarea' ||
+        (tag === 'input' &&
+          [
+            'text',
+            'email',
+            'tel',
+            'url',
+            'search',
+            'number',
+            'password',
+            '',
+          ].includes((element as HTMLInputElement).type.toLowerCase()));
+      if (!textLike) continue;
+      const button = w.enterButton(element);
+      if (!button) continue;
+      const buttonNodeId = nodeIdByElement.get(button);
+      if (buttonNodeId) out[nodeId] = buttonNodeId;
+    }
+    return out;
+  }, registry as unknown);
 }
 
 async function newDomWitness(frame: Frame): Promise<DomWitness> {
@@ -332,10 +364,7 @@ async function newDomWitness(frame: Frame): Promise<DomWitness> {
       }
       let ancestor: Element | null = (form ?? control).parentElement;
       for (let depth = 0; ancestor && depth < ENTER_BUTTON_MAX_DEPTH; depth++) {
-        if (
-          ancestor === document.body ||
-          ancestor === document.documentElement
-        )
+        if (ancestor === document.body || ancestor === document.documentElement)
           return null;
         const buttons = Array.from(ancestor.querySelectorAll(BUTTONISH)).filter(
           isShown,

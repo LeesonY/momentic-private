@@ -240,7 +240,45 @@ test('a removed target is still refused', async () => {
   });
 });
 
-test('a duplicated target is still refused as ambiguous', async () => {
+test('a duplicated target binds the element the snapshot pinned', async () => {
+  await withPage(async (page) => {
+    await page.setContent(
+      '<div id="slot"><button data-testid="confirm">Original</button></div>',
+    );
+    const snapshot = await captureBrowserSnapshot(page, {
+      pageId: randomUUID(),
+    });
+    const node = snapshot.nodes.find((n) => n.nodeId === 'testid_confirm');
+    assert.ok(node);
+    // A look-alike appears after the observation. The snapshot recorded the
+    // first button's object identity, so the model's node still names one
+    // element — the one it meant — and no locator uniqueness is needed.
+    await page.evaluate(() => {
+      const second = document.createElement('button');
+      second.dataset.testid = 'confirm';
+      second.textContent = 'Original';
+      second.id = 'lookalike';
+      document.body.append(second);
+    });
+    const result = await resolveTarget(
+      page,
+      targetFor(snapshot, node),
+      snapshot,
+    );
+    assert.equal(result.status, 'resolved');
+    if (result.status !== 'resolved') return;
+    try {
+      const clickedId = await result.elementHandle.evaluate(
+        (element) => element.id,
+      );
+      assert.equal(clickedId, '', 'the pinned original, not the look-alike');
+    } finally {
+      await result.elementHandle.dispose().catch(() => undefined);
+    }
+  });
+});
+
+test('without a pinned element a duplicated target is still refused as ambiguous', async () => {
   await withPage(async (page) => {
     await page.setContent(
       '<div id="slot"><button data-testid="confirm">Confirm</button></div>',
@@ -250,6 +288,11 @@ test('a duplicated target is still refused as ambiguous', async () => {
     });
     const node = snapshot.nodes.find((n) => n.nodeId === 'testid_confirm');
     assert.ok(node);
+    // Evict this observation's DOM witness/registry: any snapshot taken through
+    // a path without a registry behaves the same way, and locator uniqueness is
+    // then the only evidence available.
+    for (let index = 0; index < 13; index += 1)
+      await captureBrowserSnapshot(page, { pageId: snapshot.pageId });
     await page.evaluate(() => {
       const second = document.createElement('button');
       second.dataset.testid = 'confirm';
@@ -504,19 +547,28 @@ test('typing between two submissions is not mistaken for a repeated click', asyn
         args: { target: targetFor(current, node), ...extra },
       });
     };
-    assert.equal((await act('click', 'testid_login-button')).status, 'succeeded');
+    assert.equal(
+      (await act('click', 'testid_login-button')).status,
+      'succeeded',
+    );
     assert.equal(
       (await act('type_text', 'testid_account', { text: 'smoke_user_114' }))
         .status,
       'succeeded',
     );
-    assert.equal((await act('click', 'testid_login-button')).status, 'succeeded');
+    assert.equal(
+      (await act('click', 'testid_login-button')).status,
+      'succeeded',
+    );
     assert.equal(
       (await act('type_text', 'testid_password', { text: 'WrongPwd_123' }))
         .status,
       'succeeded',
     );
-    assert.equal((await act('click', 'testid_login-button')).status, 'succeeded');
+    assert.equal(
+      (await act('click', 'testid_login-button')).status,
+      'succeeded',
+    );
   } finally {
     await session.close();
     await manager.close();
@@ -543,8 +595,14 @@ test('repeated clicks on an unchanged page are still stopped, and a state change
         args: { target: targetFor(current, node), ...extra },
       });
     };
-    assert.equal((await act('click', 'testid_login-button')).status, 'succeeded');
-    assert.equal((await act('click', 'testid_login-button')).status, 'succeeded');
+    assert.equal(
+      (await act('click', 'testid_login-button')).status,
+      'succeeded',
+    );
+    assert.equal(
+      (await act('click', 'testid_login-button')).status,
+      'succeeded',
+    );
     const stopped = await act('click', 'testid_login-button');
     assert.equal(stopped.status, 'failed');
     assert.equal(stopped.reasonCode, 'REPEATED_ACTION_LIMIT');
@@ -554,7 +612,10 @@ test('repeated clicks on an unchanged page are still stopped, and a state change
         .status,
       'succeeded',
     );
-    assert.equal((await act('click', 'testid_login-button')).status, 'succeeded');
+    assert.equal(
+      (await act('click', 'testid_login-button')).status,
+      'succeeded',
+    );
   } finally {
     await session.close();
     await manager.close();
