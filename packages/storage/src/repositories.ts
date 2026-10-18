@@ -1127,19 +1127,18 @@ function inUseModelMessage(
   reason: 'default' | 'schedule',
   names: readonly string[],
 ): string {
-  const unique = [...new Set(names)];
-  const shown = unique
-    .slice(0, 3)
-    .map((name) => `「${name}」`)
-    .join('');
+  // One entry per project. Projects may share a name, so the count comes from
+  // the rows and only the quoted names are de-duplicated.
+  const shownNames = [...new Set(names)].slice(0, 3);
+  const shown = shownNames.map((name) => `「${name}」`).join('');
   const subject =
-    unique.length > 3
-      ? `项目${shown}等 ${unique.length} 个项目`
+    names.length > shownNames.length
+      ? `项目${shown}等 ${names.length} 个项目`
       : `项目${shown}`;
-  const target = unique.length > 1 ? '这些项目' : '该项目';
+  const plural = names.length > 1;
   return reason === 'default'
-    ? `该模型仍是${subject}的默认模型，请先在${target}中更换或清除默认模型`
-    : `该模型仍被${subject}的启用定时计划引用，请先调整或停用${unique.length > 1 ? '这些计划' : '该计划'}`;
+    ? `该模型仍是${subject}的默认模型，请先在${plural ? '这些项目' : '该项目'}中更换或清除默认模型`
+    : `该模型仍被${subject}的启用定时计划引用，请先调整或停用${plural ? '这些计划' : '该计划'}`;
 }
 export class ModelRepository {
   constructor(
@@ -1284,7 +1283,7 @@ export class ModelRepository {
         );
       const scheduleProjects = (
         await client.query<{ name: string }>(
-          `SELECT DISTINCT p.name FROM schedules s
+          `SELECT DISTINCT p.id,p.name FROM schedules s
            JOIN projects p ON p.id=s.project_id
            WHERE s.enabled AND p.deleted_at IS NULL
              AND (s.run_template->>'modelProfileId'=$1::text
