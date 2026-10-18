@@ -404,7 +404,7 @@ export function signInFixture(config = {}) {
         allowedOrigins: [appOrigin],
         actionPolicy: 'non_submitting',
         writeScope: [],
-        budget: { maxActionsPerCase: 1, maxPages: 2, maxDepth: 1 },
+        budget: { maxActionsPerCase: 4, maxPages: 2, maxDepth: 1 },
       },
     },
   };

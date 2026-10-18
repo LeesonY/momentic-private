@@ -37,6 +37,7 @@ const files = [
   'apps/worker/test/session-permission.test.mjs',
   'apps/worker/test/browser-action-scope.test.mjs',
   'apps/worker/test/session-denial-recovery.test.mjs',
+  'apps/worker/test/session-case-limit.test.mjs',
   'apps/worker/test/session-tool-parity.test.mjs',
   'apps/worker/test/observation-window.test.mjs',
   'apps/worker/test/observation-text-diff.test.mjs',
