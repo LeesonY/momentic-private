@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useState,
+  useEffect,
+} from 'react';
 import type { User, Project } from '@localqa/contracts';
 import { defaultApiClient, isUsingMock, setUseMock } from '../api/index.ts';
 
@@ -129,15 +135,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (currentProject?.id !== projectId) return;
     // The deleted project was the selected one: switch to a project that can
     // actually be used (an archived one as a last resort), or the empty state.
+    // The route stays where the user is: the page that deletes a project keeps
+    // showing the list it just changed.
     setCurrentProject(
       remaining.find((project) => project.status === 'active') ??
         remaining[0] ??
         null,
     );
-    setRoute('home');
   };
 
-  const refreshProjects = async (): Promise<Project[]> => {
+  // Stable identity: pages list it as an effect dependency.
+  const refreshProjects = useCallback(async (): Promise<Project[]> => {
     const page = await defaultApiClient.listProjects();
     // Archived projects stay listed: the page manages them too.
     const items = page.items;
@@ -154,7 +162,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       );
     });
     return items;
-  };
+  }, []);
 
   // Initial user & project load
   useEffect(() => {

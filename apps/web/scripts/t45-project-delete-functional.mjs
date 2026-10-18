@@ -146,7 +146,13 @@ try {
   assert.equal(await confirm.isEnabled(), true);
   await confirm.click();
 
-  await page.waitForURL('**/#/home');
+  // The page stays on the list it just changed.
+  await page
+    .getByTestId('project-delete-dialog')
+    .waitFor({ state: 'detached' });
+  await page
+    .getByTestId(`project-row-${first.id}`)
+    .waitFor({ state: 'detached' });
   assert.deepEqual(calls, [
     { id: first.id, body: { expectedVersion: 3, confirmName: first.name } },
   ]);
