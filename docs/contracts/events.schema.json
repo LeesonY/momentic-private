@@ -544,6 +544,17 @@
           "maxItems": 200,
           "minItems": 0
         },
+        "signedOutExploredUrls": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 8192,
+            "pattern": "^https?://"
+          },
+          "maxItems": 30,
+          "minItems": 0
+        },
         "planningStopped": {
           "type": "boolean"
         },

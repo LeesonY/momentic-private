@@ -114,11 +114,17 @@ D["SessionDecision"]["properties"]["options"] = arr(text(120, minLength=1), 4)
 D["SessionDuplicateFinding"] = obj({"findingId": UUID, "sameAs": UUID, "reason": text(2000, minLength=1)})
 D["SessionDecision"]["properties"]["duplicateFindings"] = arr(ref("SessionDuplicateFinding"), 30)
 D["SessionDecision"]["properties"]["retryCaseIds"] = arr(UUID, 30)
+# Pages the planner wants to see *without* signing in (the login page itself, a
+# signed-out guard). Everything in exploreTargets is explored signed in.
+D["SessionDecision"]["properties"]["signedOutExploreTargets"] = arr(URI, 2)
 D["SessionConclusion"] = obj({"overview": text(4000, minLength=1), "caseComments": arr(obj({"caseId": UUID, "comment": text(1000)}), 30), "coverageGaps": arr(text(1000), 20)})
 D["SessionRound"] = obj({"round": integer(1, 64), "reason": text(2000), "caseIds": arr(UUID, 30), "exploreTargets": arr(URI, 30)})
 D["SessionReport"] = obj({"objective": text(4000), "round": integer(0, 64), "status": enum("planning", "working", "reviewing", "finalizing", "complete"), "plan": text(2000), "caseIds": arr(UUID, 30), "exploredUrls": arr(URI, 30), "coverageGaps": arr(text(2000), 100), "summary": text(4000), "history": arr(ref("SessionRound"), 64)})
 D["SessionReport"]["properties"]["messageCursor"] = nullable(UUID)
 D["SessionReport"]["properties"]["reviewedTaskIds"] = arr(UUID, 200)
+# Explored while signed out. Kept apart from exploredUrls so the same address
+# can still be explored signed in (and vice versa).
+D["SessionReport"]["properties"]["signedOutExploredUrls"] = arr(URI, 30)
 D["SessionReport"]["properties"]["planningStopped"] = BOOL
 # A malformed/unauthorized planner round keeps the session reviewable; only a
 # short consecutive streak stops planning. Hints are schema paths only.

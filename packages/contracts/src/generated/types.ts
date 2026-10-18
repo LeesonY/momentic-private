@@ -1592,6 +1592,11 @@ export interface SessionReport {
    * @maxItems 200
    */
   reviewedTaskIds?: string[];
+  /**
+   * @minItems 0
+   * @maxItems 30
+   */
+  signedOutExploredUrls?: string[];
   planningStopped?: boolean;
   invalidPlanStreak?: number;
   lastPlanFailure?: {
@@ -1915,6 +1920,11 @@ export interface SessionDecision {
    * @maxItems 30
    */
   retryCaseIds?: string[];
+  /**
+   * @minItems 0
+   * @maxItems 2
+   */
+  signedOutExploreTargets?: string[];
 }
 export interface SessionDuplicateFinding {
   findingId: string;
