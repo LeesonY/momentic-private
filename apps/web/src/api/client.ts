@@ -10,6 +10,7 @@ import type {
   ProjectCreate,
   ProjectPatch,
   ProjectDeleteConfirm,
+  ProjectDeletionPreview,
   ProjectPage,
   MemberUpdate,
   MemberPage,
@@ -283,8 +284,17 @@ export class HttpApiClient implements ApiClient {
     );
   }
 
-  // Platform admin only; the server deletes only an unmodified empty project.
-  public async deleteEmptyProject(projectId: string, input: ProjectDeleteConfirm): Promise<void> {
+  // Platform admin only. What is inside the project decides between a hard
+  // delete and a soft delete the server performs; the browser only previews it.
+  public async getProjectDeletionPreview(projectId: string): Promise<ProjectDeletionPreview> {
+    return this.request<ProjectDeletionPreview>(
+      `/projects/${encodeURIComponent(projectId)}/deletion-preview`,
+      { method: 'GET' },
+      'ProjectDeletionPreview',
+    );
+  }
+
+  public async deleteProject(projectId: string, input: ProjectDeleteConfirm): Promise<void> {
     await this.request<void>(
       `/projects/${encodeURIComponent(projectId)}`,
       {

@@ -9,6 +9,7 @@ import type {
   ProjectCreate,
   ProjectPatch,
   ProjectDeleteConfirm,
+  ProjectDeletionPreview,
   ProjectPage,
   MemberUpdate,
   MemberPage,
@@ -121,6 +122,7 @@ export type {
   ProjectCreate,
   ProjectPatch,
   ProjectDeleteConfirm,
+  ProjectDeletionPreview,
   ProjectPage,
   MemberUpdate,
   MemberPage,
@@ -374,7 +376,8 @@ export interface ApiClient {
   createProject(input: ProjectCreate): Promise<Project>;
   getProject(projectId: string): Promise<Project>;
   updateProject(projectId: string, input: ProjectPatch): Promise<Project>;
-  deleteEmptyProject(projectId: string, input: ProjectDeleteConfirm): Promise<void>;
+  getProjectDeletionPreview(projectId: string): Promise<ProjectDeletionPreview>;
+  deleteProject(projectId: string, input: ProjectDeleteConfirm): Promise<void>;
   listMembers(projectId: string, query?: PaginationQuery): Promise<MemberPage>;
   replaceMembers(projectId: string, input: MemberUpdate): Promise<Project>;
 
