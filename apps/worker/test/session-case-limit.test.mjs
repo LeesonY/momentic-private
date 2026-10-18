@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseContract } from '@localqa/contracts';
 import { DomainError } from '@localqa/domain';
+import { StorageError } from '@localqa/storage';
 import { Worker } from '../dist/index.js';
 
 const snapshot = (stateVersion, nodeId = 'main_node_0') =>
@@ -60,6 +61,7 @@ async function runCase({
   report,
   maxActionsPerCase = 4,
   grant,
+  finishError,
 }) {
   const ids = {
     project: randomUUID(),
@@ -76,6 +78,7 @@ async function runCase({
   const modelPayloads = [];
   const uploads = [];
   let grants = 0;
+  let finishCalls = 0;
   let stopped = false;
   let round = 0;
   const runtime = {
@@ -169,6 +172,8 @@ async function runCase({
       return artifact;
     },
     async finish(_proof, result, results) {
+      finishCalls += 1;
+      if (finishError && finishCalls === 1) throw finishError;
       finishes.push({ result, results });
     },
     async stop() {
@@ -669,4 +674,33 @@ test('an explorer that reaches its page limit ends exploration without stopping 
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
+});
+
+test('a failed finish is logged with its code before the blocked report', async (t) => {
+  const warn = t.mock.method(console, 'warn');
+  const { finishes, stopped } = await runCase({
+    allowedActions: 2,
+    decisions: [typeText(), { done: true, toolCalls: [] }],
+    report: {
+      status: 'passed',
+      summary: '完成',
+      verified: [],
+      gaps: [],
+      criteria: [
+        { criterionId: 'home_visible', result: 'passed', reason: 'ok' },
+        { criterionId: 'menus_checked', result: 'passed', reason: 'ok' },
+      ],
+      bug: null,
+    },
+    // Simulates the verdict guard rejecting the report shape (23514).
+    finishError: new StorageError('VALIDATION_ERROR'),
+  });
+  assert.equal(finishes.length, 1, 'the blocked report was still written');
+  assert.equal(finishes[0].result.agentReport.status, 'blocked');
+  assert.equal(stopped, false);
+  const logged = warn.mock.calls
+    .map((call) => String(call.arguments[0]))
+    .find((line) => line.includes('worker.case.blocked'));
+  assert.ok(logged, 'the blocked case is logged with its code');
+  assert.equal(JSON.parse(logged).code, 'VALIDATION_ERROR');
 });

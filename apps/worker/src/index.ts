@@ -2155,6 +2155,15 @@ export class Worker {
     code: string,
     detail: string,
   ): Promise<void> {
+    // Constant codes only: the next time a case is blocked, the real cause is
+    // in the logs instead of only in the generic user-facing text.
+    console.warn(
+      JSON.stringify({
+        event: 'worker.case.blocked',
+        taskId: proof.taskId,
+        code,
+      }),
+    );
     if (work.stage === 'explore') {
       await this.runtime.finish(proof, {
         stage: 'explore',

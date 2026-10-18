@@ -208,6 +208,15 @@ export class Coordinator {
             isActionDenialCode(error.code) ||
             error.code === 'BUDGET_EXCEEDED' ||
             error.code === 'VALIDATION_ERROR';
+          if (!preserved)
+            // Constant codes only: never the message, which may carry content.
+            console.warn(
+              JSON.stringify({
+                event: 'coordinator.tx.rewritten',
+                from: error.code,
+                to: 'VALIDATION_ERROR',
+              }),
+            );
           throw new StorageError(
             preserved ? (error.code as 'VALIDATION_ERROR') : 'VALIDATION_ERROR',
           );
@@ -2404,37 +2413,71 @@ export class Coordinator {
           run.executionMode === 'smoke' && result['oracle'] === 'agent_report';
         const report = byAgent ? parseAgentReport(result['agentReport']) : null;
         const reported = byAgent ? verdictFromReport(report, reason) : null;
-        const status = reported
-          ? reported.status
-          : verdictStatus(
-              definition,
-              results,
-              new Set(evidence),
-              reason === 'WORKER_INTERRUPTED' ? undefined : reason,
-            );
+        const ownedEvidence = new Set(evidence);
+        // The verdict guard (storage migration 002) rejects two report/status
+        // combinations with a 23514 that surfaces as VALIDATION_ERROR:
+        //   - issue_found without any failed criterion result;
+        //   - passed without every case criterion passed on owned evidence.
+        // A model report can hold either shape (e.g. "issue_found" with the
+        // unverifiable criterion left unknown). Keep the verdict, correct the
+        // status, and say why in gaps instead of failing the whole finish.
+        const allCriteriaPassed = definition.criteria.every((criterion) =>
+          results.some(
+            (entry) =>
+              entry.criterionId === criterion.id &&
+              entry.result === 'passed' &&
+              entry.evidenceRefs.some((id) => ownedEvidence.has(id)),
+          ),
+        );
+        const hasFailedCriterion = results.some(
+          (entry) => entry.result === 'failed',
+        );
+        const reportedStatus = reported?.status ?? null;
+        const status =
+          reportedStatus === 'issue_found' && !hasFailedCriterion
+            ? 'blocked'
+            : reportedStatus === 'passed' && !allCriteriaPassed
+              ? 'blocked'
+              : (reportedStatus ??
+                verdictStatus(
+                  definition,
+                  results,
+                  ownedEvidence,
+                  reason === 'WORKER_INTERRUPTED' ? undefined : reason,
+                ));
+        const statusCorrection =
+          reportedStatus && status !== reportedStatus
+            ? reportedStatus === 'issue_found'
+              ? '报告把用例标记为 issue_found，但没有任何验收标准判为 failed；按 blocked 记录，具体观察见 summary/gaps。'
+              : '报告把用例标记为 passed，但有验收标准未通过或缺少可用证据；按 blocked 记录，具体观察见 summary/gaps。'
+            : null;
         const verdict = parseContract('Verdict', {
           id: randomUUID(),
           caseId: job.case_id,
           attemptId: attempt.id,
           status,
-          reasonCode:
-            reported?.reasonCode ??
-            reason ??
-            (status === 'passed'
-              ? 'OBSERVED'
-              : status === 'issue_found'
-                ? 'CRITERION_FAILED'
-                : 'INSUFFICIENT_EVIDENCE'),
+          reasonCode: reported
+            ? status === reported.status
+              ? reported.reasonCode
+              : 'AGENT_BLOCKED'
+            : (reason ??
+              (status === 'passed'
+                ? 'OBSERVED'
+                : status === 'issue_found'
+                  ? 'CRITERION_FAILED'
+                  : 'INSUFFICIENT_EVIDENCE')),
           summary:
             reported?.summary ??
             reason ??
             'Fixed criteria evaluated against owned observations',
           criterionResults: results,
-          gaps:
-            reported?.gaps ??
-            (status === 'passed' || status === 'issue_found'
-              ? []
-              : [reason ?? 'Criteria not fully evaluated']),
+          gaps: [
+            ...(reported?.gaps ??
+              (status === 'passed' || status === 'issue_found'
+                ? []
+                : [reason ?? 'Criteria not fully evaluated'])),
+            ...(statusCorrection ? [statusCorrection] : []),
+          ].slice(0, 30),
           ...(reported ? { verified: reported.verified } : {}),
           createdAt: new Date().toISOString(),
         });
