@@ -218,3 +218,73 @@ test('a page that keeps mutating stops at the settle cap and says so', async () 
     await host.close();
   }
 });
+
+const SLOW_ACTION = `<!doctype html><html><body><main>
+  <form>
+    <div class="item"><input id="user" placeholder="请输入账号"></div>
+    <button type="button" id="go">登录</button>
+  </form>
+  <div id="hints"></div>
+</main>
+<script>
+  // A keydown handler that blocks for ~500 ms (a synchronous validation pass)
+  // and only schedules its hint 100 ms after it ends. A press has no network
+  // grace in front of the settle, so this is the shape that exposes a settle
+  // which measures its quiet window from before the action.
+  const busy = (ms) => {
+    const end = Date.now() + ms;
+    while (Date.now() < end) { /* spin */ }
+  };
+  document.getElementById('user').addEventListener('keydown', () => {
+    busy(500);
+    setTimeout(() => {
+      const hint = document.createElement('div');
+      hint.textContent = '请输入账号';
+      document.getElementById('hints').append(hint);
+    }, 100);
+  });
+</script></body></html>`;
+
+test('a slow action still gets its own quiet window afterwards', async () => {
+  // Installing the observer before the action must not make the action's own
+  // duration count as settling time: a 500 ms press whose hint arrives 100 ms
+  // after it ends would otherwise be photographed before the hint exists (the
+  // same false negative as "the field is filled but the hint is still there").
+  const host = await listen((_req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.end(SLOW_ACTION);
+  });
+  const manager = new BrowserManager();
+  try {
+    const browser = await session(manager, host.origin);
+    await browser.executeTool({ name: 'navigate', args: { url: host.origin } });
+    const before = await browser.getSnapshot({ forceFresh: true });
+    const account = before.nodes.find(
+      (node) => node.placeholder === '请输入账号',
+    );
+    assert.ok(account);
+    const started = Date.now();
+    const pressed = await browser.executeTool({
+      name: 'press',
+      args: { target: target(before, account), key: 'Tab' },
+    });
+    const elapsedMs = Date.now() - started;
+    assert.equal(pressed.status, 'succeeded');
+    assert.deepEqual(
+      texts(pressed.data),
+      ['请输入账号'],
+      'the hint that appeared after the action is in the observation',
+    );
+    assert.equal(pressed.data.settled, undefined);
+    // The quiet window is measured from the end of the action: the 500 ms press
+    // plus the 100 ms before the hint plus a 300 ms quiet window.
+    assert.ok(
+      elapsedMs >= 850,
+      `the quiet window restarted after the action (${elapsedMs} ms)`,
+    );
+    await browser.close();
+  } finally {
+    await manager.close();
+    await host.close();
+  }
+});

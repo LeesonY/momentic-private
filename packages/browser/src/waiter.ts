@@ -255,7 +255,6 @@ export class WaitAndRecoveryManager {
     const network = options.network;
     const streamGraceMs = options.streamGraceMs ?? 1500;
     const pollMs = 50;
-    const startedAt = Date.now();
     let installed: JSHandle<{
       state: () => { structural: number; lastAt: number; now: number };
       stop: () => void;
@@ -291,6 +290,10 @@ export class WaitAndRecoveryManager {
     let stopped = false;
     return {
       settle: async (signal?: AbortSignal) => {
+        // Measured from here, not from `beginDomSettle`: an action installs the
+        // observer before it acts and settles afterwards, and its own duration
+        // must not eat the quiet window that follows it.
+        const startedAt = Date.now();
         try {
           for (;;) {
             const observedAt = Date.now();
