@@ -5,6 +5,7 @@ import type {
   Project,
   ProjectCreate,
   ProjectPatch,
+  ProjectDeletionPreview,
   MemberUpdate,
   Environment,
   EnvironmentCreate,
@@ -221,11 +222,12 @@ const projectDTO = (row: ProjectRow): Project =>
 export class ProjectRepository {
   constructor(private db: Database) {}
   /**
-   * Permanent deletion is limited to pristine projects. The SECURITY DEFINER
-   * database function rechecks admin identity, name, version, ownership and
-   * every project-scoped table under a project row lock, preserving audit logs.
+   * Delete a project after exact name/version confirmation. Empty projects
+   * keep the original physical deletion; non-empty projects are soft-deleted
+   * by the SECURITY DEFINER function, which hides all data, disables schedules
+   * and revokes API keys. Active runs refuse the whole operation.
    */
-  async deleteEmpty(
+  async delete(
     actor: Actor,
     id: string,
     input: { expectedVersion: number; confirmName: string },
@@ -233,7 +235,7 @@ export class ProjectRepository {
     await this.db.actor(actor, async (client) => {
       await requireAdmin(client);
       const result = await client.query<{ result: string }>(
-        'SELECT public.remove_empty_project($1::uuid,$2::integer,$3::text) AS result',
+        'SELECT public.delete_project($1::uuid,$2::integer,$3::text) AS result',
         [id, input.expectedVersion, input.confirmName],
       );
       switch (result.rows[0]?.result) {
@@ -243,6 +245,18 @@ export class ProjectRepository {
           throw new StorageError('NOT_FOUND');
         case 'version_conflict':
           throw new StorageError('VERSION_CONFLICT');
+        case 'active_runs': {
+          const active = (
+            await client.query<{ count: number }>(
+              "SELECT count(*)::integer AS count FROM runs WHERE project_id=$1 AND status NOT IN ('completed','cancelled','failed')",
+              [id],
+            )
+          ).rows[0]?.count ?? 0;
+          throw new StorageError(
+            'CONFIG_IN_USE',
+            `项目还有 ${active} 个会话没结束，请先停止后再删除`,
+          );
+        }
         case 'not_empty':
           throw new StorageError(
             'VALIDATION_ERROR',
@@ -251,6 +265,84 @@ export class ProjectRepository {
         default:
           throw new StorageError('VALIDATION_ERROR', '项目名称确认不匹配');
       }
+    });
+  }
+  /**
+   * Platform-admin deletion preview. Counts follow the user-visible data:
+   * deleted runs, soft-deleted environments/profiles and revoked/expired keys
+   * do not count. `empty` keeps the original hard-delete condition exactly.
+   */
+  async deletionPreview(
+    actor: Actor,
+    id: string,
+  ): Promise<ProjectDeletionPreview> {
+    return this.db.actor(actor, async (client) => {
+      await requireAdmin(client);
+      const row = (
+        await client.query<{
+          id: string;
+          name: string;
+          version: number;
+          status: Project['status'];
+          empty: boolean;
+          runs: number;
+          active_runs: number;
+          saved_cases: number;
+          enabled_schedules: number;
+          environments: number;
+          auth_profiles: number;
+          members: number;
+          active_api_keys: number;
+        }>(
+          `SELECT p.id,p.name,p.version,p.status,
+                  public.project_is_empty(p.id) AS empty,
+                  (SELECT count(*)::integer FROM runs r
+                    WHERE r.project_id=p.id AND NOT EXISTS(
+                      SELECT 1 FROM run_deletions d
+                       WHERE d.project_id=r.project_id AND d.run_id=r.id
+                    )) AS runs,
+                  (SELECT count(*)::integer FROM runs r
+                    WHERE r.project_id=p.id
+                      AND r.status NOT IN ('completed','cancelled','failed')
+                      AND NOT EXISTS(
+                        SELECT 1 FROM run_deletions d
+                         WHERE d.project_id=r.project_id AND d.run_id=r.id
+                      )) AS active_runs,
+                  (SELECT count(*)::integer FROM saved_cases s
+                    WHERE s.project_id=p.id) AS saved_cases,
+                  (SELECT count(*)::integer FROM schedules s
+                    WHERE s.project_id=p.id AND s.enabled) AS enabled_schedules,
+                  (SELECT count(*)::integer FROM environments e
+                    WHERE e.project_id=p.id AND e.deleted_at IS NULL) AS environments,
+                  (SELECT count(*)::integer FROM auth_profiles a
+                    WHERE a.project_id=p.id AND a.deleted_at IS NULL) AS auth_profiles,
+                  (SELECT count(*)::integer FROM project_members m
+                    WHERE m.project_id=p.id) AS members,
+                  (SELECT count(*)::integer FROM api_keys k
+                    WHERE k.project_id=p.id AND k.revoked_at IS NULL
+                      AND (k.expires_at IS NULL OR k.expires_at>clock_timestamp())) AS active_api_keys
+             FROM projects p WHERE p.id=$1`,
+          [id],
+        )
+      ).rows[0];
+      if (!row) throw new StorageError('NOT_FOUND');
+      return parseContract('ProjectDeletionPreview', {
+        projectId: row.id,
+        name: row.name,
+        version: row.version,
+        status: row.status,
+        empty: row.empty,
+        counts: {
+          runs: row.runs,
+          activeRuns: row.active_runs,
+          savedCases: row.saved_cases,
+          enabledSchedules: row.enabled_schedules,
+          environments: row.environments,
+          authProfiles: row.auth_profiles,
+          members: row.members,
+          activeApiKeys: row.active_api_keys,
+        },
+      });
     });
   }
   async create(actor: Actor, input: ProjectCreate): Promise<Project> {
@@ -1030,6 +1122,25 @@ function modelEndpoint(profile: ModelProfileCreate | ModelProfile): void {
   )
     throw new StorageError('TARGET_NOT_ALLOWED');
 }
+/** Names only, never deleted projects; at most three are quoted. */
+function inUseModelMessage(
+  reason: 'default' | 'schedule',
+  names: readonly string[],
+): string {
+  const unique = [...new Set(names)];
+  const shown = unique
+    .slice(0, 3)
+    .map((name) => `「${name}」`)
+    .join('');
+  const subject =
+    unique.length > 3
+      ? `项目${shown}等 ${unique.length} 个项目`
+      : `项目${shown}`;
+  const target = unique.length > 1 ? '这些项目' : '该项目';
+  return reason === 'default'
+    ? `该模型仍是${subject}的默认模型，请先在${target}中更换或清除默认模型`
+    : `该模型仍被${subject}的启用定时计划引用，请先调整或停用${unique.length > 1 ? '这些计划' : '该计划'}`;
+}
 export class ModelRepository {
   constructor(
     private db: Database,
@@ -1146,34 +1257,51 @@ export class ModelRepository {
         );
       if (current.name !== data.confirmName)
         throw new StorageError('VALIDATION_ERROR', '输入的模型名称不匹配');
-      const inUse = (
-        await client.query<{ reason: string }>(
-          `SELECT 'default' AS reason FROM projects WHERE default_model_profile_id=$1
-           UNION ALL
-           SELECT 'run' FROM run_model_bindings b
+      const defaultProjects = (
+        await client.query<{ name: string }>(
+          'SELECT name FROM projects WHERE default_model_profile_id=$1 AND deleted_at IS NULL ORDER BY name',
+          [id],
+        )
+      ).rows.map((row) => row.name);
+      if (defaultProjects.length)
+        throw new StorageError(
+          'MODEL_NOT_CONFIGURED',
+          inUseModelMessage('default', defaultProjects),
+        );
+      const runInUse = (
+        await client.query(
+          `SELECT 1 FROM run_model_bindings b
            JOIN runs r ON r.id=b.run_id AND r.project_id=b.project_id
            WHERE b.profile_id=$1 AND r.status NOT IN ('completed','cancelled','failed')
-           UNION ALL
-           SELECT 'schedule' FROM schedules s JOIN projects p ON p.id=s.project_id
-           WHERE s.enabled AND (s.run_template->>'modelProfileId'=$1::text
-             OR (s.run_template->>'modelProfileId' IS NULL
-               AND p.default_model_profile_id IS NULL AND $1=(
-                 SELECT g.profile_id FROM model_profile_grants g
-                 JOIN model_profiles m ON m.id=g.profile_id
-                 WHERE g.project_id=s.project_id AND m.deleted_at IS NULL
-                 ORDER BY g.profile_id LIMIT 1)))
            LIMIT 1`,
           [id],
         )
-      ).rows[0];
-      if (inUse)
+      ).rowCount;
+      if (runInUse)
         throw new StorageError(
           'MODEL_NOT_CONFIGURED',
-          inUse.reason === 'default'
-            ? '该模型仍是项目默认模型，请先在对应项目中更换或清除默认模型'
-            : inUse.reason === 'run'
-              ? '该模型仍有未结束的测试任务，请结束任务后再删除'
-              : '该模型仍被启用的定时计划引用，请先调整或停用计划',
+          '该模型仍有未结束的测试任务，请结束任务后再删除',
+        );
+      const scheduleProjects = (
+        await client.query<{ name: string }>(
+          `SELECT DISTINCT p.name FROM schedules s
+           JOIN projects p ON p.id=s.project_id
+           WHERE s.enabled AND p.deleted_at IS NULL
+             AND (s.run_template->>'modelProfileId'=$1::text
+               OR (s.run_template->>'modelProfileId' IS NULL
+                 AND p.default_model_profile_id IS NULL AND $1::uuid=(
+                   SELECT g.profile_id FROM model_profile_grants g
+                   JOIN model_profiles m ON m.id=g.profile_id
+                   WHERE g.project_id=s.project_id AND m.deleted_at IS NULL
+                   ORDER BY g.profile_id LIMIT 1)))
+           ORDER BY p.name`,
+          [id],
+        )
+      ).rows.map((row) => row.name);
+      if (scheduleProjects.length)
+        throw new StorageError(
+          'MODEL_NOT_CONFIGURED',
+          inUseModelMessage('schedule', scheduleProjects),
         );
       const deleted = parseContract('ModelProfile', {
         ...current,

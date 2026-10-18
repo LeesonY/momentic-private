@@ -1204,107 +1204,538 @@ test('T43: membership replacement, role guard and project archive', async () => 
   recordTest('T43_members_and_archive', true);
 });
 
-test('T45: empty project deletion checks authorization, exact confirmation, data and audit retention', async () => {
-  const created = await apiRequest('POST', '/api/v1/projects', {
-    cookie: adminCookie,
-    body: { name: 'T45 Disposable Empty Project' },
+test('T45: project deletion preview, soft delete, active-run guard and model references', async () => {
+  const adminLogin = await apiRequest("POST", "/api/v1/auth/login", {
+    body: { email: "admin@t06.localqa", password: "AdminSuperPassword123!" },
   });
-  assert.equal(created.status, 201);
-  const project = created.json;
-  const url = `/api/v1/projects/${project.id}`;
-  const payload = {
-    expectedVersion: project.version,
-    confirmName: project.name,
-  };
-  const noAuth = await apiRequest('DELETE', url, { body: payload });
-  assert.equal(noAuth.status, 401);
-  const noAdmin = await apiRequest('DELETE', url, {
-    cookie: operatorCookie,
-    body: payload,
+  const localAdminCookie = `session=${adminLogin.setCookie.match(/session=([^;]+)/)[1]}`;
+  await await apiRequest("POST", "/api/v1/users", {
+    cookie: localAdminCookie,
+    body: {
+      email: "t45operator@t06.localqa",
+      displayName: "T45 Operator",
+      password: "OperatorPass12345!",
+      globalRole: "member",
+    },
   });
-  assert.equal(noAdmin.status, 403);
-  const wrongName = await apiRequest('DELETE', url, {
-    cookie: adminCookie,
-    body: { ...payload, confirmName: 'Wrong Project' },
+  const opLogin = await apiRequest("POST", "/api/v1/auth/login", {
+    body: { email: "t45operator@t06.localqa", password: "OperatorPass12345!" },
   });
-  assert.equal(wrongName.status, 422);
-  const wrongVersion = await apiRequest('DELETE', url, {
-    cookie: adminCookie,
-    body: { ...payload, expectedVersion: project.version + 1 },
-  });
-  assert.equal(wrongVersion.status, 409);
-  const existing = await apiRequest('GET', url, { cookie: adminCookie });
-  assert.equal(existing.status, 200);
-  const removed = await apiRequest('DELETE', url, {
-    cookie: adminCookie,
-    body: payload,
-  });
-  assert.equal(removed.status, 204);
-  const missing = await apiRequest('GET', url, { cookie: adminCookie });
-  assert.equal(missing.status, 404);
-  const audit = await apiContext.db.actor(
-    { userId: adminUser.id },
-    async (client) =>
-      (
-        await client.query(
-          `SELECT action,project_id,object_id
-         FROM audit_log WHERE object_id=$1 ORDER BY created_at`,
-          [project.id],
-        )
-      ).rows,
-  );
-  assert.ok(audit.some((row) => row.action === 'project.created'));
-  assert.ok(audit.some((row) => row.action === 'project.deleted'));
-  // The original audit UUID is still retained after its project is gone.
-  assert.ok(audit.some((row) => row.project_id === project.id));
-  assert.ok(
-    audit.some(
-      (row) => row.action === 'project.deleted' && row.project_id === null,
-    ),
-  );
+  const localOperatorCookie = `session=${opLogin.setCookie.match(/session=([^;]+)/)[1]}`;
+  const raw = new pg.Client({ connectionString: pgConnection });
+  await raw.connect();
 
-  const nonempty = await apiRequest('POST', '/api/v1/projects', {
-    cookie: adminCookie,
-    body: { name: 'T45 Nonempty Protected Project' },
-  });
-  assert.equal(nonempty.status, 201);
-  const member = await apiRequest(
-    'PUT',
-    `/api/v1/projects/${nonempty.json.id}/members`,
-    {
-      cookie: adminCookie,
+  const createEnvironment = async (projectId) => {
+    const res = await apiRequest("POST", `/api/v1/projects/${projectId}/environments`, {
+      cookie: localAdminCookie,
       body: {
-        expectedVersion: nonempty.json.version,
-        members: [
-          { userId: adminUser.id, role: 'owner' },
-          { userId: operatorUser.id, role: 'viewer' },
-        ],
+        name: "T45 Fixture Environment",
+        baseUrl: fixtureOrigin,
+        allowedOrigins: [fixtureOrigin],
+        tlsPolicy: "strict",
       },
-    },
-  );
-  assert.equal(member.status, 200);
-  const blocked = await apiRequest(
-    'DELETE',
-    `/api/v1/projects/${nonempty.json.id}`,
-    {
-      cookie: adminCookie,
+    });
+    assert.equal(res.status, 201, JSON.stringify(res.json));
+    return res.json;
+  };
+  const createProject = async (name) => {
+    const res = await apiRequest('POST', '/api/v1/projects', {
+      cookie: localAdminCookie,
+      body: { name },
+    });
+    assert.equal(res.status, 201, JSON.stringify(res.json));
+    return parseContract('Project', res.json);
+  };
+  const createModel = async (name) => {
+    const res = await apiRequest('POST', '/api/v1/model-profiles', {
+      cookie: localAdminCookie,
       body: {
-        expectedVersion: member.json.version,
-        confirmName: nonempty.json.name,
+        name,
+        endpoint: 'https://example.com/v1',
+        configuredModelId: 'test-stub',
+        adapter: 'openai_compatible',
+        dataBoundary: 'internal',
+        apiKey: seedKey,
       },
-    },
-  );
-  assert.equal(blocked.status, 422);
-  assert.equal(blocked.json.code, 'VALIDATION_ERROR');
-  assert.equal(
-    (
-      await apiRequest('GET', `/api/v1/projects/${nonempty.json.id}`, {
-        cookie: adminCookie,
-      })
-    ).status,
-    200,
-  );
-  recordTest('T45_safe_delete_empty_project', true);
+    });
+    assert.equal(res.status, 201, JSON.stringify(res.json));
+    return parseContract('ModelProfile', res.json);
+  };
+  const bindDefault = async (project, defaultModelProfileId) => {
+    const res = await apiRequest('PATCH', `/api/v1/projects/${project.id}`, {
+      cookie: localAdminCookie,
+      body: { expectedVersion: project.version, defaultModelProfileId },
+    });
+    assert.equal(res.status, 200, JSON.stringify(res.json));
+    return parseContract('Project', res.json);
+  };
+  const createApiKey = async (projectId) => {
+    const res = await apiRequest(
+      'POST',
+      `/api/v1/projects/${projectId}/api-keys`,
+      {
+        cookie: localAdminCookie,
+        body: { name: 'T45 deletion key', scope: ['runs:read'] },
+      },
+    );
+    assert.equal(res.status, 201, JSON.stringify(res.json));
+    return res.json;
+  };
+  const createSchedule = async (projectId, modelProfileId) => {
+    const res = await apiRequest(
+      'POST',
+      `/api/v1/projects/${projectId}/schedules`,
+      {
+        cookie: localAdminCookie,
+        body: {
+          name: 'T45 deletion schedule',
+          cron: '0 1 * * *',
+          timezone: 'Asia/Shanghai',
+          templateKind: 'smoke',
+          runTemplate: {
+            projectId,
+            targetUrl: `${fixtureOrigin}/`,
+            ...(modelProfileId ? { modelProfileId } : {}),
+          },
+        },
+      },
+    );
+    assert.equal(res.status, 201, JSON.stringify(res.json));
+    return res.json;
+  };
+  const createRun = async (projectId, environmentId) => {
+    const res = await apiRequest('POST', '/api/v1/runs', {
+      cookie: localAdminCookie,
+      headers: { 'Idempotency-Key': randomUUID() },
+      body: { projectId, targetUrl: `${fixtureOrigin}/`, ...(environmentId ? { environmentId } : {}) },
+    });
+    assert.equal(res.status, 202, JSON.stringify(res.json));
+    return res.json;
+  };
+  const preview = (projectId, cookie = localAdminCookie) =>
+    apiRequest('GET', `/api/v1/projects/${projectId}/deletion-preview`, {
+      cookie,
+    });
+  try {
+    // --- Empty project: preview, authorization, exact confirmation and audit.
+    const empty = await createProject('T45 Disposable Empty Project');
+    const emptyUrl = `/api/v1/projects/${empty.id}`;
+    const emptyPayload = {
+      expectedVersion: empty.version,
+      confirmName: empty.name,
+    };
+    const noAuth = await apiRequest('DELETE', emptyUrl, {
+      body: emptyPayload,
+    });
+    assert.equal(noAuth.status, 401);
+    const noAdmin = await apiRequest('DELETE', emptyUrl, {
+      cookie: localOperatorCookie,
+      body: emptyPayload,
+    });
+    assert.equal(noAdmin.status, 403);
+    const deniedPreview = await preview(empty.id, localOperatorCookie);
+    assert.equal(deniedPreview.status, 403);
+    const emptyPreview = await preview(empty.id);
+    assert.equal(emptyPreview.status, 200);
+    assert.deepEqual(emptyPreview.json, {
+      projectId: empty.id,
+      name: empty.name,
+      version: empty.version,
+      status: 'active',
+      empty: true,
+      counts: {
+        runs: 0,
+        activeRuns: 0,
+        savedCases: 0,
+        enabledSchedules: 0,
+        environments: 0,
+        authProfiles: 0,
+        members: 1,
+        activeApiKeys: 0,
+      },
+    });
+    parseContract('ProjectDeletionPreview', emptyPreview.json);
+    const wrongName = await apiRequest('DELETE', emptyUrl, {
+      cookie: localAdminCookie,
+      body: { ...emptyPayload, confirmName: 'Wrong Project' },
+    });
+    assert.equal(wrongName.status, 422);
+    const wrongVersion = await apiRequest('DELETE', emptyUrl, {
+      cookie: localAdminCookie,
+      body: { ...emptyPayload, expectedVersion: empty.version + 1 },
+    });
+    assert.equal(wrongVersion.status, 409);
+    assert.equal(
+      (await apiRequest('GET', emptyUrl, { cookie: localAdminCookie })).status,
+      200,
+    );
+    const removed = await apiRequest('DELETE', emptyUrl, {
+      cookie: localAdminCookie,
+      body: emptyPayload,
+    });
+    assert.equal(removed.status, 204);
+    assert.equal(
+      (await apiRequest('GET', emptyUrl, { cookie: localAdminCookie })).status,
+      404,
+    );
+    assert.equal((await preview(empty.id)).status, 404);
+    const emptyAudit = (
+      await raw.query(
+        `SELECT action,project_id FROM audit_log WHERE object_id=$1 ORDER BY created_at`,
+        [empty.id],
+      )
+    ).rows;
+    assert.ok(emptyAudit.some((row) => row.action === 'project.created'));
+    assert.ok(emptyAudit.some((row) => row.action === 'project.deleted'));
+    assert.ok(emptyAudit.some((row) => row.project_id === empty.id));
+    assert.ok(
+      emptyAudit.some(
+        (row) => row.action === 'project.deleted' && row.project_id === null,
+      ),
+    );
+    recordTest('T45_safe_delete_empty_project', true);
+
+    // --- Non-empty project: soft delete hides data, disables schedules and
+    // revokes API keys; its default model becomes deletable afterwards.
+    const softModel = await createModel('T45 Disposable Model');
+    let soft = await createProject('T45 Soft Delete Project');
+    soft = await bindDefault(soft, softModel.id);
+    const softKey = await createApiKey(soft.id);
+    const softSchedule = await createSchedule(soft.id, softModel.id);
+    const softEnv = await createEnvironment(soft.id);
+    const softRun = await createRun(soft.id, softEnv.id);
+    // Finish the run directly: this API test has no worker.
+    await raw.query(
+      "UPDATE runs SET status='cancelled',completion='none',version=version+1 WHERE id=$1",
+      [softRun.id],
+    );
+    const softPreview = await preview(soft.id);
+    assert.equal(softPreview.status, 200);
+    assert.deepEqual(softPreview.json.counts, {
+      runs: 1,
+      activeRuns: 0,
+      savedCases: 0,
+      enabledSchedules: 1,
+      environments: 1,
+      authProfiles: 0,
+      members: 1,
+      activeApiKeys: 1,
+    });
+    assert.equal(softPreview.json.empty, false);
+    const keyBefore = await apiRequest(
+      'GET',
+      `/api/v1/runs?projectId=${soft.id}`,
+      { headers: { Authorization: `Bearer ${softKey.token}` } },
+    );
+    assert.equal(keyBefore.status, 200);
+    const softRemoved = await apiRequest(
+      'DELETE',
+      `/api/v1/projects/${soft.id}`,
+      {
+        cookie: localAdminCookie,
+        body: { expectedVersion: soft.version, confirmName: soft.name },
+      },
+    );
+    assert.equal(softRemoved.status, 204);
+    const projectList = await apiRequest('GET', '/api/v1/projects', {
+      cookie: localAdminCookie,
+    });
+    assert.equal(projectList.status, 200);
+    assert.equal(
+      projectList.json.items.some((item) => item.id === soft.id),
+      false,
+    );
+    // Also invisible to non-admin member
+    assert.equal(
+      (
+        await apiRequest('GET', `/api/v1/projects/${soft.id}`, {
+          cookie: localOperatorCookie,
+        })
+      ).status,
+      404,
+    );
+    assert.equal(
+      (
+        await apiRequest('POST', '/api/v1/runs', {
+          cookie: localAdminCookie,
+          headers: { 'Idempotency-Key': randomUUID() },
+          body: { projectId: soft.id, targetUrl: `${fixtureOrigin}/`, environmentId: softEnv.id },
+        })
+      ).status,
+      404,
+    );
+    assert.equal(
+      (
+        await apiRequest('GET', `/api/v1/projects/${soft.id}`, {
+          cookie: localAdminCookie,
+        })
+      ).status,
+      404,
+    );
+    assert.equal(
+      (
+        await apiRequest('GET', `/api/v1/projects/${soft.id}/members`, {
+          cookie: localAdminCookie,
+        })
+      ).status,
+      404,
+    );
+    assert.equal(
+      (
+        await apiRequest('GET', `/api/v1/runs?projectId=${soft.id}`, {
+          cookie: localAdminCookie,
+        })
+      ).status,
+      404,
+    );
+    assert.equal(
+      (
+        await apiRequest('GET', `/api/v1/runs/${softRun.id}`, {
+          cookie: localAdminCookie,
+        })
+      ).status,
+      404,
+    );
+    assert.equal(
+      (
+        await apiRequest('GET', `/api/v1/runs/${softRun.id}/cases`, {
+          cookie: localAdminCookie,
+        })
+      ).status,
+      404,
+    );
+    assert.equal((await preview(soft.id)).status, 404);
+    const keyAfter = await apiRequest(
+      'GET',
+      `/api/v1/runs?projectId=${soft.id}`,
+      { headers: { Authorization: `Bearer ${softKey.token}` } },
+    );
+    assert.equal(keyAfter.status, 401);
+    const softRow = (
+      await raw.query(
+        'SELECT deleted_at,default_model_profile_id FROM projects WHERE id=$1',
+        [soft.id],
+      )
+    ).rows[0];
+    assert.ok(softRow.deleted_at instanceof Date);
+    assert.equal(softRow.default_model_profile_id, null);
+    const scheduleRow = (
+      await raw.query('SELECT enabled FROM schedules WHERE id=$1', [
+        softSchedule.id,
+      ])
+    ).rows[0];
+    assert.equal(scheduleRow.enabled, false);
+    const keyRow = (
+      await raw.query('SELECT revoked_at FROM api_keys WHERE id=$1', [
+        softKey.key.id,
+      ])
+    ).rows[0];
+    assert.ok(keyRow.revoked_at instanceof Date);
+    const softAudit = (
+      await raw.query(
+        `SELECT action,project_id,redacted_summary FROM audit_log WHERE object_id=$1`,
+        [soft.id],
+      )
+    ).rows;
+    assert.ok(
+      softAudit.some(
+        (row) =>
+          row.action === 'project.deleted' &&
+          row.project_id === soft.id &&
+          row.redacted_summary.empty === false,
+      ),
+    );
+    const modelDelete = await apiRequest(
+      'DELETE',
+      `/api/v1/model-profiles/${softModel.id}`,
+      {
+        cookie: localAdminCookie,
+        body: {
+          expectedVersion: softModel.version,
+          confirmName: softModel.name,
+        },
+      },
+    );
+    assert.equal(modelDelete.status, 204);
+    assert.equal(
+      (
+        await apiRequest('GET', `/api/v1/model-profiles/${softModel.id}`, {
+          cookie: localAdminCookie,
+        })
+      ).status,
+      404,
+    );
+    recordTest('T45_soft_delete_project', true);
+
+    // --- Active run blocks the delete without changing the project, schedule
+    // or API key.
+    const activeModel = await createModel('T45 Active Run Model');
+    let active = await createProject('T45 Active Run Project');
+    active = await bindDefault(active, activeModel.id);
+    const activeKey = await createApiKey(active.id);
+    const activeSchedule = await createSchedule(active.id, activeModel.id);
+    const activeEnv = await createEnvironment(active.id);
+    const activeRun = await createRun(active.id, activeEnv.id);
+    const blocked = await apiRequest(
+      'DELETE',
+      `/api/v1/projects/${active.id}`,
+      {
+        cookie: localAdminCookie,
+        body: { expectedVersion: active.version, confirmName: active.name },
+      },
+    );
+    assert.equal(blocked.status, 409);
+    assert.equal(blocked.json.code, 'CONFIG_IN_USE');
+    assert.match(blocked.json.message, /1 个会话/);
+    assert.equal(
+      (
+        await apiRequest('GET', `/api/v1/projects/${active.id}`, {
+          cookie: localAdminCookie,
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (
+        await raw.query('SELECT deleted_at FROM projects WHERE id=$1', [
+          active.id,
+        ])
+      ).rows[0].deleted_at,
+      null,
+    );
+    assert.equal(
+      (
+        await raw.query('SELECT enabled FROM schedules WHERE id=$1', [
+          activeSchedule.id,
+        ])
+      ).rows[0].enabled,
+      true,
+    );
+    assert.equal(
+      (
+        await raw.query('SELECT revoked_at FROM api_keys WHERE id=$1', [
+          activeKey.key.id,
+        ])
+      ).rows[0].revoked_at,
+      null,
+    );
+    // Clean up the active run so the fixture has no queued work.
+    await raw.query(
+      "UPDATE runs SET status='cancelled',completion='none',version=version+1 WHERE id=$1",
+      [activeRun.id],
+    );
+    recordTest('T45_active_run_blocks_delete', true);
+
+    // --- An archived project can still be deleted.
+    let archived = await createProject('T45 Archived Project');
+    const archive = await apiRequest(
+      'PATCH',
+      `/api/v1/projects/${archived.id}`,
+      {
+        cookie: localAdminCookie,
+        body: { expectedVersion: archived.version, status: 'archived' },
+      },
+    );
+    assert.equal(archive.status, 200);
+    archived = parseContract('Project', archive.json);
+    const archivedRemoved = await apiRequest(
+      'DELETE',
+      `/api/v1/projects/${archived.id}`,
+      {
+        cookie: localAdminCookie,
+        body: { expectedVersion: archived.version, confirmName: archived.name },
+      },
+    );
+    assert.equal(archivedRemoved.status, 204);
+    assert.equal(
+      (
+        await apiRequest('GET', `/api/v1/projects/${archived.id}`, {
+          cookie: localAdminCookie,
+        })
+      ).status,
+      404,
+    );
+    recordTest('T45_archived_project_delete', true);
+
+    // --- Model deletion names the blocking project for both default and
+    // enabled-schedule references.
+    let namedProject = await createProject('T45 Model Owner Project');
+    const namedModel = await createModel('T45 Named Model');
+    namedProject = await bindDefault(namedProject, namedModel.id);
+    const namedDelete = await apiRequest(
+      'DELETE',
+      `/api/v1/model-profiles/${namedModel.id}`,
+      {
+        cookie: localAdminCookie,
+        body: {
+          expectedVersion: namedModel.version,
+          confirmName: namedModel.name,
+        },
+      },
+    );
+    assert.equal(namedDelete.status, 409);
+    assert.equal(namedDelete.json.code, 'MODEL_NOT_CONFIGURED');
+    assert.match(namedDelete.json.message, /T45 Model Owner Project/);
+    const clearDefault = await apiRequest(
+      'PATCH',
+      `/api/v1/projects/${namedProject.id}`,
+      {
+        cookie: localAdminCookie,
+        body: {
+          expectedVersion: namedProject.version,
+          defaultModelProfileId: null,
+        },
+      },
+    );
+    assert.equal(clearDefault.status, 200);
+    namedProject = parseContract('Project', clearDefault.json);
+    const namedSchedule = await createSchedule(
+      namedProject.id,
+      namedModel.id,
+    );
+    const scheduleDelete = await apiRequest(
+      'DELETE',
+      `/api/v1/model-profiles/${namedModel.id}`,
+      {
+        cookie: localAdminCookie,
+        body: {
+          expectedVersion: namedModel.version,
+          confirmName: namedModel.name,
+        },
+      },
+    );
+    assert.equal(scheduleDelete.status, 409);
+    assert.equal(scheduleDelete.json.code, 'MODEL_NOT_CONFIGURED');
+    assert.match(scheduleDelete.json.message, /T45 Model Owner Project/);
+    assert.match(scheduleDelete.json.message, /启用定时计划/);
+    const disable = await apiRequest(
+      'PATCH',
+      `/api/v1/schedules/${namedSchedule.id}`,
+      {
+        cookie: localAdminCookie,
+        body: {
+          expectedVersion: namedSchedule.version,
+          enabled: false,
+        },
+      },
+    );
+    assert.equal(disable.status, 200);
+    const namedRemoved = await apiRequest(
+      'DELETE',
+      `/api/v1/model-profiles/${namedModel.id}`,
+      {
+        cookie: localAdminCookie,
+        body: {
+          expectedVersion: namedModel.version,
+          confirmName: namedModel.name,
+        },
+      },
+    );
+    assert.equal(namedRemoved.status, 204);
+    recordTest('T45_model_delete_names_project', true);
+  } finally {
+    await raw.end();
+  }
 });
 
 test('T06-6: Run Creation, Idempotency-Key Deduplication & Conflict', async () => {

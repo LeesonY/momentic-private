@@ -54,9 +54,27 @@ export function registerProjectRoutes(router: Router): void {
     return parseContract('Project', updated);
   });
 
+  // GET /api/v1/projects/{projectId}/deletion-preview
+  // Platform admin only; shows what a delete would do without changing data.
+  router.get(
+    '/api/v1/projects/{projectId}/deletion-preview',
+    async (ctx: RequestContext) => {
+      await requireAdmin(ctx);
+      const preview = await ctx.api.projectRepo.deletionPreview(
+        ctx.actor!,
+        ctx.params.projectId!,
+      );
+      ctx.res.statusCode = 200;
+      ctx.res.setHeader('Cache-Control', 'no-store');
+      return parseContract('ProjectDeletionPreview', preview);
+    },
+  );
+
   // DELETE /api/v1/projects/{projectId}
-  // Platform admin only; unmodified empty projects only. The database
-  // revalidates the exact name/version and project data under a row lock.
+  // Platform admin only. Empty projects are physically deleted; non-empty
+  // projects are soft-deleted and hidden, with schedules disabled and API keys
+  // revoked. The database revalidates name/version and active runs under a row
+  // lock.
   router.delete('/api/v1/projects/{projectId}', async (ctx: RequestContext) => {
     await requireAdmin(ctx);
     const id = ctx.params.projectId!;
@@ -80,7 +98,7 @@ export function registerProjectRoutes(router: Router): void {
         'Invalid project deletion confirmation',
         422,
       );
-    await ctx.api.projectRepo.deleteEmpty(ctx.actor!, id, {
+    await ctx.api.projectRepo.delete(ctx.actor!, id, {
       expectedVersion: (body as { expectedVersion: number }).expectedVersion,
       confirmName: (body as { confirmName: string }).confirmName,
     });

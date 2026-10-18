@@ -100,6 +100,7 @@ export async function claimTask(
   const row = (
     await client.query<JobRow>(
       `SELECT j.*,r.context_version,r.status run_status FROM jobs j JOIN runs r ON r.id=j.run_id
+       JOIN projects p ON p.id=j.project_id AND p.deleted_at IS NULL
        WHERE j.project_id=$1 AND j.status='queued' AND j.available_at<=clock_timestamp() AND r.status IN ('queued','running')
        ${
          admission
