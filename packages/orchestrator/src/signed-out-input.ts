@@ -2,11 +2,11 @@ import type { ToolCall } from '@localqa/contracts';
 
 /**
  * Mo's subagents may TYPE into a password box. A session-managed smoke run's
- * immutable signed-out case (`requiresLogin === false`) may therefore use an
- * obviously fictional test value on a password/sensitive input, while hidden
- * inputs stay forbidden, saved credentials are refused before the grant, and
- * every other lane (signed-in cases, explorers, regression runs) keeps the
- * original rule.
+ * immutable signed-out case (`requiresLogin === false`) or server-dispatched
+ * signed-out explorer may use an obviously fictional test value on a sensitive
+ * input. Hidden inputs stay forbidden, saved credentials are refused before
+ * the grant, and signed-in/regression lanes keep the original input rule.
+ * Focus/navigation is not text input, regardless of lane.
  */
 export const SIGNED_OUT_SENSITIVE_TOOLS: readonly string[] = Object.freeze([
   'type_text',

@@ -150,6 +150,30 @@ const text = (payload) =>
     .flatMap((message) => message.content.map((part) => part.text ?? ''))
     .join('\n');
 
+test('second refusal of the same target/reason tells the agent the count and to stop retrying', async () => {
+  const { modelPayloads, records } = await runExplorer({
+    decisions: ({ first }) => {
+      const action = { done: false, toolCalls: [{ name: 'type_text', args: {
+        target: { snapshotId: first.snapshotId, pageId: first.pageId, nodeId: 'main_node_0' },
+        text: 'WrongPwd_123',
+      } }] };
+      return [action, action, action, { done: true, toolCalls: [] }];
+    },
+    grant: (call) => {
+      if (call.name === 'type_text') throw Object.assign(new Error('SENSITIVE_INPUT_FORBIDDEN'),
+        { code: 'SENSITIVE_INPUT_FORBIDDEN' });
+      return { step: { id: randomUUID() } };
+    },
+    executeTool: (_call, { first }) => ({ status: 'succeeded', reasonCode: null, data: first }),
+  });
+  assert.doesNotMatch(text(modelPayloads[1]), /第 2 次被拒/);
+  assert.match(text(modelPayloads[2]), /第 2 次被拒/);
+  assert.match(text(modelPayloads[3]), /第 3 次被拒/);
+  assert.match(text(modelPayloads[2]), /必须换目标或结束/);
+  // Only initial navigation was granted/recorded; refusals never spend an intent.
+  assert.equal(records.length, 1);
+});
+
 test('a version conflict refreshes the observation and tells the model why', async () => {
   const { records, finishes, modelPayloads, refreshed } = await runExplorer({
     decisions: ({ first }) => [

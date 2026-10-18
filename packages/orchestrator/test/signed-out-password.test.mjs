@@ -301,7 +301,7 @@ test('both the current profile version and the frozen run version are compared',
   assert.equal(grant.call.name, 'type_text');
 });
 
-test('a signed-in case, an explorer and a regression run still refuse password input', async () => {
+test('signed-in cases and regression refuse input; a signed-out explorer accepts fictional input', async () => {
   // Signed-in case of the same session smoke run.
   const signedIn = savedFixture();
   signedInAuth(signedIn);
@@ -312,8 +312,8 @@ test('a signed-in case, an explorer and a regression run still refuse password i
   );
   assert.equal(credentialRead(signedIn), false);
 
-  // A signed-out exploration: the explorer is anonymous here (a signed-in one
-  // signs in itself), so it still may not type a password.
+  // The server-dispatched signed-out explorer has the same fictional-value
+  // lane as requiresLogin=false cases; saved credentials remain forbidden.
   const explorer = savedFixture();
   importedAuth(explorer);
   explorer.bindTask(
@@ -325,11 +325,11 @@ test('a signed-in case, an explorer and a regression run still refuse password i
     }),
   );
   const explorerSnapshot = addSnapshot(explorer, [snapshotNode()]);
-  await assert.rejects(
-    typed(explorer, explorerSnapshot, 'WrongPwd_123'),
-    (error) => error.code === 'SENSITIVE_INPUT_FORBIDDEN',
-  );
-  assert.equal(credentialRead(explorer), false);
+  const fictional = await typed(explorer, explorerSnapshot, 'WrongPwd_123');
+  assert.equal(fictional.call.name, 'type_text');
+  assert.equal(credentialRead(explorer), true);
+  await assert.rejects(typed(explorer, explorerSnapshot, savedPassword),
+    (error) => error.code === 'SAVED_CREDENTIAL_INPUT');
 
   // Regression run: session-managed smoke runs are the only released lane.
   const regression = signedOutFixture({ executionMode: 'regression' });
@@ -726,7 +726,7 @@ test('modifier combinations stay refused and Space keeps the old grant behavior'
   assert.equal(evaluate('Space').denial, null);
 });
 
-test('an explorer still gets the sensitive-input refusal before the Enter rule', async () => {
+test('a signed-out explorer Enter uses the same equivalent-button rule', async () => {
   const fixture = savedFixture();
   importedAuth(fixture);
   fixture.bindTask(
@@ -748,10 +748,44 @@ test('an explorer still gets the sensitive-input refusal before the Enter rule',
       text: '登录',
     }),
   ]);
-  await assert.rejects(
-    press(fixture, snapshot),
-    (error) => error.code === 'SENSITIVE_INPUT_FORBIDDEN',
-  );
+  const grant = await press(fixture, snapshot);
+  assert.equal(grant.call.name, 'press');
+});
+
+test('signed-in explorer can focus/navigate password fields but cannot inject text', async () => {
+  const fixture = savedFixture();
+  fixture.bindTask(fixture.addJob(null, {
+    role: 'explorer', stage: 'explore', status: 'running',
+  }));
+  signedInAuth(fixture);
+  const snapshot = addSnapshot(fixture, [snapshotNode()]);
+  const target = targetFor(snapshot, 'password-field');
+  await fixture.coordinator.grantAction(fixture.scope, fixture.proof,
+    { name: 'click', args: { target } });
+  for (const key of ['Tab', 'Shift+Tab', 'Escape', 'ArrowUp', 'ArrowDown'])
+    assert.equal((await press(fixture, snapshot, key)).call.name, 'press');
+  await assert.rejects(typed(fixture, snapshot, 'WrongPwd_123'),
+    (error) => error.code === 'SENSITIVE_INPUT_FORBIDDEN');
+  // Character/paste combinations are not even legal ToolCall keys in the
+  // current contract; they fail before any reservation or browser dispatch.
+  for (const key of ['a', 'Space', 'Control+V', 'Shift+A'])
+    await assert.rejects(press(fixture, snapshot, key));
+  await assert.rejects(press(fixture, snapshot, 'Enter'),
+    (error) => error.code === 'OUT_OF_SCOPE_MUTATION');
+  assert.equal(credentialRead(fixture), false);
+});
+
+test('signed-out explorer marker must be a trusted boolean, not a request argument', async () => {
+  for (const marker of [undefined, false, 'true']) {
+    const fixture = savedFixture();
+    fixture.bindTask(fixture.addJob(null, {
+      role: 'explorer', stage: 'explore', status: 'running', result: { signedOut: marker },
+    }));
+    signedInAuth(fixture);
+    const snapshot = addSnapshot(fixture, [snapshotNode()]);
+    await assert.rejects(typed(fixture, snapshot, 'WrongPwd_123'),
+      (error) => error.code === 'SENSITIVE_INPUT_FORBIDDEN');
+  }
 });
 
 test('a spent case action allowance is a case limit, not a run budget stop', async () => {

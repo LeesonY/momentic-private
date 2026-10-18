@@ -53,6 +53,7 @@ import { startLiveFrameCapture, type LiveFrameCapture } from './live-frame.js';
 import { startLiveDiagnostics } from './live-diagnostics.js';
 import { createRegressionAiAction } from './regression-ai.js';
 import { initializeBrowserAuthentication } from './auth-initialize-task.js';
+import { createActionDenialCounter } from './action-denial-count.js';
 import { withApprovedBrowserAuth } from './auth-import-task.js';
 import { finishPermissionLockedQuestion } from './session-permission.js';
 import { hasReadableMainContent } from './technical-smoke.js';
@@ -118,7 +119,7 @@ function denialGuidance(reasonCode: string): string {
   if (reasonCode === 'HIDDEN_INPUT_FORBIDDEN')
     return '这是隐藏输入框，按设计禁止操作，不会执行。不要再尝试这个目标。';
   if (reasonCode === 'SENSITIVE_INPUT_FORBIDDEN')
-    return '敏感输入框未放行（只有未登录用例可以用明显虚构的值输入），这个动作不会执行。不要再尝试，也不要使用真实账号密码。';
+    return '敏感输入未放行：只有平台交付的未登录用例或未登录探索可填明显虚构的值，已保存凭据仍会被拒。聚焦点击和 Tab、Shift+Tab、Escape、方向键不是输入；Enter 按等效按钮判断。不要重试字符输入，也不要使用真实账号密码。';
   if (reasonCode === 'SAVED_CREDENTIAL_INPUT')
     return '输入的值与已保存凭据相同，已被拒绝。请改用明显虚构的测试值，不要使用真实账号密码。';
   if (reasonCode === 'OUT_OF_SCOPE_MUTATION')
@@ -818,6 +819,7 @@ export class Worker {
         // Grant-stage refusals never reach the action ledger, so the task
         // result keeps a bounded, value-free trace of what was refused and
         // why (role/name come from the recorded snapshot node, never input).
+        const countActionDenial = createActionDenialCounter();
         const grantDenials: Array<{
           tool: string;
           reasonCode: string;
@@ -1670,7 +1672,8 @@ export class Worker {
                   type: 'text',
                   text: `DISPATCHED ${JSON.stringify({ executed: false, reasonCode })}`,
                 },
-                { type: 'text', text: denialGuidance(reasonCode) },
+                { type: 'text', text: [denialGuidance(reasonCode),
+                  countActionDenial(call, before, reasonCode)].filter(Boolean).join('\n') },
               ];
               // A stale observation is a platform condition, not the model's
               // mistake: refresh it once so the next decision starts from a
@@ -2304,13 +2307,16 @@ export class Worker {
       throw new DomainError('VALIDATION_ERROR');
     const prompt =
       role === 'assertion' ? renderAssertionPrompt() : renderPrompt(role);
+    const interactionNote = ['explorer', 'executor', 'reproducer'].includes(role)
+      ? '\n敏感框允许点击聚焦和 Tab、Shift+Tab、Escape、方向键；Enter 按等效按钮判断。只有平台明确交付的未登录用例/未登录探索可用 type_text 输入明显虚构的测试值，已保存凭据仍禁止。不要反复重试被拒目标。'
+      : '';
     const record = await this.runtime.model(
       proof,
       role,
       {
         purpose: role === 'planner' ? 'plan' : 'decide',
         messages: [
-          { role: 'system', content: [{ type: 'text', text: prompt.text }] },
+          { role: 'system', content: [{ type: 'text', text: prompt.text + interactionNote }] },
           ...messages,
         ],
         outputSchema: DECISION_SCHEMA as unknown as Record<string, unknown>,

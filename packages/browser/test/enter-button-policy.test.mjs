@@ -1,10 +1,23 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { PolicyInterceptor } from '../dist/index.js';
+import { PolicyInterceptor, isNavigationKey, isNonInputInteraction } from '../dist/index.js';
 
 const target = { nodeId: 'password', role: 'password', name: '密码' };
 const press = (policy, args, page = 'https://app.test/login') =>
   policy.checkAction({ name: 'press', args }, target, page);
+
+test('focus and navigation keys share the grant/browser non-input classification', () => {
+  const policy = new PolicyInterceptor({ mode: 'non_submitting' });
+  assert.equal(isNonInputInteraction({ name: 'click', args: { target } }), true);
+  assert.equal(policy.checkAction({ name: 'click', args: { target } }, target).allowed, true);
+  for (const key of ['Tab', 'Shift+Tab', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']) {
+    assert.equal(isNavigationKey(key), true);
+    assert.equal(isNonInputInteraction({ name: 'press', args: { target, key } }), true);
+    assert.equal(press(policy, { target, key }).allowed, true);
+  }
+  for (const key of ['a', 'Control+V', 'Space', 'Control+Enter', 'Shift+ArrowLeft'])
+    assert.equal(isNonInputInteraction({ name: 'press', args: { target, key } }), false);
+});
 
 test('a plain Enter with a target is judged by its button, not refused here', () => {
   const policy = new PolicyInterceptor({ mode: 'non_submitting' });

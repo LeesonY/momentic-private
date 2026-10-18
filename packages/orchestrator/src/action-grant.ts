@@ -6,7 +6,7 @@ import type {
   ToolCall,
 } from '@localqa/contracts';
 import { hashPayload, StorageError } from '@localqa/storage';
-import { isButtonLikeNode, withinWriteScope } from '@localqa/browser';
+import { isButtonLikeNode, isNonInputInteraction, withinWriteScope } from '@localqa/browser';
 import {
   isHiddenInput,
   isReleasedSensitiveTool,
@@ -34,7 +34,8 @@ export interface TargetGrantInput {
   /** Result hash of this task's latest succeeded non-capture action. */
   latestResultHash: string | null | undefined;
   call: ToolCall;
-  /** This task's immutable case is `requiresLogin === false`. */
+  /** Trusted signed-out lane: immutable case requiresLogin=false, or a
+   * server-dispatched explorer with result.signedOut=true. Never client input. */
   signedOutCase: boolean;
   actionPolicy: string;
   writeScope: readonly string[];
@@ -157,7 +158,7 @@ export function evaluateTargetGrant(
       releasedSensitive,
       enterButton,
     };
-  if (sensitiveInput && !releasedSensitive)
+  if (sensitiveInput && !releasedSensitive && !isNonInputInteraction(call))
     return {
       denial: 'SENSITIVE_INPUT_FORBIDDEN',
       node,

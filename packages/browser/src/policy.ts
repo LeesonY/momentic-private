@@ -6,6 +6,20 @@ import {
   type PolicyCheckResult,
 } from './types.js';
 
+/** Non-text keyboard navigation. No modifiers except Shift+Tab: combinations
+ * such as Control+V or Alt+ArrowLeft must not masquerade as navigation. */
+export function isNavigationKey(key: string): boolean {
+  return /^(?:tab|shift\+tab|escape|arrowup|arrowdown|arrowleft|arrowright)$/i.test(key);
+}
+
+/** Focus and plain Enter do not inject text into an input. Enter still goes
+ * through the equivalent-button policy in both the grant and browser layers. */
+export function isNonInputInteraction(call: ToolCall): boolean {
+  return call.name === 'click' ||
+    (call.name === 'press' &&
+      (isNavigationKey(call.args.key) || /^(?:enter|numpadenter)$/i.test(call.args.key)));
+}
+
 export interface PolicyOptions {
   mode?: ExecutionMode | undefined;
   allowedOrigins?: string[] | undefined;
@@ -352,7 +366,9 @@ export class PolicyInterceptor {
       const hasTarget = Boolean(
         (toolCall.args as { target?: unknown }).target,
       );
-      const plainEnter = key === 'enter' || key === 'numpadenter';
+      // Navigation keys never activate an equivalent button or type text.
+      const plainEnter = !isNavigationKey(key) &&
+        isNonInputInteraction(toolCall) && hasTarget;
       if (
         !(plainEnter && hasTarget) &&
         /(?:^|\+)(?:enter|numpadenter|space)$/.test(key)
