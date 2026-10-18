@@ -5221,6 +5221,11 @@
           "invalid": {
             "type": "boolean"
           },
+          "enterButtonNodeId": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
           "focused": {
             "type": "boolean"
           }
@@ -22241,6 +22246,11 @@
             "invalid": {
               "type": "boolean"
             },
+            "enterButtonNodeId": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1
+            },
             "focused": {
               "type": "boolean"
             }
@@ -29055,6 +29065,11 @@
           },
           "invalid": {
             "type": "boolean"
+          },
+          "enterButtonNodeId": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
           },
           "focused": {
             "type": "boolean"

@@ -203,6 +203,10 @@ D["SnapshotNode"]["properties"]["relatedNodeId"] = text(120, minLength=1)
 # (which often repeats the placeholder text) apart from the hint itself.
 D["SnapshotNode"]["properties"]["placeholder"] = text(200)
 D["SnapshotNode"]["properties"]["invalid"] = BOOL
+# For a text-like control, the nodeId of the button a plain Enter would
+# activate (same snapshot, unambiguous, visible/enabled). Optional: absent when
+# there is no single equivalent button. It carries no value or credential.
+D["SnapshotNode"]["properties"]["enterButtonNodeId"] = text(120, minLength=1)
 # The element that currently has keyboard focus in this frame. Keyboard cases
 # (Tab order, Enter submits) are otherwise unverifiable from a snapshot.
 D["SnapshotNode"]["properties"]["focused"] = BOOL

@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "sourceHashes": {
-    "domain.schema.json": "ddf8c087863101db91da21dc51a48864eca3b2ac1175f3722b9d97c8baa949f0",
+    "domain.schema.json": "d129a66860ed35e1a80f5dc6953d7ab4f7ac0b7f02d6b51e9621ab0cc5231292",
     "events.schema.json": "67b9c91d1773175790fc4381ad6900a275d45f9e8bf6dcc57e614056260316e3",
-    "openapi.json": "20d4c2f1007afbbf04b52b2812ac195cd6c0cca5cc0e51b6535c46ee4da6e914",
+    "openapi.json": "6ca1977a040cf73e311873d310c2bfb84a0d71874063a2479dc4bfd7b357bdf5",
     "regression.schema.json": "3311ab392986b0253fc833e5eb97eecefd6f612b767ed308fd8edd75a086b39f",
     "report.schema.json": "ce909b48d1dc207bcf3363d366eca80d116d6c716336fcdc0cc41258400250ea",
-    "tools.schema.json": "cfd7ac261ba12363d16afd44f512946adb666521aa60e5f72190976f88703aba"
+    "tools.schema.json": "66cc4d6e2ca117b50cd895abd011d9b3d5e3261abc9aa4f6c3a09866bf81d747"
   },
   "definitions": [
     "ActionPermit",

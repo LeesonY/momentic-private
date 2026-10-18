@@ -23,6 +23,8 @@ type DomWitness = {
   handle: JSHandle<{
     changed: () => boolean;
     targetUnchanged: (element: unknown) => boolean;
+    /** The button a plain Enter in this control would activate, if unique. */
+    enterButton: (element: unknown) => Element | null;
     stop: () => void;
   }>;
   /**
@@ -129,6 +131,110 @@ export async function snapshotTargetIdentity(
   }
 }
 
+/**
+ * The live DOM element a plain Enter in `control` would activate, computed by
+ * the snapshot's own rule. Returns null when there is no single equivalent
+ * button. The element is returned as a handle so the caller can compare its
+ * object identity with the button the snapshot recorded.
+ */
+export async function snapshotEnterButton(
+  page: Page,
+  snapshotId: string,
+  frameId: string,
+  frame: Frame,
+  control: ElementHandle<SVGElement | HTMLElement>,
+): Promise<ElementHandle<SVGElement | HTMLElement> | null> {
+  const record = pageWitnesses.get(page)?.get(snapshotId)?.get(frameId);
+  if (!record || record.frame !== frame) return null;
+  try {
+    const handle = await record.handle.evaluateHandle(
+      (w, element) => w.enterButton(element) ?? null,
+      control,
+    );
+    const element = handle.asElement();
+    if (!element) {
+      await handle.dispose().catch(() => undefined);
+      return null;
+    }
+    return element as ElementHandle<SVGElement | HTMLElement>;
+  } catch {
+    // Detached frame, destroyed execution context or disposed observer.
+    return null;
+  }
+}
+
+/**
+ * The snapshot-time element recorded for a node, held in the process-local
+ * registry. Used to prove that a live button is still the approved one.
+ */
+export async function snapshotNodeElement(
+  page: Page,
+  snapshotId: string,
+  frameId: string,
+  frame: Frame,
+  nodeId: string,
+): Promise<ElementHandle<SVGElement | HTMLElement> | null> {
+  const record = pageWitnesses.get(page)?.get(snapshotId)?.get(frameId);
+  if (!record || record.frame !== frame || !record.registry) return null;
+  try {
+    const handle = await record.registry.evaluateHandle(
+      (registry, id) => registry.byNodeId.get(id) ?? null,
+      nodeId,
+    );
+    const element = handle.asElement();
+    if (!element) {
+      await handle.dispose().catch(() => undefined);
+      return null;
+    }
+    return element as ElementHandle<SVGElement | HTMLElement>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * nodeId -> the button node a plain Enter in that control would activate, for
+ * every text-like control in the frame. Computed page-side from the snapshot's
+ * own rule; a button that is not a snapshot node is never referenced.
+ */
+async function enterButtonNodeIds(
+  witness: DomWitness,
+  registry: JSHandle<{ byNodeId: Map<string, Element> }>,
+): Promise<Record<string, string>> {
+  return witness.handle.evaluate(
+    (w, reg: unknown) => {
+      const registry = reg as { byNodeId: Map<string, Element> };
+      const nodeIdByElement = new Map<Element, string>();
+      for (const [nodeId, element] of registry.byNodeId)
+        nodeIdByElement.set(element, nodeId);
+      const out: Record<string, string> = {};
+      for (const [nodeId, element] of registry.byNodeId) {
+        const tag = element.tagName.toLowerCase();
+        const textLike =
+          tag === 'textarea' ||
+          (tag === 'input' &&
+            [
+              'text',
+              'email',
+              'tel',
+              'url',
+              'search',
+              'number',
+              'password',
+              '',
+            ].includes((element as HTMLInputElement).type.toLowerCase()));
+        if (!textLike) continue;
+        const button = w.enterButton(element);
+        if (!button) continue;
+        const buttonNodeId = nodeIdByElement.get(button);
+        if (buttonNodeId) out[nodeId] = buttonNodeId;
+      }
+      return out;
+    },
+    registry as unknown,
+  );
+}
+
 async function newDomWitness(frame: Frame): Promise<DomWitness> {
   const handle = await frame.evaluateHandle(() => {
     const MAX_RECORDS = 2000;
@@ -157,6 +263,91 @@ async function newDomWitness(frame: Frame): Promise<DomWitness> {
     };
     const contains = (element: Node, target: Node): boolean =>
       target === element || element.contains(target);
+
+    // ---- the button a plain Enter in a control would activate -----------
+    // Rules (keep in sync with docs and the grant's evaluateTargetGrant):
+    //  1. a button-like control activates itself;
+    //  2. a form's native default submit button wins;
+    //  3. otherwise the first ancestor holding visible buttons decides:
+    //     exactly one visible+enabled button is the equivalent button, more
+    //     than one is ambiguous (none), and a dialog is the outermost scope.
+    // Deliberately excluded from rule 3: plain links (a "forgot password" link
+    // beside a field is not its submit control) and any button that is hidden
+    // or disabled.
+    const BUTTONISH =
+      'button, [role="button"], input[type="submit"], input[type="button"], input[type="image"], input[type="reset"]';
+    const ENTER_BUTTON_MAX_DEPTH = 6;
+    const isDialogLike = (el: Element): boolean =>
+      el.tagName.toLowerCase() === 'dialog' ||
+      el.getAttribute('role') === 'dialog' ||
+      el.getAttribute('aria-modal') === 'true';
+    const isShown = (el: Element): boolean => {
+      if (el.closest('[aria-hidden="true"]')) return false;
+      if ((el as HTMLButtonElement).disabled) return false;
+      if (el.getAttribute('aria-disabled') === 'true') return false;
+      const style = window.getComputedStyle(el);
+      if (
+        style.display === 'none' ||
+        style.visibility === 'hidden' ||
+        style.opacity === '0'
+      )
+        return false;
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const isButtonLike = (el: Element): boolean => {
+      const tag = el.tagName.toLowerCase();
+      if (tag === 'button') return true;
+      if (tag === 'input') {
+        const type = (el as HTMLInputElement).type.toLowerCase();
+        return (
+          type === 'submit' ||
+          type === 'button' ||
+          type === 'image' ||
+          type === 'reset'
+        );
+      }
+      if (tag === 'a') return (el as HTMLAnchorElement).hasAttribute('href');
+      return el.getAttribute('role') === 'button';
+    };
+    const nativeSubmitButton = (form: HTMLFormElement): Element | null => {
+      for (const el of Array.from(form.elements)) {
+        const tag = el.tagName.toLowerCase();
+        if (tag === 'button') {
+          const type = (el as HTMLButtonElement).type.toLowerCase();
+          if (type === 'submit' || !el.hasAttribute('type')) return el;
+        } else if (tag === 'input') {
+          const type = (el as HTMLInputElement).type.toLowerCase();
+          if (type === 'submit' || type === 'image') return el;
+        }
+      }
+      return null;
+    };
+    const enterButton = (control: Element): Element | null => {
+      if (isButtonLike(control)) return control;
+      const form = (control as HTMLInputElement).form ?? null;
+      if (form) {
+        const native = nativeSubmitButton(form);
+        if (native) return native;
+      }
+      let ancestor: Element | null = (form ?? control).parentElement;
+      for (let depth = 0; ancestor && depth < ENTER_BUTTON_MAX_DEPTH; depth++) {
+        if (
+          ancestor === document.body ||
+          ancestor === document.documentElement
+        )
+          return null;
+        const buttons = Array.from(ancestor.querySelectorAll(BUTTONISH)).filter(
+          isShown,
+        );
+        if (buttons.length > 0)
+          return buttons.length === 1 ? buttons[0]! : null;
+        if (isDialogLike(ancestor)) return null;
+        ancestor = ancestor.parentElement;
+      }
+      return null;
+    };
+
     return {
       changed: () => {
         drain();
@@ -192,6 +383,8 @@ async function newDomWitness(frame: Frame): Promise<DomWitness> {
         }
         return true;
       },
+      enterButton: (element: unknown) =>
+        element ? enterButton(element as Element) : null,
       stop: () => observer.disconnect(),
     };
   });
@@ -273,7 +466,20 @@ export async function captureBrowserSnapshot(
         registry: frameExtract.registry,
       });
       if (frameExtract.truncated) isTruncated = true;
-      for (const node of frameExtract.nodes) {
+      // Record which button a plain Enter in each text control would activate.
+      // The witness runs the same rule live, so the grant and the executor
+      // compare one definition of "equivalent button".
+      const enterButtons = await enterButtonNodeIds(
+        witness,
+        frameExtract.registry,
+      ).catch(() => null);
+      const frameNodes = enterButtons
+        ? frameExtract.nodes.map((node) => {
+            const enterButtonNodeId = enterButtons[node.nodeId];
+            return enterButtonNodeId ? { ...node, enterButtonNodeId } : node;
+          })
+        : frameExtract.nodes;
+      for (const node of frameNodes) {
         if (allNodes.length >= 1000) {
           isTruncated = true;
           break;
@@ -303,6 +509,18 @@ export async function captureBrowserSnapshot(
       isTruncated = true;
       break;
     }
+  }
+
+  // A field may only point at a button that survived into this snapshot.
+  const presentNodeIds = new Set(
+    allNodes.map((node) => `${node.frameId}\u0000${node.nodeId}`),
+  );
+  for (const node of allNodes) {
+    if (
+      node.enterButtonNodeId &&
+      !presentNodeIds.has(`${node.frameId}\u0000${node.enterButtonNodeId}`)
+    )
+      delete node.enterButtonNodeId;
   }
 
   // Retrieve summaries from recorder

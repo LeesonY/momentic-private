@@ -696,6 +696,7 @@ export interface SnapshotNode {
   relatedNodeId?: string;
   placeholder?: string;
   invalid?: boolean;
+  enterButtonNodeId?: string;
   focused?: boolean;
 }
 export interface NetworkEntry {
