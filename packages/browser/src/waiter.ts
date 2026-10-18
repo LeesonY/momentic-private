@@ -427,7 +427,15 @@ export class WaitAndRecoveryManager {
       }
     }
 
-    if (consecutiveCount >= this.maxRepeatedActions) {
+    // Navigating to the current URL reloads the document. Repeated reloads
+    // are a valid stability test: allow the initial load plus three refreshes
+    // (and a few recovery attempts), without weakening inert-click protection.
+    // The ordinary task/case action budget still bounds navigation loops.
+    const repeatLimit =
+      actionName === 'navigate'
+        ? Math.max(10, this.maxRepeatedActions)
+        : this.maxRepeatedActions;
+    if (consecutiveCount >= repeatLimit) {
       throw new Error(
         `${STABLE_REASON_CODES.REPEATED_ACTION_LIMIT}: Action '${actionName}' on target '${targetKey}' repeated ${consecutiveCount} times on identical page state.`,
       );

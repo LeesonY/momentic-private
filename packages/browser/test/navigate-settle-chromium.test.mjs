@@ -111,6 +111,37 @@ test('the navigation observation is taken after the app rendered its real form',
   }
 });
 
+test('same-address navigate really reloads three times without weakening inert-click protection', async () => {
+  let loads = 0;
+  const host = await listen((req, res) => {
+    if (req.url === '/login') loads++;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.end('<!doctype html><html><body><button type="button">登录</button></body></html>');
+  });
+  const manager = new BrowserManager();
+  try {
+    const browser = await session(manager, host.origin);
+    let snapshot;
+    for (let i = 0; i < 4; i++) {
+      const navigation = await browser.executeTool({ name: 'navigate', args: { url: `${host.origin}/login` } });
+      assert.equal(navigation.status, 'succeeded', navigation.reasonCode ?? '');
+      snapshot = navigation.data;
+    }
+    assert.equal(loads, 4, 'initial load plus three fresh HTTP document requests');
+    for (let i = 0; i < 3; i++) {
+      const button = snapshot.nodes.find((node) => node.role === 'button');
+      const result = await browser.executeTool({ name: 'click', args: { target: target(snapshot, button) } });
+      assert.equal(result.status, i < 2 ? 'succeeded' : 'failed');
+      if (i < 2) snapshot = result.data;
+      else assert.equal(result.reasonCode, 'REPEATED_ACTION_LIMIT');
+    }
+    await browser.close();
+  } finally {
+    await manager.close();
+    await host.close();
+  }
+});
+
 test('a static page only pays the quiet window', async () => {
   const host = await listen((_req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');

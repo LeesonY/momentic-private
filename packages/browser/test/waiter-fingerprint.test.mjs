@@ -44,6 +44,27 @@ test('node ID or capture identity churn alone cannot evade loop detection', () =
   );
 });
 
+test('initial navigation plus three same-page refreshes are permitted', () => {
+  const waiter = new WaitAndRecoveryManager();
+  const fingerprint = waiter.computeFingerprint(snapshot('Login'));
+  for (let i = 0; i < 4; i++)
+    assert.doesNotThrow(() =>
+      waiter.recordAction('navigate', 'https://fixture.test/login', fingerprint),
+    );
+  // Navigation still has a bounded repetition guard; clicks keep their
+  // original third-action refusal even after legitimate refreshes.
+  for (let i = 4; i < 9; i++)
+    waiter.recordAction('navigate', 'https://fixture.test/login', fingerprint);
+  assert.throws(() =>
+    waiter.recordAction('navigate', 'https://fixture.test/login', fingerprint),
+    /REPEATED_ACTION_LIMIT/,
+  );
+  waiter.recordAction('click', 'submit', fingerprint);
+  waiter.recordAction('click', 'submit', fingerprint);
+  assert.throws(() => waiter.recordAction('click', 'submit', fingerprint),
+    /REPEATED_ACTION_LIMIT/);
+});
+
 test('a state-changing action between two clicks breaks the repeat run', () => {
   const waiter = new WaitAndRecoveryManager();
   const fingerprint = waiter.computeFingerprint(snapshot('Submit'));
