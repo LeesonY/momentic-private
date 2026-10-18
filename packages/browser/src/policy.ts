@@ -131,6 +131,25 @@ function isRestrictedLiteralHost(host: string): boolean {
   return restrictedIpv4Literal(host);
 }
 
+const BUTTONISH_INPUT_TYPES = new Set(['submit', 'button', 'image', 'reset']);
+
+/**
+ * A control that activates itself when it has focus and Enter is pressed: a
+ * button, a button role, an input button type, or a link. Kept in sync with
+ * the snapshot's own `isButtonLike`.
+ */
+export function isButtonLikeNode(node: {
+  role?: string | null;
+  inputType?: string | null;
+}): boolean {
+  return (
+    node.role === 'button' ||
+    node.role === 'link' ||
+    (typeof node.inputType === 'string' &&
+      BUTTONISH_INPUT_TYPES.has(node.inputType))
+  );
+}
+
 export function withinWriteScope(
   url: string,
   scope: readonly string[],
@@ -307,7 +326,11 @@ export class PolicyInterceptor {
     }
 
     // Keyboard activation can submit a form without a target; never let it
-    // bypass a frozen non-submitting policy or approved write scope.
+    // bypass a frozen non-submitting policy or approved write scope. A plain
+    // Enter *with* a target is judged by the button it activates: the executor
+    // re-resolves that button live and applies the click checks. Without a
+    // target the focus is unknown, and Space or a modifier combination is not
+    // a form's default activation, so those stay refused here.
     if (
       toolName === 'press' &&
       (this.mode === 'non_submitting' ||
@@ -317,7 +340,14 @@ export class PolicyInterceptor {
       const key = String(
         (toolCall.args as { key?: string }).key ?? '',
       ).toLowerCase();
-      if (/(?:^|\+)(?:enter|numpadenter|space)$/.test(key))
+      const hasTarget = Boolean(
+        (toolCall.args as { target?: unknown }).target,
+      );
+      const plainEnter = key === 'enter' || key === 'numpadenter';
+      if (
+        !(plainEnter && hasTarget) &&
+        /(?:^|\+)(?:enter|numpadenter|space)$/.test(key)
+      )
         return {
           allowed: false,
           reasonCode: STABLE_REASON_CODES.POLICY_DENIED,

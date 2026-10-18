@@ -81,6 +81,7 @@ const files = [
   'packages/orchestrator/test/regression-compiler.test.mjs',
   'packages/browser/test/auth-state.test.mjs',
   'packages/browser/test/policy-origin.test.mjs',
+  'packages/browser/test/enter-button-policy.test.mjs',
   'packages/browser/test/private-auth.test.mjs',
   'packages/browser/test/task-auth-privacy.test.mjs',
   'packages/browser/test/regression-locator.test.mjs',

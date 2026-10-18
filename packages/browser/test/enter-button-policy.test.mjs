@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { PolicyInterceptor } from '../dist/index.js';
+
+const target = { nodeId: 'password', role: 'password', name: '密码' };
+const press = (policy, args, page = 'https://app.test/login') =>
+  policy.checkAction({ name: 'press', args }, target, page);
+
+test('a plain Enter with a target is judged by its button, not refused here', () => {
+  const policy = new PolicyInterceptor({ mode: 'non_submitting' });
+  assert.equal(press(policy, { target, key: 'Enter' }).allowed, true);
+  // Without a target the focus is unknown.
+  assert.equal(press(policy, { key: 'Enter' }).allowed, false);
+  // Space and modifier combinations are not the form's default activation.
+  assert.equal(press(policy, { target, key: 'Space' }).allowed, false);
+  assert.equal(press(policy, { target, key: 'Control+Enter' }).allowed, false);
+  assert.equal(press(policy, { target, key: 'Shift+Enter' }).allowed, false);
+  // Other keys keep their old allowance.
+  assert.equal(press(policy, { target, key: 'Tab' }).allowed, true);
+  assert.equal(press(policy, { target, key: 'Escape' }).allowed, true);
+});
+
+test('approved workflows outside the write scope still judge a plain Enter by its button', () => {
+  const policy = new PolicyInterceptor({
+    mode: 'approved_workflows',
+    allowedOrigins: ['https://app.test'],
+    writeScope: ['https://app.test/org'],
+  });
+  assert.equal(
+    press(policy, { target, key: 'Enter' }, 'https://app.test/settings').allowed,
+    true,
+  );
+  assert.equal(
+    press(policy, { target, key: 'Control+Enter' }, 'https://app.test/settings')
+      .allowed,
+    false,
+  );
+});

@@ -18,10 +18,18 @@ import {
   validateContract,
   toolMetadata,
 } from '@localqa/contracts';
-import { STABLE_REASON_CODES, type ActionTargetMetadata } from './types.js';
-import { PolicyInterceptor } from './policy.js';
+import {
+  STABLE_REASON_CODES,
+  type ActionTargetMetadata,
+  type StableReasonCode,
+} from './types.js';
+import { PolicyInterceptor, isButtonLikeNode } from './policy.js';
 import { resolveTarget } from './resolver.js';
-import { captureBrowserSnapshot } from './snapshot.js';
+import {
+  captureBrowserSnapshot,
+  snapshotEnterButton,
+  snapshotNodeElement,
+} from './snapshot.js';
 import type { SessionRecorder } from './recorder.js';
 import type { WaitAndRecoveryManager } from './waiter.js';
 
@@ -46,12 +54,14 @@ function getTargetPage(ctx: ExecutorContext, pageId?: string): Page | null {
   return pageId === ctx.pageId ? ctx.page : null;
 }
 
+type ResolvedTarget = Extract<
+  Awaited<ReturnType<typeof resolveTarget>>,
+  { status: 'resolved' }
+>;
+
 /** Policy hints are read from the current DOM, never from the model. */
 async function inspectedTargetMetadata(
-  resolved: Extract<
-    Awaited<ReturnType<typeof resolveTarget>>,
-    { status: 'resolved' }
-  >,
+  resolved: Pick<ResolvedTarget, 'elementHandle' | 'node'>,
   page: Page,
 ): Promise<ActionTargetMetadata> {
   const handle = resolved.elementHandle;
@@ -98,6 +108,107 @@ async function inspectedTargetMetadata(
       ) &&
       (type === 'submit' || resolved.node.role === 'button'),
   };
+}
+
+type EnterButtonResolution =
+  | { status: 'allowed'; metadata: ActionTargetMetadata }
+  | { status: 'rejected'; reasonCode: StableReasonCode };
+
+/**
+ * A plain Enter is authorized exactly like clicking the button it activates.
+ * The snapshot recorded that button; the live DOM must still resolve to the
+ * same object, and the click policy must accept its current metadata. A
+ * mismatch is a version conflict (the model's observation is stale), not a
+ * policy refusal.
+ */
+async function inspectedEnterButton(
+  ctx: ExecutorContext,
+  page: Page,
+  resolved: ResolvedTarget,
+): Promise<EnterButtonResolution> {
+  const snapshot = ctx.currentSnapshot;
+  const buttonNodeId = resolved.node.enterButtonNodeId;
+  if (!snapshot || !buttonNodeId)
+    return {
+      status: 'rejected',
+      reasonCode: STABLE_REASON_CODES.POLICY_DENIED,
+    };
+  const buttonNode = snapshot.nodes.find(
+    (node) =>
+      node.nodeId === buttonNodeId && node.frameId === resolved.node.frameId,
+  );
+  if (!buttonNode)
+    return {
+      status: 'rejected',
+      reasonCode: STABLE_REASON_CODES.VERSION_CONFLICT,
+    };
+  const snapshotButton = await snapshotNodeElement(
+    page,
+    snapshot.snapshotId,
+    resolved.node.frameId,
+    resolved.frame,
+    buttonNodeId,
+  );
+  if (!snapshotButton)
+    return {
+      status: 'rejected',
+      reasonCode: STABLE_REASON_CODES.VERSION_CONFLICT,
+    };
+  const liveButton = await snapshotEnterButton(
+    page,
+    snapshot.snapshotId,
+    resolved.node.frameId,
+    resolved.frame,
+    resolved.elementHandle,
+  );
+  if (!liveButton) {
+    await snapshotButton.dispose().catch(() => undefined);
+    return {
+      status: 'rejected',
+      reasonCode: STABLE_REASON_CODES.VERSION_CONFLICT,
+    };
+  }
+  try {
+    const same = await liveButton.evaluate(
+      (element, expected) => (expected as unknown) === element,
+      snapshotButton,
+    );
+    if (!same)
+      return {
+        status: 'rejected',
+        reasonCode: STABLE_REASON_CODES.VERSION_CONFLICT,
+      };
+    // Read the button's current accessible identity: a label that changed to
+    // "删除" after the snapshot must still hit the destructive-keyword check.
+    const live = await liveButton.evaluate((element) => {
+      const tag = element.tagName.toLowerCase();
+      const role =
+        element.getAttribute('role') ||
+        (tag === 'input' ? (element as HTMLInputElement).type : tag);
+      const text = (element.textContent || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 200);
+      const name =
+        element.getAttribute('aria-label') ||
+        element.getAttribute('title') ||
+        text.slice(0, 100) ||
+        role;
+      return {
+        role: role.slice(0, 120),
+        name: name.slice(0, 1000),
+        text,
+      };
+    });
+    const metadata = await inspectedTargetMetadata(
+      { elementHandle: liveButton, node: { ...buttonNode, ...live } },
+      page,
+    );
+    return { status: 'allowed', metadata };
+  } finally {
+    await snapshotButton.dispose().catch(() => undefined);
+    await liveButton.dispose().catch(() => undefined);
+  }
 }
 
 /**
@@ -783,6 +894,57 @@ export class ToolExecutor {
                   toolCall,
                   ctx.currentSnapshot!,
                 );
+              }
+              // A plain Enter on a non-button control is authorized like a
+              // click on the button it activates. The grant already checked
+              // the snapshot's equivalent button; here the live DOM must
+              // resolve to that same object and pass the click policy.
+              if (
+                /^(enter|numpadenter)$/i.test(key) &&
+                !isButtonLikeNode(resolved.node)
+              ) {
+                const enter = await inspectedEnterButton(
+                  ctx,
+                  targetPage,
+                  resolved,
+                );
+                if (enter.status === 'rejected') {
+                  await resolved.elementHandle.dispose().catch(() => undefined);
+                  return this.finalizeResult(
+                    {
+                      requestId,
+                      actionId,
+                      status: 'denied',
+                      data: ctx.currentSnapshot as unknown as JsonValue,
+                      reasonCode: enter.reasonCode,
+                      evidenceRefs: [],
+                    },
+                    toolCall,
+                    ctx.currentSnapshot!,
+                  );
+                }
+                const buttonPolicy = ctx.policy.checkAction(
+                  { name: 'click', args: { target } },
+                  enter.metadata,
+                  targetPage.url(),
+                );
+                if (!buttonPolicy.allowed) {
+                  await resolved.elementHandle.dispose().catch(() => undefined);
+                  return this.finalizeResult(
+                    {
+                      requestId,
+                      actionId,
+                      status: 'denied',
+                      data: ctx.currentSnapshot as unknown as JsonValue,
+                      reasonCode:
+                        buttonPolicy.reasonCode ??
+                        STABLE_REASON_CODES.POLICY_DENIED,
+                      evidenceRefs: [],
+                    },
+                    toolCall,
+                    ctx.currentSnapshot!,
+                  );
+                }
               }
               try {
                 if (ctx.signal?.aborted)
