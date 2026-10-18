@@ -8,6 +8,20 @@ export interface WaitOptions {
   signal?: AbortSignal | undefined;
 }
 
+/**
+ * Page-level network activity, observed from Node so it survives a navigation.
+ * A single-page app's bootstrap request can start while the document is still
+ * parsing, so this is created *before* navigating; the DOM observer is created
+ * afterwards, on the new document.
+ */
+export interface NetworkWatch {
+  /** Date.now() of the last finished request, 0 when none has finished. */
+  lastFinishedAt(): number;
+  /** Date.now() at which each still-open request started. */
+  pending(): number[];
+  stop(): void;
+}
+
 export class WaitAndRecoveryManager {
   private readonly defaultActionTimeoutMs: number;
   private readonly navigationTimeoutMs: number;
@@ -186,9 +200,49 @@ export class WaitAndRecoveryManager {
    * still rearranging, and treating them as churn made every animated page wait
    * out the cap. A page with no structural change settles immediately.
    */
+  /**
+   * Starts observing the page's requests. Created before a navigation so a
+   * request fired while the document is still parsing is not missed, and
+   * released by the caller (`stop`) once the observation is taken.
+   */
+  public watchNetwork(page: Page): NetworkWatch {
+    const pending = new Map<Request, number>();
+    let lastFinishedAt = 0;
+    const onRequest = (request: Request) => {
+      pending.set(request, Date.now());
+    };
+    const onSettled = (request: Request) => {
+      pending.delete(request);
+      lastFinishedAt = Date.now();
+    };
+    page.on('request', onRequest);
+    page.on('requestfinished', onSettled);
+    page.on('requestfailed', onSettled);
+    return {
+      lastFinishedAt: () => lastFinishedAt,
+      pending: () => [...pending.values()],
+      stop: () => {
+        page.off('request', onRequest);
+        page.off('requestfinished', onSettled);
+        page.off('requestfailed', onSettled);
+      },
+    };
+  }
+
   public async beginDomSettle(
     page: Page,
-    options: { quietMs?: number | undefined; maxMs?: number | undefined } = {},
+    options: {
+      quietMs?: number | undefined;
+      maxMs?: number | undefined;
+      /**
+       * Also wait for the page's own requests: a single-page app renders its
+       * real UI once its config request comes back. Create it with
+       * `watchNetwork` before the navigation.
+       */
+      network?: NetworkWatch | undefined;
+      /** An open stream stops counting after this grace. */
+      streamGraceMs?: number | undefined;
+    } = {},
   ): Promise<{
     settle: (signal?: AbortSignal) => Promise<{
       stable: boolean;
@@ -198,7 +252,10 @@ export class WaitAndRecoveryManager {
   }> {
     const quietMs = options.quietMs ?? 300;
     const maxMs = options.maxMs ?? 1500;
+    const network = options.network;
+    const streamGraceMs = options.streamGraceMs ?? 1500;
     const pollMs = 50;
+    const startedAt = Date.now();
     let installed: JSHandle<{
       state: () => { structural: number; lastAt: number; now: number };
       stop: () => void;
@@ -234,22 +291,38 @@ export class WaitAndRecoveryManager {
     let stopped = false;
     return {
       settle: async (signal?: AbortSignal) => {
-        const started = Date.now();
         try {
           for (;;) {
+            const observedAt = Date.now();
             if (signal?.aborted)
-              return { stable: false, waitedMs: Date.now() - started };
+              return {
+                stable: false,
+                waitedMs: observedAt - startedAt,
+              };
             const state = await installed
               .evaluate((probe) => probe.state())
               .catch(() => null);
-            if (!state) return { stable: true, waitedMs: Date.now() - started };
-            const elapsed = Date.now() - started;
+            const now = Date.now();
+            const elapsed = now - startedAt;
+            if (!state) return { stable: true, waitedMs: elapsed };
             // With no structural change yet the page is already as it will be
             // (a value change does not rearrange anything): wait out the quiet
             // window once and stop. After a change, wait for the UI to finish.
             const quietFor =
               state.structural > 0 ? state.now - state.lastAt : elapsed;
-            if (quietFor >= quietMs) return { stable: true, waitedMs: elapsed };
+            const networkQuiet = network
+              ? now - network.lastFinishedAt() >= quietMs
+              : true;
+            const requestInFlight = network
+              ? network
+                  .pending()
+                  .some(
+                    (requestStartedAt) =>
+                      now - requestStartedAt < streamGraceMs,
+                  )
+              : false;
+            if (quietFor >= quietMs && networkQuiet && !requestInFlight)
+              return { stable: true, waitedMs: elapsed };
             if (elapsed >= maxMs) return { stable: false, waitedMs: elapsed };
             await new Promise((resolve) => setTimeout(resolve, pollMs));
           }

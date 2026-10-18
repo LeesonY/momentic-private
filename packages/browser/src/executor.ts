@@ -222,11 +222,13 @@ async function captureSettledSnapshot(
   page: Page,
   pageId: string,
   settled: { stable: boolean },
+  lastResponseStatus?: number | null,
 ): Promise<BrowserSnapshot> {
   return captureBrowserSnapshot(page, {
     pageId,
     stateVersion: ++ctx.stateVersion,
     recorder: ctx.recorder,
+    ...(lastResponseStatus !== undefined ? { lastResponseStatus } : {}),
     ...(settled.stable ? {} : { settled: false }),
   });
 }
@@ -439,10 +441,37 @@ export class ToolExecutor {
             );
           }
 
-          const response = await ctx.waiter.navigate(ctx.page, url, {
-            signal: ctx.signal,
-          });
-          const responseStatus = response ? response.status() : null;
+          // A first paint mounts the app and then fetches its config, so the
+          // observation is taken only once the page has stopped rearranging.
+          // The network watch is installed *before* navigating (the bootstrap
+          // request can start while the document is still parsing); the DOM
+          // observer must be installed after it, on the new document — a handle
+          // taken earlier dies with the old one. Without this the observation
+          // described a half-drawn shell whose nodes were replaced a moment
+          // later, which cost the 66 run a stale-snapshot conflict on its first
+          // click. The cap is longer than an action's because first paint
+          // legitimately takes 1–2 s.
+          const network = ctx.waiter.watchNetwork(ctx.page);
+          let responseStatus: number | null;
+          let settled: { stable: boolean; waitedMs: number };
+          try {
+            const response = await ctx.waiter.navigate(ctx.page, url, {
+              signal: ctx.signal,
+            });
+            responseStatus = response ? response.status() : null;
+            const domSettle = await ctx.waiter.beginDomSettle(ctx.page, {
+              quietMs: 300,
+              maxMs: 3000,
+              network,
+            });
+            try {
+              settled = await domSettle.settle(ctx.signal);
+            } finally {
+              await domSettle.stop();
+            }
+          } finally {
+            network.stop();
+          }
 
           // Navigation may follow redirects. Re-check the URL that actually
           // loaded so a redirect cannot move the session onto a disallowed or
@@ -451,12 +480,13 @@ export class ToolExecutor {
           if (/^https?:\/\//i.test(finalUrl)) {
             const finalCheck = ctx.policy.checkNavigationUrl(finalUrl);
             if (!finalCheck.allowed) {
-              const redirectSnapshot = await captureBrowserSnapshot(ctx.page, {
-                pageId: ctx.pageId,
-                stateVersion: ++ctx.stateVersion,
-                recorder: ctx.recorder,
-                lastResponseStatus: responseStatus,
-              });
+              const redirectSnapshot = await captureSettledSnapshot(
+                ctx,
+                ctx.page,
+                ctx.pageId,
+                settled,
+                responseStatus,
+              );
               return this.finalizeResult(
                 {
                   requestId,
@@ -477,12 +507,13 @@ export class ToolExecutor {
             }
           }
 
-          const snapshot = await captureBrowserSnapshot(ctx.page, {
-            pageId: ctx.pageId,
-            stateVersion: ++ctx.stateVersion,
-            recorder: ctx.recorder,
-            lastResponseStatus: responseStatus,
-          });
+          const snapshot = await captureSettledSnapshot(
+            ctx,
+            ctx.page,
+            ctx.pageId,
+            settled,
+            responseStatus,
+          );
 
           // Check action repetition loop
           const fingerprint = ctx.waiter.computeFingerprint(snapshot);
