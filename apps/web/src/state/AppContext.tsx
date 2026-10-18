@@ -15,6 +15,7 @@ export type AppRoute =
   | 'environments'
   | 'knowledge'
   | 'models'
+  | 'projects'
   | 'members-ops'
   | 'login';
 
@@ -31,6 +32,8 @@ interface AppContextValue {
   replaceProject: (project: Project) => void;
   removeProject: (projectId: string) => void;
   createProject: (name: string) => Promise<Project>;
+  /** Re-read the project list (admin pages act on projects outside the shell). */
+  refreshProjects: () => Promise<Project[]>;
   toggleMock: (enabled: boolean) => void;
   logout: () => Promise<void>;
   login: (username: string, password?: string) => Promise<void>;
@@ -123,10 +126,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const removeProject = (projectId: string) => {
     const remaining = projects.filter((project) => project.id !== projectId);
     setProjects(remaining);
-    setCurrentProject((previous) =>
-      previous?.id === projectId ? (remaining[0] ?? null) : previous,
+    if (currentProject?.id !== projectId) return;
+    // The deleted project was the selected one: switch to a project that can
+    // actually be used (an archived one as a last resort), or the empty state.
+    setCurrentProject(
+      remaining.find((project) => project.status === 'active') ??
+        remaining[0] ??
+        null,
     );
     setRoute('home');
+  };
+
+  const refreshProjects = async (): Promise<Project[]> => {
+    const page = await defaultApiClient.listProjects();
+    // Archived projects stay listed: the page manages them too.
+    const items = page.items;
+    setProjects(items);
+    setCurrentProject((previous) => {
+      const stillThere = previous
+        ? items.find((project) => project.id === previous.id)
+        : undefined;
+      return (
+        stillThere ??
+        items.find((project) => project.status === 'active') ??
+        items[0] ??
+        null
+      );
+    });
+    return items;
   };
 
   // Initial user & project load
@@ -205,6 +232,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         replaceProject,
         removeProject,
         createProject,
+        refreshProjects,
         toggleMock: setUseMock,
         logout,
         login,

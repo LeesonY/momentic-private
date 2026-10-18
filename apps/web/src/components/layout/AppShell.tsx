@@ -6,7 +6,13 @@ import { ThemeToggle } from '../ui/ThemeToggle.tsx';
 import { CreateProjectDialog } from './CreateProjectDialog.tsx';
 import { RecentRuns } from './RecentRuns.tsx';
 
-type NavItem = { key: AppRoute; label: string; icon: AppIconName };
+type NavItem = {
+  key: AppRoute;
+  label: string;
+  icon: AppIconName;
+  /** Only platform admins see this entry. */
+  adminOnly?: boolean;
+};
 
 // One flat list in Mo's order; models and members live under Settings.
 const mainNav: NavItem[] = [
@@ -26,7 +32,12 @@ const settingsNav: { label: string; items: NavItem[] }[] = [
   },
   {
     label: '平台',
-    items: [{ key: 'models', label: '模型管理', icon: 'cpu' }],
+    items: [
+      { key: 'models', label: '模型管理', icon: 'cpu' },
+      // Platform admins manage the project list itself; everyone else only
+      // ever sees the projects they belong to.
+      { key: 'projects', label: '项目管理', icon: 'layers', adminOnly: true },
+    ],
   },
 ];
 const settingsRoutes = new Set<AppRoute>(
@@ -153,19 +164,24 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({
               {settingsNav.map((group) => (
                 <div className="lqa-nav-group" key={group.label}>
                   <div className="lqa-nav-group-label">{group.label}</div>
-                  {group.items.map(({ key, label, icon }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      className={`lqa-nav-link ${activeRoute === key ? 'is-active' : ''}`}
-                      aria-current={activeRoute === key ? 'page' : undefined}
-                      onClick={() => navigate(key)}
-                      data-testid={`nav-${key}`}
-                    >
-                      <AppIcon name={icon} size={16} />
-                      <span>{label}</span>
-                    </button>
-                  ))}
+                  {group.items
+                    .filter(
+                      (item) =>
+                        !item.adminOnly || currentUser?.globalRole === 'admin',
+                    )
+                    .map(({ key, label, icon }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        className={`lqa-nav-link ${activeRoute === key ? 'is-active' : ''}`}
+                        aria-current={activeRoute === key ? 'page' : undefined}
+                        onClick={() => navigate(key)}
+                        data-testid={`nav-${key}`}
+                      >
+                        <AppIcon name={icon} size={16} />
+                        <span>{label}</span>
+                      </button>
+                    ))}
                 </div>
               ))}
             </nav>

@@ -9,6 +9,7 @@ import { FindingDetailPage } from './pages/FindingDetailPage.tsx';
 import { EnvironmentsPage } from './pages/EnvironmentsPage.tsx';
 import { KnowledgePage } from './pages/KnowledgePage.tsx';
 import { ModelsPage } from './pages/ModelsPage.tsx';
+import { ProjectsPage } from './pages/ProjectsPage.tsx';
 import { MembersOpsPage } from './pages/MembersOpsPage.tsx';
 import { SavedCasesPage } from './pages/SavedCasesPage.tsx';
 import { SavedCaseDetailPage } from './pages/SavedCaseDetailPage.tsx';
@@ -29,6 +30,7 @@ const pages: Record<Exclude<AppRoute, 'login'>, React.FC> = {
   environments: EnvironmentsPage,
   knowledge: KnowledgePage,
   models: ModelsPage,
+  projects: ProjectsPage,
   'members-ops': MembersOpsPage,
 };
 

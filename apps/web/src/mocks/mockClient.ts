@@ -14,6 +14,7 @@ import type {
   ProjectCreate,
   ProjectPatch,
   ProjectDeleteConfirm,
+  ProjectDeletionPreview,
   ProjectPage,
   Environment,
   EnvironmentCreate,
@@ -292,6 +293,8 @@ async function computeCanonicalDocSha256(doc: unknown): Promise<string> {
 
 export class MockApiClient implements ApiClient {
   private models = [...mockModelProfiles];
+  /** Soft-deleted projects stay in memory but disappear from every listing. */
+  private deletedProjects = new Set<string>();
   private runs: Run[] = [...mockRuns];
   private projects: Project[] = [{ ...mockProject }];
   private projectMembers: Member[] = mockMembers.map((member) => ({
@@ -372,11 +375,19 @@ export class MockApiClient implements ApiClient {
   }
 
   public async listProjects(_query?: PaginationQuery): Promise<ProjectPage> {
-    return { items: [...this.projects], nextCursor: null };
+    return {
+      items: this.projects.filter(
+        (project) => !this.deletedProjects.has(project.id),
+      ),
+      nextCursor: null,
+    };
   }
 
   public async getProject(projectId: string): Promise<Project> {
-    const p = this.projects.find((x) => matchesProjectId(x.id, projectId));
+    const p = this.projects.find(
+      (x) =>
+        matchesProjectId(x.id, projectId) && !this.deletedProjects.has(x.id),
+    );
     if (!p) {
       const err = new Error('项目不存在 (404)') as Error & { status: number };
       err.status = 404;
@@ -415,7 +426,60 @@ export class MockApiClient implements ApiClient {
     return updated;
   }
 
-  public async deleteEmptyProject(
+  /** What a deletion would remove, so the dialog can say it before asking. */
+  public async getProjectDeletionPreview(
+    projectId: string,
+  ): Promise<ProjectDeletionPreview> {
+    const project = this.projects.find((p) =>
+      matchesProjectId(p.id, projectId),
+    );
+    if (!project) {
+      const err = new Error('项目不存在 (404)') as Error & { status: number };
+      err.status = 404;
+      throw err;
+    }
+    const runs = this.runs.filter((run) => run.projectId === project.id);
+    const counts = {
+      runs: runs.length,
+      activeRuns: runs.filter((run) =>
+        ['queued', 'running', 'awaiting_input', 'cancelling'].includes(
+          run.status,
+        ),
+      ).length,
+      savedCases: this.savedCases.filter(
+        (item) => item.projectId === project.id,
+      ).length,
+      enabledSchedules: this.schedules.filter(
+        (item) => item.projectId === project.id && item.enabled,
+      ).length,
+      environments: this.environments.filter(
+        (item) => item.projectId === project.id,
+      ).length,
+      authProfiles: this.authProfiles.filter(
+        (item) => item.projectId === project.id,
+      ).length,
+      // The mock keeps one member list for its single project.
+      members:
+        project.id === this.projects[0]?.id ? this.projectMembers.length : 0,
+      activeApiKeys: this.apiKeys.filter(
+        (item) => item.projectId === project.id && !item.revokedAt,
+      ).length,
+    };
+    return {
+      projectId: project.id,
+      name: project.name,
+      version: project.version,
+      status: project.status,
+      empty: counts.runs === 0 && counts.savedCases === 0,
+      counts,
+    };
+  }
+
+  /**
+   * Deletes the project the way the server does: a busy project is refused, an
+   * empty one disappears, and anything else is hidden from every listing.
+   */
+  public async deleteProject(
     projectId: string,
     input: ProjectDeleteConfirm,
   ): Promise<void> {
@@ -427,7 +491,35 @@ export class MockApiClient implements ApiClient {
     if (project.version !== input.expectedVersion)
       throw new Error('VERSION_CONFLICT');
     if (project.name !== input.confirmName) throw new Error('项目名称不匹配');
-    this.projects.splice(index, 1);
+    const busy = this.runs.filter(
+      (run) =>
+        run.projectId === project.id &&
+        ['queued', 'running', 'awaiting_input', 'cancelling'].includes(
+          run.status,
+        ),
+    ).length;
+    if (busy > 0) {
+      const error = new Error(
+        `项目还有 ${busy} 个会话没结束，请先停止后再删除`,
+      ) as Error & { code: string };
+      error.code = 'CONFIG_IN_USE';
+      throw error;
+    }
+    const empty =
+      this.runs.every((run) => run.projectId !== project.id) &&
+      this.savedCases.every((item) => item.projectId !== project.id);
+    this.schedules = this.schedules.map((item) =>
+      item.projectId === project.id ? { ...item, enabled: false } : item,
+    );
+    this.apiKeys = this.apiKeys.map((item) =>
+      item.projectId === project.id
+        ? { ...item, revokedAt: new Date().toISOString() }
+        : item,
+    );
+    // An empty project disappears; a non-empty one is soft deleted, which the
+    // mock models the same way for the UI: gone from every listing.
+    if (empty) this.projects.splice(index, 1);
+    else this.deletedProjects.add(project.id);
   }
 
   public async listMembers(

@@ -810,6 +810,29 @@
   }
 }
 
+/* ---- Projects (platform admin) -------------------------------------------------- */
+.lqa-project-current {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.lqa-project-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.lqa-project-actions .btn + .btn {
+  margin-left: 0;
+}
+
+@media (max-width: 720px) {
+  .lqa-project-actions {
+    justify-content: flex-start;
+  }
+}
+
 /* ---- Schedules ------------------------------------------------------------------ */
 .lqa-check-list {
   display: flex;

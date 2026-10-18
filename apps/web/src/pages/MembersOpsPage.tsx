@@ -5,19 +5,12 @@ import { defaultApiClient } from '../api/index.ts';
 import { Page } from '../components/layout/Page.tsx';
 import { StatusBadge } from '../components/ui/Badge.tsx';
 import { Section } from '../components/ui/Section.tsx';
-import { Field } from '../components/ui/Field.tsx';
 import { Alert } from '../components/ui/Alert.tsx';
 import { AppIcon } from '../components/ui/AppIcon.tsx';
 
 export const MembersOpsPage: React.FC = () => {
-  const {
-    currentProject,
-    currentUser,
-    isMock,
-    replaceProject,
-    removeProject,
-    setRoute,
-  } = useAppContext();
+  const { currentProject, currentUser, replaceProject, setRoute } =
+    useAppContext();
   const [members, setMembers] = useState<Member[]>([]);
   const [draftMembers, setDraftMembers] = useState<Member[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -32,14 +25,6 @@ export const MembersOpsPage: React.FC = () => {
   const [savingMembers, setSavingMembers] = useState(false);
   const [membersError, setMembersError] = useState('');
   const [membersSuccess, setMembersSuccess] = useState('');
-  const [archiveName, setArchiveName] = useState('');
-  const [archiveConfirmed, setArchiveConfirmed] = useState(false);
-  const [archiving, setArchiving] = useState(false);
-  const [archiveError, setArchiveError] = useState('');
-  const [deleteName, setDeleteName] = useState('');
-  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
-  const [deletingProject, setDeletingProject] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     setMembers([]);
@@ -51,11 +36,6 @@ export const MembersOpsPage: React.FC = () => {
     setMembersError('');
     setMembersSuccess('');
     setConfirmChanges(false);
-    setArchiveName('');
-    setArchiveConfirmed(false);
-    setDeleteName('');
-    setDeleteConfirmed(false);
-    setDeleteError('');
     if (!currentProject) {
       setLoading(false);
       return;
@@ -149,7 +129,7 @@ export const MembersOpsPage: React.FC = () => {
     setMembersSuccess('');
   };
   const reloadMembers = async () => {
-    if (!currentProject || loading || savingMembers || archiving) return;
+    if (!currentProject || loading || savingMembers) return;
     setLoading(true);
     setLoadError('');
     setMembersError('');
@@ -209,74 +189,6 @@ export const MembersOpsPage: React.FC = () => {
       setSavingMembers(false);
     }
   };
-  const archiveProject = async () => {
-    if (
-      !currentProject ||
-      !canManage ||
-      archiving ||
-      changed ||
-      !archiveConfirmed ||
-      archiveName !== currentProject.name
-    )
-      return;
-    setArchiving(true);
-    setArchiveError('');
-    try {
-      const updated = await defaultApiClient.updateProject(currentProject.id, {
-        expectedVersion: currentProject.version,
-        status: 'archived',
-      });
-      if (updated.id !== currentProject.id || updated.status !== 'archived')
-        throw new Error('服务器未确认项目归档');
-      replaceProject(updated);
-      setRoute('home');
-    } catch (error) {
-      setArchiveError(error instanceof Error ? error.message : '归档失败');
-    } finally {
-      setArchiving(false);
-    }
-  };
-
-  const deleteProject = async () => {
-    if (
-      !currentProject ||
-      currentUser?.globalRole !== 'admin' ||
-      isMock ||
-      deletingProject ||
-      archiving ||
-      changed ||
-      !deleteConfirmed ||
-      deleteName !== currentProject.name
-    )
-      return;
-    if (
-      !window.confirm(
-        `确定永久删除项目「${currentProject.name}」（ID：${currentProject.id}）吗？此操作无法撤销。仅允许删除没有业务数据的空项目。`,
-      )
-    )
-      return;
-    setDeletingProject(true);
-    setDeleteError('');
-    try {
-      await defaultApiClient.deleteEmptyProject(currentProject.id, {
-        expectedVersion: currentProject.version,
-        confirmName: currentProject.name,
-      });
-      removeProject(currentProject.id);
-    } catch (error) {
-      const code = (error as { code?: string }).code;
-      setDeleteError(
-        error instanceof Error
-          ? code
-            ? `${error.message}（${code}）`
-            : error.message
-          : '删除项目失败',
-      );
-    } finally {
-      setDeletingProject(false);
-    }
-  };
-
   const roleScope: Record<Member['role'], string> = {
     owner: '管理环境、成员、认证资料、项目知识及策略',
     operator: '启动冒烟、停止运行、补充说明、提交人工审查决议',
@@ -337,7 +249,7 @@ export const MembersOpsPage: React.FC = () => {
               type="button"
               className="btn btn-ghost btn-sm"
               data-testid="btn-reload-members"
-              disabled={loading || savingMembers || archiving}
+              disabled={loading || savingMembers}
               onClick={() => void reloadMembers()}
             >
               <AppIcon name="refresh" size={14} />
@@ -630,165 +542,31 @@ export const MembersOpsPage: React.FC = () => {
         )}
       </Section>
 
-      {(canManage ||
-        (currentUser?.globalRole === 'admin' && currentProject)) && (
-        <div className="grid-2 lqa-lifecycle-grid">
-          {canManage && (
-            <Section
-              icon="archive"
-              title="归档项目"
-              description="归档后不能再发起新的冒烟运行，历史报告会保留。服务器确认成功后才更新项目状态。"
-              testId="archive-project-card"
+      <Section
+        icon="settings"
+        title="项目生命周期"
+        testId="project-lifecycle-card"
+      >
+        <p className="muted text-sm" data-testid="project-lifecycle-notice">
+          归档、重命名、删除项目请到 平台 › 项目管理
+          {currentUser?.globalRole === 'admin'
+            ? '。'
+            : '（仅平台管理员可用）。'}
+        </p>
+        {currentUser?.globalRole === 'admin' && (
+          <div className="form-actions is-start">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setRoute('projects')}
+              data-testid="btn-goto-projects"
             >
-              <Field label="输入项目名称以确认" htmlFor="archive-project-name">
-                <input
-                  id="archive-project-name"
-                  className="form-input"
-                  data-testid="archive-project-name"
-                  value={archiveName}
-                  onChange={(event) => setArchiveName(event.target.value)}
-                  disabled={archiving}
-                  autoComplete="off"
-                  placeholder={currentProject?.name}
-                />
-              </Field>
-              <label className="check">
-                <input
-                  type="checkbox"
-                  data-testid="confirm-project-archive"
-                  checked={archiveConfirmed}
-                  onChange={(event) =>
-                    setArchiveConfirmed(event.target.checked)
-                  }
-                  disabled={archiving}
-                />
-                我确认将当前项目归档，而不是删除数据。
-              </label>
-              {(changed || archiveError) && (
-                <div className="stack stack-sm lqa-card-messages">
-                  {changed && (
-                    <Alert tone="warning" role="alert">
-                      请先保存或放弃未提交的成员变更。
-                    </Alert>
-                  )}
-                  {archiveError && (
-                    <Alert
-                      tone="danger"
-                      role="alert"
-                      testId="archive-project-error"
-                    >
-                      {archiveError}
-                    </Alert>
-                  )}
-                </div>
-              )}
-              <div className="form-actions is-start">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  data-testid="btn-archive-project"
-                  disabled={
-                    archiving ||
-                    changed ||
-                    !archiveConfirmed ||
-                    archiveName !== currentProject?.name
-                  }
-                  onClick={() => void archiveProject()}
-                >
-                  <AppIcon name="archive" size={14} />
-                  {archiving ? '归档中…' : '确认归档'}
-                </button>
-              </div>
-            </Section>
-          )}
-
-          {currentUser?.globalRole === 'admin' && currentProject && (
-            <section
-              className="card is-danger"
-              data-testid="delete-project-card"
-              aria-labelledby="delete-project-heading"
-            >
-              <div className="card-header">
-                <div className="card-heading">
-                  <h2 id="delete-project-heading" className="card-title">
-                    <AppIcon name="trash" size={17} />
-                    永久删除项目
-                  </h2>
-                  <p className="card-description">
-                    仅可删除没有运行记录、测试用例、环境、模型授权、其他成员或配置的空项目。删除后不可恢复，安全审计记录仍会保留；有业务数据的项目请使用归档。
-                  </p>
-                </div>
-              </div>
-              <p className="field-hint lqa-delete-target">
-                项目 ID：
-                <code data-testid="delete-project-target-id">
-                  {currentProject.id}
-                </code>
-                （请核对，重名项目不会一起删除）
-              </p>
-              <Field
-                label={`输入完整项目名称「${currentProject.name}」以确认`}
-                htmlFor="delete-project-name"
-              >
-                <input
-                  id="delete-project-name"
-                  data-testid="delete-project-name"
-                  className="form-input"
-                  autoComplete="off"
-                  value={deleteName}
-                  onChange={(event) => setDeleteName(event.target.value)}
-                  disabled={deletingProject || isMock}
-                />
-              </Field>
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={deleteConfirmed}
-                  onChange={(event) => setDeleteConfirmed(event.target.checked)}
-                  disabled={deletingProject || isMock}
-                  data-testid="confirm-project-delete"
-                />
-                我理解永久删除不可恢复，并确认当前项目不再需要。
-              </label>
-              {(isMock || deleteError) && (
-                <div className="stack stack-sm lqa-card-messages">
-                  {isMock && (
-                    <p className="field-hint">演示模式不提供真实项目删除。</p>
-                  )}
-                  {deleteError && (
-                    <Alert
-                      tone="danger"
-                      role="alert"
-                      testId="delete-project-error"
-                    >
-                      {deleteError}
-                    </Alert>
-                  )}
-                </div>
-              )}
-              <div className="form-actions is-start">
-                <button
-                  type="button"
-                  className="btn btn-danger"
-                  data-testid="btn-delete-project"
-                  disabled={
-                    deletingProject ||
-                    isMock ||
-                    archiving ||
-                    changed ||
-                    !deleteConfirmed ||
-                    deleteName !== currentProject.name
-                  }
-                  onClick={() => void deleteProject()}
-                >
-                  <AppIcon name="trash" size={14} />
-                  {deletingProject ? '正在删除…' : '永久删除'}
-                </button>
-              </div>
-            </section>
-          )}
-        </div>
-      )}
+              <AppIcon name="chevron-right" size={14} />
+              打开项目管理
+            </button>
+          </div>
+        )}
+      </Section>
 
       <Section
         icon="history"

@@ -18,14 +18,36 @@ const admin = {
 const first = {
   id: randomUUID(),
   name: 'Disposable DCP',
-  version: 1,
+  version: 3,
   status: 'active',
   defaultModelProfileId: null,
   createdAt: new Date().toISOString(),
 };
-const second = { ...first, id: randomUUID() };
-const projects = [first, second];
+const second = {
+  ...first,
+  id: randomUUID(),
+  name: 'Busy DCP',
+  version: 5,
+};
+let projects = [first, second];
 const calls = [];
+const previewFor = (project, activeRuns) => ({
+  projectId: project.id,
+  name: project.name,
+  version: project.version,
+  status: project.status,
+  empty: false,
+  counts: {
+    runs: activeRuns > 0 ? activeRuns : 3,
+    activeRuns,
+    savedCases: 2,
+    enabledSchedules: 1,
+    environments: 4,
+    authProfiles: 5,
+    members: 2,
+    activeApiKeys: 6,
+  },
+});
 const vite = await createViteServer({
   root: fileURLToPath(new URL('../', import.meta.url)),
   server: { port: 0, host: '127.0.0.1' },
@@ -34,7 +56,9 @@ await vite.listen();
 const origin = vite.resolvedUrls.local[0];
 const browser = await chromium.launch({ headless: true });
 try {
-  const page = await browser.newPage({ viewport: { width: 906, height: 900 } });
+  const page = await browser.newPage({
+    viewport: { width: 1000, height: 900 },
+  });
   await page.addInitScript(() => {
     localStorage.setItem('LOCALQA_USE_MOCK', 'false');
   });
@@ -48,14 +72,24 @@ try {
         contentType: 'application/json',
         body: JSON.stringify(body),
       });
-    if (pathname === `/api/v1/projects/${first.id}` && method === 'DELETE') {
-      calls.push(request.postDataJSON());
-      projects.shift();
+    const previewMatch = pathname.match(
+      /^\/api\/v1\/projects\/([^/]+)\/deletion-preview$/,
+    );
+    if (previewMatch && method === 'GET') {
+      const project = projects.find((item) => item.id === previewMatch[1]);
+      return fulfill(previewFor(project, project.id === second.id ? 2 : 0));
+    }
+    const deleteMatch = pathname.match(/^\/api\/v1\/projects\/([^/]+)$/);
+    if (deleteMatch && method === 'DELETE') {
+      calls.push({ id: deleteMatch[1], body: request.postDataJSON() });
+      projects = projects.filter((item) => item.id !== deleteMatch[1]);
       return route.fulfill({ status: 204 });
     }
     if (pathname === '/api/v1/auth/me') return fulfill(admin);
     if (pathname === '/api/v1/projects')
       return fulfill({ items: [...projects], nextCursor: null });
+    if (pathname === '/api/v1/models')
+      return fulfill({ items: [], nextCursor: null });
     if (pathname.endsWith('/members'))
       return fulfill({
         items: [{ userId: admin.id, role: 'owner' }],
@@ -67,41 +101,105 @@ try {
       return fulfill({ status: 'ok', components: [] });
     return fulfill({ items: [], nextCursor: null });
   });
-  await page.goto(`${origin}#/members-ops`);
-  await page.getByTestId('delete-project-card').waitFor();
+
+  await page.goto(`${origin}#/projects`);
+  await page.getByTestId('projects-table').waitFor();
   assert.equal(
-    await page.getByTestId('delete-project-target-id').innerText(),
-    first.id,
+    await page.getByTestId(`project-current-${first.id}`).innerText(),
+    '当前',
   );
-  const duplicateOptions = await page
-    .getByTestId('project-selector')
-    .locator('option')
-    .allTextContents();
-  assert.equal(duplicateOptions.length, 2);
-  assert.ok(duplicateOptions[0].includes(first.id.slice(0, 8)));
-  assert.ok(duplicateOptions[1].includes(second.id.slice(0, 8)));
-  const button = page.getByTestId('btn-delete-project');
-  assert.equal(await button.isDisabled(), true);
-  await page.getByTestId('delete-project-name').fill(first.name);
-  assert.equal(await button.isDisabled(), true);
-  await page.getByTestId('confirm-project-delete').check();
-  assert.equal(await button.isEnabled(), true);
-  page.once('dialog', (dialog) => dialog.dismiss());
-  await button.click();
-  assert.equal(calls.length, 0, 'cancelled confirmation must not delete');
-  page.once('dialog', (dialog) => dialog.accept());
-  await button.click();
+  assert.equal(
+    await page.getByTestId(`project-model-${first.id}`).innerText(),
+    '未设置',
+  );
+
+  // A project with running sessions cannot be deleted, and the dialog says why.
+  await page.getByTestId(`btn-project-delete-${second.id}`).click();
+  await page.getByTestId('project-delete-blocked').waitFor();
+  assert.match(
+    await page.getByTestId('project-delete-blocked').innerText(),
+    /2 个会话没结束/,
+  );
+  assert.equal(
+    await page.getByTestId('project-delete-name').isDisabled(),
+    true,
+  );
+  assert.equal(
+    await page.getByTestId('project-delete-confirm').isDisabled(),
+    true,
+  );
+  await page.getByTestId('project-delete-cancel').click();
+
+  // The deletable project: preview first, then the exact name, then 204.
+  await page.getByTestId(`btn-project-delete-${first.id}`).click();
+  const preview = page.getByTestId('project-delete-preview');
+  await preview.waitFor();
+  assert.equal(
+    await preview.innerText(),
+    '包含 3 个会话、2 条用例、4 个环境、5 个凭证、1 个启用的定时计划（将停用）、6 个 API Key（将吊销）、2 位成员。',
+  );
+  const confirm = page.getByTestId('project-delete-confirm');
+  assert.equal(await confirm.isDisabled(), true, 'nothing typed yet');
+  await page.getByTestId('project-delete-name').fill('Disposable');
+  assert.equal(await confirm.isDisabled(), true, 'name must match exactly');
+  await page.getByTestId('project-delete-name').fill(first.name);
+  assert.equal(await confirm.isEnabled(), true);
+  await confirm.click();
+
   await page.waitForURL('**/#/home');
   assert.deepEqual(calls, [
-    { expectedVersion: first.version, confirmName: first.name },
+    { id: first.id, body: { expectedVersion: 3, confirmName: first.name } },
   ]);
+  // The deleted project was the current one: the shell switched to the other.
   assert.equal(
     await page.getByTestId('project-selector').inputValue(),
     second.id,
   );
   console.log(
-    'T45_PROJECT_DELETE_UI_ACCEPTED cancel + confirm + 204 + selection',
+    'T45_PROJECT_DELETE_UI_ACCEPTED preview + block + confirm + 204 + selection',
   );
+
+  // A member never sees the 项目管理 entry, and opening the route directly says
+  // the page is admin-only instead of leaking the project list.
+  const member = await browser.newPage({
+    viewport: { width: 900, height: 800 },
+  });
+  await member.addInitScript(() => {
+    localStorage.setItem('LOCALQA_USE_MOCK', 'false');
+  });
+  await member.route('**/api/v1/**', async (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    const fulfill = (body) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(body),
+      });
+    if (pathname === '/api/v1/auth/me')
+      return fulfill({ ...admin, globalRole: 'member' });
+    if (pathname === '/api/v1/projects')
+      return fulfill({ items: [...projects], nextCursor: null });
+    return fulfill({ items: [], nextCursor: null });
+  });
+  await member.goto(`${origin}#/projects`);
+  await member.getByTestId('projects-page').waitFor();
+  assert.match(
+    await member.getByTestId('projects-page').innerText(),
+    /仅平台管理员可用/,
+  );
+  // The settings nav of another settings page must not offer 项目管理 to a member.
+  await member.goto(`${origin}#/models`);
+  // Attachment is enough: the sidebar collapses on narrow viewports.
+  await member
+    .getByTestId('settings-navigation')
+    .waitFor({ state: 'attached' });
+  assert.equal(
+    await member.getByTestId('nav-projects').count(),
+    0,
+    'members do not see the admin entry',
+  );
+  await member.close();
+  console.log('T45_PROJECT_ADMIN_GATE_ACCEPTED member blocked');
 } finally {
   await browser.close();
   await vite.close();

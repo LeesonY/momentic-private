@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { ModelProfile } from '@localqa/contracts';
+import type { ModelProfile, Project } from '@localqa/contracts';
 import { defaultApiClient } from '../api/index.ts';
 import { useAppContext } from '../state/AppContext.tsx';
 import { Page } from '../components/layout/Page.tsx';
@@ -9,6 +9,7 @@ import { Modal } from '../components/ui/Modal.tsx';
 import { EmptyState } from '../components/ui/EmptyState.tsx';
 import { CreateModelModal } from '../components/models/CreateModelModal.tsx';
 import { EditModelModal } from '../components/models/EditModelModal.tsx';
+import { projectsUsingDefaultModel } from '../utils/projectAdmin.ts';
 import {
   DEFAULT_OUTPUT_TOKENS,
   modelContextTokenLimit,
@@ -62,6 +63,10 @@ export const ModelsPage: React.FC = () => {
   const [deleteName, setDeleteName] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  /** Projects whose default model is the one about to be deleted. */
+  const [defaultForProjects, setDefaultForProjects] = useState<Array<
+    Pick<Project, 'id' | 'name'>
+  > | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<ModelProfile | null>(null);
 
@@ -209,6 +214,30 @@ export const ModelsPage: React.FC = () => {
     setDeleteTarget(null);
     setDeleteName('');
     setDeleteError(null);
+    setDefaultForProjects(null);
+  };
+
+  /**
+   * A model that is another project's default cannot be deleted, and the dialog
+   * used to say nothing about it ("qwen3.8-flash 删不掉" without a visible
+   * reason). Read the project list before asking, so the reason is on screen.
+   */
+  const openDelete = (model: ModelProfile) => {
+    setDeleteTarget(model);
+    setDeleteName('');
+    setDeleteError(null);
+    setDefaultForProjects(null);
+    void defaultApiClient
+      .listProjects()
+      .then((page) =>
+        setDefaultForProjects(
+          projectsUsingDefaultModel(page.items, model.id).map((project) => ({
+            id: project.id,
+            name: project.name,
+          })),
+        ),
+      )
+      .catch(() => setDefaultForProjects(null));
   };
 
   const handleDelete = async () => {
@@ -564,11 +593,7 @@ export const ModelsPage: React.FC = () => {
                             grantSaving ||
                             defaultSaving
                           }
-                          onClick={() => {
-                            setDeleteTarget(m);
-                            setDeleteName('');
-                            setDeleteError(null);
-                          }}
+                          onClick={() => openDelete(m)}
                           data-testid={`btn-delete-model-${m.id}`}
                         >
                           删除
@@ -667,6 +692,17 @@ export const ModelsPage: React.FC = () => {
             删除「{deleteTarget.name}
             」后，该模型将从模型列表和新任务的可选项中移除，历史测试记录保留。此操作无法撤销。
           </p>
+          {defaultForProjects && defaultForProjects.length > 0 && (
+            <Alert
+              tone="warning"
+              role="status"
+              title="该模型是以下项目的默认模型"
+              testId="model-delete-default-projects"
+            >
+              先在这些项目里更换默认模型，再删除这个模型：
+              {defaultForProjects.map((project) => project.name).join('、')}
+            </Alert>
+          )}
           <p>
             若该模型仍是项目默认模型，或被未结束的任务、启用的定时计划引用，请先解除引用。
           </p>
