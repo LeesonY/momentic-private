@@ -17,6 +17,7 @@ const stepReasonLabel: Record<string, string> = {
   SAVED_CREDENTIAL_INPUT: '与已保存凭据相同',
   OUT_OF_SCOPE_MUTATION: '非提交策略禁止的写操作',
   CASE_ACTION_LIMIT: '用例动作上限已用完',
+  EXPLORE_PAGE_LIMIT: '探索页面数已达上限',
   ACTION_TIMEOUT: '动作超时',
   VALIDATION_ERROR: '参数无效',
   USER_CANCELLED: '已取消',

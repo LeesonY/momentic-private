@@ -44,6 +44,7 @@ const STATUS_MAP: Record<string, number> = {
   OUT_OF_SCOPE_MUTATION: 403,
   // A case-level refusal, not a run-level budget stop.
   CASE_ACTION_LIMIT: 409,
+  EXPLORE_PAGE_LIMIT: 409,
 };
 
 export function toApiErrorResponse(

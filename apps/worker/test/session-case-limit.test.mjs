@@ -59,6 +59,7 @@ async function runCase({
   decisions,
   report,
   maxActionsPerCase = 4,
+  grant,
 }) {
   const ids = {
     project: randomUUID(),
@@ -147,6 +148,7 @@ async function runCase({
       return { requestResult: 'ok', data: decision };
     },
     async grant(_proof, call) {
+      if (grant) return grant(call);
       if (call.name === 'capture') return { step: { id: randomUUID() } };
       grants += 1;
       if (grants > allowedActions)
@@ -454,6 +456,216 @@ test('a run-level budget stop keeps its old behaviour', async () => {
     });
     await worker.once();
     assert.equal(stopped, true, 'a run budget stop is unchanged');
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('the recovery observe being refused still ends in a report, not a stop', async () => {
+  const { modelPayloads, finishes, stopped } = await runCase({
+    allowedActions: 99,
+    decisions: [typeText(), { done: true, toolCalls: [] }],
+    report: {
+      status: 'blocked',
+      summary: '动作被拒后平台刷新观察也到达上限，用已有证据出结论。',
+      verified: [],
+      gaps: ['密码框的失败提示没有看到'],
+      criteria: [
+        { criterionId: 'home_visible', result: 'passed', reason: '首页可见' },
+        {
+          criterionId: 'menus_checked',
+          result: 'unknown',
+          reason: '没有继续动作',
+        },
+      ],
+      bug: null,
+    },
+    grant: (call) => {
+      if (call.name === 'navigate' || call.name === 'capture')
+        return { step: { id: randomUUID() } };
+      // The action itself is stale, and the platform's recovery observation is
+      // refused by the case allowance: both are the agent's to handle.
+      if (call.name === 'type_text')
+        throw Object.assign(new Error('stale'), { code: 'VERSION_CONFLICT' });
+      throw Object.assign(new Error('case limit'), {
+        code: 'CASE_ACTION_LIMIT',
+      });
+    },
+  });
+  assert.equal(isReportSchema(modelPayloads.at(-1).outputSchema), true);
+  const settled = finishes.at(-1);
+  assert.deepEqual(settled.result.caseActionLimit, {
+    maxActions: 4,
+    actionsUsed: 1,
+  });
+  assert.ok(
+    settled.result.agentReport.gaps.some((gap) =>
+      gap.includes('本用例动作上限已用完'),
+    ),
+  );
+  assert.equal(stopped, false);
+});
+
+const explorerSnapshot = (label) =>
+  parseContract('BrowserSnapshot', {
+    snapshotId: randomUUID(),
+    pageId: '22222222-2222-4222-8222-222222222222',
+    frameIds: ['main'],
+    displayUrl: `http://fixture.local/${label}`,
+    title: label,
+    responseStatus: 200,
+    capturedAt: '2026-10-17T05:55:00.000Z',
+    stateVersion: 1,
+    viewport: { width: 1280, height: 720 },
+    nodes: [
+      {
+        nodeId: 'main_node_0',
+        frameId: 'main',
+        role: 'main',
+        name: label,
+        text: label,
+        visible: true,
+        enabled: true,
+        bounds: { left: 0, top: 0, width: 200, height: 40 },
+      },
+    ],
+    screenshotRef: null,
+    networkSummary: [],
+    consoleSummary: [],
+    truncated: false,
+    redacted: true,
+  });
+
+test('an explorer that reaches its page limit ends exploration without stopping the session', async () => {
+  const ids = {
+    project: randomUUID(),
+    run: randomUUID(),
+    task: randomUUID(),
+    context: randomUUID(),
+  };
+  const scratch = mkdtempSync(join(tmpdir(), 'localqa-explore-limit-'));
+  const finishes = [];
+  const modelPayloads = [];
+  let stopped = false;
+  let round = 0;
+  const urls = [
+    'http://fixture.local/one',
+    'http://fixture.local/two',
+    'http://fixture.local/three',
+  ];
+  const decisions = [
+    { done: false, toolCalls: [{ name: 'navigate', args: { url: urls[0] } }] },
+    { done: false, toolCalls: [{ name: 'navigate', args: { url: urls[1] } }] },
+    { done: true, toolCalls: [] },
+  ];
+  const runtime = {
+    async claim() {
+      return {
+        task: { id: ids.task, role: 'explorer' },
+        fencingToken: 1,
+        leaseToken: 'fake',
+        contextVersion: 1,
+      };
+    },
+    async work() {
+      return {
+        stage: 'explore',
+        task: { id: ids.task, role: 'explorer' },
+        targetUrl: 'http://fixture.local/entry',
+        contextId: ids.context,
+        run: {
+          projectId: ids.project,
+          id: ids.run,
+          executionMode: 'smoke',
+          effectiveConfig: {
+            authProfileVersion: null,
+            actionPolicy: 'non_submitting',
+            allowedOrigins: ['http://fixture.local'],
+            budget: { maxActionsPerCase: 8, maxPages: 2, maxDepth: 1 },
+          },
+        },
+      };
+    },
+    async requireAnonymousOrInput() {
+      return true;
+    },
+    async model(_proof, _role, payload) {
+      modelPayloads.push(payload);
+      const decision = decisions[round] ?? { done: true, toolCalls: [] };
+      round += 1;
+      return { requestResult: 'ok', data: decision };
+    },
+    async grant() {
+      return { step: { id: randomUUID() } };
+    },
+    async record() {},
+    async upload() {
+      throw new Error('unexpected upload');
+    },
+    async finish(_proof, result) {
+      finishes.push(result);
+    },
+    async stop() {
+      stopped = true;
+    },
+    async heartbeat() {
+      return { contextVersion: 1, cancelRequested: false };
+    },
+  };
+  const browser = {
+    async createSession() {
+      return {
+        id: ids.context,
+        activePageId: '22222222-2222-4222-8222-222222222222',
+        getPageById() {
+          return undefined;
+        },
+        async executeTool(call) {
+          const label = call.name === 'navigate' ? call.args.url : 'observe';
+          return {
+            status: 'succeeded',
+            reasonCode: null,
+            data: explorerSnapshot(label),
+          };
+        },
+        async close() {},
+      };
+    },
+  };
+  try {
+    const worker = new Worker({
+      runtime,
+      browser,
+      scratch,
+      heartbeatMs: 10000,
+    });
+    assert.equal(await worker.once(), true);
+    const settled = finishes.at(-1);
+    assert.equal(settled.stage, 'explore');
+    // Entry + one model navigation: the third navigation is refused.
+    assert.equal(settled.pages.length, 2);
+    assert.deepEqual(settled.modelActionDenialReasons, {
+      EXPLORE_PAGE_LIMIT: 1,
+    });
+    assert.deepEqual(settled.exploreLimit, {
+      pages: 2,
+      maxPages: 2,
+      maxDepth: 1,
+    });
+    assert.deepEqual(settled.grantDenials, [
+      {
+        tool: 'navigate',
+        reasonCode: 'EXPLORE_PAGE_LIMIT',
+        role: null,
+        name: null,
+      },
+    ]);
+    assert.equal(stopped, false, 'the session must not be stopped');
+    const guidance = modelPayloads
+      .flatMap((payload) => payload.messages.flatMap((m) => m.content))
+      .map((part) => part.text ?? '')
+      .find((text) => text.includes('探索的页面数或深度已达上限'));
+    assert.ok(guidance, 'the explorer is told the page limit was reached');
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

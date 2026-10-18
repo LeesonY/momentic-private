@@ -125,6 +125,8 @@ function denialGuidance(reasonCode: string): string {
     return '非提交策略下，回车只在它等效的按钮可点时放行；按钮是保存、提交、删除这类，或者找不到等效按钮时不放行。提交类按钮同样不会执行。不要重复被拒的动作。';
   if (reasonCode === 'CASE_ACTION_LIMIT')
     return '本用例的动作上限已用完，平台不会再执行动作。用已经观察到的证据逐条给出验收结论：有证据的照实判 passed/failed，证据确实不够的才写 unknown；没覆盖的部分写进 gaps。不要重复被拒的动作。';
+  if (reasonCode === 'EXPLORE_PAGE_LIMIT')
+    return '探索的页面数或深度已达上限，平台不会再导航。用已经探索到的页面结束探索（done=true），在报告里说明没覆盖的区域；不要重复导航。';
   if (reasonCode === 'POLICY_DENIED')
     return '这个动作被当前运行策略拒绝，没有执行。不要重复它；只使用工具列表里的工具，需要时先 observe 再用最新快照重试。';
   if (reasonCode === 'REPEATED_ACTION_LIMIT')
@@ -805,6 +807,7 @@ export class Worker {
         );
         let actionsUsed = 0;
         let caseLimitReached = false;
+        let exploreLimitReached = false;
         const caseActionBudget = () => ({
           remainingActions: Math.max(0, modelActionAllowance - actionsUsed),
           maxActions: maxCaseActions,
@@ -847,7 +850,18 @@ export class Worker {
             graph.pages.length &&
             !graph.canNavigate(call.args.url, depth + 1)
           )
-            throw new StorageError('BUDGET_EXCEEDED');
+          // A per-explorer limit: the explorer stops navigating and reports
+          // what it saw. It is not a run-level budget stop.
+          {
+            grantDenials.push({
+              tool: actual.name,
+              reasonCode: 'EXPLORE_PAGE_LIMIT',
+              role: null,
+              name: null,
+            });
+            if (grantDenials.length > 20) grantDenials.shift();
+            throw new StorageError('EXPLORE_PAGE_LIMIT');
+          }
           let grant;
           try {
             grant = await this.runtime.grant(
@@ -914,9 +928,7 @@ export class Worker {
                 null,
                 [],
                 (error as { code?: unknown } | null)?.code as
-                  | string
-                  | null
-                  | undefined,
+                  string | null | undefined,
               )
               .catch(() => {});
             throw error;
@@ -1044,9 +1056,7 @@ export class Worker {
                 null,
                 [],
                 (error as { code?: unknown } | null)?.code as
-                  | string
-                  | null
-                  | undefined,
+                  string | null | undefined,
               )
               .catch(() => {});
             throw error;
@@ -1648,6 +1658,8 @@ export class Worker {
               // The agent is told and decides what to do next, as in Mo.
               const reasonCode = dispatch.reasonCode ?? 'POLICY_DENIED';
               if (reasonCode === 'CASE_ACTION_LIMIT') caseLimitReached = true;
+              if (reasonCode === 'EXPLORE_PAGE_LIMIT')
+                exploreLimitReached = true;
               modelActionDenialCount++;
               modelActionDenialReasons[reasonCode] =
                 (modelActionDenialReasons[reasonCode] ?? 0) + 1;
@@ -1687,9 +1699,14 @@ export class Worker {
                   // action budget must not turn it into a run-level stop.
                   if (
                     !(error instanceof ScopedBrowserActionFailure) &&
-                    code !== 'BUDGET_EXCEEDED'
+                    code !== 'BUDGET_EXCEEDED' &&
+                    code !== 'CASE_ACTION_LIMIT' &&
+                    code !== 'EXPLORE_PAGE_LIMIT'
                   )
                     throw error;
+                  // A spent case allowance also ends the action loop and sends
+                  // the agent to its report with the evidence it already has.
+                  if (code === 'CASE_ACTION_LIMIT') caseLimitReached = true;
                 }
               }
               messages = [...messages, { role: 'tool', content }];
@@ -1740,6 +1757,15 @@ export class Worker {
                 }
               : {}),
             ...(grantDenials.length ? { grantDenials } : {}),
+            ...(exploreLimitReached
+              ? {
+                  exploreLimit: {
+                    pages: graph.pages.length,
+                    maxPages: work.run.effectiveConfig.budget.maxPages,
+                    maxDepth: work.run.effectiveConfig.budget.maxDepth,
+                  },
+                }
+              : {}),
           });
           reported = true;
           return true;
@@ -1782,7 +1808,11 @@ export class Worker {
           trail,
           signal,
           changesSinceLastAction,
-          { maxActions: maxCaseActions, actionsUsed, limitReached: caseLimitReached },
+          {
+            maxActions: maxCaseActions,
+            actionsUsed,
+            limitReached: caseLimitReached,
+          },
         );
         // The case allowance note is deterministic: the model's own gaps may
         // omit it, and the verdict must say why the case stopped early.

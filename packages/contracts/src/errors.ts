@@ -42,6 +42,9 @@ export const ERROR_HTTP_STATUS = Object.freeze({
   // The case's own action allowance is spent. The action does not execute;
   // the agent reports from the evidence it already has and the session goes on.
   CASE_ACTION_LIMIT: null,
+  // The explorer reached its page/depth limit. It stops navigating and ends
+  // the exploration with what it saw; the session goes on.
+  EXPLORE_PAGE_LIMIT: null,
   SCOPE_CHANGED: null,
   BUDGET_EXCEEDED: null,
   INPUT_TIMEOUT: null,

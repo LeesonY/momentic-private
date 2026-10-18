@@ -211,6 +211,7 @@ payload 为各 type 对应资源摘要；UI 从这些摘要更新状态，并按
 | POLICY_DENIED / SCOPE_CHANGED | 动作不执行，记录原因 |
 | TARGET_NOT_FOUND / TARGET_HIDDEN / TARGET_DISABLED / HIDDEN_INPUT_FORBIDDEN / SENSITIVE_INPUT_FORBIDDEN / SAVED_CREDENTIAL_INPUT / OUT_OF_SCOPE_MUTATION | 授权阶段拒绝：动作不执行，用例转 blocked/inconclusive，不当作基础设施故障；码表与归类见 §7.1 |
 | CASE_ACTION_LIMIT | 本用例动作上限已用完：动作不执行；执行代理用已有证据出结论，会话继续（区别于会话级 BUDGET_EXCEEDED） |
+| EXPLORE_PAGE_LIMIT | 探索代理页面数/深度已达上限：不再导航，用已探索到的页面结束探索；会话继续 |
 | BUDGET_EXCEEDED / INPUT_TIMEOUT / USER_CANCELLED | 保留部分报告和未执行范围 |
 
 enum 不能让前端通过解析自然语言猜状态。新 provider 的原始错误须映射到既有分类，保留受控诊断而非原始敏感响应。

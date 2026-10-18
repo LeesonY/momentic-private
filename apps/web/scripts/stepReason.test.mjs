@@ -15,6 +15,7 @@ test('a failed browser step names its cause in Chinese', () => {
     '非提交策略禁止的写操作',
   );
   assert.equal(stepReasonText('CASE_ACTION_LIMIT'), '用例动作上限已用完');
+  assert.equal(stepReasonText('EXPLORE_PAGE_LIMIT'), '探索页面数已达上限');
   assert.equal(stepReasonText('BROWSER_FAILED'), '浏览器执行失败');
 });
 
