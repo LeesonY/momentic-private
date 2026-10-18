@@ -47,6 +47,11 @@ test('session and model contexts have no run-level login, even with an old auth 
   assert.match(SESSION_AGENT_PROMPT, /signIn\.configured=false/);
   assert.match(SESSION_AGENT_PROMPT, /signIn\.succeeded\/failed/);
   assert.match(SESSION_AGENT_PROMPT, /sharingPolicy=exclusive_run/);
+  assert.match(
+    SESSION_AGENT_PROMPT,
+    /sharingPolicy=exclusive_run 时平台会让需要登录的任务排队依次执行/,
+  );
+  assert.doesNotMatch(SESSION_AGENT_PROMPT, /不要同时安排多条需要登录的用例/);
   assert.doesNotMatch(SESSION_AGENT_PROMPT, /login 是本次账号的登录结果/);
 });
 
