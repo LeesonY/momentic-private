@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   ModelProfile,
   Project,
@@ -61,30 +61,25 @@ export const ProjectsPage: React.FC = () => {
   const [models, setModels] = useState<ModelProfile[]>([]);
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' });
 
+  /** One loader for the first paint and for the 重试 button: list + models. */
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      await refreshProjects();
+      const modelPage = await defaultApiClient.listModels();
+      setModels(modelPage.items);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : '加载项目列表失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [refreshProjects]);
+
   useEffect(() => {
     if (!isAdmin) return;
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setLoadError(null);
-      try {
-        await refreshProjects();
-        const modelPage = await defaultApiClient.listModels();
-        if (!cancelled) setModels(modelPage.items);
-      } catch (error) {
-        if (!cancelled)
-          setLoadError(
-            error instanceof Error ? error.message : '加载项目列表失败',
-          );
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
     void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [isAdmin, refreshProjects]);
+  }, [isAdmin, load]);
 
   const sorted = useMemo(
     () =>
@@ -144,9 +139,11 @@ export const ProjectsPage: React.FC = () => {
             <button
               type="button"
               className="btn btn-secondary btn-sm"
-              onClick={() => void refreshProjects().catch(() => undefined)}
+              disabled={loading}
+              onClick={() => void load()}
+              data-testid="btn-projects-retry"
             >
-              重试
+              {loading ? '加载中…' : '重试'}
             </button>
           }
         >
@@ -480,7 +477,7 @@ const ProjectStatusDialog: React.FC<{
       <p>
         {archiving
           ? `归档「${project.name}」后不能再发起新的冒烟或回归会话，历史报告、用例和证据都会保留。`
-          : `恢复「${project.name}」后可以重新发起会话。已停用的定时计划不会自动重新启用，需要到定时回归页手动开启。`}
+          : `恢复「${project.name}」后可以重新发起冒烟或回归会话。`}
       </p>
       {error && (
         <Alert tone="danger" role="alert" testId="project-status-error">

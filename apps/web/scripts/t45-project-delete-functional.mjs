@@ -206,6 +206,55 @@ try {
   );
   await member.close();
   console.log('T45_PROJECT_ADMIN_GATE_ACCEPTED member blocked');
+
+  // A failed first load must be recoverable from the page itself: 重试 runs the
+  // same loader (list + models) and clears the error bar.
+  let failing = true;
+  const flaky = await browser.newPage({
+    viewport: { width: 1000, height: 800 },
+  });
+  await flaky.addInitScript(() => {
+    localStorage.setItem('LOCALQA_USE_MOCK', 'false');
+  });
+  await flaky.route('**/api/v1/**', async (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    const fulfill = (body, status = 200) =>
+      route.fulfill({
+        status,
+        contentType: 'application/json',
+        body: JSON.stringify(body),
+      });
+    if (pathname === '/api/v1/auth/me') return fulfill(admin);
+    if (pathname === '/api/v1/projects')
+      return failing
+        ? fulfill({ code: 'SERVICE_UNAVAILABLE', message: '暂时不可用' }, 503)
+        : fulfill({ items: [...projects], nextCursor: null });
+    if (pathname === '/api/v1/models')
+      return failing
+        ? fulfill({ code: 'SERVICE_UNAVAILABLE', message: '暂时不可用' }, 503)
+        : fulfill({ items: [], nextCursor: null });
+    return fulfill({ items: [], nextCursor: null });
+  });
+  await flaky.goto(`${origin}#/projects`);
+  await flaky.getByTestId('projects-load-error').waitFor();
+  assert.equal(
+    await flaky.getByTestId('projects-table').count(),
+    0,
+    'nothing listed while the load fails',
+  );
+  failing = false;
+  await flaky.getByTestId('btn-projects-retry').click();
+  await flaky.getByTestId('projects-table').waitFor();
+  await flaky.getByTestId('projects-load-error').waitFor({ state: 'detached' });
+  // Wait for the reloaded row, not for the table element: the table shell
+  // exists while the retry is still loading.
+  await flaky.getByTestId(`project-row-${projects[0].id}`).waitFor();
+  assert.equal(
+    await flaky.getByTestId('projects-table').locator('tbody tr').count(),
+    1,
+  );
+  await flaky.close();
+  console.log('T45_PROJECT_RETRY_ACCEPTED');
 } finally {
   await browser.close();
   await vite.close();

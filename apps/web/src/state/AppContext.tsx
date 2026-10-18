@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import type { User, Project } from '@localqa/contracts';
 import { defaultApiClient, isUsingMock, setUseMock } from '../api/index.ts';
+import { nextProjectAfterRemoval } from '../utils/projectAdmin.ts';
 
 export type AppRoute =
   | 'home'
@@ -130,18 +131,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   /** Update the client selection only after a confirmed 204 deletion. */
   const removeProject = (projectId: string) => {
-    const remaining = projects.filter((project) => project.id !== projectId);
-    setProjects(remaining);
-    if (currentProject?.id !== projectId) return;
-    // The deleted project was the selected one: switch to a project that can
-    // actually be used (an archived one as a last resort), or the empty state.
+    const deletingCurrent = currentProject?.id === projectId;
+    // Shared rule with the projects page: first active project, then anything
+    // left, then the empty state.
+    const next = nextProjectAfterRemoval(projects, projectId);
+    setProjects(projects.filter((project) => project.id !== projectId));
     // The route stays where the user is: the page that deletes a project keeps
     // showing the list it just changed.
-    setCurrentProject(
-      remaining.find((project) => project.status === 'active') ??
-        remaining[0] ??
-        null,
-    );
+    if (deletingCurrent) setCurrentProject(next);
   };
 
   // Stable identity: pages list it as an effect dependency.
@@ -154,12 +151,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const stillThere = previous
         ? items.find((project) => project.id === previous.id)
         : undefined;
-      return (
-        stillThere ??
-        items.find((project) => project.status === 'active') ??
-        items[0] ??
-        null
-      );
+      // The project disappeared while we were away: same rule as after a
+      // deletion, excluding the id that is gone.
+      return stillThere ?? nextProjectAfterRemoval(items, previous?.id ?? '');
     });
     return items;
   }, []);
