@@ -899,9 +899,13 @@ export class ToolExecutor {
               // click on the button it activates. The grant already checked
               // the snapshot's equivalent button; here the live DOM must
               // resolve to that same object and pass the click policy.
+              // Only when the old policy would have refused the key: an
+              // approved workflow inside its write scope never restricted
+              // Enter, so it must not gain a stricter check here.
               if (
                 /^(enter|numpadenter)$/i.test(key) &&
-                !isButtonLikeNode(resolved.node)
+                !isButtonLikeNode(resolved.node) &&
+                ctx.policy.restrictsActivation(targetPage.url())
               ) {
                 const enter = await inspectedEnterButton(
                   ctx,

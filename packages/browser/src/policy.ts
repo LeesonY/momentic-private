@@ -215,6 +215,20 @@ export class PolicyInterceptor {
   }
 
   /**
+   * True when the run's action policy restricts keyboard activation on this
+   * page: a non-submitting run, or an approved-workflow run outside its frozen
+   * write scope. Inside the write scope the old rule never restricted Enter,
+   * so callers must not add stricter checks there.
+   */
+  public restrictsActivation(pageUrl = ''): boolean {
+    return (
+      this.mode === 'non_submitting' ||
+      (this.mode === 'approved_workflows' &&
+        !withinWriteScope(pageUrl, this.writeScope))
+    );
+  }
+
+  /**
    * Validates whether a navigation target URL is within approved scope.
    */
   public checkNavigationUrl(urlStr: string): PolicyCheckResult {
@@ -331,12 +345,7 @@ export class PolicyInterceptor {
     // re-resolves that button live and applies the click checks. Without a
     // target the focus is unknown, and Space or a modifier combination is not
     // a form's default activation, so those stay refused here.
-    if (
-      toolName === 'press' &&
-      (this.mode === 'non_submitting' ||
-        (this.mode === 'approved_workflows' &&
-          !withinWriteScope(pageUrl, this.writeScope)))
-    ) {
+    if (toolName === 'press' && this.restrictsActivation(pageUrl)) {
       const key = String(
         (toolCall.args as { key?: string }).key ?? '',
       ).toLowerCase();

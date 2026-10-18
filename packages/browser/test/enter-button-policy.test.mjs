@@ -36,3 +36,27 @@ test('approved workflows outside the write scope still judge a plain Enter by it
     false,
   );
 });
+
+test('restrictsActivation matches exactly the old Enter refusal scope', () => {
+  const nonSubmitting = new PolicyInterceptor({ mode: 'non_submitting' });
+  assert.equal(nonSubmitting.restrictsActivation('https://app.test/'), true);
+
+  const approved = new PolicyInterceptor({
+    mode: 'approved_workflows',
+    allowedOrigins: ['https://app.test'],
+    writeScope: ['https://app.test/org'],
+  });
+  assert.equal(
+    approved.restrictsActivation('https://app.test/org/new'),
+    false,
+  );
+  assert.equal(
+    approved.restrictsActivation('https://app.test/settings'),
+    true,
+  );
+
+  const full = new PolicyInterceptor({ mode: 'full' });
+  assert.equal(full.restrictsActivation('https://app.test/'), false);
+  const exploration = new PolicyInterceptor({ mode: 'exploration' });
+  assert.equal(exploration.restrictsActivation('https://app.test/'), false);
+});

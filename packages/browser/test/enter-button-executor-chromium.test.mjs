@@ -1,5 +1,7 @@
 /* global document, window */
 import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { BrowserManager } from '../dist/index.js';
@@ -191,4 +193,123 @@ test('Tab keeps working without an equivalent button', async () => {
     await session.close();
     await manager.close();
   }
+});
+
+// A real SPA handles Enter itself (the 114 page does) and suppresses the
+// browser's implicit form submission, which would otherwise reload the page.
+const KEYUP_HANDLER = `<script>window.enterCount = 0;
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') event.preventDefault();
+  });
+  document.addEventListener('keyup', (event) => {
+    if (event.key === 'Enter') window.enterCount++;
+  });</script>`;
+const NO_BUTTON_PAGE = `<div class="card"><input placeholder="账号"></div>${KEYUP_HANDLER}`;
+// The button is the input's sibling's sibling, not its sibling: remounting it
+// must not dirty the target's own witness (the form), so the test reaches the
+// equivalent-button check.
+const FORM_BUTTON_PAGE = `<div class="card"><form><input placeholder="账号"></form><button>登录</button></div>${KEYUP_HANDLER}`;
+
+async function withServer(html, run) {
+  const server = createServer((_request, response) => {
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    response.end(html);
+  });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  try {
+    return await run(`http://127.0.0.1:${server.address().port}`);
+  } finally {
+    server.close();
+    await once(server, 'close');
+  }
+}
+
+test('an approved workflow inside its write scope keeps Enter unrestricted', async () => {
+  await withServer(NO_BUTTON_PAGE, async (origin) => {
+    const manager = new BrowserManager();
+    const session = await manager.createSession({
+      ...identity(),
+      mode: 'approved_workflows',
+      allowedOrigins: [origin],
+      writeScope: [origin],
+    });
+    try {
+      await session.executeTool({ name: 'navigate', args: { url: origin } });
+      const snapshot = await session.getSnapshot();
+      const input = snapshot.nodes.find((node) => node.placeholder === '账号');
+      assert.ok(input);
+      // No equivalent button at all: the old policy never restricted Enter
+      // inside the write scope, so this must still run.
+      assert.equal(input.enterButtonNodeId, undefined);
+      const result = await session.executeTool({
+        name: 'press',
+        args: { target: targetFor(snapshot, input), key: 'Enter' },
+      });
+      assert.equal(result.status, 'succeeded');
+      assert.equal(await session.getPage().evaluate(() => window.enterCount), 1);
+    } finally {
+      await session.close();
+      await manager.close();
+    }
+  });
+});
+
+test('an approved workflow inside its write scope ignores a remounted equivalent button', async () => {
+  await withServer(FORM_BUTTON_PAGE, async (origin) => {
+    const manager = new BrowserManager();
+    const session = await manager.createSession({
+      ...identity(),
+      mode: 'approved_workflows',
+      allowedOrigins: [origin],
+      writeScope: [origin],
+    });
+    try {
+      await session.executeTool({ name: 'navigate', args: { url: origin } });
+      const snapshot = await session.getSnapshot();
+      const input = snapshot.nodes.find((node) => node.placeholder === '账号');
+      assert.ok(input?.enterButtonNodeId);
+      await session.getPage().evaluate(() => {
+        const button = document.querySelector('button');
+        button.outerHTML = '<button>登录</button>';
+      });
+      const result = await session.executeTool({
+        name: 'press',
+        args: { target: targetFor(snapshot, input), key: 'Enter' },
+      });
+      assert.equal(result.status, 'succeeded');
+      assert.equal(await session.getPage().evaluate(() => window.enterCount), 1);
+    } finally {
+      await session.close();
+      await manager.close();
+    }
+  });
+});
+
+test('an approved workflow outside its write scope still judges the equivalent button', async () => {
+  await withServer(NO_BUTTON_PAGE, async (origin) => {
+    const manager = new BrowserManager();
+    const session = await manager.createSession({
+      ...identity(),
+      mode: 'approved_workflows',
+      allowedOrigins: [origin],
+      writeScope: ['http://other.test/'],
+    });
+    try {
+      await session.executeTool({ name: 'navigate', args: { url: origin } });
+      const snapshot = await session.getSnapshot();
+      const input = snapshot.nodes.find((node) => node.placeholder === '账号');
+      assert.ok(input);
+      const result = await session.executeTool({
+        name: 'press',
+        args: { target: targetFor(snapshot, input), key: 'Enter' },
+      });
+      assert.equal(result.status, 'denied');
+      assert.equal(result.reasonCode, 'POLICY_DENIED');
+      assert.equal(await session.getPage().evaluate(() => window.enterCount), 0);
+    } finally {
+      await session.close();
+      await manager.close();
+    }
+  });
 });
