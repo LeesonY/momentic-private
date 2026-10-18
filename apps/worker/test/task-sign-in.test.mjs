@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { Worker } from '../dist/index.js';
 import { initializeBrowserAuthentication } from '../dist/auth-initialize-task.js';
 import { DomainError } from '@localqa/domain';
+import { MAX_SELF_SIGN_IN_ACTIONS } from '@localqa/orchestrator';
 import {
   signInFixture,
   account,
@@ -211,6 +212,37 @@ test('worker signs in once, then executes in that exact context without a live f
     await fixture.cleanup();
   }
 });
+test('the private login step cap follows the existing login-failure path, not a run budget stop', async () => {
+  for (const role of ['executor', 'reproducer']) {
+    const fixture = signInFixture({ role });
+    // Simulate a server session with one permit left: navigate is the last
+    // allowed action; the next credential action hits the server-side cap.
+    let issued = MAX_SELF_SIGN_IN_ACTIONS - 1;
+    const grant = fixture.runtime.grantAuth.bind(fixture.runtime);
+    fixture.runtime.grantAuth = async (...args) => {
+      if (issued >= MAX_SELF_SIGN_IN_ACTIONS) throw new DomainError('AUTH_FAILED');
+      issued++;
+      return grant(...args);
+    };
+    try {
+      const worker = new Worker({ runtime: fixture.runtime, browser: fixture.browser,
+        scratch: fixture.scratch, heartbeatMs: 10000 });
+      assert.equal(await worker.once(), true);
+      assert.equal(issued, MAX_SELF_SIGN_IN_ACTIONS);
+      assert.equal(fixture.finishes.length, 1);
+      const { result, code } = fixture.finishes[0];
+      assert.equal(code, 'AUTH_FAILED');
+      assert.equal(result.agentReport.status, 'blocked');
+      assert.equal(result.signInFailure.reasonCode, 'AUTH_FAILED');
+      assert.deepEqual(fixture.ends, ['failed']);
+      assert.ok(!fixture.history.includes('model:work'));
+      assert.ok(!fixture.history.some((entry) => entry.startsWith('stop:')));
+      assert.equal(fixture.session.isClosed, true);
+      assertPrivate(result);
+    } finally { await fixture.cleanup(); }
+  }
+});
+
 test('worker login failure blocks only its case and normally finishes the task', async () => {
   for (const config of [
     { blockedReason: '页面提示账号已停用' },

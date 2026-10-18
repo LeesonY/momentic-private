@@ -7,6 +7,139 @@ import { sessionModelContext } from '../dist/session-schemas.js';
 import { retrySessionCases } from '../dist/session-retries.js';
 import { ConfigurationRepository } from '@localqa/storage';
 import { authProfileFixture } from './fixtures/auth-profile.mjs';
+import { Coordinator, MAX_SELF_SIGN_IN_ACTIONS } from '../dist/index.js';
+
+/** Real reserve/settle methods over a SQL-aware ledger, not a mocked grant. */
+function signInBudgetLedger(fixture) {
+  const reservations = new Map();
+  const budget = {
+    limits: fixture.run.effectiveConfig.budget,
+    used: { activeSeconds: 0, actions: 0, modelCalls: 0, reproductions: 0, totalTokens: 0 },
+    reserved: {},
+  };
+  const rows = (items = []) => ({ rows: items, rowCount: items.length });
+  const query = fixture.client.query.bind(fixture.client);
+  fixture.client.query = async (sql, params = []) => {
+    if (sql.includes('SELECT * FROM budget_reservations'))
+      return rows([...reservations.values()].filter((r) => r.request_id === params[1]));
+    if (sql.includes('SELECT br.* FROM budget_reservations'))
+      return rows(reservations.has(params[1]) ? [reservations.get(params[1])] : []);
+    if (sql.includes('SELECT * FROM run_budgets')) return rows([budget]);
+    if (sql.includes('INSERT INTO budget_reservations')) {
+      reservations.set(params[0], { id: params[0], run_id: params[2], task_id: params[3],
+        request_id: params[4], fencing_token: String(params[5]), reserved: params[7], status: 'reserved' });
+      return rows();
+    }
+    if (sql.includes('UPDATE run_budgets SET reserved')) {
+      budget.reserved = params[1]; return rows();
+    }
+    if (sql.includes('UPDATE run_budgets SET used')) {
+      budget.used = params[1]; budget.reserved = params[2]; return rows();
+    }
+    if (sql.includes('UPDATE budget_reservations SET status')) {
+      Object.assign(reservations.get(params[0]), { status: params[1], charged: params[2] });
+      return rows();
+    }
+    if (sql.includes('SELECT id,run_id FROM jobs'))
+      return rows([{ id: fixture.task.id, run_id: fixture.run.id }]);
+    if (sql.includes('SELECT id FROM runs')) return rows([{ id: fixture.run.id }]);
+    if (sql.includes('UPDATE model_requests')) return rows();
+    if (sql.includes('SELECT id, reservation_id, outcome, result_hash'))
+      return rows(fixture.auth.intents.has(params[0]) ? [fixture.auth.intents.get(params[0])] : []);
+    if (sql.includes('SELECT p.id, p.revoked'))
+      return rows([{ id: fixture.auth.profileId, revoked: false }]);
+    if (sql.includes('UPDATE action_intents') && sql.includes("execution_state = 'completed'")) {
+      Object.assign(fixture.auth.intents.get(params[0]), { outcome: params[1], result_hash: params[2], execution_state: 'completed' });
+      return rows();
+    }
+    if (sql.includes('SELECT id, document FROM steps WHERE action_id')) return rows();
+    return query(sql, params);
+  };
+  fixture.coordinator.reserve = Coordinator.prototype.reserve;
+  return { budget, reservations };
+}
+
+for (const [role, stage] of [['executor', 'execute'], ['reproducer', 'reproduce'], ['explorer', 'explore']]) {
+  test(`${role} self-sign-in reserves and settles zero shared actions, including failures/unknowns`, async () => {
+    for (const status of ['succeeded', 'failed', 'unknown', 'cancelled']) {
+      const fixture = authProfileFixture();
+      if (role === 'explorer') fixture.bindTask(fixture.addJob(null, { role, stage, status: 'running' }));
+      else fixture.selectTask(role, stage);
+      const { budget, reservations } = signInBudgetLedger(fixture);
+      // Even an exhausted *shared* action budget must not block private login.
+      budget.used.actions = budget.limits.maxActions;
+      const binding = await fixture.coordinator.allocateAuthSession(fixture.scope, fixture.proof);
+      fixture.auth.sessions.get(binding.sessionId).status = 'active';
+      const permit = await fixture.coordinator.authActions.grantAuth(fixture.client, fixture.scope, fixture.proof, {
+        sessionId: binding.sessionId, requestId: randomUUID(), action: 'navigate_auth', slot: 'login_url',
+      });
+      assert.deepEqual([...reservations.values()][0].reserved, {});
+      const intent = fixture.auth.intents.get(permit.grantId);
+      Object.assign(intent, { execution_state: 'started', execution_id: randomUUID() });
+      await fixture.coordinator.authActions.recordAuth(fixture.client, fixture.scope, fixture.proof,
+        binding.sessionId, permit.grantId, { executionId: intent.execution_id }, { status });
+      assert.equal(budget.used.actions, budget.limits.maxActions);
+      assert.deepEqual(budget.reserved, {});
+      assert.deepEqual([...reservations.values()][0].charged, {});
+      assert.equal(intent.execution_state, 'completed');
+      // The persisted auth intent/step was not removed to get zero accounting.
+      assert.ok(fixture.auth.queries.some(({ sql }) => sql.includes('INSERT INTO steps')));
+    }
+  });
+}
+
+test('private sign-in has its own serialized 20-action cap and fails without another reservation', async () => {
+  const fixture = authProfileFixture();
+  const { reservations } = signInBudgetLedger(fixture);
+  const binding = await fixture.coordinator.allocateAuthSession(fixture.scope, fixture.proof);
+  fixture.auth.sessions.get(binding.sessionId).status = 'active';
+  for (let i = 0; i < MAX_SELF_SIGN_IN_ACTIONS; i++)
+    await fixture.coordinator.authActions.grantAuth(fixture.client, fixture.scope, fixture.proof, {
+      sessionId: binding.sessionId, requestId: randomUUID(), action: 'navigate_auth', slot: 'login_url',
+    });
+  assert.equal(reservations.size, 20);
+  await assert.rejects(fixture.coordinator.authActions.grantAuth(fixture.client, fixture.scope, fixture.proof, {
+    sessionId: binding.sessionId, requestId: randomUUID(), action: 'navigate_auth', slot: 'login_url',
+  }), (error) => error.code === 'AUTH_FAILED');
+  assert.equal(reservations.size, 20);
+  assert.equal(fixture.auth.intents.size, 20);
+});
+
+test('login intents do not consume maxActionsPerCase; the first actual case action does', async () => {
+  const fixture = authProfileFixture();
+  const { reservations } = signInBudgetLedger(fixture);
+  fixture.run.effectiveConfig.budget.maxActionsPerCase = 1;
+  const binding = await fixture.coordinator.allocateAuthSession(fixture.scope, fixture.proof);
+  const session = fixture.auth.sessions.get(binding.sessionId);
+  session.status = 'active';
+  for (let i = 0; i < 4; i++)
+    await fixture.coordinator.authActions.grantAuth(fixture.client, fixture.scope, fixture.proof, {
+      sessionId: binding.sessionId, requestId: randomUUID(), action: 'navigate_auth', slot: 'login_url',
+    });
+  Object.assign(session, { status: 'ended', end_reason: 'signed_in' });
+  const grant = await fixture.coordinator.grantAction(fixture.scope, fixture.proof, { name: 'observe', args: {} });
+  assert.equal(grant.call.name, 'observe');
+  assert.equal([...reservations.values()].filter((r) => r.reserved.actions === 1).length, 1);
+  await assert.rejects(fixture.coordinator.grantAction(fixture.scope, fixture.proof, { name: 'observe', args: {} }),
+    (error) => error.code === 'CASE_ACTION_LIMIT');
+});
+
+test('ordinary run-level auth keeps its original action accounting', async () => {
+  const fixture = authProfileFixture({ managed: false, executionMode: 'regression' });
+  fixture.selectTask('executor', 'auth');
+  const { budget, reservations } = signInBudgetLedger(fixture);
+  const binding = await fixture.coordinator.allocateAuthSession(fixture.scope, fixture.proof);
+  fixture.auth.sessions.get(binding.sessionId).status = 'active';
+  const permit = await fixture.coordinator.authActions.grantAuth(fixture.client, fixture.scope, fixture.proof, {
+    sessionId: binding.sessionId, requestId: randomUUID(), action: 'navigate_auth', slot: 'login_url',
+  });
+  assert.deepEqual([...reservations.values()][0].reserved, { actions: 1 });
+  const intent = fixture.auth.intents.get(permit.grantId);
+  Object.assign(intent, { execution_state: 'started', execution_id: randomUUID() });
+  await fixture.coordinator.authActions.recordAuth(fixture.client, fixture.scope, fixture.proof,
+    binding.sessionId, permit.grantId, { executionId: intent.execution_id }, { status: 'succeeded' });
+  assert.equal(budget.used.actions, 1);
+});
 
 const changedProfile = (fixture, version = 2, patch = {}) => {
   const old = fixture.auth.versions.get(1);

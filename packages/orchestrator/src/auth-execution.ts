@@ -929,7 +929,10 @@ export class AuthExecutionManager {
         scope,
         proof,
         intent.reservation_id,
-        { actions: 1 },
+        // No session/case actions for task-local sign-in, even on cleanup.
+        // settleIn('unknown') uses the original (empty) reservation; old
+        // in-flight reservations still conservatively settle as reserved.
+        {},
         'unknown',
       );
       await client.query(

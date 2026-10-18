@@ -297,6 +297,12 @@ export function authProfileFixture({
     if (sql.includes('INSERT INTO action_intents')) {
       auth.intents.set(params[0], {
         id: params[0],
+        reservation_id: params[6],
+        tool_call: params[7],
+        task_id: params[3],
+        outcome: 'pending',
+        result_hash: null,
+        execution_id: null,
         auth_session_id: params[8],
         auth_epoch: params[9],
         fencing_token: String(params[4]),
@@ -321,10 +327,17 @@ export function authProfileFixture({
       sql.includes('INSERT INTO steps')
     )
       return rows();
+    if (sql.includes('SELECT count(*)::integer n FROM action_intents') &&
+      sql.includes('auth_session_id=$2'))
+      return rows([{ n: [...auth.intents.values()].filter((intent) =>
+        intent.auth_session_id === params[1]).length }]);
     if (sql.includes('SELECT count(*)::integer n FROM action_intents')) {
       // Captures are evidence, not test steps: they never spend the allowance.
       assert.match(sql, /tool_call->>'name' <> 'capture'/);
-      return rows([{ n: auth.caseActionCount }]);
+      const intents = [...auth.intents.values()].filter((intent) =>
+        intent.task_id === params[1] && intent.tool_call?.name !== 'capture' &&
+        (params[2] || intent.auth_session_id == null));
+      return rows([{ n: auth.caseActionCount + intents.length }]);
     }
     if (sql.includes('SELECT COALESCE(max(seq)')) return rows([{ n: 1 }]);
     if (sql.includes('AS frozen_version')) {

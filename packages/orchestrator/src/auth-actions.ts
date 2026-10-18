@@ -12,6 +12,10 @@ import { validateTarget, displayUrl } from '@localqa/domain';
 import type { Coordinator } from './core.js';
 import { signInKind, type AuthSessionPurpose } from './auth-execution.js';
 
+/** Per private self-sign-in session, including failed/unknown/pending intents.
+ * Separate from both the shared run action budget and the case allowance. */
+export const MAX_SELF_SIGN_IN_ACTIONS = 20;
+
 export type AuthActionName =
   'navigate_auth' | 'fill_credential' | 'submit_auth' | 'import_storage_state';
 
@@ -623,13 +627,24 @@ export class AuthActionsManager {
       };
     }
 
-    // Budget reservation: actions: 1
+    if (kind === 'self') {
+      // The session row is already locked FOR UPDATE, so parallel requests
+      // cannot race past this cap. Retries of the same request returned above.
+      const used = (await client.query<{ n: number }>(
+        'SELECT count(*)::integer n FROM action_intents WHERE project_id=$1 AND auth_session_id=$2',
+        [scope.projectId, session.id],
+      )).rows[0]!.n;
+      if (used >= MAX_SELF_SIGN_IN_ACTIONS)
+        throw new StorageError('AUTH_FAILED');
+    }
+    // Keep the intent/reservation/step ledger intact, but task-local sign-in
+    // spends its own cap, not maxActions. Legacy run-level auth is unchanged.
     const reservation = await this.coordinator.reserve(
       client,
       scope,
       proof,
       'action',
-      { actions: 1 },
+      kind === 'self' ? {} : { actions: 1 },
     );
 
     const grantId = randomUUID();
@@ -1126,13 +1141,15 @@ export class AuthActionsManager {
       );
     }
 
-    // Settle budget reservation (always charges actions: 1)
+    // Self-sign-in receipts keep their ledger/evidence without charging the
+    // shared run action budget. Unknown outcomes charge the reserved amount
+    // (also empty for self sign-in), just like crash recovery.
     await this.coordinator.settleIn(
       client,
       scope,
       proof,
       intent.reservation_id,
-      { actions: 1 },
+      kind === 'self' ? {} : { actions: 1 },
       outcome.status === 'unknown' ? 'unknown' : 'reported',
     );
 
