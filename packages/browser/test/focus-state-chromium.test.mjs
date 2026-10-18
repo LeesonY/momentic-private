@@ -117,6 +117,51 @@ test('every Tab step reports which control actually has focus', async () => {
   }
 });
 
+test('Shift+Tab reports focus moving back to the previous control', async () => {
+  const host = await listen((_req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.end(LOGIN);
+  });
+  const manager = new BrowserManager();
+  try {
+    const browser = await session(manager, host.origin);
+    await browser.executeTool({ name: 'navigate', args: { url: host.origin } });
+    const start = await browser.getSnapshot({ forceFresh: true });
+    const account = start.nodes.find((node) => node.placeholder === '账号');
+    const password = start.nodes.find((node) => node.role === 'password');
+    assert.ok(account && password);
+
+    // Forward: 账号 -> 密码.
+    const forward = await browser.executeTool({
+      name: 'press',
+      args: { target: target(start, account), key: 'Tab' },
+    });
+    assert.equal(forward.status, 'succeeded');
+    const afterForward = await browser.getSnapshot({ forceFresh: true });
+    assert.deepEqual(
+      focusedNodes(afterForward).map((node) => node.nodeId),
+      [password.nodeId],
+    );
+
+    // Reverse: 密码 -> 账号. Playwright focuses the target, then Shift+Tab.
+    const reverse = await browser.executeTool({
+      name: 'press',
+      args: { target: target(afterForward, password), key: 'Shift+Tab' },
+    });
+    assert.equal(reverse.status, 'succeeded');
+    const afterReverse = await browser.getSnapshot({ forceFresh: true });
+    assert.deepEqual(
+      focusedNodes(afterReverse).map((node) => node.nodeId),
+      [account.nodeId],
+      'Shift+Tab moved focus back to the account box',
+    );
+    await browser.close();
+  } finally {
+    await manager.close();
+    await host.close();
+  }
+});
+
 test('focus inside an open shadow root and on a plain editable block is marked', async () => {
   const host = await listen((_req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');

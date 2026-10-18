@@ -1987,14 +1987,16 @@ export class Worker {
             // reportBlocked already knows how an explore task ends: pages=[]
             // plus a warning, so the session continues and the main AI decides
             // (ask the user, explore elsewhere) instead of losing the run.
+            const reason = loginReportText({
+              reasonCode: outcome.reasonCode,
+              detail: outcome.detail ?? null,
+            });
             await this.reportBlocked(
               proof,
               work,
               'AUTH_FAILED',
-              `登录未成功，没有执行：${loginReportText({
-                reasonCode: outcome.reasonCode,
-                detail: outcome.detail ?? null,
-              })}`,
+              `登录未成功，没有执行：${reason}`,
+              { reasonCode: outcome.reasonCode, text: reason },
             );
             return true;
           }
@@ -2007,11 +2009,13 @@ export class Worker {
           if (reported || signal.aborted || RUN_LEVEL_STOPS.has(code))
             throw error;
           reported = true;
+          const reason = loginReportText({ reasonCode: code, detail: null });
           await this.reportBlocked(
             proof,
             work,
             'AUTH_FAILED',
-            `登录未成功，没有执行：${loginReportText({ reasonCode: code, detail: null })}`,
+            `登录未成功，没有执行：${reason}`,
+            { reasonCode: code, text: reason },
           );
           return true;
         }
@@ -2155,6 +2159,7 @@ export class Worker {
     work: Work,
     code: string,
     detail: string,
+    signInFailure?: { reasonCode: string; text: string },
   ): Promise<void> {
     // Constant codes only: the next time a case is blocked, the real cause is
     // in the logs instead of only in the generic user-facing text.
@@ -2171,6 +2176,7 @@ export class Worker {
         pages: [],
         coverage: 'Not explored',
         warnings: [detail],
+        ...(signInFailure ? { signInFailure } : {}),
       });
       return;
     }
@@ -2188,6 +2194,7 @@ export class Worker {
           criteria: [],
           bug: null,
         },
+        ...(signInFailure ? { signInFailure } : {}),
       },
       work.definition.criteria.map((criterion) => ({
         criterionId: criterion.id,

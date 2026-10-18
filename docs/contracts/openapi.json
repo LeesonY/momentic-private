@@ -12122,6 +12122,7 @@
                       "Enter",
                       "Escape",
                       "Tab",
+                      "Shift+Tab",
                       "ArrowUp",
                       "ArrowDown"
                     ]

@@ -107,6 +107,16 @@ export interface SessionContext {
     nativeTools: boolean;
     imageInput: boolean;
   };
+  /** Run-bound login configuration and this session's self sign-in results.
+   * Names and outcome text only: credential values never enter the context. */
+  signIn: {
+    configured: boolean;
+    profileName: string | null;
+    sharingPolicy: 'exclusive_run' | 'shared_state' | null;
+    succeeded: number;
+    failed: number;
+    lastFailure: string | null;
+  };
 }
 
 /** A task's sign-in report in words, without exposing credentials. */
@@ -313,6 +323,54 @@ export class SessionAgent {
     const assertionCapabilities = profile
       ? parseContract('ModelProfile', profile.document).capabilities
       : { structuredOutput: false, nativeTools: false, imageInput: false };
+    // The run's frozen login profile, if it is still usable. Only the display
+    // name and sharing policy are read; secrets live in the write-only vault.
+    const signInProfile = (
+      await client.query<{
+        name: string | null;
+        sharing_policy: string | null;
+      }>(
+        `SELECT v.document->>'name' AS name,
+                v.document->>'sharingPolicy' AS sharing_policy
+         FROM runs r
+         JOIN auth_profiles p ON p.project_id=r.project_id
+           AND p.id=r.auth_profile_id AND p.deleted_at IS NULL
+           AND NOT p.revoked
+         JOIN auth_profile_versions v ON v.project_id=p.project_id
+           AND v.auth_profile_id=p.id AND v.version=r.auth_profile_version
+         WHERE r.project_id=$1 AND r.id=$2
+           AND v.document->>'status'='active'
+           AND v.document->>'mode'<>'none'`,
+        [run.projectId, run.id],
+      )
+    ).rows[0];
+    // Server-verified self sign-ins are successes; the Worker marks a task's
+    // blocked sign-in report with signInFailure so a failure that never got an
+    // auth session (e.g. account contention) is counted too.
+    const signInSucceeded =
+      (
+        await client.query<{ succeeded: number }>(
+          "SELECT count(*)::integer AS succeeded FROM auth_execution_sessions WHERE project_id=$1 AND run_id=$2 AND purpose='initializer' AND end_reason='signed_in'",
+          [run.projectId, run.id],
+        )
+      ).rows[0]?.succeeded ?? 0;
+    const signInFailures = (
+      await client.query<{ failed: number; last_failure: string | null }>(
+        `SELECT count(*)::integer AS failed,
+                (array_agg(j.result->'signInFailure'->>'text'
+                  ORDER BY j.finished_at DESC NULLS LAST,j.id DESC))[1] AS last_failure
+         FROM jobs j
+         WHERE j.project_id=$1 AND j.run_id=$2
+           AND j.role IN ('explorer','executor','reproducer')
+           AND j.result ? 'signInFailure'`,
+        [run.projectId, run.id],
+      )
+    ).rows[0];
+    const sharingPolicy =
+      signInProfile?.sharing_policy === 'exclusive_run' ||
+      signInProfile?.sharing_policy === 'shared_state'
+        ? signInProfile.sharing_policy
+        : null;
     return {
       session,
       targetUrl: run.targetUrl,
@@ -337,6 +395,18 @@ export class SessionAgent {
       taskIntent: run.effectiveConfig.taskIntent ?? 'flow',
       writeScope: run.effectiveConfig.writeScope ?? [],
       assertionCapabilities,
+      signIn: {
+        configured: Boolean(
+          run.effectiveConfig.authProfileVersion !== null && signInProfile,
+        ),
+        profileName: signInProfile?.name
+          ? clean(signInProfile.name).slice(0, 120)
+          : null,
+        sharingPolicy,
+        succeeded: signInSucceeded,
+        failed: signInFailures?.failed ?? 0,
+        lastFailure: signInFailures?.last_failure ?? null,
+      },
     };
   }
   async applyPlan(

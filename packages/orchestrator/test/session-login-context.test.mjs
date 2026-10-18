@@ -32,7 +32,94 @@ test('session and model contexts have no run-level login, even with an old auth 
   assert.match(SESSION_AGENT_PROMPT, /action=ask/);
   assert.match(SESSION_AGENT_PROMPT, /环境与认证/);
   assert.match(SESSION_AGENT_PROMPT, /retryCaseIds/);
+  assert.match(
+    SESSION_AGENT_PROMPT,
+    /signIn\.configured=true 时不要向用户要账号/,
+  );
+  assert.match(SESSION_AGENT_PROMPT, /至少一条 requiresLogin=true 的用例/);
+  assert.match(SESSION_AGENT_PROMPT, /本轮已有 requiresLogin=true 的用例时/);
+  assert.match(SESSION_AGENT_PROMPT, /如果本轮用例全是 requiresLogin=false/);
+  assert.match(
+    SESSION_AGENT_PROMPT,
+    /至少补一条最小的 requiresLogin=true 用例/,
+  );
+  assert.match(SESSION_AGENT_PROMPT, /反向焦点顺序用 press key=Shift\+Tab/);
+  assert.match(SESSION_AGENT_PROMPT, /signIn\.configured=false/);
+  assert.match(SESSION_AGENT_PROMPT, /signIn\.succeeded\/failed/);
+  assert.match(SESSION_AGENT_PROMPT, /sharingPolicy=exclusive_run/);
   assert.doesNotMatch(SESSION_AGENT_PROMPT, /login 是本次账号的登录结果/);
+});
+
+test('signIn context exposes the bound profile and self sign-in summary without secrets', async () => {
+  const secret = 'fixture-password-9f2c';
+  const fixture = sessionFixture(
+    {},
+    {
+      authProfile: {
+        name: '114 本地测试账号 localqa-mo01',
+        sharingPolicy: 'exclusive_run',
+        mode: 'form',
+        status: 'active',
+        version: 3,
+        secret,
+        formConfig: { loginUrl: 'https://fixture.test/login' },
+      },
+      authSessions: [{ endReason: 'signed_in' }, { endReason: 'signed_in' }],
+      signInFailures: ['登录代理调用模型超时，没能完成登录。'],
+    },
+  );
+  const context = await fixture.agent.context(fixture.client, fixture.run);
+  assert.deepEqual(context.signIn, {
+    configured: true,
+    profileName: '114 本地测试账号 localqa-mo01',
+    sharingPolicy: 'exclusive_run',
+    succeeded: 2,
+    failed: 1,
+    lastFailure: '登录代理调用模型超时，没能完成登录。',
+  });
+  const serialized = JSON.stringify(context);
+  assert.equal(serialized.includes(secret), false);
+  assert.equal(serialized.includes('fixture.test/login'), false);
+  for (const purpose of ['plan', 'summarize'])
+    assert.deepEqual(
+      sessionModelContext(context, purpose).signIn,
+      context.signIn,
+    );
+});
+
+test('signIn context stays unconfigured without a usable profile', async () => {
+  for (const options of [
+    {},
+    {
+      authProfile: {
+        name: '已撤销账号',
+        sharingPolicy: 'shared_state',
+        mode: 'form',
+        status: 'revoked',
+        version: 1,
+      },
+    },
+    {
+      authProfile: {
+        name: '匿名配置',
+        sharingPolicy: 'shared_state',
+        mode: 'none',
+        status: 'active',
+        version: 1,
+      },
+    },
+  ]) {
+    const fixture = sessionFixture({}, options);
+    const context = await fixture.agent.context(fixture.client, fixture.run);
+    assert.deepEqual(context.signIn, {
+      configured: false,
+      profileName: null,
+      sharingPolicy: null,
+      succeeded: 0,
+      failed: 0,
+      lastFailure: null,
+    });
+  }
 });
 
 test('Worker login blocking is persisted as a case report visible to the session AI', async () => {

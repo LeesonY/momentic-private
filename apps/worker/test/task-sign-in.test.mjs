@@ -235,6 +235,14 @@ test('worker login failure blocks only its case and normally finishes the task',
       assert.equal(result.agentReport.bug, null);
       assert.equal(code, 'AUTH_FAILED');
       assert.match(result.agentReport.gaps[0], /登录未成功，没有执行/);
+      // The session planner needs the reason text and count without reading the
+      // case report; the marker is a sanitized loginReportText projection.
+      assert.equal(typeof result.signInFailure.reasonCode, 'string');
+      assert.equal(
+        result.signInFailure.text,
+        result.agentReport.gaps[0].replace('登录未成功，没有执行：', ''),
+      );
+      assertPrivate(result.signInFailure);
       if (config.allocateError)
         assert.match(result.agentReport.gaps[0], /账号.*占用/);
       if (config.blockedReason)

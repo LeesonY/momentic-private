@@ -158,6 +158,7 @@ export function sessionModelContext(
     taskIntent: context.taskIntent,
     writeScope: context.writeScope,
     assertionCapabilities: context.assertionCapabilities,
+    signIn: context.signIn,
     remainingCases: context.remainingCases,
     remainingPages: context.remainingPages,
     concurrency: context.concurrency,

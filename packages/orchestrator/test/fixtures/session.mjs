@@ -82,6 +82,13 @@ export function sessionFixture(extra = {}, options = {}) {
     },
     ...extra,
   });
+  // Test-only login wiring: the fake SQL client projects these into the
+  // signIn context queries; the real profile document never leaves storage.
+  const authProfile = options.authProfile ?? null;
+  if (authProfile)
+    run.effectiveConfig.authProfileVersion = authProfile.version ?? 1;
+  const authSessions = options.authSessions ?? [];
+  const signInFailures = options.signInFailures ?? [];
   const state = {
     session: parseContract('SessionReport', {
       objective: brief,
@@ -353,6 +360,38 @@ export function sessionFixture(extra = {}, options = {}) {
               status: 'ready',
               version: 1,
             },
+          },
+        ]);
+      if (sql.includes("v.document->>'sharingPolicy' AS sharing_policy")) {
+        const usable =
+          authProfile &&
+          authProfile.status === 'active' &&
+          authProfile.mode !== 'none' &&
+          !authProfile.revoked;
+        return rows(
+          usable
+            ? [
+                {
+                  name: authProfile.name,
+                  sharing_policy: authProfile.sharingPolicy,
+                },
+              ]
+            : [],
+        );
+      }
+      if (sql.includes('FROM auth_execution_sessions'))
+        return rows([
+          {
+            succeeded: authSessions.filter(
+              (session) => session.endReason === 'signed_in',
+            ).length,
+          },
+        ]);
+      if (sql.includes('signInFailure'))
+        return rows([
+          {
+            failed: signInFailures.length,
+            last_failure: signInFailures.at(-1) ?? null,
           },
         ]);
       if (sql.includes("document->>'summary'='auth'")) return rows();

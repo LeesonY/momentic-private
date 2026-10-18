@@ -720,6 +720,8 @@ test('modifier combinations stay refused and Space keeps the old grant behavior'
     });
   assert.equal(evaluate('Control+Enter').denial, 'OUT_OF_SCOPE_MUTATION');
   assert.equal(evaluate('Shift+Enter').denial, 'OUT_OF_SCOPE_MUTATION');
+  // Shift+Tab is navigation, not activation: the Enter rule leaves it alone.
+  assert.equal(evaluate('Shift+Tab').denial, null);
   // Space is not blocked by the grant; the browser layer refuses it.
   assert.equal(evaluate('Space').denial, null);
 });

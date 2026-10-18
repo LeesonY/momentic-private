@@ -204,7 +204,7 @@ export type ToolCall =
       name: "press";
       args: {
         target: NodeTarget;
-        key: "Enter" | "Escape" | "Tab" | "ArrowUp" | "ArrowDown";
+        key: "Enter" | "Escape" | "Tab" | "Shift+Tab" | "ArrowUp" | "ArrowDown";
       };
     }
   | {

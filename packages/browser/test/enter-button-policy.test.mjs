@@ -17,6 +17,7 @@ test('a plain Enter with a target is judged by its button, not refused here', ()
   assert.equal(press(policy, { target, key: 'Shift+Enter' }).allowed, false);
   // Other keys keep their old allowance.
   assert.equal(press(policy, { target, key: 'Tab' }).allowed, true);
+  assert.equal(press(policy, { target, key: 'Shift+Tab' }).allowed, true);
   assert.equal(press(policy, { target, key: 'Escape' }).allowed, true);
 });
 
@@ -27,7 +28,8 @@ test('approved workflows outside the write scope still judge a plain Enter by it
     writeScope: ['https://app.test/org'],
   });
   assert.equal(
-    press(policy, { target, key: 'Enter' }, 'https://app.test/settings').allowed,
+    press(policy, { target, key: 'Enter' }, 'https://app.test/settings')
+      .allowed,
     true,
   );
   assert.equal(
@@ -46,14 +48,8 @@ test('restrictsActivation matches exactly the old Enter refusal scope', () => {
     allowedOrigins: ['https://app.test'],
     writeScope: ['https://app.test/org'],
   });
-  assert.equal(
-    approved.restrictsActivation('https://app.test/org/new'),
-    false,
-  );
-  assert.equal(
-    approved.restrictsActivation('https://app.test/settings'),
-    true,
-  );
+  assert.equal(approved.restrictsActivation('https://app.test/org/new'), false);
+  assert.equal(approved.restrictsActivation('https://app.test/settings'), true);
 
   const full = new PolicyInterceptor({ mode: 'full' });
   assert.equal(full.restrictsActivation('https://app.test/'), false);

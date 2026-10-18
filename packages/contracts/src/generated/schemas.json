@@ -6288,6 +6288,7 @@
                       "Enter",
                       "Escape",
                       "Tab",
+                      "Shift+Tab",
                       "ArrowUp",
                       "ArrowDown"
                     ]
@@ -23346,6 +23347,7 @@
                         "Enter",
                         "Escape",
                         "Tab",
+                        "Shift+Tab",
                         "ArrowUp",
                         "ArrowDown"
                       ]
@@ -28472,6 +28474,7 @@
                       "Enter",
                       "Escape",
                       "Tab",
+                      "Shift+Tab",
                       "ArrowUp",
                       "ArrowDown"
                     ]
