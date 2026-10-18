@@ -1836,15 +1836,17 @@ export class Worker {
         }
       };
       if (work.signIn) {
-        // Every session executor/reproducer creates its own browser, signs in
-        // there, and carries on in that SAME context. No state hand-off.
+        // Every session explorer/executor/reproducer creates its own browser,
+        // signs in there, and carries on in that SAME context. No state
+        // hand-off: an explorer that only ever sees the login page cannot tell
+        // the main AI what the signed-in pages look like.
         try {
           const profile = await this.runtime.authProfile(proof);
           if (
             !profile ||
             profile.mode === 'none' ||
             !(this.browser instanceof BrowserManager) ||
-            !['executor', 'reproducer'].includes(work.task.role)
+            !['explorer', 'executor', 'reproducer'].includes(work.task.role)
           )
             throw new DomainError('AUTH_FAILED');
           const loginUrl =
@@ -1884,7 +1886,7 @@ export class Worker {
               runId: work.run.id,
               tlsPolicy: work.tlsPolicy,
               session: created,
-              role: work.task.role as 'executor' | 'reproducer',
+              role: work.task.role as 'explorer' | 'executor' | 'reproducer',
               onLoginStart: (url) => {
                 if (!taskLoginPage) taskLoginPage = new URL(url);
               },
@@ -1897,6 +1899,9 @@ export class Worker {
             if (RUN_LEVEL_STOPS.has(outcome.reasonCode))
               throw new DomainError(outcome.reasonCode);
             reported = true;
+            // reportBlocked already knows how an explore task ends: pages=[]
+            // plus a warning, so the session continues and the main AI decides
+            // (ask the user, explore elsewhere) instead of losing the run.
             await this.reportBlocked(
               proof,
               work,

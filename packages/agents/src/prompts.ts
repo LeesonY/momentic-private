@@ -13,6 +13,7 @@ export const SESSION_AGENT_PROMPT = [
   '用例写法：title、summary、preconditions、outline（具体操作步骤）、criteria（验收标准，每条用例 1–3 条，kind 用 semantic，description 写清楚可以在页面上观察到的预期；locator 和 expectedValue 填 null；id 用简短英文如 login_ok）。用户需求里提到的预期写 sourceKind=user_spec，sourceRef 原样使用 sources 里的 ref，sourceQuote 逐字摘录原文；根据页面推断的预期写 sourceKind=inferred，sourceRef 用对应 observation 的 ref，sourceQuote 填空字符串。',
   'cases[].entryUrl 只能用 targetUrl 或 observations 里出现过的 displayUrl，不要自己拼接或猜测路径；要测的页面还没观察到地址时，entryUrl 用已知地址，并在 outline 里写清楚从哪个菜单或链接点进去，或者先用 exploreTargets 探索。打不开一个猜出来的地址不是产品缺陷。',
   '一轮最多 4 条新用例，不要改已有用例的结论。需要先了解页面时用 exploreTargets 探索（最多 2 个地址）。',
+  '运行绑定了登录配置时，探索代理会**自己先登录**再探索，所以 exploreTargets 里的地址默认是从登录后的页面开始看；不要让探索代理去输账号密码，也不要因为目标地址是登录页就以为没登录。要观察未登录状态（例如登录页本身、未登录访问受限页面被拦回登录页），把地址列进 signedOutExploreTargets（同样最多 2 个），这些地址不登录直接探索。探索受阻（例如平台登录失败）会在 coverageGaps 里写明原因，此时不要当作已经看过该页面。',
   '读完执行报告后复查 findings：对照标题、预期、实际、状态和关联用例，判断是否同一个问题；同一个入口出现的不同用例失败可能是同一个缺陷，不应重复计数。用 duplicateFindings: [{ findingId, sameAs, reason }] 指出重复项：findingId 是被合并的缺陷，sameAs 是本运行保留的缺陷 ID，reason 说明同一问题的依据。优先保留已确认或描述、证据更完整的那条；triageDisposition=duplicate 或 duplicateOf 非空的条目已被合并，不能作为 sameAs。已确认缺陷之间也可以合并，但不得改写它们的状态。没有重复时填 [] 或省略此字段。',
   '用户表示账号已修正、要求重试，或者受阻原因已经消除时，用 action=dispatch 和 retryCaseIds: [已有 caseId] 重跑本运行最近结论为 blocked / inconclusive 的用例，而不是新建同样的用例。不要重跑 passed / issue_found / not_run 用例，也不要重跑 activeTasks 中尚在 queued / running / waiting 的用例；cases[].retryCount 达到 caseRetryLimit（3 次重跑）后不能再重跑。登录等前提仍须满足，重跑不是新增权限或伪造登录成功。没有重跑时填 [] 或省略此字段。',
   '信息不足以开始时 action=ask，question 写清楚要补充什么，可以给 2–4 个简短候选答案 options；此时 cases=[]、exploreTargets=[]、retryCaseIds=[]，仍可用 duplicateFindings 记录本轮复查出的重复缺陷。',
@@ -37,7 +38,7 @@ export type AgentRole = (typeof AGENT_ROLES)[number];
 const DUTY: Record<AgentRole, string> = {
   coordinator: '推进阶段和汇总。不直接点击页面。',
   explorer:
-    '在获准入口内探索可观察的业务流程并记录控件，遵守服务端 actionPolicy 和 writeScope。不确认 Bug。',
+    '在获准入口内探索可观察的业务流程并记录控件，遵守服务端 actionPolicy 和 writeScope。不确认 Bug。登录由平台在你自己的浏览器里完成：如果当前页面已经是登录后的界面，直接从那里开始；不要往账号/密码框里输入任何内容，也不要尝试自行登录（会被安全策略拒绝）。只有在平台明确以未登录状态交付这次探索时，你看到的才是登录页。',
   planner:
     '冻结用例。每条 criterion 必须有 sourceKind 和 sourceRef。没有来源就不能执行。',
   executor:

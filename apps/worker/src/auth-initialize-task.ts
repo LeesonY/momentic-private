@@ -85,7 +85,7 @@ export async function initializeBrowserAuthentication(
      */
     session?: BrowserSessionImpl;
     /** The leased role whose model binding and budget the sign-in uses. */
-    role?: 'executor' | 'reproducer';
+    role?: 'explorer' | 'executor' | 'reproducer';
     /** Trusted Worker-only notice of the first server-authorized login URL.
      * The raw URL stays private; it is never part of the auth outcome. */
     onLoginStart?: (url: string) => void;
