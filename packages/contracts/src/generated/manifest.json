@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "sourceHashes": {
-    "domain.schema.json": "4acf6595a285061762173e89e50e2bc11042a53d0e4c3b3df9f1af89fd50daf2",
+    "domain.schema.json": "9617ec5e19d004b858b16e09de83e205ce5f2bd86f106b02ff56889e5cdf70c9",
     "events.schema.json": "46a6baa5d119e2a16bfc3af33066ae2d70982a3e7c09d353d126a4cbd28b4344",
-    "openapi.json": "91a8894d2eea9416adb50b42300d0164b2d1de07ce38edd2b6b5242d865fc5bc",
+    "openapi.json": "3a9b6c9609726b8d6e432b770d8f907dd1f351ac8d0febb79fad9985ec4d64c0",
     "regression.schema.json": "3311ab392986b0253fc833e5eb97eecefd6f612b767ed308fd8edd75a086b39f",
     "report.schema.json": "18b1a580fa8706abe79520af87ca2b0d0545d0966559a96fce3987a34f4d3d8d",
     "tools.schema.json": "9d22ee0f49967b3252fc9c00b7c31e1eeb6cbdcad71bcc7874a2fb17fc67f5d9"
@@ -92,6 +92,7 @@
     "Project",
     "ProjectCreate",
     "ProjectDeleteConfirm",
+    "ProjectDeletionPreview",
     "ProjectPage",
     "ProjectPatch",
     "RegressionBinding",

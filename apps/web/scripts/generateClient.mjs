@@ -52,8 +52,8 @@ for (const [path, methods] of Object.entries(openApi.paths)) {
   }
 }
 
-if (operations.length !== 97) {
-  throw new Error(`Expected 97 public operations, found ${operations.length}`);
+if (operations.length !== 98) {
+  throw new Error(`Expected 98 public operations, found ${operations.length}`);
 }
 
 const opNames = operations.map((op) => op.operationId);

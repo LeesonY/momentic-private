@@ -444,11 +444,11 @@
         }
       },
       "delete": {
-        "operationId": "deleteEmptyProject",
+        "operationId": "deleteProject",
         "tags": [
           "P0"
         ],
-        "summary": "deleteEmptyProject",
+        "summary": "deleteProject",
         "security": [
           {
             "cookieAuth": []
@@ -467,7 +467,7 @@
         ],
         "responses": {
           "204": {
-            "description": "deleteEmptyProject"
+            "description": "deleteProject"
           },
           "default": {
             "description": "Stable, redacted error",
@@ -486,6 +486,53 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ProjectDeleteConfirm"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/deletion-preview": {
+      "get": {
+        "operationId": "getProjectDeletionPreview",
+        "tags": [
+          "P0"
+        ],
+        "summary": "getProjectDeletionPreview",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "getProjectDeletionPreview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDeletionPreview"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable, redacted error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
               }
             }
           }
@@ -10674,6 +10721,90 @@
         "required": [
           "expectedVersion",
           "confirmName"
+        ],
+        "additionalProperties": false
+      },
+      "ProjectDeletionPreview": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "archived"
+            ]
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "runs": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "activeRuns": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "savedCases": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "enabledSchedules": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "environments": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "authProfiles": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "members": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "activeApiKeys": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "runs",
+              "activeRuns",
+              "savedCases",
+              "enabledSchedules",
+              "environments",
+              "authProfiles",
+              "members",
+              "activeApiKeys"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "projectId",
+          "name",
+          "version",
+          "status",
+          "empty",
+          "counts"
         ],
         "additionalProperties": false
       },

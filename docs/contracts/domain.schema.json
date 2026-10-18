@@ -4842,6 +4842,90 @@
       ],
       "additionalProperties": false
     },
+    "ProjectDeletionPreview": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "archived"
+          ]
+        },
+        "empty": {
+          "type": "boolean"
+        },
+        "counts": {
+          "type": "object",
+          "properties": {
+            "runs": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "activeRuns": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "savedCases": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "enabledSchedules": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "environments": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "authProfiles": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "members": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "activeApiKeys": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "runs",
+            "activeRuns",
+            "savedCases",
+            "enabledSchedules",
+            "environments",
+            "authProfiles",
+            "members",
+            "activeApiKeys"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "projectId",
+        "name",
+        "version",
+        "status",
+        "empty",
+        "counts"
+      ],
+      "additionalProperties": false
+    },
     "ModelDeleteConfirm": {
       "type": "object",
       "properties": {

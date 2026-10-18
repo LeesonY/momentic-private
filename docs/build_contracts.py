@@ -176,6 +176,23 @@ D["Project"]["properties"]["defaultModelProfileId"] = nullable(UUID)
 D["Project"]["required"].append("defaultModelProfileId")
 D["ProjectPatch"] = obj({"expectedVersion": VER, "name": text(120), "status": enum("active", "archived"), "defaultModelProfileId": nullable(UUID)}, ["expectedVersion"])
 D["ProjectDeleteConfirm"] = obj({"expectedVersion": VER, "confirmName": text(120, minLength=1)})
+D["ProjectDeletionPreview"] = obj({
+    "projectId": UUID,
+    "name": text(120),
+    "version": VER,
+    "status": enum("active", "archived"),
+    "empty": BOOL,
+    "counts": obj({
+        "runs": integer(),
+        "activeRuns": integer(),
+        "savedCases": integer(),
+        "enabledSchedules": integer(),
+        "environments": integer(),
+        "authProfiles": integer(),
+        "members": integer(),
+        "activeApiKeys": integer(),
+    }),
+})
 D["ModelDeleteConfirm"] = obj({"expectedVersion": VER, "confirmName": text(120, minLength=1)})
 D["ModelProfilePatch"] = obj({"expectedVersion": VER, "adapter": enum("openai_compatible", "anthropic_messages"), "name": text(120), "endpoint": URI, "configuredModelId": text(200), "apiKey": text(1000, writeOnly=True), "status": enum("disabled", "untested")}, ["expectedVersion"])
 D["ModelProfilePatch"]["properties"]["responseFormat"] = enum("json_schema", "json_object", "native_tools")
@@ -412,7 +429,8 @@ operation(P+"/projects", "get", "listProjects", "ProjectPage")
 operation(P+"/projects", "post", "createProject", "Project", "ProjectCreate", 201)
 operation(P+"/projects/{projectId}", "get", "getProject", "Project")
 operation(P+"/projects/{projectId}", "patch", "updateProject", "Project", "ProjectPatch")
-operation(P+"/projects/{projectId}", "delete", "deleteEmptyProject", body="ProjectDeleteConfirm", status=204)
+operation(P+"/projects/{projectId}/deletion-preview", "get", "getProjectDeletionPreview", "ProjectDeletionPreview")
+operation(P+"/projects/{projectId}", "delete", "deleteProject", body="ProjectDeleteConfirm", status=204)
 operation(P+"/projects/{projectId}/members", "get", "listMembers", "MemberPage")
 operation(P+"/projects/{projectId}/members", "put", "replaceMembers", "Project", "MemberUpdate")
 for suffix, name, create in [("environments", "Environment", "EnvironmentCreate"), ("auth-profiles", "AuthProfile", "AuthProfileCreate"), ("knowledge", "Knowledge", "KnowledgeCreate")]:

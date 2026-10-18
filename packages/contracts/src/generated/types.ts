@@ -84,6 +84,7 @@ export type Contract =
   | Project
   | ProjectCreate
   | ProjectDeleteConfirm
+  | ProjectDeletionPreview
   | ProjectPage
   | ProjectPatch
   | RegressionBinding
@@ -1258,6 +1259,23 @@ export interface ProjectDeleteConfirm {
   expectedVersion: number;
   confirmName: string;
 }
+export interface ProjectDeletionPreview {
+  projectId: string;
+  name: string;
+  version: number;
+  status: "active" | "archived";
+  empty: boolean;
+  counts: {
+    runs: number;
+    activeRuns: number;
+    savedCases: number;
+    enabledSchedules: number;
+    environments: number;
+    authProfiles: number;
+    members: number;
+    activeApiKeys: number;
+  };
+}
 export interface ProjectPage {
   /**
    * @minItems 0
@@ -2118,6 +2136,7 @@ export interface ContractTypes {
   Project: Project;
   ProjectCreate: ProjectCreate;
   ProjectDeleteConfirm: ProjectDeleteConfirm;
+  ProjectDeletionPreview: ProjectDeletionPreview;
   ProjectPage: ProjectPage;
   ProjectPatch: ProjectPatch;
   RegressionBinding: RegressionBinding;
