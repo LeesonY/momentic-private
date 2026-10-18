@@ -1930,7 +1930,11 @@ export class Coordinator {
           writeScope: run.effectiveConfig.writeScope ?? [],
         });
         if (decision.denial)
-          throw actionDenied(decision.denial, decision.node);
+          throw actionDenied(
+            decision.denial,
+            decision.node,
+            decision.enterButton,
+          );
         if (decision.releasedSensitive) {
           const value = inputValueOf(call);
           if (value !== null && value.length > 0) {

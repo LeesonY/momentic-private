@@ -122,7 +122,7 @@ function denialGuidance(reasonCode: string): string {
   if (reasonCode === 'SAVED_CREDENTIAL_INPUT')
     return '输入的值与已保存凭据相同，已被拒绝。请改用明显虚构的测试值，不要使用真实账号密码。';
   if (reasonCode === 'OUT_OF_SCOPE_MUTATION')
-    return '非提交策略下禁止 Enter 或提交类按钮，这个动作不会执行。不要再尝试这个动作。';
+    return '非提交策略下，回车只在它等效的按钮可点时放行；按钮是保存、提交、删除这类，或者找不到等效按钮时不放行。提交类按钮同样不会执行。不要重复被拒的动作。';
   if (reasonCode === 'POLICY_DENIED')
     return '这个动作被当前运行策略拒绝，没有执行。不要重复它；只使用工具列表里的工具，需要时先 observe 再用最新快照重试。';
   if (reasonCode === 'REPEATED_ACTION_LIMIT')
@@ -799,6 +799,8 @@ export class Worker {
           reasonCode: string;
           role: string | null;
           name: string | null;
+          /** Set when a plain Enter was judged against this button. */
+          enterButton?: { role: string | null; name: string | null };
         }> = [];
         const execute = async (
           call: ToolCall,
@@ -841,7 +843,14 @@ export class Worker {
             if (isActionDenialCode(code)) {
               const denial = (
                 error as {
-                  denial?: { role?: string | null; name?: string | null };
+                  denial?: {
+                    role?: string | null;
+                    name?: string | null;
+                    enterButton?: {
+                      role?: string | null;
+                      name?: string | null;
+                    };
+                  };
                 } | null
               )?.denial;
               grantDenials.push({
@@ -849,6 +858,14 @@ export class Worker {
                 reasonCode: code,
                 role: denial?.role ?? null,
                 name: denial?.name ?? null,
+                ...(denial?.enterButton
+                  ? {
+                      enterButton: {
+                        role: denial.enterButton.role ?? null,
+                        name: denial.enterButton.name ?? null,
+                      },
+                    }
+                  : {}),
               });
               if (grantDenials.length > 20) grantDenials.shift();
             }

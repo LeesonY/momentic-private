@@ -5,7 +5,8 @@ import { test } from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { parseContract } from '@localqa/contracts';
 import { DomainError } from '@localqa/domain';
-import { StorageError } from '@localqa/storage';
+import { StorageError, hashPayload } from '@localqa/storage';
+import { evaluateTargetGrant } from '../dist/action-grant.js';
 import {
   SAVED_VALUE_CONTAINMENT_MIN,
   inputValueOf,
@@ -534,5 +535,219 @@ test('Coordinator.tx preserves an action-denial code instead of VALIDATION_ERROR
       throw new DomainError('SOMETHING_UNEXPECTED');
     }),
     (error) => error.code === 'VALIDATION_ERROR',
+  );
+});
+
+const press = (fixture, snapshot, key = 'Enter', nodeId = 'password-field') =>
+  fixture.coordinator.grantAction(fixture.scope, fixture.proof, {
+    name: 'press',
+    args: { target: targetFor(snapshot, nodeId), key },
+  });
+
+test('a plain Enter in a signed-out case follows the equivalent button', async () => {
+  const fixture = signedOutFixture();
+  const snapshot = addSnapshot(fixture, [
+    snapshotNode({ enterButtonNodeId: 'login-button' }),
+    snapshotNode({
+      nodeId: 'login-button',
+      role: 'button',
+      inputType: 'button',
+      sensitive: false,
+      name: '登录',
+      text: '登录',
+    }),
+  ]);
+  const grant = await press(fixture, snapshot);
+  assert.equal(grant.call.name, 'press');
+  assert.equal(grant.call.args.key, 'Enter');
+});
+
+test('a plain Enter whose equivalent button mutates business data is refused', async () => {
+  for (const button of [
+    {
+      nodeId: 'save-button',
+      role: 'button',
+      inputType: 'button',
+      sensitive: false,
+      name: '保存',
+      text: '保存',
+    },
+    {
+      nodeId: 'submit-button',
+      role: 'button',
+      inputType: 'submit',
+      sensitive: false,
+      name: '登录',
+      text: '登录',
+    },
+    {
+      nodeId: 'delete-button',
+      role: 'button',
+      inputType: 'button',
+      sensitive: false,
+      name: '删除',
+      text: '删除',
+    },
+  ]) {
+    const fixture = signedOutFixture();
+    const snapshot = addSnapshot(fixture, [
+      snapshotNode({ enterButtonNodeId: button.nodeId }),
+      snapshotNode(button),
+    ]);
+    await assert.rejects(
+      press(fixture, snapshot),
+      (error) => {
+        assert.equal(error.code, 'OUT_OF_SCOPE_MUTATION');
+        assert.deepEqual(error.denial.enterButton, {
+          role: button.role,
+          name: button.name,
+        });
+        assert.equal(JSON.stringify(error).includes('WrongPwd'), false);
+        return true;
+      },
+    );
+  }
+});
+
+test('a plain Enter without a usable equivalent button is refused', async () => {
+  const cases = [
+    // The snapshot recorded no equivalent button.
+    [snapshotNode()],
+    // The field points at a node that is not in the snapshot.
+    [snapshotNode({ enterButtonNodeId: 'missing-button' })],
+    // The recorded button is hidden.
+    [
+      snapshotNode({ enterButtonNodeId: 'hidden-button' }),
+      snapshotNode({
+        nodeId: 'hidden-button',
+        role: 'button',
+        inputType: 'button',
+        sensitive: false,
+        name: '登录',
+        text: '登录',
+        visible: false,
+      }),
+    ],
+    // The recorded button is disabled.
+    [
+      snapshotNode({ enterButtonNodeId: 'disabled-button' }),
+      snapshotNode({
+        nodeId: 'disabled-button',
+        role: 'button',
+        inputType: 'button',
+        sensitive: false,
+        name: '登录',
+        text: '登录',
+        enabled: false,
+      }),
+    ],
+  ];
+  for (const nodes of cases) {
+    const fixture = signedOutFixture();
+    const snapshot = addSnapshot(fixture, nodes);
+    await assert.rejects(
+      press(fixture, snapshot),
+      (error) => error.code === 'OUT_OF_SCOPE_MUTATION',
+    );
+  }
+});
+
+test('a plain Enter on a button-like target follows its own click rule', async () => {
+  for (const [node, allowed] of [
+    [
+      {
+        nodeId: 'login-button',
+        role: 'button',
+        inputType: 'button',
+        sensitive: false,
+        name: '登录',
+        text: '登录',
+      },
+      true,
+    ],
+    [
+      {
+        nodeId: 'delete-button',
+        role: 'button',
+        inputType: 'button',
+        sensitive: false,
+        name: '删除',
+        text: '删除',
+      },
+      false,
+    ],
+  ]) {
+    const fixture = signedOutFixture();
+    const snapshot = addSnapshot(fixture, [snapshotNode(node)]);
+    const attempt = press(fixture, snapshot, 'Enter', node.nodeId);
+    if (allowed) assert.equal((await attempt).call.name, 'press');
+    else
+      await assert.rejects(
+        attempt,
+        (error) => error.code === 'OUT_OF_SCOPE_MUTATION',
+      );
+  }
+});
+
+test('modifier combinations stay refused and Space keeps the old grant behavior', async () => {
+  const fixture = signedOutFixture();
+  const snapshot = addSnapshot(fixture, [
+    snapshotNode({ enterButtonNodeId: 'login-button' }),
+    snapshotNode({
+      nodeId: 'login-button',
+      role: 'button',
+      inputType: 'button',
+      sensitive: false,
+      name: '登录',
+      text: '登录',
+    }),
+  ]);
+  const evaluate = (key) =>
+    evaluateTargetGrant({
+      target: targetFor(snapshot, 'password-field'),
+      owned: snapshot,
+      latestResultHash: hashPayload({
+        status: 'succeeded',
+        snapshot,
+        evidence: [],
+      }),
+      call: {
+        name: 'press',
+        args: { target: targetFor(snapshot, 'password-field'), key },
+      },
+      signedOutCase: true,
+      actionPolicy: 'non_submitting',
+      writeScope: [],
+    });
+  assert.equal(evaluate('Control+Enter').denial, 'OUT_OF_SCOPE_MUTATION');
+  assert.equal(evaluate('Shift+Enter').denial, 'OUT_OF_SCOPE_MUTATION');
+  // Space is not blocked by the grant; the browser layer refuses it.
+  assert.equal(evaluate('Space').denial, null);
+});
+
+test('an explorer still gets the sensitive-input refusal before the Enter rule', async () => {
+  const fixture = savedFixture();
+  importedAuth(fixture);
+  fixture.bindTask(
+    fixture.addJob(null, {
+      role: 'explorer',
+      stage: 'explore',
+      status: 'running',
+    }),
+  );
+  const snapshot = addSnapshot(fixture, [
+    snapshotNode({ enterButtonNodeId: 'login-button' }),
+    snapshotNode({
+      nodeId: 'login-button',
+      role: 'button',
+      inputType: 'button',
+      sensitive: false,
+      name: '登录',
+      text: '登录',
+    }),
+  ]);
+  await assert.rejects(
+    press(fixture, snapshot),
+    (error) => error.code === 'SENSITIVE_INPUT_FORBIDDEN',
   );
 });

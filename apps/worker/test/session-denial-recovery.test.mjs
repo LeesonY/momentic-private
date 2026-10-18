@@ -392,7 +392,11 @@ test('an out-of-scope refusal is explained and the case continues', async () => 
       if (call.name === 'press' && call.args.key === 'Enter')
         throw Object.assign(new Error('denied'), {
           code: 'OUT_OF_SCOPE_MUTATION',
-          denial: { role: 'text', name: '请输入账号' },
+          denial: {
+            role: 'text',
+            name: '请输入账号',
+            enterButton: { role: 'button', name: '保存' },
+          },
         });
       const target = call.args?.target;
       if (target && target.snapshotId !== latestSnapshotId)
@@ -427,8 +431,9 @@ test('an out-of-scope refusal is explained and the case continues', async () => 
       reasonCode: 'OUT_OF_SCOPE_MUTATION',
       role: 'text',
       name: '请输入账号',
+      enterButton: { role: 'button', name: '保存' },
     },
   ]);
   assert.equal(JSON.stringify(settled).includes('WrongUser_123'), false);
-  assert.match(text(modelPayloads[1]), /非提交策略下禁止 Enter/);
+  assert.match(text(modelPayloads[1]), /回车只在它等效的按钮可点时放行/);
 });
