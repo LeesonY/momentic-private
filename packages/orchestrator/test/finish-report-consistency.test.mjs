@@ -6,10 +6,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { parseContract } from '@localqa/contracts';
+import { criteriaHash } from '@localqa/domain';
 import { StorageError } from '@localqa/storage';
 import { Coordinator } from '../dist/core.js';
 
-function focusCase() {
+function focusCase({ extraCriteria = 0, sourceKind = 'inferred' } = {}) {
   const projectId = randomUUID();
   const runId = randomUUID();
   const caseId = randomUUID();
@@ -31,16 +32,23 @@ function focusCase() {
           id: 'focus_order',
           kind: 'semantic',
           description: '按 Tab 后焦点依次落在账号、密码和登录按钮。',
-          sourceKind: 'inferred',
+          sourceKind,
           sourceRef: 'session:planner',
         },
         {
           id: 'focus_visible',
           kind: 'semantic',
           description: '获得焦点的控件有可见的焦点样式。',
-          sourceKind: 'inferred',
+          sourceKind,
           sourceRef: 'session:planner',
         },
+        ...Array.from({ length: extraCriteria }, (_, index) => ({
+          id: `extra_${index}`,
+          kind: 'semantic',
+          description: `第 ${index + 1} 条附加验收标准。`,
+          sourceKind,
+          sourceRef: 'session:planner',
+        })),
       ],
       requiresLogin: false,
     }),
@@ -48,11 +56,23 @@ function focusCase() {
 }
 
 /** Real finish transaction; only the SQL client and the lease are fakes. */
-function finishFixture() {
-  const { projectId, runId, caseId, definition } = focusCase();
+function finishFixture({
+  role = 'executor',
+  extraCriteria = 0,
+  sourceKind = 'inferred',
+} = {}) {
+  const { projectId, runId, caseId, definition } = focusCase({
+    extraCriteria,
+    sourceKind,
+  });
   const taskId = randomUUID();
   const attemptId = randomUUID();
   const artifactId = randomUUID();
+  const originalAttemptId = randomUUID();
+  const originalContextId = randomUUID();
+  const currentContextId = randomUUID();
+  const originalArtifactId = randomUUID();
+  const findingId = randomUUID();
   const run = {
     id: runId,
     projectId,
@@ -65,19 +85,22 @@ function finishFixture() {
     id: taskId,
     runId,
     caseId,
-    role: 'executor',
+    role,
     status: 'running',
     attempt: 1,
-    summary: 'execute',
+    summary: role === 'reproducer' ? 'reproduce' : 'execute',
     elapsedSeconds: 0,
   });
   const job = {
     id: taskId,
     case_id: caseId,
-    role: 'executor',
+    role,
     status: 'running',
     document: jobDocument,
-    result: { stage: 'execute', entryUrl: run.targetUrl },
+    result:
+      role === 'reproducer'
+        ? { stage: 'reproduce', entryUrl: run.targetUrl, findingId }
+        : { stage: 'execute', entryUrl: run.targetUrl },
   };
   const proof = {
     taskId,
@@ -89,8 +112,29 @@ function finishFixture() {
   const verdicts = [];
   const findings = [];
   const findingEvidence = [];
+  const findingUpdates = [];
+  const reproductions = [];
+  const reproductionEvidence = [];
   const events = [];
   let leaseExpired = false;
+
+  const findingDocument = parseContract('Finding', {
+    id: findingId,
+    runId,
+    caseIds: [caseId],
+    kind: 'functional',
+    status: 'suspected',
+    title: definition.title,
+    severity: 'medium',
+    expected: definition.criteria[0].description,
+    actual: '原始尝试看到的实际表现',
+    expectedSource: definition.criteria[0].sourceKind,
+    reproSteps: definition.outline,
+    evidenceRefs: [originalArtifactId],
+    reproductionRef: null,
+    triageDisposition: 'open',
+    version: 1,
+  });
 
   const modelBinding = { profileId: randomUUID(), version: 1 };
   const runDto = parseContract('Run', {
@@ -155,8 +199,14 @@ function finishFixture() {
       if (sql.includes('SELECT document FROM run_sessions')) return rows([]);
       if (sql.includes('SELECT document FROM run_cases'))
         return rows([{ document: definition }]);
+      if (sql.includes('LEFT JOIN verdicts'))
+        return rows([
+          { context_id: originalContextId, verdict_status: 'issue_found' },
+        ]);
       if (sql.includes('FROM case_attempts'))
-        return rows([{ id: attemptId, status: 'running' }]);
+        return rows([
+          { id: attemptId, status: 'running', context_id: currentContextId },
+        ]);
       if (sql.includes('SELECT id FROM artifacts'))
         return rows([{ id: artifactId }]);
       if (sql.includes('INSERT INTO verdicts')) {
@@ -194,12 +244,56 @@ function finishFixture() {
         return rows();
       }
       if (sql.includes('SELECT id,document FROM findings')) return rows([]);
+      if (sql.includes('SELECT * FROM findings WHERE id=$1'))
+        return rows([
+          {
+            id: findingId,
+            run_id: runId,
+            case_id: caseId,
+            original_attempt_id: originalAttemptId,
+            criteria_hash: criteriaHash(definition),
+            status: findingDocument.status,
+            document: findingDocument,
+          },
+        ]);
+      if (sql.includes('SELECT artifact_id FROM finding_evidence'))
+        return rows([{ artifact_id: originalArtifactId }]);
       if (sql.includes('INSERT INTO findings')) {
         findings.push(params[8]);
         return rows();
       }
       if (sql.includes('INSERT INTO finding_evidence')) {
         findingEvidence.push({ findingId: params[1], artifactId: params[2] });
+        return rows();
+      }
+      if (sql.includes('INSERT INTO reproductions')) {
+        const reproduction = params[8];
+        // storage/migrations/002_invariants.sql: guard_reproduction().
+        if (
+          reproduction.outcome === 'reproduced' &&
+          !verdicts.some(
+            (verdict) =>
+              verdict.attemptId === attemptId &&
+              verdict.status === 'issue_found',
+          )
+        )
+          throw new StorageError('VALIDATION_ERROR');
+        reproductions.push(reproduction);
+        return rows();
+      }
+      if (sql.includes('INSERT INTO reproduction_evidence')) {
+        reproductionEvidence.push({
+          reproductionId: params[1],
+          artifactId: params[2],
+        });
+        return rows();
+      }
+      if (sql.includes('UPDATE findings SET status=$2')) {
+        findingUpdates.push({
+          status: params[1],
+          reproductionId: params[2],
+          document: params[3],
+        });
         return rows();
       }
       if (sql.includes('SELECT is_admin() AS allowed'))
@@ -296,7 +390,11 @@ function finishFixture() {
     verdicts,
     findings,
     findingEvidence,
+    findingUpdates,
+    reproductions,
+    reproductionEvidence,
     events,
+    findingId,
     expireLease: () => {
       leaseExpired = true;
     },
@@ -305,7 +403,7 @@ function finishFixture() {
         scope,
         proof,
         {
-          stage: 'execute',
+          stage: role === 'reproducer' ? 'reproduce' : 'execute',
           oracle: 'agent_report',
           agentReport: modelReport,
         },
@@ -315,20 +413,20 @@ function finishFixture() {
   };
 }
 
-test('issue_found without a failed criterion is corrected to blocked, not failed', async () => {
+test('issue_found without a failed criterion or a bug is recorded inconclusive', async () => {
   const fixture = finishFixture();
   const modelReport = fixture.report({
     status: 'issue_found',
     focusVisible: 'unknown',
     bug: null,
   });
-  // The report guard would reject this shape with VALIDATION_ERROR; the finish
-  // must keep the verdict and explain the correction instead.
+  // The verdict guard would reject this shape with VALIDATION_ERROR; the
+  // finish must keep the report and record what it actually says.
   await fixture.finish(modelReport);
   assert.equal(fixture.verdicts.length, 1);
   const verdict = fixture.verdicts[0];
-  assert.equal(verdict.status, 'blocked');
-  assert.equal(verdict.reasonCode, 'AGENT_BLOCKED');
+  assert.equal(verdict.status, 'inconclusive');
+  assert.equal(verdict.reasonCode, 'AGENT_INCONCLUSIVE');
   assert.ok(
     verdict.gaps.some((gap) => gap.includes('issue_found')),
     'the correction is explained in gaps',
@@ -340,27 +438,142 @@ test('issue_found without a failed criterion is corrected to blocked, not failed
       ['focus_visible', 'unknown'],
     ],
   );
-  assert.equal(
-    fixture.findings.length,
-    0,
-    'no finding without a failed criterion',
-  );
+  assert.equal(fixture.findings.length, 0, 'no finding without a named bug');
   const caseResult = fixture.events.find(
     (event) => event.type === 'case.result',
   );
-  assert.equal(caseResult.payload.outcome, 'blocked');
+  assert.equal(caseResult.payload.outcome, 'inconclusive');
 });
 
-test('passed with an unverified criterion is corrected to blocked', async () => {
+test('an issue reported outside the criteria keeps issue_found and creates a finding', async () => {
+  const fixture = finishFixture();
+  await fixture.finish(
+    fixture.report({
+      status: 'issue_found',
+      focusVisible: 'unknown',
+      bug: { title: '焦点样式不可见', expected: '', actual: '' },
+    }),
+  );
+  const verdict = fixture.verdicts[0];
+  assert.equal(verdict.status, 'issue_found');
+  assert.equal(verdict.reasonCode, 'AGENT_ISSUE_FOUND');
+  // The agent's own results stay untouched; a synthetic failed criterion
+  // satisfies the guard without inventing a failure for focus_visible.
+  assert.deepEqual(
+    verdict.criterionResults
+      .slice(0, 2)
+      .map((entry) => [entry.criterionId, entry.result]),
+    [
+      ['focus_order', 'passed'],
+      ['focus_visible', 'unknown'],
+    ],
+  );
+  const synthetic = verdict.criterionResults.find(
+    (entry) => entry.criterionId === 'agent_reported_issue',
+  );
+  assert.equal(synthetic.result, 'failed');
+  assert.ok(synthetic.reason.includes('焦点样式不可见'));
+  assert.equal(fixture.findings.length, 1);
+  const finding = fixture.findings[0];
+  assert.equal(finding.title, '焦点样式不可见');
+  // No listed criterion failed: the finding falls back to the first criterion.
+  assert.equal(finding.expected, fixture.definition.criteria[0].description);
+  assert.ok(finding.actual.includes('执行代理的摘要'));
+  assert.deepEqual(fixture.findingEvidence, [
+    { findingId: finding.id, artifactId: fixture.artifactId },
+  ]);
+});
+
+test('passed with an unverified criterion is recorded inconclusive', async () => {
   const fixture = finishFixture();
   await fixture.finish(
     fixture.report({ status: 'passed', focusVisible: 'unknown', bug: null }),
   );
   const verdict = fixture.verdicts[0];
-  assert.equal(verdict.status, 'blocked');
-  assert.equal(verdict.reasonCode, 'AGENT_BLOCKED');
-  assert.ok(verdict.gaps.some((gap) => gap.includes('passed')));
+  assert.equal(verdict.status, 'inconclusive');
+  assert.equal(verdict.reasonCode, 'AGENT_INCONCLUSIVE');
+  const gap = verdict.gaps.find((entry) => entry.includes('passed'));
+  assert.ok(gap.includes('focus_visible'));
+  assert.ok(gap.includes('未能判定'));
   assert.equal(fixture.findings.length, 0);
+});
+
+test('passed with a failed criterion is recorded inconclusive as contradictory', async () => {
+  const fixture = finishFixture();
+  await fixture.finish(
+    fixture.report({ status: 'passed', focusVisible: 'failed', bug: null }),
+  );
+  const verdict = fixture.verdicts[0];
+  assert.equal(verdict.status, 'inconclusive');
+  assert.equal(verdict.reasonCode, 'AGENT_INCONCLUSIVE');
+  const gap = verdict.gaps.find((entry) => entry.includes('passed'));
+  assert.ok(gap.includes('focus_visible 判为 failed'));
+  assert.ok(gap.includes('自相矛盾'));
+  assert.equal(fixture.findings.length, 0);
+});
+
+test('a 20-criterion report cannot take the synthetic result and fails the first unverified criterion', async () => {
+  const fixture = finishFixture({ extraCriteria: 18 });
+  assert.equal(fixture.definition.criteria.length, 20);
+  await fixture.finish(
+    fixture.report({
+      status: 'issue_found',
+      focusVisible: 'unknown',
+      bug: { title: '焦点样式不可见', expected: '', actual: '' },
+    }),
+  );
+  const verdict = fixture.verdicts[0];
+  assert.equal(verdict.status, 'issue_found');
+  assert.equal(verdict.criterionResults.length, 20);
+  assert.equal(
+    verdict.criterionResults.some(
+      (entry) => entry.criterionId === 'agent_reported_issue',
+    ),
+    false,
+  );
+  const failed = verdict.criterionResults.find(
+    (entry) => entry.result === 'failed',
+  );
+  assert.equal(failed.criterionId, 'focus_visible');
+  assert.ok(failed.reason.includes('焦点样式不可见'));
+  assert.equal(fixture.findings.length, 1);
+});
+
+test('a reproducer that reports an issue outside the criteria keeps issue_found and writes a reproduction', async () => {
+  const fixture = finishFixture({
+    role: 'reproducer',
+    sourceKind: 'user_spec',
+  });
+  await fixture.finish(
+    fixture.report({
+      status: 'issue_found',
+      focusVisible: 'unknown',
+      bug: {
+        title: '焦点样式不可见',
+        expected: '有焦点轮廓',
+        actual: '看不到',
+      },
+    }),
+  );
+  const verdict = fixture.verdicts[0];
+  assert.equal(verdict.status, 'issue_found');
+  assert.ok(
+    verdict.criterionResults.some(
+      (entry) =>
+        entry.criterionId === 'agent_reported_issue' &&
+        entry.result === 'failed',
+    ),
+  );
+  assert.equal(fixture.reproductions.length, 1);
+  const reproduction = fixture.reproductions[0];
+  assert.equal(reproduction.outcome, 'reproduced');
+  assert.equal(reproduction.findingId, fixture.findingId);
+  assert.deepEqual(fixture.reproductionEvidence, [
+    { reproductionId: reproduction.id, artifactId: fixture.artifactId },
+  ]);
+  assert.equal(fixture.findingUpdates.length, 1);
+  assert.equal(fixture.findingUpdates[0].status, 'confirmed');
+  assert.equal(fixture.findingUpdates[0].reproductionId, reproduction.id);
 });
 
 test('a passed report with every criterion verified stays passed', async () => {

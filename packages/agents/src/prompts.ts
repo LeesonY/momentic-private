@@ -102,6 +102,7 @@ export function renderPrompt(role: AgentRole): {
     '观察结果的 nodes 同时包含交互控件和页面上看得见的文字：role=statictext/paragraph/label 等节点是页面上真实渲染出来的文字（正文、提示条、字段下方的校验提示），即使文字和某个输入框的占位符一模一样，它也不是占位符；relatedNodeId 指向它属于哪个控件。占位符只出现在控件的 placeholder 字段里，name 只是控件的名字。',
     '控件的 value 是它当前的内容（密码等敏感值显示为 [redacted]，空串表示空的），aria-invalid 会让控件带 invalid=true。动作之后返回的观察还带 textChanges：appeared 是这一步之后新出现的文字，disappeared 是之前有、现在没了的文字，格式是「文字（所属控件）」。判断“输入是否回显”“有没有必填/错误提示”必须看这些；只有 placeholder 而没有 statictext 才是没有提示。',
     'focused=true 的节点就是当前真正获得键盘焦点的元素（含 shadow root 内和同源 iframe 内），没有 focused 节点表示焦点在页面本身。动作后的观察还带 focusChange：{from,to} 是这一步前后焦点所在的控件，验证 Tab 顺序、回车提交、快捷键时必须看它，不要靠猜。焦点环/高亮这类视觉样式不要从节点字段推断，只有截图能证明；截图看不清就写进 gaps，不要因为它把整条用例判为受阻。',
+    '提交用例报告时，status=passed 只在每条验收标准都判为 passed 时使用；有标准没法判定（unknown）就照实写 unknown 并写进 gaps，平台会按 inconclusive 记录，不要为了看起来完成而写 passed。',
   ].join('\n');
   return { version: PROMPT_VERSION, role, allowedTools, text };
 }

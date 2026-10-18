@@ -335,6 +335,7 @@ function reportPrompt(reproducing: boolean): string {
       ? 'status：issue_found=问题再次出现（复现成功）；passed=按步骤操作后没有出现这个问题；blocked=没能走到可以判断的地步（账号、权限、数据、环境或页面无法操作）。'
       : 'status：passed=页面表现符合全部验收标准；issue_found=观察到与验收标准不符的产品行为；blocked=因为账号、权限、数据、环境或页面无法操作等原因没能完成验证。',
     '账号或密码被拒、缺少测试数据、操作被权限策略拦下，都是 blocked，不是产品缺陷。',
+    'status=passed 只在每条验收标准都判为 passed 时使用；有标准没法判定就照实写 unknown 并写进 gaps，平台会按 inconclusive 记录，不要为了看起来完成而写 passed。',
     'summary：一两句话说明做了什么、看到了什么。verified：已经确认符合预期的点。gaps：没能确认的点和原因。',
     '最终页面观察里除了控件，还有页面上看得见的文字节点（nodeId、role=statictext/paragraph/label、relatedNodeId 指向相关控件）、控件的当前值 value（敏感值为 [redacted]，空串就是空的）、控件自己的占位提示 placeholder，以及控件的错误状态 invalid。占位符只在 placeholder 里；与占位符同文的 statictext 是页面上真实渲染的文字，不是占位符。',
     'finalObservation 是提交报告前重新采集的当前页面，不是最后一个动作那一刻的状态；sinceLastAction 是最后一个动作之后到现在新出现/消失的文字（「文字（所属控件）」）。判断页面现在是否有提示、提示是否已经消失，以 finalObservation 和 sinceLastAction 为准，不要用 actions[] 里更早的观察。',

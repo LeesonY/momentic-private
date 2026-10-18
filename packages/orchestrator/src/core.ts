@@ -2419,25 +2419,47 @@ export class Coordinator {
         //   - issue_found without any failed criterion result;
         //   - passed without every case criterion passed on owned evidence.
         // A model report can hold either shape (e.g. "issue_found" with the
-        // unverifiable criterion left unknown). Keep the verdict, correct the
-        // status, and say why in gaps instead of failing the whole finish.
-        const allCriteriaPassed = definition.criteria.every((criterion) =>
+        // unverifiable criterion left unknown). Neither shape means the case
+        // did not run: keep the report, record what it really says, and say
+        // why in gaps instead of failing the whole finish.
+        const unmetCriteria = definition.criteria.filter(
+          (criterion) =>
+            !results.some(
+              (entry) =>
+                entry.criterionId === criterion.id &&
+                entry.result === 'passed' &&
+                entry.evidenceRefs.some((id) => ownedEvidence.has(id)),
+            ),
+        );
+        const failedCriteria = unmetCriteria.filter((criterion) =>
           results.some(
             (entry) =>
-              entry.criterionId === criterion.id &&
-              entry.result === 'passed' &&
-              entry.evidenceRefs.some((id) => ownedEvidence.has(id)),
+              entry.criterionId === criterion.id && entry.result === 'failed',
           ),
+        );
+        const undecidedCriteria = unmetCriteria.filter(
+          (criterion) => !failedCriteria.includes(criterion),
         );
         const hasFailedCriterion = results.some(
           (entry) => entry.result === 'failed',
         );
         const reportedStatus = reported?.status ?? null;
-        const status =
+        // An issue the agent named in bug but could not tie to a failed
+        // criterion is still a real observation. Keep issue_found and add a
+        // synthetic failed criterion (agent_reported_issue) instead of
+        // rewriting one of the agent's own results: readers match results by
+        // definition criterion id and ignore the extra entry, while the guard
+        // and the finding fallback accept it. Without a bug there is nothing
+        // concrete to report, so the case is inconclusive.
+        const agentIssue =
           reportedStatus === 'issue_found' && !hasFailedCriterion
-            ? 'blocked'
-            : reportedStatus === 'passed' && !allCriteriaPassed
-              ? 'blocked'
+            ? (report?.bug ?? null)
+            : null;
+        const status =
+          reportedStatus === 'issue_found' && !hasFailedCriterion && !agentIssue
+            ? 'inconclusive'
+            : reportedStatus === 'passed' && unmetCriteria.length > 0
+              ? 'inconclusive'
               : (reportedStatus ??
                 verdictStatus(
                   definition,
@@ -2445,12 +2467,67 @@ export class Coordinator {
                   ownedEvidence,
                   reason === 'WORKER_INTERRUPTED' ? undefined : reason,
                 ));
+        const criterionState = (criterion: { id: string }) => {
+          const judged = results.find(
+            (entry) => entry.criterionId === criterion.id,
+          );
+          if (!judged) return '未给出判定';
+          if (
+            judged.result === 'passed' &&
+            !judged.evidenceRefs.some((id) => ownedEvidence.has(id))
+          )
+            return '判为 passed 但缺少本任务可用证据';
+          return judged.result;
+        };
         const statusCorrection =
           reportedStatus && status !== reportedStatus
             ? reportedStatus === 'issue_found'
-              ? '报告把用例标记为 issue_found，但没有任何验收标准判为 failed；按 blocked 记录，具体观察见 summary/gaps。'
-              : '报告把用例标记为 passed，但有验收标准未通过或缺少可用证据；按 blocked 记录，具体观察见 summary/gaps。'
+              ? '报告把用例标记为 issue_found，但没有任何验收标准判为 failed，也没有报告具体缺陷；按 inconclusive 记录，具体观察见 summary/gaps。'
+              : `报告把用例标记为 passed，但${[
+                  ...failedCriteria.map(
+                    (criterion) =>
+                      `${criterion.id} 判为 failed（报告与验收标准自相矛盾）`,
+                  ),
+                  ...undecidedCriteria.map(
+                    (criterion) =>
+                      `${criterion.id} 未能判定（${criterionState(criterion)}），未计为通过`,
+                  ),
+                ].join('，')}；按 inconclusive 记录，具体观察见 summary/gaps。`
             : null;
+        // CriterionResults is capped at 20, so a full list cannot take the
+        // synthetic entry; fail the first criterion the agent did not pass
+        // instead (falling back to the first one), which is also the fallback
+        // the finding below uses when no listed criterion failed.
+        const agentIssueRefs = [
+          ...new Set(results.flatMap((entry) => entry.evidenceRefs)),
+        ]
+          .filter((ref) => ownedEvidence.has(ref))
+          .slice(0, 30);
+        const failedFallbackIndex = Math.max(
+          0,
+          results.findIndex((entry) => entry.result !== 'passed'),
+        );
+        const criterionResults = agentIssue
+          ? results.length < 20
+            ? [
+                ...results,
+                {
+                  criterionId: 'agent_reported_issue',
+                  result: 'failed' as const,
+                  reason: `执行代理报告了缺陷：${agentIssue.title}`,
+                  evidenceRefs: agentIssueRefs,
+                },
+              ]
+            : results.map((entry, index) =>
+                index === failedFallbackIndex
+                  ? {
+                      ...entry,
+                      result: 'failed' as const,
+                      reason: `执行代理报告了缺陷：${agentIssue.title}`,
+                    }
+                  : entry,
+              )
+          : results;
         const verdict = parseContract('Verdict', {
           id: randomUUID(),
           caseId: job.case_id,
@@ -2459,7 +2536,9 @@ export class Coordinator {
           reasonCode: reported
             ? status === reported.status
               ? reported.reasonCode
-              : 'AGENT_BLOCKED'
+              : status === 'inconclusive'
+                ? 'AGENT_INCONCLUSIVE'
+                : 'AGENT_BLOCKED'
             : (reason ??
               (status === 'passed'
                 ? 'OBSERVED'
@@ -2470,13 +2549,15 @@ export class Coordinator {
             reported?.summary ??
             reason ??
             'Fixed criteria evaluated against owned observations',
-          criterionResults: results,
+          criterionResults,
           gaps: [
+            // The platform correction goes first so a report with 30 gaps of
+            // its own cannot push the explanation out of the list.
+            ...(statusCorrection ? [statusCorrection] : []),
             ...(reported?.gaps ??
               (status === 'passed' || status === 'issue_found'
                 ? []
                 : [reason ?? 'Criteria not fully evaluated'])),
-            ...(statusCorrection ? [statusCorrection] : []),
           ].slice(0, 30),
           ...(reported ? { verified: reported.verified } : {}),
           createdAt: new Date().toISOString(),
