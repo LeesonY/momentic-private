@@ -116,12 +116,18 @@ export async function claimTask(
        AND NOT (
          -- Serial claim for session tasks using an exclusive sign-in credential:
          -- leave queued if another self-signing task on this account is running.
+         -- A session explorer signs in as well, so it takes part in the same
+         -- queue; an explorer enqueued as a signed-out target does not.
          r.execution_mode = 'smoke'
-         AND j.role IN ('executor', 'reproducer')
-         AND j.document->>'summary' IN ('execute', 'reproduce')
+         AND (
+           (j.role IN ('executor', 'reproducer')
+             AND j.document->>'summary' IN ('execute', 'reproduce')
+             AND COALESCE((SELECT c.document->>'requiresLogin' FROM run_cases c WHERE c.project_id = j.project_id AND c.run_id = j.run_id AND c.id = j.case_id), 'true') <> 'false')
+           OR (j.role = 'explorer' AND j.document->>'summary' = 'explore'
+             AND COALESCE(j.result->>'signedOut', 'false') <> 'true')
+         )
          AND EXISTS(SELECT 1 FROM run_sessions s WHERE s.project_id = r.project_id AND s.run_id = r.id)
          AND r.auth_profile_id IS NOT NULL
-         AND COALESCE((SELECT c.document->>'requiresLogin' FROM run_cases c WHERE c.project_id = j.project_id AND c.run_id = j.run_id AND c.id = j.case_id), 'true') <> 'false'
          AND (
            SELECT v.document->>'sharingPolicy'
            FROM auth_profiles p
@@ -133,12 +139,16 @@ export async function claimTask(
            FROM jobs other_j
            JOIN runs other_r ON other_r.project_id = other_j.project_id AND other_r.id = other_j.run_id
            WHERE other_j.status = 'running'
-             AND other_j.role IN ('executor', 'reproducer')
-             AND other_j.document->>'summary' IN ('execute', 'reproduce')
+             AND (
+               (other_j.role IN ('executor', 'reproducer')
+                 AND other_j.document->>'summary' IN ('execute', 'reproduce')
+                 AND COALESCE((SELECT other_c.document->>'requiresLogin' FROM run_cases other_c WHERE other_c.project_id = other_j.project_id AND other_c.run_id = other_j.run_id AND other_c.id = other_j.case_id), 'true') <> 'false')
+               OR (other_j.role = 'explorer' AND other_j.document->>'summary' = 'explore'
+                 AND COALESCE(other_j.result->>'signedOut', 'false') <> 'true')
+             )
              AND other_r.execution_mode = 'smoke'
              AND other_r.auth_profile_id = r.auth_profile_id
              AND EXISTS(SELECT 1 FROM run_sessions other_s WHERE other_s.project_id = other_r.project_id AND other_s.run_id = other_r.id)
-             AND COALESCE((SELECT other_c.document->>'requiresLogin' FROM run_cases other_c WHERE other_c.project_id = other_j.project_id AND other_c.run_id = other_j.run_id AND other_c.id = other_j.case_id), 'true') <> 'false'
          )
        )
        ORDER BY CASE WHEN j.role IN ('coordinator','finalizer') THEN 0 ELSE 1 END,j.available_at,j.id FOR UPDATE OF j SKIP LOCKED LIMIT 1`,

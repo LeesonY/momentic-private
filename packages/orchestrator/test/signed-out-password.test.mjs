@@ -312,7 +312,8 @@ test('a signed-in case, an explorer and a regression run still refuse password i
   );
   assert.equal(credentialRead(signedIn), false);
 
-  // Explorer job: no case, so it can never be a signed-out case.
+  // A signed-out exploration: the explorer is anonymous here (a signed-in one
+  // signs in itself), so it still may not type a password.
   const explorer = savedFixture();
   importedAuth(explorer);
   explorer.bindTask(
@@ -320,6 +321,7 @@ test('a signed-in case, an explorer and a regression run still refuse password i
       role: 'explorer',
       stage: 'explore',
       status: 'running',
+      result: { signedOut: true },
     }),
   );
   const explorerSnapshot = addSnapshot(explorer, [snapshotNode()]);
@@ -594,18 +596,15 @@ test('a plain Enter whose equivalent button mutates business data is refused', a
       snapshotNode({ enterButtonNodeId: button.nodeId }),
       snapshotNode(button),
     ]);
-    await assert.rejects(
-      press(fixture, snapshot),
-      (error) => {
-        assert.equal(error.code, 'OUT_OF_SCOPE_MUTATION');
-        assert.deepEqual(error.denial.enterButton, {
-          role: button.role,
-          name: button.name,
-        });
-        assert.equal(JSON.stringify(error).includes('WrongPwd'), false);
-        return true;
-      },
-    );
+    await assert.rejects(press(fixture, snapshot), (error) => {
+      assert.equal(error.code, 'OUT_OF_SCOPE_MUTATION');
+      assert.deepEqual(error.denial.enterButton, {
+        role: button.role,
+        name: button.name,
+      });
+      assert.equal(JSON.stringify(error).includes('WrongPwd'), false);
+      return true;
+    });
   }
 });
 
@@ -733,6 +732,7 @@ test('an explorer still gets the sensitive-input refusal before the Enter rule',
       role: 'explorer',
       stage: 'explore',
       status: 'running',
+      result: { signedOut: true },
     }),
   );
   const snapshot = addSnapshot(fixture, [

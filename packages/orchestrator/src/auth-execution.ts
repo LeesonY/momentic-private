@@ -15,15 +15,38 @@ import { readRunAuthProfile } from './auth-profile.js';
  * Which tasks may run the private sign-in flow: the run-level auth job, or
  * (Mo-style) an executor/reproducer of a session-managed smoke run signing in
  * inside its own browser. `self` sign-ins never capture or import state.
+ *
+ * A session explorer signs in the same way when the run is login-bound: it is
+ * how the main AI sees the signed-in pages at all (an explorer that stays
+ * anonymous only ever observes the login page and then has to guess). A page the
+ * planner listed as a signed-out target is explored anonymously, so "smoke the
+ * login page" still works.
  */
 export async function signInKind(
   coordinator: Pick<Coordinator, 'sessions'>,
   client: PoolClient,
-  job: Pick<JobRow, 'role' | 'document'> & Partial<Pick<JobRow, 'case_id'>>,
+  job: Pick<JobRow, 'role' | 'document'> &
+    Partial<Pick<JobRow, 'case_id'>> & {
+      result?: unknown;
+    },
   run: Run,
 ): Promise<'auth' | 'self' | null> {
   const stage = job.document.summary;
   if (stage === 'auth') return 'auth';
+  if (
+    run.executionMode === 'smoke' &&
+    job.role === 'explorer' &&
+    stage === 'explore' &&
+    (await coordinator.sessions.read(client, run)) !== null
+  ) {
+    // Only the enqueueing server writes this flag; it names the target the
+    // planner explicitly asked to see without signing in.
+    const signedOut =
+      job.result !== null &&
+      typeof job.result === 'object' &&
+      (job.result as { signedOut?: unknown }).signedOut === true;
+    return signedOut ? null : 'self';
+  }
   if (
     run.executionMode === 'smoke' &&
     ((job.role === 'executor' && stage === 'execute') ||

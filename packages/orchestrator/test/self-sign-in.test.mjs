@@ -32,12 +32,15 @@ const noQueries = {
 
 const sessionCase = {
   query: async (sql) => {
-    assert.match(sql, /FROM run_cases WHERE id=\$1 AND project_id=\$2 AND run_id=\$3/);
+    assert.match(
+      sql,
+      /FROM run_cases WHERE id=\$1 AND project_id=\$2 AND run_id=\$3/,
+    );
     return { rows: [{ document: {} }] };
   },
 };
 
-test('only the auth job and session executors/reproducers may sign in', async () => {
+test('only the auth job and session explorers/executors/reproducers may sign in', async () => {
   const cases = [
     [job('executor', 'auth'), run('regression'), false, 'auth'],
     [job('executor', 'auth'), run(), false, 'auth'],
@@ -46,7 +49,18 @@ test('only the auth job and session executors/reproducers may sign in', async ()
     [job('executor', 'execute'), run(), false, null],
     [job('executor', 'execute'), run('regression'), true, null],
     [job('reproducer', 'reproduce'), run('regression'), true, null],
-    [job('explorer', 'explore'), run(), true, null],
+    [job('explorer', 'explore'), run(), true, 'self'],
+    [
+      {
+        ...job('explorer', 'explore'),
+        result: { stage: 'explore', signedOut: true },
+      },
+      run(),
+      true,
+      null,
+    ],
+    [job('explorer', 'explore'), run(), false, null],
+    [job('explorer', 'explore'), run('regression'), true, null],
     [job('coordinator', 'plan'), run(), true, null],
     [job('finalizer', 'finalize'), run(), true, null],
     [job('executor', 'recover'), run(), true, null],
@@ -80,7 +94,16 @@ test('sign-in endpoints still refuse other tasks before touching auth state', as
     [job('executor', 'execute'), run(), false],
     [job('executor', 'execute'), run('regression'), true],
     [job('coordinator', 'plan'), run(), true],
-    [job('explorer', 'explore'), run(), true],
+    // A signed-out exploration must not quietly acquire credentials.
+    [
+      {
+        ...job('explorer', 'explore'),
+        result: { stage: 'explore', signedOut: true },
+      },
+      run(),
+      true,
+    ],
+    [job('explorer', 'explore'), run(), false],
   ]) {
     const owner = leased(task, current, managed);
     const execution = new AuthExecutionManager(owner);

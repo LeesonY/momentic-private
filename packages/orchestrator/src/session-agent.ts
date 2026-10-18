@@ -329,7 +329,9 @@ export class SessionAgent {
       ),
       remainingPages: Math.max(
         0,
-        run.effectiveConfig.budget.maxPages - session.exploredUrls.length,
+        run.effectiveConfig.budget.maxPages -
+          session.exploredUrls.length -
+          (session.signedOutExploredUrls?.length ?? 0),
       ),
       actionPolicy: run.effectiveConfig.actionPolicy,
       taskIntent: run.effectiveConfig.taskIntent ?? 'flow',
@@ -400,6 +402,7 @@ export class SessionAgent {
           : 'AI 规划输出被截断或格式不合法；服务端未采用该输出。',
         cases: [],
         exploreTargets: exploreBeforeFallback ? [run.targetUrl] : [],
+        signedOutExploreTargets: [],
         coverageGaps: [
           exploreBeforeFallback
             ? '首次 AI 规划无效；仅探索已授权入口，等待基于观察的下一轮规划。'
@@ -418,6 +421,7 @@ export class SessionAgent {
           protectedOrigins: this.coordinator.protectedOrigins,
           existingCases: context.cases.map((c) => c.definition),
           exploredUrls: context.session.exploredUrls,
+          signedOutExploredUrls: context.session.signedOutExploredUrls ?? [],
           imageInput: context.assertionCapabilities.imageInput,
         });
       } catch (error) {
@@ -442,6 +446,7 @@ export class SessionAgent {
           rationale: 'AI 规划不符合源引用或授权约束，已拒绝原方案。',
           cases: [],
           exploreTargets: [],
+          signedOutExploreTargets: [],
           coverageGaps: [
             'AI 规划未通过服务端校验；未执行其业务断言。',
             ...(fallbackToTechnicalSmoke
@@ -515,13 +520,28 @@ export class SessionAgent {
         1,
         { entryUrl: url },
       );
+    // A signed-out exploration takes no sign-in and no exclusive account.
+    for (const url of planningOnly ? [] : accepted.signedOutExploreTargets)
+      await this.coordinator.enqueue(
+        client,
+        run,
+        'explorer',
+        'explore',
+        `session:${context.session.round}:signed-out:${hashPayload(url)}`,
+        null,
+        1,
+        { entryUrl: url, signedOut: true },
+      );
     if (
       !planningOnly &&
       caseIds.length &&
       ['explore', 'plan'].includes(run.phase)
     )
       await this.coordinator.change(client, run, 'running', 'execute');
-    const hasWork = caseIds.length > 0 || accepted.exploreTargets.length > 0;
+    const hasWork =
+      caseIds.length > 0 ||
+      accepted.exploreTargets.length > 0 ||
+      accepted.signedOutExploreTargets.length > 0;
     const invalidPlanStreak = invalidPlan
       ? (context.session.invalidPlanStreak ?? 0) + 1
       : 0;
@@ -574,6 +594,19 @@ export class SessionAgent {
           ...accepted.exploreTargets,
         ]),
       ],
+      // Signed-out observations are tracked apart: the same URL may still be
+      // explored signed in (that is the whole point of the split).
+      ...(context.session.signedOutExploredUrls?.length ||
+      accepted.signedOutExploreTargets.length
+        ? {
+            signedOutExploredUrls: [
+              ...new Set([
+                ...(context.session.signedOutExploredUrls ?? []),
+                ...accepted.signedOutExploreTargets,
+              ]),
+            ],
+          }
+        : {}),
       coverageGaps: [...new Set(gaps.map(clean))].slice(-100),
       history: [
         ...context.session.history,
@@ -652,6 +685,44 @@ export class SessionAgent {
       .filter((job) => !pending(job))
       .map((job) => job.id);
     const reviewed = new Set(session.reviewedTaskIds ?? []);
+    // An exploration that could not run (for example the platform could not
+    // sign in) reports warnings instead of a result. Surface them as coverage
+    // gaps, which the main AI reads, so it can ask the user or explore
+    // elsewhere instead of assuming the page was seen.
+    const exploreWarnings = [
+      ...new Set(
+        children
+          .filter(
+            (job) =>
+              job.role === 'explorer' && !pending(job) && !reviewed.has(job.id),
+          )
+          .flatMap((job) => {
+            const warnings = Array.isArray(job.result?.['warnings'])
+              ? (job.result['warnings'] as unknown[])
+              : [];
+            const url =
+              typeof job.result?.['entryUrl'] === 'string'
+                ? clean(job.result['entryUrl']).slice(0, 200)
+                : '目标页面';
+            return warnings
+              .filter(
+                (warning): warning is string =>
+                  typeof warning === 'string' && warning.trim().length > 0,
+              )
+              .map(
+                (warning) =>
+                  `探索 ${url} 受阻：${clean(warning).slice(0, 300)}`,
+              );
+          }),
+      ),
+    ];
+    if (exploreWarnings.length)
+      session = {
+        ...session,
+        coverageGaps: [
+          ...new Set([...session.coverageGaps, ...exploreWarnings]),
+        ].slice(-100),
+      };
     const hasNewResult = completed.some((id) => !reviewed.has(id));
     const hasNewMessage = latestMessage !== (session.messageCursor ?? null);
     const invalidPlanStreak = session.invalidPlanStreak ?? 0;

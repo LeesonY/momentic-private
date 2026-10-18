@@ -22,6 +22,8 @@ export interface PlanningContext {
   sources: readonly SessionSource[];
   existingCases: readonly (CandidateCase & { entryUrl?: string })[];
   exploredUrls: readonly string[];
+  /** Explored without signing in: the same URL may still be explored signed in. */
+  signedOutExploredUrls?: readonly string[];
   imageInput?: boolean;
 }
 const normalize = (text: string) =>
@@ -67,7 +69,10 @@ export interface AcceptedSessionDecision {
   action: SessionDecision['action'];
   rationale: string;
   cases: PlannedSessionCase[];
+  /** Explored signed in (the default). */
   exploreTargets: string[];
+  /** Explored without signing in, because the planner asked for that page. */
+  signedOutExploreTargets: string[];
   coverageGaps: string[];
   duplicateFindings?: NonNullable<SessionDecision['duplicateFindings']>;
   retryCaseIds?: string[];
@@ -80,10 +85,8 @@ export function parseSessionDecision(input: unknown): {
 } {
   if (!input || typeof input !== 'object' || Array.isArray(input))
     return { decision: parseContract('SessionDecision', input), notes: [] };
-  const { duplicateFindings, retryCaseIds, ...base } = input as Record<
-    string,
-    unknown
-  >;
+  const { duplicateFindings, retryCaseIds, signedOutExploreTargets, ...base } =
+    input as Record<string, unknown>;
   const notes: string[] = [];
   const entries = (value: unknown, field: string): unknown[] => {
     if (value === undefined) return [];
@@ -123,9 +126,32 @@ export function parseSessionDecision(input: unknown): {
       retries.push(item.toLowerCase());
     else notes.push(`用例重跑第 ${index + 1} 条标识无效，已忽略。`);
   }
+  // A signed-out target list that is not a plain string array is dropped with a
+  // note instead of invalidating the whole round; its URLs are checked against
+  // the allowed origins later, like exploreTargets.
+  const signedOut: string[] = [];
+  if (signedOutExploreTargets !== undefined) {
+    if (Array.isArray(signedOutExploreTargets)) {
+      if (signedOutExploreTargets.length > 2)
+        notes.push('signedOutExploreTargets 超过 2 条，超出的条目已忽略。');
+      for (const [index, item] of signedOutExploreTargets
+        .slice(0, 2)
+        .entries()) {
+        if (typeof item === 'string' && item.trim())
+          signedOut.push(item.trim());
+        else
+          notes.push(
+            `signedOutExploreTargets 第 ${index + 1} 条不是有效地址，已忽略。`,
+          );
+      }
+    } else {
+      notes.push('signedOutExploreTargets 格式无效，已忽略。');
+    }
+  }
   return {
     decision: parseContract('SessionDecision', {
       ...base,
+      ...(signedOut.length ? { signedOutExploreTargets: signedOut } : {}),
       duplicateFindings: duplicates,
       retryCaseIds: retries,
     }),
@@ -140,7 +166,9 @@ export function reviewSessionProposal(
   const { decision: proposal, notes } = parseSessionDecision(input);
   if (
     proposal.action !== 'dispatch' &&
-    (proposal.cases.length || proposal.exploreTargets.length)
+    (proposal.cases.length ||
+      proposal.exploreTargets.length ||
+      (proposal.signedOutExploreTargets?.length ?? 0) > 0)
   )
     throw new DomainError('VALIDATION_ERROR');
   if (proposal.action === 'ask' && !proposal.question?.trim())
@@ -250,6 +278,9 @@ export function reviewSessionProposal(
     cases.push(c);
   }
   const explored = new Set(context.exploredUrls.map(displayUrl));
+  const signedOutExplored = new Set(
+    (context.signedOutExploredUrls ?? []).map(displayUrl),
+  );
   const exploreTargets: string[] = [];
   for (const target of proposal.exploreTargets) {
     const url = displayUrl(
@@ -266,11 +297,41 @@ export function reviewSessionProposal(
     }
     exploreTargets.push(url);
   }
+  // A page explored without signing in is a different observation, so it is
+  // deduped against its own list — asking for /login signed in afterwards is
+  // still allowed (and vice versa).
+  const signedOutExploreTargets: string[] = [];
+  for (const target of proposal.signedOutExploreTargets ?? []) {
+    const url = displayUrl(
+      validateTarget(
+        target,
+        context.allowedOrigins,
+        context.protectedOrigins,
+      ).toString(),
+    );
+    if (signedOutExplored.has(url) || signedOutExploreTargets.includes(url))
+      continue;
+    if (exploreTargets.includes(url)) {
+      coverageGaps.push(
+        `同一地址同时要求登录与未登录探索，已按登录后探索：${url}`,
+      );
+      continue;
+    }
+    if (
+      exploreTargets.length + signedOutExploreTargets.length >=
+      context.remainingPages
+    ) {
+      coverageGaps.push(`页面预算不足，未探索：${url}`);
+      continue;
+    }
+    signedOutExploreTargets.push(url);
+  }
   return {
     action: proposal.action,
     rationale: proposal.rationale,
     cases,
     exploreTargets,
+    signedOutExploreTargets,
     coverageGaps: [...new Set(coverageGaps)].slice(0, 100),
     duplicateFindings: proposal.duplicateFindings ?? [],
     retryCaseIds:
