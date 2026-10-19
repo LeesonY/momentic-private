@@ -79,6 +79,12 @@ const LANE_BY_TOOL: Record<string, StepLane> = {
   observe: 'observe',
   capture: 'observe',
   wait_for: 'observe',
+  // The auth agent signs in on its own, with private actions the model cannot
+  // call (`AuthActionName` in apps/worker/src/auth-flow.ts); its steps are
+  // recorded under those names, so the legend must colour them too.
+  navigate_auth: 'navigate',
+  fill_credential: 'type',
+  submit_auth: 'click',
 };
 
 /** Mo's legend: Navigate / Click / Type / Observe, everything else stays grey. */
@@ -193,7 +199,9 @@ export function reproMarkers(
       index: mark.index,
       at: mark.at,
       leftPct: percentAt(mark.at, range),
-      title: `第 ${mark.index} 步：${(reproSteps[mark.index - 1] ?? '').slice(0, 300)}  ${clockOf(mark.at)}`,
+      // The playhead clock, not the wall clock: Mo reads "2:32" here, so a
+      // marker time can be compared with the player.
+      title: `第 ${mark.index} 步：${(reproSteps[mark.index - 1] ?? '').slice(0, 300)}  ${formatClock(Date.parse(mark.at) - range.startMs)}`,
     }));
 }
 
@@ -252,6 +260,67 @@ export function filterConsole(
     return true;
   });
 }
+
+/**
+ * The recorder writes two lines per request — one when it starts, one when it
+ * finishes — while the UI wants one row. Pair each start with the earliest later
+ * line of the same method+url that carries a result, and keep the start's time
+ * (that is when the request happened) with the result's status/duration. A start
+ * without a result stays visible as unfinished, and data that is already one
+ * line per request is returned unchanged.
+ */
+export function mergeNetworkLines(
+  lines: readonly NetworkLine[],
+): NetworkLine[] {
+  const ordered = [...lines]
+    .filter(
+      (line) =>
+        typeof line?.method === 'string' && typeof line.url === 'string',
+    )
+    .sort((left, right) => Date.parse(left.at) - Date.parse(right.at));
+  const keyOf = (line: NetworkLine): string => `${line.method} ${line.url}`;
+  const results = new Map<string, number[]>();
+  ordered.forEach((line, index) => {
+    if (!completed(line)) return;
+    const key = keyOf(line);
+    const bucket = results.get(key);
+    if (bucket) bucket.push(index);
+    else results.set(key, [index]);
+  });
+
+  const paired = new Set<number>();
+  const merged: NetworkLine[] = [];
+  ordered.forEach((line, index) => {
+    if (completed(line)) {
+      // A result whose start was already paired is itself the row.
+      if (!paired.has(index)) merged.push(line);
+      return;
+    }
+    const resultIndex = results
+      .get(keyOf(line))
+      ?.find((candidate) => candidate > index && !paired.has(candidate));
+    if (resultIndex === undefined) {
+      merged.push(line);
+      return;
+    }
+    paired.add(resultIndex);
+    const result = ordered[resultIndex]!;
+    merged.push({
+      ...line,
+      status: result.status,
+      failed: result.failed,
+      durationMs: result.durationMs,
+      ...((result.summary ?? line.summary)
+        ? { summary: result.summary ?? line.summary }
+        : {}),
+    });
+  });
+  return merged;
+}
+
+/** A line that carries a result, i.e. the finish half of a request. */
+const completed = (line: NetworkLine): boolean =>
+  line.status !== null || line.failed || line.durationMs !== null;
 
 export interface NetworkFilters {
   query?: string;

@@ -73,6 +73,13 @@ try {
     markerTitle,
     /第 2 步：2\. 在商品购买数量栏输入 3，选择满 300 减 10 优惠券/,
   );
+  // …and the time in it is the player clock, not the wall clock.
+  assert.match(markerTitle, / {2}0:0\d$/, 'marker time is m:ss');
+  assert.equal(
+    /\b\d{2}:\d{2}:\d{2}\b/.test(markerTitle),
+    false,
+    'no wall clock in the marker tooltip',
+  );
 
   // Playing moves the clock; the player clock is the axis, not wall time.
   await page.getByTestId('finding-recording-player-play').click();
@@ -100,11 +107,22 @@ try {
     '0:01 (0:01)',
   );
 
-  // Activity rows: actions and the agent's thoughts.
+  // Activity rows: actions and the agent's thoughts, page-read within the
+  // contract's 100-step limit (a 422 there used to empty this list silently).
   const activity = page.getByTestId('finding-recording-player-activity');
   await activity.waitFor();
   assert.match(await activity.innerText(), /想法/);
   assert.match(await activity.innerText(), /输入账号 smoke_user/);
+  assert.equal(
+    await page.getByTestId('finding-recording-player-steps-error').count(),
+    0,
+    'steps loaded',
+  );
+  assert.equal(
+    await page.getByTestId('finding-recording-player-tab-activity').innerText(),
+    '活动 12',
+    '6 steps with 6 thoughts',
+  );
 
   // Console tab: levels and text, filtered by level.
   await page.getByTestId('finding-recording-player-tab-console').click();
@@ -118,8 +136,14 @@ try {
   await page.getByTestId('finding-recording-player-tab-network').click();
   const networkPanel = page.getByTestId('finding-recording-player-network');
   await networkPanel.waitFor();
+  // Nine recorded lines are five requests: starts and finishes are paired.
   assert.equal(await networkPanel.locator('tbody tr').count(), 5);
   assert.match(await networkPanel.innerText(), /pageUsers/);
+  assert.equal(
+    await page.getByTestId('finding-recording-player-tab-network').innerText(),
+    '网络 5',
+    'the tab counts requests, not recorded lines',
+  );
   await page.getByTestId('finding-recording-player-only-failed').check();
   assert.equal(await networkPanel.locator('tbody tr').count(), 1);
   assert.match(await networkPanel.innerText(), /失败/);
@@ -155,6 +179,13 @@ try {
     .innerText();
   assert.match(warning, /录像不完整/);
   assert.match(warning, /20 MB 上限/);
+  // Unreadable steps are reported, not shown as "no activity".
+  await page.getByTestId('screen-recording-tab-activity').click();
+  await page.getByTestId('screen-recording-activity').waitFor();
+  assert.match(
+    await page.getByTestId('screen-recording-steps-error').innerText(),
+    /步骤加载失败：Invalid limit/,
+  );
   const degradedFrame = page.frameLocator(
     '[data-testid="screen-recording-stage"] iframe',
   );

@@ -10,11 +10,17 @@ import {
   normalizeRecording,
   readJsonBlob,
 } from '../src/api/recording.ts';
+import {
+  MAX_STEPS,
+  STEP_PAGE_LIMIT,
+  readAllTaskSteps,
+} from '../src/components/recording/useTaskRecording.ts';
 import { MOCK_RRWEB_GZIP_BASE64 } from '../src/mocks/recording.ts';
 import {
   filterConsole,
   filterNetwork,
   formatClock,
+  mergeNetworkLines,
   networkName,
   percentAt,
   problemTicks,
@@ -399,4 +405,202 @@ test('a failed redaction is never downloaded, whatever the status', () => {
     }).download,
     true,
   );
+});
+
+test('task steps are read page by page within the contract page size', async () => {
+  const calls = [];
+  const items = Array.from({ length: 250 }, (_, index) => ({
+    id: `step_${index}`,
+    seq: index + 1,
+  }));
+  const load = async (taskId, query) => {
+    calls.push({ taskId, ...query });
+    const offset = query.cursor ? Number(query.cursor) : 0;
+    const page = items.slice(offset, offset + query.limit);
+    const next = offset + query.limit;
+    return {
+      items: page,
+      nextCursor: next < items.length ? String(next) : null,
+    };
+  };
+  const read = await readAllTaskSteps('task_1', load);
+  assert.equal(read.steps.length, 250);
+  assert.equal(read.truncated, false);
+  assert.deepEqual(
+    read.steps.map((step) => step.seq),
+    items.map((step) => step.seq),
+    'every step, in server order',
+  );
+  assert.deepEqual(
+    calls.map((call) => call.limit),
+    [STEP_PAGE_LIMIT, STEP_PAGE_LIMIT, STEP_PAGE_LIMIT],
+    'never more than the contract allows per request',
+  );
+  assert.ok(STEP_PAGE_LIMIT <= 100);
+  assert.deepEqual(
+    calls.map((call) => call.cursor),
+    [undefined, '100', '200'],
+  );
+  assert.equal(new Set(calls.map((call) => call.taskId)).size, 1);
+});
+
+test('steps stop at the cap and say they were cut', async () => {
+  const calls = [];
+  const load = async (_taskId, query) => {
+    calls.push({ ...query });
+    const offset = query.cursor ? Number(query.cursor) : 0;
+    const page = Array.from({ length: query.limit }, (_, index) => ({
+      id: `step_${offset + index}`,
+      seq: offset + index + 1,
+    }));
+    return { items: page, nextCursor: String(offset + query.limit) };
+  };
+  const read = await readAllTaskSteps('task_1', load);
+  assert.equal(read.steps.length, MAX_STEPS);
+  assert.equal(read.truncated, true);
+  assert.equal(calls.length, MAX_STEPS / STEP_PAGE_LIMIT, 'stops at the cap');
+  // Exactly MAX_STEPS with nothing behind them is not "cut".
+  const exact = await readAllTaskSteps('task_1', async (_taskId, query) => {
+    const offset = query.cursor ? Number(query.cursor) : 0;
+    const page = Array.from(
+      { length: Math.min(query.limit, 1000 - offset) },
+      (_, index) => ({
+        id: `step_${offset + index}`,
+        seq: offset + index + 1,
+      }),
+    );
+    const next = offset + page.length;
+    return { items: page, nextCursor: next < 1000 ? String(next) : null };
+  });
+  assert.equal(exact.steps.length, MAX_STEPS);
+  assert.equal(exact.truncated, false);
+});
+
+test('a steps failure is reported, not swallowed into zero steps', async () => {
+  await assert.rejects(
+    readAllTaskSteps('task_1', async () => {
+      const error = new Error('Invalid limit');
+      error.status = 422;
+      throw error;
+    }),
+    /Invalid limit/,
+  );
+  await assert.rejects(
+    readAllTaskSteps('task_1', async (_taskId, query) => ({
+      items: [{ id: 'a', seq: 1 }],
+      nextCursor: query.cursor ?? '1',
+    })),
+    /分页游标重复/,
+  );
+});
+
+test('step lanes cover the tools the agents really use', () => {
+  assert.equal(stepLane('navigate'), 'navigate');
+  assert.equal(stepLane('navigate_auth'), 'navigate', 'auth sign-in lands');
+  assert.equal(stepLane('browser.navigate_auth'), 'navigate', 'prefixed');
+  assert.equal(stepLane('click'), 'click');
+  assert.equal(stepLane('submit_auth'), 'click', 'auth submit is a click');
+  assert.equal(stepLane('type_text'), 'type');
+  assert.equal(stepLane('fill_credential'), 'type', 'auth typing');
+  assert.equal(stepLane('select_option'), 'type');
+  assert.equal(stepLane('observe'), 'observe');
+  assert.equal(stepLane('capture'), 'observe');
+  assert.equal(stepLane('submit_case'), 'other');
+  assert.equal(stepLane('complete_reproduction'), 'other');
+  assert.equal(stepLane(''), 'other');
+});
+
+test('reproduction markers read the player clock, not the wall clock', () => {
+  const marks = [
+    { index: 1, at: at(0) },
+    { index: 3, at: new Date(start + 152_000).toISOString() },
+  ];
+  // A two-and-a-half minute window, so a marker can sit at 2:32.
+  const longRange = timelineRange(
+    { startAt: at(0), endAt: at(200_000) },
+    { startAt: null, endAt: null },
+  );
+  const markers = reproMarkers(
+    marks,
+    ['打开列表', '输入账号', '点击查询'],
+    longRange,
+  );
+  assert.deepEqual(
+    markers.map((marker) => marker.title),
+    ['第 1 步：打开列表  0:00', '第 3 步：点击查询  2:32'],
+  );
+  assert.equal(
+    markers[1].title.includes('17:'),
+    false,
+    'no wall clock time in the tooltip',
+  );
+  // A marker inside the window still positions on it.
+  assert.ok(markers[1].leftPct > 0 && markers[1].leftPct <= 100);
+});
+
+test('a request recorded twice becomes one network row', () => {
+  const line = (offsetMs, extra) => ({
+    at: at(offsetMs),
+    method: 'POST',
+    url: 'http://x.test/api/login',
+    resourceType: 'xhr',
+    status: null,
+    failed: false,
+    durationMs: null,
+    ...extra,
+  });
+  const merged = mergeNetworkLines([
+    line(100, {}),
+    line(160, { status: 500, durationMs: 240 }),
+  ]);
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].at, at(100), 'the row keeps the request time');
+  assert.equal(merged[0].status, 500, 'the result comes from the finish line');
+  assert.equal(merged[0].durationMs, 240);
+  assert.equal(merged[0].url, 'http://x.test/api/login');
+
+  // Concurrent identical requests pair in order, each with its own result.
+  const concurrent = mergeNetworkLines([
+    line(100, {}),
+    line(110, {}),
+    line(160, { status: 200, durationMs: 50 }),
+    line(170, { status: 201, durationMs: 60 }),
+  ]);
+  assert.deepEqual(
+    concurrent.map((row) => [row.at, row.status, row.durationMs]),
+    [
+      [at(100), 200, 50],
+      [at(110), 201, 60],
+    ],
+  );
+
+  // An unfinished start stays visible as its own row…
+  const unfinished = mergeNetworkLines([
+    line(100, {}),
+    line(200, { url: 'http://x.test/api/other' }),
+  ]);
+  assert.equal(unfinished.length, 2);
+  assert.equal(unfinished[0].status, null);
+  assert.equal(unfinished[1].status, null);
+  // …and a result whose start was never recorded stays where it is.
+  const orphan = mergeNetworkLines([
+    line(300, { status: 204, durationMs: 10 }),
+  ]);
+  assert.equal(orphan.length, 1);
+  assert.equal(orphan[0].at, at(300));
+  assert.equal(orphan[0].status, 204);
+
+  // A different URL never pairs.
+  const other = [
+    line(100, {}),
+    line(160, { url: 'http://x.test/api/other', status: 200, durationMs: 10 }),
+  ];
+  assert.equal(mergeNetworkLines(other).length, 2);
+
+  // Data already one line per request is returned unchanged.
+  const single = [
+    line(100, { status: 200, durationMs: 30 }),
+    line(200, { status: 404, failed: true }),
+  ];
+  assert.deepEqual(mergeNetworkLines(single), single);
 });

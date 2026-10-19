@@ -365,6 +365,8 @@ export const ScreenPanel: React.FC<{
           consoleLines={replay.payload?.consoleLines ?? []}
           networkLines={replay.payload?.networkLines ?? []}
           warnings={replay.warnings}
+          stepsError={replay.stepsError}
+          stepsTruncated={replay.stepsTruncated}
           steps={replay.steps}
         />
       </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Step } from '@localqa/contracts';
 import { defaultApiClient } from '../../api/index.ts';
+import { MAX_PAGE_LIMIT } from '../../api/pagination.ts';
 import {
   loadRecordingPayload,
   loadTaskRecording,
@@ -10,6 +11,11 @@ import type { RecordingInfo } from '../../utils/recording.ts';
 
 /** A recorded step; `thought` is the agent's own reasoning for it. */
 export type ReplayStep = Step;
+
+/** The contract caps `limit` at 100 (README: apps/web/src/api/pagination.ts). */
+export const STEP_PAGE_LIMIT = MAX_PAGE_LIMIT;
+/** A session with more steps than this is shown cut, with a note. */
+export const MAX_STEPS = 1000;
 
 export interface TaskRecordingState {
   loading: boolean;
@@ -21,6 +27,10 @@ export interface TaskRecordingState {
   warnings: string[];
   /** The task's steps, for the activity tab and the steps timeline. */
   steps: ReplayStep[];
+  /** Why the steps could not be read; never silently zero steps. */
+  stepsError: string | null;
+  /** More steps exist than MAX_STEPS and the list was cut. */
+  stepsTruncated: boolean;
   error: string | null;
 }
 
@@ -31,8 +41,48 @@ const IDLE: TaskRecordingState = {
   payload: null,
   warnings: [],
   steps: [],
+  stepsError: null,
+  stepsTruncated: false,
   error: null,
 };
+
+export type TaskStepLoader = (
+  taskId: string,
+  query: { limit: number; cursor?: string },
+) => Promise<{ items: ReplayStep[]; nextCursor?: string | null }>;
+
+/**
+ * Every step of a task, page by page. `limit` may not exceed the contract's 100,
+ * so asking for 200 was a 422 that produced an empty timeline and an empty
+ * activity list. A repeated cursor is an API error, not a reason to loop.
+ */
+export async function readAllTaskSteps(
+  taskId: string,
+  load: TaskStepLoader = (id, query) =>
+    defaultApiClient.listTaskSteps(id, query),
+): Promise<{ steps: ReplayStep[]; truncated: boolean }> {
+  const steps: ReplayStep[] = [];
+  const seen = new Set<string>();
+  let cursor: string | undefined;
+  for (;;) {
+    const page = await load(taskId, {
+      limit: STEP_PAGE_LIMIT,
+      ...(cursor ? { cursor } : {}),
+    });
+    steps.push(...page.items);
+    const next = page.nextCursor ?? null;
+    if (!next)
+      return {
+        steps: steps.slice(0, MAX_STEPS),
+        truncated: steps.length > MAX_STEPS,
+      };
+    if (seen.has(next)) throw new Error('分页游标重复，请刷新后重试');
+    seen.add(next);
+    if (steps.length >= MAX_STEPS)
+      return { steps: steps.slice(0, MAX_STEPS), truncated: true };
+    cursor = next;
+  }
+}
 
 /**
  * Loads one task's replay evidence. A missing recording is a normal answer
@@ -68,6 +118,8 @@ export function useTaskRecording(
             payload: null,
             warnings: [],
             steps: [],
+            stepsError: null,
+            stepsTruncated: false,
             error: null,
           });
           return;
@@ -84,13 +136,20 @@ export function useTaskRecording(
         } catch (reason) {
           error = reason instanceof Error ? reason.message : '录像读取失败';
         }
-        // Steps are the activity rows; a steps failure must not hide the replay.
+        // Steps are the activity rows; a steps failure must not hide the replay,
+        // but it is reported instead of pretending the task made no steps.
         let steps: ReplayStep[] = [];
+        let stepsError: string | null = null;
+        let stepsTruncated = false;
         try {
-          steps = (await defaultApiClient.listTaskSteps(taskId, { limit: 200 }))
-            .items as ReplayStep[];
-        } catch {
-          steps = [];
+          const read = await readAllTaskSteps(taskId);
+          steps = read.steps;
+          stepsTruncated = read.truncated;
+        } catch (reason) {
+          stepsError =
+            reason instanceof Error && reason.message
+              ? reason.message
+              : '步骤加载失败';
         }
         if (!active) return;
         setState({
@@ -100,6 +159,8 @@ export function useTaskRecording(
           payload,
           warnings: payload.warnings,
           steps,
+          stepsError,
+          stepsTruncated,
           error,
         });
       } catch (reason) {

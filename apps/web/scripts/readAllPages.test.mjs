@@ -95,14 +95,23 @@ test('mock client paginates run data like the real backend', async () => {
   assert.deepEqual(all, single.items);
 });
 
-test('mock pagination defaults, clamps and rejects bad cursors', async () => {
+test('mock pagination defaults, validates limits and rejects bad cursors', async () => {
   const client = new MockApiClient();
   // No query → backend default limit 20.
   const tasks = await client.listRunTasks('run_mock_001');
   assert.ok(tasks.items.length <= 20);
-  // Over-large limits clamp to the backend maximum 100.
-  const capped = await client.listRunTasks('run_mock_001', { limit: 1000 });
-  assert.ok(capped.items.length <= 100);
+  // `limit` outside 1..100 is a 422 on the real API, so the mock refuses it too
+  // rather than silently clamping (a 200 request then works in dev and fails on
+  // a server — that is how the replay activity list came out empty).
+  const atLimit = await client.listRunTasks('run_mock_001', { limit: 100 });
+  assert.ok(atLimit.items.length <= 100);
+  for (const limit of [0, -1, 101, 1000, 2.5]) {
+    await assert.rejects(
+      client.listRunTasks('run_mock_001', { limit }),
+      (error) => error.status === 422 && /Invalid limit/.test(error.message),
+      `limit ${limit}`,
+    );
+  }
   const first = await client.listRunTasks('run_mock_001', { limit: 1 });
   if (first.nextCursor) {
     const second = await client.listRunTasks('run_mock_001', {

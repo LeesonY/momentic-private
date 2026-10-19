@@ -104,7 +104,22 @@ export const mockConsoleLines: ConsoleEntry[] = [
   },
 ];
 
+/**
+ * Two lines per request for the first four requests — one when the recorder sees
+ * the request start (`status: null`), one when it finishes — which is what the
+ * 66 recordings contain; the last one is already a single line. The player has to
+ * pair them into one row either way.
+ */
 export const mockNetworkLines: NetworkEntry[] = [
+  {
+    at: at(40),
+    method: 'GET',
+    url: 'http://192.168.111.114:38445/login',
+    resourceType: 'document',
+    status: null,
+    failed: false,
+    durationMs: null,
+  },
   {
     at: at(60),
     method: 'GET',
@@ -113,6 +128,15 @@ export const mockNetworkLines: NetworkEntry[] = [
     status: 200,
     failed: false,
     durationMs: 180,
+  },
+  {
+    at: at(400),
+    method: 'GET',
+    url: 'http://192.168.111.114:38445/api/fc-rx-auth/v1/internal/digitalAuthSetting',
+    resourceType: 'xhr',
+    status: null,
+    failed: false,
+    durationMs: null,
   },
   {
     at: at(420),
@@ -124,6 +148,15 @@ export const mockNetworkLines: NetworkEntry[] = [
     durationMs: 96,
   },
   {
+    at: at(690),
+    method: 'POST',
+    url: 'http://192.168.111.114:38445/api/fc-rx-auth/v1/user/login',
+    resourceType: 'xhr',
+    status: null,
+    failed: false,
+    durationMs: null,
+  },
+  {
     at: at(700),
     method: 'POST',
     url: 'http://192.168.111.114:38445/api/fc-rx-auth/v1/user/login',
@@ -133,13 +166,22 @@ export const mockNetworkLines: NetworkEntry[] = [
     durationMs: 240,
   },
   {
+    at: at(1080),
+    method: 'GET',
+    url: 'http://192.168.111.114:38445/api/fc-admin/v1/pageUsers',
+    resourceType: 'xhr',
+    status: null,
+    failed: false,
+    durationMs: null,
+  },
+  {
     at: at(1100),
     method: 'GET',
     url: 'http://192.168.111.114:38445/api/fc-admin/v1/pageUsers',
     resourceType: 'xhr',
     status: 404,
     failed: true,
-    durationMs: null,
+    durationMs: 210,
     summary: 'GET /api/fc-admin/v1/pageUsers → 请求失败',
   },
   {

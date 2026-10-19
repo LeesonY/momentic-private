@@ -182,6 +182,23 @@ function paginateMock<T>(
   items: T[],
   query?: PaginationQuery,
 ): { items: T[]; nextCursor: string | null } {
+  // The real API validates `limit` as 1..100 and answers 422 otherwise; the
+  // mock has to be just as strict or a too-large page size works here and
+  // fails on a real server (the replay activity list did exactly that).
+  if (
+    query?.limit !== undefined &&
+    (!Number.isInteger(query.limit) || query.limit < 1 || query.limit > 100)
+  ) {
+    const error = new Error(
+      `Invalid limit: ${String(query.limit)}`,
+    ) as Error & {
+      status: number;
+      code: string;
+    };
+    error.status = 422;
+    error.code = 'VALIDATION_ERROR';
+    throw error;
+  }
   const limit = Math.min(Math.max(query?.limit ?? 20, 1), 100);
   let offset = 0;
   if (query?.cursor) {
@@ -1069,6 +1086,17 @@ export class MockApiClient implements ApiClient {
     taskIdOrCaseId: string,
     query?: PaginationQuery,
   ): Promise<StepPage> {
+    // This task's steps are unreadable, so the UI has to say "步骤加载失败"
+    // instead of showing an empty activity list (66 returned 422 for that).
+    if (taskIdOrCaseId === MOCK_DEGRADED_TASK_ID) {
+      const error = new Error('Invalid limit') as Error & {
+        status: number;
+        code: string;
+      };
+      error.status = 422;
+      error.code = 'VALIDATION_ERROR';
+      throw error;
+    }
     if (taskIdOrCaseId === MOCK_RECORDING_TASK_ID)
       return paginateMock(
         [...mockRecordingSteps].sort((left, right) => left.seq - right.seq),

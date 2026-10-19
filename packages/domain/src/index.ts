@@ -110,7 +110,8 @@ export const SESSION_DEFAULT_LIMITS: BudgetLimits = Object.freeze({
   maxActionsPerCase: 24,
   maxModelCalls: 300,
   maxTotalTokens: 3000000,
-  // 104 actions for 8 cases + retry + reproduction already exceeded 120.
+  // 104 actions were already spent when the cancelled reproduction and the
+  // retry were cut off: finishing both would have gone past 120.
   maxActions: 200,
 });
 export const EMPTY_USED: BudgetUsed = {

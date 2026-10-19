@@ -17,6 +17,7 @@ import {
   filterConsole,
   filterNetwork,
   formatClock,
+  mergeNetworkLines,
   networkName,
   percentAt,
   problemTicks,
@@ -48,6 +49,10 @@ export interface RecordingPlayerProps {
   networkLines?: ConsoleLine[] | NetworkLine[];
   /** Degraded evidence the player still replays (a recording cut at the cap). */
   warnings?: string[];
+  /** Why the steps could not be read (the activity list is then not "empty"). */
+  stepsError?: string | null;
+  /** More steps exist than were read; the activity list is cut. */
+  stepsTruncated?: boolean;
   steps?: ReplayStep[];
   /** Defect replay: only this slice is on the axis, the events stay whole. */
   window?: RecordingWindow | null;
@@ -108,6 +113,8 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
   consoleLines = [],
   networkLines = [],
   warnings = [],
+  stepsError = null,
+  stepsTruncated = false,
   steps = [],
   window: replayWindow = null,
   reproSteps = [],
@@ -283,13 +290,21 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
     () => (range ? stepBlocks(sortSteps(steps), range) : []),
     [steps, range],
   );
-  const problems = useMemo(() => {
-    if (!range) return [];
-    const network = (networkLines as NetworkLine[]).filter(
-      (line) => typeof line?.method === 'string',
-    );
-    return problemTicks(consoleLines, network, range);
-  }, [consoleLines, networkLines, range]);
+  // The recorder writes a start and a finish line per request; the axis and the
+  // network tab both want one row per request.
+  const network = useMemo(
+    () =>
+      mergeNetworkLines(
+        (networkLines as NetworkLine[]).filter(
+          (line) => typeof line?.method === 'string',
+        ),
+      ),
+    [networkLines],
+  );
+  const problems = useMemo(
+    () => (range ? problemTicks(consoleLines, network, range) : []),
+    [consoleLines, network, range],
+  );
   const markers = useMemo(
     () => (range ? reproMarkers(reproMarks, reproSteps, range) : []),
     [reproMarks, reproSteps, range],
@@ -357,13 +372,6 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
     [consoleLines, consoleQuery, consoleLevel],
   );
 
-  const network = useMemo(
-    () =>
-      (networkLines as NetworkLine[]).filter(
-        (line) => typeof line?.method === 'string',
-      ),
-    [networkLines],
-  );
   const visibleNetwork = useMemo(
     () =>
       filterNetwork(network, {
@@ -723,8 +731,20 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
                 <option value="thought">想法</option>
               </select>
             </div>
+            {stepsError && (
+              <Alert tone="danger" testId={`${testId}-steps-error`}>
+                步骤加载失败：{stepsError}
+              </Alert>
+            )}
+            {stepsTruncated && (
+              <p className="field-hint" data-testid={`${testId}-steps-cut`}>
+                步骤过多，只显示前 {steps.length} 条。
+              </p>
+            )}
             {visibleActivity.length === 0 ? (
-              <p className="field-hint">没有匹配的活动。</p>
+              <p className="field-hint">
+                {stepsError ? '步骤没有加载出来。' : '没有匹配的活动。'}
+              </p>
             ) : (
               <table className="data-table lqa-recording-table">
                 <thead>
