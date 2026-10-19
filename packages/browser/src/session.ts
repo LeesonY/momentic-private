@@ -195,7 +195,7 @@ export class BrowserSessionImpl implements BrowserSession {
         // timeline so replay and anchors cannot move backwards.
         const timestamp = Math.max(
           event.timestamp,
-          (this.recordingEndedAt ?? 0) + 1,
+          this.recordingEndedAt ?? event.timestamp,
         );
         (event as { timestamp: number }).timestamp = timestamp;
         this.recordingStartedAt ??= timestamp;
