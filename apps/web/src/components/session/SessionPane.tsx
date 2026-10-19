@@ -565,6 +565,8 @@ export const SessionPane: React.FC<{
   expanded: boolean;
   onToggleExpanded: () => void;
   onRefreshReport: () => void;
+  /** Deep link (「完整录像」): show this browser task's recording instead. */
+  focusTaskId?: string | null;
 }> = ({
   run,
   events,
@@ -579,9 +581,18 @@ export const SessionPane: React.FC<{
   expanded,
   onToggleExpanded,
   onRefreshReport,
+  focusTaskId = null,
 }) => {
   const agents = tasks.filter((task) => task.role !== 'coordinator');
+  const focusedTask =
+    focusTaskId === null
+      ? null
+      : (tasks.find(
+          (task) =>
+            task.id === focusTaskId && BROWSER_ROLES.includes(task.role),
+        ) ?? null);
   const browserTask =
+    focusedTask ??
     [...tasks]
       .reverse()
       .find(

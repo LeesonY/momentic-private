@@ -66,6 +66,8 @@ export type AppIconName =
   | 'git-branch'
   | 'list'
   | 'rotate-ccw'
+  | 'rotate-cw'
+  | 'pause'
   | 'flag'
   | 'bug'
   | 'target';
@@ -334,6 +336,13 @@ const content: Record<AppIconName, React.ReactNode> = {
   ),
   list: <path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01" />,
   'rotate-ccw': <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8m0-5v5h5" />,
+  'rotate-cw': <path d="M21 12a9 9 0 1 1-2.6-6.4L21 8m0-5v5h-5" />,
+  pause: (
+    <>
+      <rect x="6" y="4" width="4" height="16" rx="1" />
+      <rect x="14" y="4" width="4" height="16" rx="1" />
+    </>
+  ),
   flag: <path d="M5 21V4m0 0h11l-2 4 2 4H5" />,
   bug: (
     <>

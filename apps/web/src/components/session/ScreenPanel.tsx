@@ -4,6 +4,8 @@ import { defaultApiClient } from '../../api/index.ts';
 import { AppIcon } from '../ui/AppIcon.tsx';
 import { EvidencePreview } from '../workbench/TaskExecutionDetail.tsx';
 import { stepLabel } from './sessionFeed.ts';
+import { RecordingPlayer } from '../recording/RecordingPlayer.tsx';
+import { useTaskRecording } from '../recording/useTaskRecording.ts';
 import {
   MAX_STEP_PAGES,
   readTaskStepHistory,
@@ -210,7 +212,6 @@ function useLiveTaskFrame(taskId: string | null, live: boolean) {
   return { imageUrl, ageMs };
 }
 
-
 type LiveDiagnostic = {
   capturedAt: number;
   counts: {
@@ -225,7 +226,10 @@ type LiveDiagnostic = {
     status: number | null;
   }[];
 };
-const diagnosticLabels: Record<LiveDiagnostic['events'][number]['kind'], string> = {
+const diagnosticLabels: Record<
+  LiveDiagnostic['events'][number]['kind'],
+  string
+> = {
   console_error: 'Console 错误',
   page_error: '页面脚本异常',
   http_error: 'HTTP 错误响应',
@@ -260,8 +264,12 @@ function useLiveDiagnostics(taskId: string | null, active: boolean) {
         if (!alive) return;
         if (response.ok) {
           const next = (await response.json()) as LiveDiagnostic;
-          if (alive && typeof next?.capturedAt === 'number' &&
-              next?.counts && Array.isArray(next.events)) {
+          if (
+            alive &&
+            typeof next?.capturedAt === 'number' &&
+            next?.counts &&
+            Array.isArray(next.events)
+          ) {
             capturedAt = Date.now();
             setResult(next);
           }
@@ -307,6 +315,9 @@ export const ScreenPanel: React.FC<{
     live,
     stepSignal,
   );
+  // A finished browser task replays its rrweb recording; anything without one
+  // keeps the screenshot stepper below (never a fabricated player).
+  const replay = useTaskRecording(task?.id ?? null, Boolean(task) && !live);
   const frames = useMemo(
     () => steps.filter((step) => step.evidenceRefs.length > 0),
     [steps],
@@ -334,6 +345,30 @@ export const ScreenPanel: React.FC<{
         <p>还没有浏览器代理，暂时没有画面。</p>
       </div>
     );
+
+  if (replay.playable && replay.recording) {
+    return (
+      <div className="mo-screen" data-testid="browser-evidence-panel">
+        <div className="mo-screen-head">
+          <span className="mo-pill is-muted">回放</span>
+          <h3>AI 的画面</h3>
+          <p>
+            这个代理全程录制的 rrweb
+            回放：拖动、点击步骤或下面每一行都能跳到那一刻。
+          </p>
+        </div>
+        <RecordingPlayer
+          heading="完整录像"
+          testId="screen-recording"
+          recording={replay.recording}
+          events={replay.payload?.events ?? []}
+          consoleLines={replay.payload?.consoleLines ?? []}
+          networkLines={replay.payload?.networkLines ?? []}
+          steps={replay.steps}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="mo-screen" data-testid="browser-evidence-panel">
@@ -462,8 +497,10 @@ export const ScreenPanel: React.FC<{
         )}
       </div>
 
-
-      <section className="panel stack stack-sm" data-testid="browser-live-diagnostics">
+      <section
+        className="panel stack stack-sm"
+        data-testid="browser-live-diagnostics"
+      >
         <h4>浏览器诊断</h4>
         <p className="text-xs muted">
           {diagnostics
@@ -475,10 +512,10 @@ export const ScreenPanel: React.FC<{
         {diagnostics && (
           <>
             <p className="text-sm" role="status">
-              Console 错误 {diagnostics.counts.consoleErrors} ·
-              页面脚本异常 {diagnostics.counts.pageErrors} ·
-              HTTP 4xx/5xx {diagnostics.counts.httpErrors} ·
-              网络失败 {diagnostics.counts.networkFailures}
+              Console 错误 {diagnostics.counts.consoleErrors} · 页面脚本异常{' '}
+              {diagnostics.counts.pageErrors} · HTTP 4xx/5xx{' '}
+              {diagnostics.counts.httpErrors} · 网络失败{' '}
+              {diagnostics.counts.networkFailures}
             </p>
             {diagnostics.events.length ? (
               <details>
@@ -486,8 +523,11 @@ export const ScreenPanel: React.FC<{
                 <div className="stack stack-sm">
                   {[...diagnostics.events].reverse().map((event, i) => (
                     <p className="text-xs" key={`${event.at}-${i}`}>
-                      {new Date(event.at).toLocaleTimeString('zh-CN', { hour12: false })}
-                      {' · '}{diagnosticLabels[event.kind]}
+                      {new Date(event.at).toLocaleTimeString('zh-CN', {
+                        hour12: false,
+                      })}
+                      {' · '}
+                      {diagnosticLabels[event.kind]}
                       {event.status ? ` · HTTP ${event.status}` : ''}
                     </p>
                   ))}

@@ -89,7 +89,7 @@ export const WorkbenchPage: React.FC = () => {
 };
 
 const WorkbenchContent: React.FC = () => {
-  const { currentUser, currentProject, setRoute } = useApp();
+  const { currentUser, currentProject, setRoute, routeParams } = useApp();
   const [canDeleteRun, setCanDeleteRun] = useState(false);
   const [showDeleteRun, setShowDeleteRun] = useState(false);
   const [deletingRun, setDeletingRun] = useState(false);
@@ -185,7 +185,10 @@ const WorkbenchContent: React.FC = () => {
   };
 
   const [paneOpen, setPaneOpen] = useState(true);
-  const [paneTab, setPaneTab] = useState<PaneTab | 'detail'>('agents');
+  const [paneTab, setPaneTab] = useState<PaneTab | 'detail'>(
+    // 「完整录像」/「复现代理」deeplinks open the pane on the screen tab.
+    routeParams.tab === 'screen' ? 'screen' : 'agents',
+  );
   const [paneDetail, setPaneDetail] = useState<PaneDetail>(null);
   const [paneExpanded, setPaneExpanded] = useState(false);
   const [inputMsg, setInputMsg] = useState('');
@@ -546,6 +549,7 @@ const WorkbenchContent: React.FC = () => {
             report={report}
             tab={paneTab}
             onTab={setPaneTab}
+            focusTaskId={routeParams.taskId ?? null}
             detail={paneDetail}
             onDetail={setPaneDetail}
             expanded={paneExpanded}

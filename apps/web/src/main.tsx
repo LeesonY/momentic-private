@@ -13,6 +13,7 @@ import './styles/shell.css';
 import './styles/pages.css';
 import './styles/models.css';
 import './styles/mo.css';
+import './styles/recording.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

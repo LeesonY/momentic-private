@@ -5,6 +5,17 @@ import type {
   ListEventHistoryQuery,
   CreateRunInput,
 } from '../api/types.ts';
+import {
+  MOCK_CONSOLE_ARTIFACT_ID,
+  MOCK_NETWORK_ARTIFACT_ID,
+  MOCK_RECORDING_TASK_ID,
+  MOCK_RRWEB_ARTIFACT_ID,
+  MOCK_RRWEB_GZIP_BASE64,
+  mockConsoleLines,
+  mockNetworkLines,
+  mockRecordingInfo,
+  mockRecordingSteps,
+} from './recording.ts';
 import type {
   User,
   UserCreate,
@@ -1055,18 +1066,40 @@ export class MockApiClient implements ApiClient {
     taskIdOrCaseId: string,
     query?: PaginationQuery,
   ): Promise<StepPage> {
+    if (taskIdOrCaseId === MOCK_RECORDING_TASK_ID)
+      return paginateMock(
+        [...mockRecordingSteps].sort((left, right) => left.seq - right.seq),
+        query,
+      );
     const matched = mockSteps.filter(
       (s) => s.caseId === taskIdOrCaseId || s.taskId === taskIdOrCaseId,
     );
     return paginateMock(matched.length > 0 ? matched : mockSteps, query);
   }
 
-  public async getTaskRecording(
-    taskId: string,
-  ): Promise<TaskRecording> {
+  /**
+   * Only the mock reproducer has a recording; a still-running task says it is
+   * recording and everything else honestly reports that there is none.
+   */
+  public async getTaskRecording(taskId: string): Promise<TaskRecording> {
+    if (taskId === MOCK_RECORDING_TASK_ID) return { ...mockRecordingInfo };
+    const task = mockTasks.find((candidate) => candidate.id === taskId);
+    if (task && ['queued', 'running', 'waiting'].includes(task.status))
+      return {
+        ...mockRecordingInfo,
+        taskId,
+        status: 'recording',
+        rrwebArtifactId: null,
+        consoleArtifactId: null,
+        networkArtifactId: null,
+        startedAt: null,
+        endedAt: null,
+        viewport: null,
+      };
     return {
+      ...mockRecordingInfo,
       taskId,
-      status: "missing",
+      status: 'missing',
       rrwebArtifactId: null,
       consoleArtifactId: null,
       networkArtifactId: null,
@@ -1177,7 +1210,23 @@ export class MockApiClient implements ApiClient {
     };
   }
 
-  public async downloadArtifact(_artifactId: string): Promise<Blob> {
+  public async downloadArtifact(artifactId: string): Promise<Blob> {
+    if (artifactId === MOCK_RRWEB_ARTIFACT_ID) {
+      // The same bytes the Worker writes: gzipped rrweb events.
+      const binary = atob(MOCK_RRWEB_GZIP_BASE64);
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1)
+        bytes[index] = binary.charCodeAt(index);
+      return new Blob([bytes], { type: 'application/gzip' });
+    }
+    if (artifactId === MOCK_CONSOLE_ARTIFACT_ID)
+      return new Blob([JSON.stringify(mockConsoleLines)], {
+        type: 'application/json',
+      });
+    if (artifactId === MOCK_NETWORK_ARTIFACT_ID)
+      return new Blob([JSON.stringify(mockNetworkLines)], {
+        type: 'application/json',
+      });
     return new Blob(['mock artifact content'], { type: 'text/plain' });
   }
 

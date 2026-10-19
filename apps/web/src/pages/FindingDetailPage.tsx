@@ -9,11 +9,19 @@ import { AppIcon } from '../components/ui/AppIcon.tsx';
 import { EmptyState } from '../components/ui/EmptyState.tsx';
 import { Alert } from '../components/ui/Alert.tsx';
 import { FindingEvidencePanel } from '../components/workbench/FindingEvidencePanel.tsx';
+import { RecordingPlayer } from '../components/recording/RecordingPlayer.tsx';
+import { useTaskRecording } from '../components/recording/useTaskRecording.ts';
 import { TriageModal } from '../components/workbench/TriageModal.tsx';
 import {
   findingDuplicateOf,
   isDuplicateFinding,
 } from '../components/session/findingDedup.ts';
+
+/** Older findings carry no reproduction recording (`Finding.recording`). */
+const recordingOf = (finding: Finding) =>
+  finding.recording && typeof finding.recording.taskId === 'string'
+    ? finding.recording
+    : null;
 
 export const FindingDetailPage: React.FC = () => {
   const { routeParams, setRoute } = useApp();
@@ -21,6 +29,14 @@ export const FindingDetailPage: React.FC = () => {
   const runId = routeParams.runId || 'run_mock_001_completed';
 
   const [finding, setFinding] = useState<Finding | null>(null);
+  const recording = finding ? recordingOf(finding) : null;
+  // Repro recorder only exists for a confirmed reproduction; a static defect
+  // keeps its screenshots and never pretends to have a replay.
+  const replay = useTaskRecording(
+    recording?.taskId ?? null,
+    Boolean(recording) && finding?.kind === 'functional',
+    runId,
+  );
   const [retainedTarget, setRetainedTarget] = useState<Finding | null>(null);
   const [loading, setLoading] = useState(true);
   const [isTriageOpen, setIsTriageOpen] = useState(false);
@@ -161,6 +177,43 @@ export const FindingDetailPage: React.FC = () => {
         icon="list"
         title="复现步骤"
         description="由独立的 Reproducer 在全新、干净的浏览器上下文中验证。"
+        actions={
+          <span className="row row-wrap lqa-finding-links">
+            {finding.caseIds[0] && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() =>
+                  setRoute('case-detail', {
+                    caseId: finding.caseIds[0]!,
+                    runId,
+                  })
+                }
+                data-testid="btn-finding-case"
+              >
+                发现于
+                <AppIcon name="arrow-right" size={12} />
+              </button>
+            )}
+            {recording && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() =>
+                  setRoute('workbench', {
+                    runId,
+                    tab: 'screen',
+                    taskId: recording.taskId,
+                  })
+                }
+                data-testid="btn-finding-reproducer"
+              >
+                复现代理
+                <AppIcon name="arrow-right" size={12} />
+              </button>
+            )}
+          </span>
+        }
       >
         <ol className="lqa-steps" data-testid="repro-steps-list">
           {finding.reproSteps.map((step, idx) => (
@@ -168,6 +221,69 @@ export const FindingDetailPage: React.FC = () => {
           ))}
         </ol>
       </Section>
+
+      {recording && finding.kind === 'functional' && (
+        <Section
+          icon="play"
+          title="复现"
+          description="复现代理在干净浏览器里重新跑出的那一段，可拖动、逐条复现步骤跳转。"
+          testId="finding-reproduction"
+        >
+          {replay.loading && (
+            <p
+              className="field-hint"
+              data-testid="finding-reproduction-loading"
+            >
+              正在读取复现录像…
+            </p>
+          )}
+          {!replay.loading && replay.error && (
+            <Alert tone="danger" testId="finding-reproduction-error">
+              {replay.error}
+            </Alert>
+          )}
+          {!replay.loading && replay.playable && replay.recording && (
+            <RecordingPlayer
+              heading="复现"
+              testId="finding-recording-player"
+              recording={replay.recording}
+              events={replay.payload?.events ?? []}
+              consoleLines={replay.payload?.consoleLines ?? []}
+              networkLines={replay.payload?.networkLines ?? []}
+              steps={replay.steps}
+              window={{
+                startAt: recording.startedAt,
+                endAt: recording.endedAt,
+              }}
+              reproSteps={finding.reproSteps}
+              reproMarks={recording.steps}
+              onOpenFullRecording={() =>
+                setRoute('workbench', {
+                  runId,
+                  tab: 'screen',
+                  taskId: recording.taskId,
+                })
+              }
+            />
+          )}
+          {!replay.loading &&
+            !replay.error &&
+            !replay.playable &&
+            replay.recording && (
+              <Alert tone="info" testId="finding-reproduction-missing">
+                {replay.recording.status === 'recording'
+                  ? '复现代理还在录制中，任务结束后可以回放。'
+                  : (replay.recording.error ??
+                    '这个复现任务没有可回放的录像，请看下面的关联证据。')}
+              </Alert>
+            )}
+          {!replay.loading && !replay.error && !replay.recording && (
+            <Alert tone="info" testId="finding-reproduction-missing">
+              这个复现任务没有可回放的录像，请看下面的关联证据。
+            </Alert>
+          )}
+        </Section>
+      )}
 
       <FindingEvidencePanel finding={finding} />
 

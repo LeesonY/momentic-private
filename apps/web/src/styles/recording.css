@@ -1,0 +1,449 @@
+/* ---- Replay (rrweb player, timelines, activity/console/network) ----------------- */
+
+.lqa-recording {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+
+.lqa-recording.is-empty {
+  background: var(--color-bg-subtle);
+}
+
+.lqa-recording:fullscreen {
+  padding: var(--space-4);
+  overflow: auto;
+}
+
+.lqa-recording-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.lqa-recording-head h3 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.lqa-recording-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.lqa-recording-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.lqa-recording-tab.is-current {
+  border-color: var(--color-border);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-main);
+}
+
+.lqa-recording-tab:hover {
+  color: var(--color-text-main);
+}
+
+.lqa-recording-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-warning-text);
+  font-size: var(--text-xs);
+}
+
+/* Player ---------------------------------------------------------------------- */
+.lqa-recording-frame {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #d9d8d4;
+}
+
+.lqa-recording-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 7px 10px;
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.lqa-recording-url {
+  flex: 1;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lqa-recording-viewport {
+  color: var(--color-text-subtle);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.lqa-recording-stage {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #b9b8b3;
+}
+
+.lqa-recording-canvas {
+  transform-origin: top left;
+}
+
+.lqa-recording-canvas .replayer-wrapper {
+  position: relative;
+}
+
+.lqa-recording-canvas iframe {
+  border: 0;
+  background: #ffffff;
+}
+
+.lqa-recording-bigplay {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 62px;
+  height: 62px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.92);
+  color: #1c1c1c;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+}
+
+.lqa-recording-bigplay:hover {
+  background: #ffffff;
+}
+
+/* Controls -------------------------------------------------------------------- */
+.lqa-recording-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.lqa-recording-scrub {
+  padding: 2px 2px 0;
+}
+
+.lqa-recording-scrub-track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-bg-muted);
+  cursor: pointer;
+}
+
+.lqa-recording-scrub-track:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.lqa-recording-scrub-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--color-text-main);
+}
+
+.lqa-recording-scrub-thumb {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: 999px;
+  background: var(--color-text-main);
+  transform: translateY(-50%);
+}
+
+.lqa-recording-buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.lqa-recording-speed {
+  width: auto;
+  min-width: 72px;
+  padding: 4px 8px;
+  font-size: var(--text-xs);
+}
+
+.lqa-recording-clock {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+/* Timelines ------------------------------------------------------------------- */
+.lqa-recording-tracks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lqa-recording-track {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.lqa-recording-track-label {
+  color: var(--color-text-subtle);
+  font-size: var(--text-xs);
+  text-align: right;
+}
+
+.lqa-recording-track-lane {
+  position: relative;
+  height: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-subtle);
+}
+
+.lqa-recording-block {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  min-width: 3px;
+  border: 0;
+  border-radius: 2px;
+  padding: 0;
+  cursor: pointer;
+  background: var(--color-text-subtle);
+}
+
+.lqa-recording-block.is-navigate {
+  background: #a2703f;
+}
+.lqa-recording-block.is-click {
+  background: #4d7cff;
+}
+.lqa-recording-block.is-type {
+  background: #8b5cf6;
+}
+.lqa-recording-block.is-observe {
+  background: #9a9a94;
+}
+.lqa-recording-block.is-other {
+  background: #c4c3bb;
+}
+
+.lqa-recording-tick {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  width: 2px;
+  border: 0;
+  padding: 0;
+  margin-left: -1px;
+  background: var(--color-danger);
+  cursor: pointer;
+}
+
+.lqa-recording-marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 18px;
+  height: 16px;
+  padding: 0 3px;
+  border: 1px solid var(--color-text-main);
+  border-radius: 3px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-main);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lqa-recording-marker:hover {
+  background: var(--color-text-main);
+  color: var(--color-text-inverse);
+}
+
+.lqa-recording-legend {
+  display: flex;
+  gap: var(--space-3);
+  margin-left: 68px;
+  padding-top: 2px;
+  color: var(--color-text-subtle);
+  font-size: var(--text-xs);
+}
+
+.lqa-recording-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.lqa-recording-legend-item i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--color-text-subtle);
+}
+
+.lqa-recording-legend-item.is-navigate i {
+  background: #a2703f;
+}
+.lqa-recording-legend-item.is-click i {
+  background: #4d7cff;
+}
+.lqa-recording-legend-item.is-type i {
+  background: #8b5cf6;
+}
+.lqa-recording-legend-item.is-observe i {
+  background: #9a9a94;
+}
+
+/* Panels ---------------------------------------------------------------------- */
+.lqa-recording-panels {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-2);
+}
+
+.lqa-recording-panel-tabs {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.lqa-recording-panel-tab {
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.lqa-recording-panel-tab.is-current {
+  border-color: var(--color-border);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-main);
+}
+
+.lqa-recording-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2);
+}
+
+.lqa-recording-filters .form-input {
+  max-width: 260px;
+}
+
+.lqa-recording-table {
+  width: 100%;
+  font-size: var(--text-sm);
+}
+
+.lqa-recording-table tbody tr {
+  cursor: pointer;
+}
+
+.lqa-recording-table tbody tr.is-current td {
+  background: var(--color-primary-subtle);
+}
+
+.lqa-recording-table td:last-child {
+  max-width: 620px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lqa-recording-table td.is-error {
+  color: var(--color-danger-text);
+}
+
+.lqa-console-level {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: lowercase;
+}
+
+.lqa-console-level.is-log,
+.lqa-console-level.is-info {
+  color: var(--color-text-muted);
+}
+.lqa-console-level.is-warn {
+  color: var(--color-warning-text);
+}
+.lqa-console-level.is-error {
+  color: var(--color-danger-text);
+}
+
+.lqa-network-waterfall {
+  width: 30%;
+}
+
+.lqa-network-waterfall span {
+  display: block;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--color-text-subtle);
+}
+
+@media (max-width: 720px) {
+  .lqa-recording-track {
+    grid-template-columns: 54px minmax(0, 1fr);
+  }
+
+  .lqa-recording-legend {
+    margin-left: 54px;
+    flex-wrap: wrap;
+  }
+
+  .lqa-recording-clock {
+    margin-left: 0;
+  }
+
+  .lqa-recording-table td:last-child {
+    max-width: 220px;
+  }
+}
