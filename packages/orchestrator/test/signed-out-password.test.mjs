@@ -121,6 +121,22 @@ const typed = (fixture, snapshot, text, nodeId = 'password-field') =>
 const credentialRead = (fixture) =>
   fixture.auth.queries.some(({ sql }) => sql.includes('AS frozen_version'));
 
+test('real grant persists only bounded credential-free decision annotations', async () => {
+  for (const [note, expected] of [
+    ['先检查登录表单的必填提示。', '先检查登录表单的必填提示。'],
+    [undefined, null], ['字'.repeat(600), '字'.repeat(300)],
+    [`检查 ${savedPassword}`, null], ['字'.repeat(600) + savedPassword, null],
+  ]) {
+    const fixture = signedOutFixture();
+    const grant = await fixture.coordinator.grantAction(fixture.scope, fixture.proof,
+      { name: 'observe', args: {} }, undefined, note);
+    assert.equal(grant.step.thought, expected);
+    const inserted = fixture.auth.queries.find(({ sql }) => sql.includes('INSERT INTO steps'));
+    assert.equal(inserted.params[7].thought, expected);
+    assert.ok(!JSON.stringify(inserted.params).includes(savedPassword));
+  }
+});
+
 test('the saved-credential match rule is exact and bounded', () => {
   assert.equal(matchesSavedCredential('', [savedPassword]), false);
   assert.equal(matchesSavedCredential(savedPassword, [savedPassword]), true);

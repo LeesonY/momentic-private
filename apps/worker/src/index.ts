@@ -162,6 +162,8 @@ function blockedDetail(code: string): string {
 
 /** One step the agent took, as it later reads it back for its report. */
 export interface AgentTrailEntry {
+  /** Actual ledger Step.seq, never the position in the bounded trail. */
+  seq?: number;
   action: string;
   target?: string;
   value?: string;
@@ -857,6 +859,8 @@ export class Worker {
         // result keeps a bounded, value-free trace of what was refused and
         // why (role/name come from the recorded snapshot node, never input).
         const countActionDenial = createActionDenialCounter();
+        let pendingDecisionNote: unknown;
+        let lastActionSeq: number | undefined;
         const grantDenials: Array<{
           tool: string;
           reasonCode: string;
@@ -904,6 +908,8 @@ export class Worker {
             throw new StorageError('EXPLORE_PAGE_LIMIT');
           }
           let grant;
+          const decisionNote = pendingDecisionNote;
+          pendingDecisionNote = undefined;
           try {
             grant = await this.runtime.grant(
               proof,
@@ -911,7 +917,9 @@ export class Worker {
               regressionSource
                 ? parseContract('RegressionStepSource', regressionSource)
                 : undefined,
+              decisionNote,
             );
+            lastActionSeq = grant.step?.seq;
           } catch (error) {
             const code = (error as { code?: unknown } | null)?.code;
             if (isActionDenialCode(code)) {
@@ -1653,8 +1661,9 @@ export class Worker {
             decision.requestResult !== 'repaired'
           )
             throw new DomainError('MODEL_FAILURE');
-          const data = decision.data as { done: boolean; toolCalls: unknown[] };
+          const data = decision.data as { done: boolean; toolCalls: unknown[]; note?: unknown };
           if (data.done || !data.toolCalls.length) break;
+          pendingDecisionNote = data.note;
           for (const call of data.toolCalls) {
             // Keep the report's reserved action: stop before the case
             // allowance is spent, then report from the evidence gathered.
@@ -1664,6 +1673,7 @@ export class Worker {
               break;
             }
             const before = snapshot;
+            lastActionSeq = undefined;
             let dispatch: Pick<ToolResult, 'status' | 'reasonCode'>;
             try {
               dispatch = await dispatcher.dispatch({
@@ -1685,16 +1695,13 @@ export class Worker {
             // action was based on. Derived from redacted snapshots only.
             const changes = executed ? textChanges(before, snapshot) : null;
             const focus = executed ? focusChange(before, snapshot) : null;
-            trail.push(
-              trailEntry(
-                call,
-                before,
-                executed,
-                dispatch.reasonCode,
-                changes,
-                focus,
-              ),
-            );
+            trail.push({
+              ...trailEntry(call, before, executed, dispatch.reasonCode, changes, focus),
+              ...(lastActionSeq === undefined ? {} : { seq: lastActionSeq }),
+            });
+            // A denied call might never reach execute(); do not attach its
+            // annotation to a later platform recovery observation.
+            pendingDecisionNote = undefined;
             if (!executed) {
               // The agent is told and decides what to do next, as in Mo.
               const reasonCode = dispatch.reasonCode ?? 'POLICY_DENIED';

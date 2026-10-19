@@ -1,4 +1,4 @@
-import type { Step } from '@localqa/contracts';
+import type { Finding, Step, TaskRecording } from '@localqa/contracts';
 
 /** Report-only metadata, not a browser instruction. Both indices are 1-based. */
 export interface ReproStepAction {
@@ -42,22 +42,12 @@ export function parseReproStepActions(
   return result;
 }
 
-/** Structural seams until the shared replay contract lands. No field is
- * persisted by this module; the finish transaction owns validation/authority. */
-export interface RecordingSource {
-  taskId: string;
-  status: string;
-  rrwebArtifactId: string | null;
-  startedAt: string | null;
-  endedAt: string | null;
-}
-export interface ReproductionRecordingLink {
-  reproductionId: string;
-  taskId: string;
-  startedAt: string;
-  endedAt: string;
-  steps: { index: number; at: string }[];
-}
+/** The finish transaction owns the source lookup and artifact authority. */
+export type RecordingSource = Pick<
+  TaskRecording,
+  'taskId' | 'status' | 'rrwebArtifactId' | 'startedAt' | 'endedAt'
+>;
+export type ReproductionRecordingLink = NonNullable<Finding['recording']>;
 
 const timestamp = (value: string | null): number =>
   value ? Date.parse(value) : NaN;

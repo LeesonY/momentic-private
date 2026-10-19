@@ -4,6 +4,8 @@ import { SessionAgent, type SessionContext } from './session-agent.js';
 import { parseSessionDecision } from './session-planning.js';
 import { linkMergedFindingEvidence } from './session-findings.js';
 import { parseAgentReport, verdictFromReport } from './agent-report.js';
+import { cleanDecisionNote } from './decision-note.js';
+import { reproductionRecordingIn } from './reproduction-recording-store.js';
 import { settledStep } from './step-settlement.js';
 import { actionDenied, evaluateTargetGrant } from './action-grant.js';
 import { createRegressionPlan } from './regression-plan.js';
@@ -1778,6 +1780,7 @@ export class Coordinator {
     proof: LeaseProof,
     input: unknown,
     regressionSource?: import('@localqa/contracts').RegressionStepSource,
+    decisionNote?: unknown,
   ): Promise<ActionGrant> {
     return this.tx(async (client) => {
       const { job, run } = await this.validateLease(client, scope, proof);
@@ -2093,6 +2096,18 @@ export class Coordinator {
           [scope.projectId, job.id],
         )
       ).rows[0].n;
+      let thought: string | null = null;
+      if (typeof decisionNote === 'string' && decisionNote.trim()) {
+        let saved: string[] = [];
+        try {
+          saved = await readSavedAuthValues(client, this.vault, run, proof);
+          thought = cleanDecisionNote(decisionNote, saved);
+        } catch {
+          // An optional annotation must never weaken secret protection or
+          // turn a valid browser decision into a malformed model response.
+          thought = null;
+        } finally { saved.length = 0; }
+      }
       const step = parseContract('Step', {
         id: randomUUID(),
         runId: run.id,
@@ -2103,6 +2118,7 @@ export class Coordinator {
         status: 'running',
         ...(verifiedSource ? { regressionSource: verifiedSource } : {}),
         summary: 'Action intent persisted before execution',
+        thought,
         targetDescription: call.name,
         evidenceRefs: [],
         createdAt: new Date().toISOString(),
@@ -2778,8 +2794,14 @@ export class Coordinator {
               [scope.projectId, reproduction.id, ref],
             );
           const f = parseContract('Finding', row.document);
+          const recording = await reproductionRecordingIn(client, {
+            projectId: scope.projectId, runId: run.id, taskId: job.id,
+            reproductionId: reproduction.id, finding: f, outcome,
+            taskRecording: result['taskRecording'], anchors: report?.reproStepActions,
+          });
           const updated = {
             ...f,
+            recording,
             // Reproduced by an independent agent from a clean start: confirmed.
             status:
               outcome === 'reproduced' && independentEvidence

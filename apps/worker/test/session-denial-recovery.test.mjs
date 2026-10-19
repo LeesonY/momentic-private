@@ -54,6 +54,7 @@ async function runExplorer({ decisions, executeTool, grant }) {
   const records = [];
   const finishes = [];
   const modelPayloads = [];
+  const grants = [];
   let latestSnapshotId = null;
   let round = 0;
   const runtime = {
@@ -94,9 +95,10 @@ async function runExplorer({ decisions, executeTool, grant }) {
       round += 1;
       return { requestResult: 'ok', data: decision };
     },
-    async grant(_proof, call) {
+    async grant(_proof, call, _source, note) {
+      grants.push({ call, note });
       if (grant) return grant(call, { latestSnapshotId });
-      return { step: { id: randomUUID() } };
+      return { step: { id: randomUUID(), seq: grants.length } };
     },
     async record(_proof, _grant, status, recorded, evidence, reasonCode) {
       if (status === 'succeeded' && recorded)
@@ -139,7 +141,7 @@ async function runExplorer({ decisions, executeTool, grant }) {
       heartbeatMs: 10000,
     });
     assert.equal(await worker.once(), true);
-    return { records, finishes, modelPayloads, first, refreshed };
+    return { records, finishes, modelPayloads, grants, first, refreshed };
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
@@ -172,6 +174,20 @@ test('second refusal of the same target/reason tells the agent the count and to 
   assert.match(text(modelPayloads[2]), /必须换目标或结束/);
   // Only initial navigation was granted/recorded; refusals never spend an intent.
   assert.equal(records.length, 1);
+});
+
+test('only the first step from a multi-tool decision receives its optional annotation', async () => {
+  const result = await runExplorer({
+    decisions: () => [
+      { done: false, note: '检查页面状态和提示。', toolCalls: [
+        { name: 'observe', args: {} }, { name: 'observe', args: {} },
+      ] },
+      { done: false, toolCalls: [{ name: 'observe', args: {} }] },
+      { done: true, toolCalls: [] },
+    ],
+    executeTool: (_call, { first }) => ({ status: 'succeeded', reasonCode: null, data: first, evidenceRefs: [] }),
+  });
+  assert.deepEqual(result.grants.map(({ note }) => note), [undefined, '检查页面状态和提示。', undefined, undefined]);
 });
 
 test('a version conflict refreshes the observation and tells the model why', async () => {

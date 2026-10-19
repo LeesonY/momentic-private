@@ -159,8 +159,9 @@ export class RuntimeClient {
     proof: LeaseProof,
     call: ToolCall,
     source?: import('@localqa/contracts').RegressionStepSource,
+    decisionNote?: unknown,
   ): Promise<ActionGrant> {
-    return this.#coordinator.grantAction(this.#scope, proof, call, source);
+    return this.#coordinator.grantAction(this.#scope, proof, call, source, decisionNote);
   }
   record(
     proof: LeaseProof,
