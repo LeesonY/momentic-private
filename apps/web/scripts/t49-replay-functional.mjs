@@ -123,6 +123,33 @@ try {
     '活动 12',
     '6 steps with 6 thoughts',
   );
+  // A thought row shows the thought itself in the message column (the badge
+  // still says 想法), with the full text kept in the cell's title.
+  const thoughtCell = activity
+    .locator('tbody tr td.is-thought')
+    .filter({ hasText: '提示出现了，记录当前页面。' });
+  assert.equal(await thoughtCell.count(), 1, 'thought body is the cell text');
+  assert.equal(
+    (await activity.locator('tbody tr td:last-child').allInnerTexts()).includes(
+      '想法',
+    ),
+    false,
+    'the message column never reads just 想法',
+  );
+  assert.equal(
+    await thoughtCell.getAttribute('title'),
+    '提示出现了，记录当前页面。',
+    'the full thought stays in the tooltip',
+  );
+  // …and the activity search matches the thought body, not only actions.
+  await activity.getByLabel('搜索活动').fill('记录当前页面');
+  assert.equal(
+    await activity.locator('tbody tr').count(),
+    1,
+    'only the thought matches',
+  );
+  assert.match(await activity.innerText(), /提示出现了，记录当前页面。/);
+  await activity.getByLabel('搜索活动').fill('');
 
   // Console tab: levels and text, filtered by level.
   await page.getByTestId('finding-recording-player-tab-console').click();

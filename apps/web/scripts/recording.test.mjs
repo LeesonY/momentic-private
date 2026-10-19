@@ -17,6 +17,8 @@ import {
 } from '../src/components/recording/useTaskRecording.ts';
 import { MOCK_RRWEB_GZIP_BASE64 } from '../src/mocks/recording.ts';
 import {
+  activityRows,
+  filterActivity,
   filterConsole,
   filterNetwork,
   formatClock,
@@ -641,4 +643,58 @@ test('a request recorded twice becomes one network row', () => {
     line(200, { status: 404, failed: true }),
   ];
   assert.deepEqual(mergeNetworkLines(single), single);
+});
+
+test('a thought row shows the thought itself, and both kinds stay searchable', () => {
+  const step = (seq, extra) => ({
+    id: `step_${seq}`,
+    runId: 'run_1',
+    taskId: 'task_1',
+    caseId: null,
+    seq,
+    toolName: 'click',
+    status: 'succeeded',
+    summary: `动作 ${seq}`,
+    thought: null,
+    targetDescription: `目标 ${seq}`,
+    evidenceRefs: [],
+    createdAt: at(seq * 1000),
+    finishedAt: at(seq * 1000 + 50),
+    ...extra,
+  });
+  const rows = activityRows(
+    [
+      step(2, { thought: '列表加载完了，接下来点查询按钮' }),
+      step(1, { thought: '先确认页面能打开', toolName: 'navigate' }),
+      step(3),
+    ],
+    (each) => `${each.toolName} · ${each.summary}`,
+  );
+  assert.deepEqual(
+    rows.map((row) => [row.kind, row.title]),
+    [
+      ['thought', '先确认页面能打开'],
+      ['action', 'navigate · 动作 1'],
+      ['thought', '列表加载完了，接下来点查询按钮'],
+      ['action', 'click · 动作 2'],
+      ['action', 'click · 动作 3'],
+    ],
+    'ordered by time, one thought row before its action',
+  );
+  // The cell text is the thought body, not the word "想法"…
+  const thought = rows.find((row) => row.kind === 'thought');
+  assert.equal(thought.title, '先确认页面能打开');
+  assert.equal(thought.text, thought.title, 'the tooltip keeps the full text');
+  // …and searching matches the thought body (as well as actions).
+  assert.deepEqual(
+    filterActivity(rows, { query: '查询按钮' }).map((row) => row.kind),
+    ['thought'],
+  );
+  assert.deepEqual(
+    filterActivity(rows, { query: '目标 3' }).map((row) => row.kind),
+    ['action'],
+    'action rows still search their target text',
+  );
+  assert.equal(filterActivity(rows, { kind: 'thought' }).length, 2);
+  assert.equal(filterActivity(rows, {}).length, rows.length);
 });

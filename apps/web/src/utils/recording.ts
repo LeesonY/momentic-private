@@ -250,6 +250,68 @@ export const networkName = (url: string): string => {
   }
 };
 
+export interface ActivityRow {
+  key: string;
+  at: string;
+  kind: 'action' | 'thought';
+  /** What the row shows: the thought itself, or the action label. */
+  title: string;
+  /** Full text for the tooltip and for searching. */
+  text: string;
+  stepId: string;
+}
+
+/**
+ * The activity list next to a recording: one row per action and, when the agent
+ * wrote one, one row per thought (Mo's THOUGHT). A thought row shows its own
+ * text — "想法" is only the badge — so the reason is readable without hovering.
+ *
+ * The action label is injected because the label helper lives in the session
+ * feed (which pulls React); this module stays free of it.
+ */
+export function activityRows(
+  steps: readonly Step[],
+  actionLabel: (step: Step) => string = (step) => step.summary,
+): ActivityRow[] {
+  const rows: ActivityRow[] = [];
+  for (const step of [...steps].sort((a, b) => a.seq - b.seq)) {
+    const created = step.createdAt;
+    if (step.thought)
+      rows.push({
+        key: `${step.id}:thought`,
+        at: created,
+        kind: 'thought',
+        title: step.thought,
+        text: step.thought,
+        stepId: step.id,
+      });
+    rows.push({
+      key: `${step.id}:action`,
+      at: created,
+      kind: 'action',
+      title: actionLabel(step),
+      text: step.targetDescription || step.summary,
+      stepId: step.id,
+    });
+  }
+  return rows.sort((left, right) => left.at.localeCompare(right.at));
+}
+
+/** Search the visible text of both row kinds, including the thought body. */
+export function filterActivity(
+  rows: readonly ActivityRow[],
+  filters: { query?: string; kind?: 'all' | 'action' | 'thought' },
+): ActivityRow[] {
+  const query = (filters.query ?? '').trim().toLowerCase();
+  const kind = filters.kind ?? 'all';
+  return rows.filter((row) => {
+    if (kind !== 'all' && row.kind !== kind) return false;
+    if (query && !`${row.title} ${row.text}`.toLowerCase().includes(query))
+      return false;
+    return true;
+  });
+}
+
 const LEVEL_ORDER: Record<ConsoleLevel, number> = {
   log: 0,
   info: 1,

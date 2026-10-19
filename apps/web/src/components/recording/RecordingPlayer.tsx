@@ -16,6 +16,8 @@ import {
   consoleLevelRank,
   filterConsole,
   filterNetwork,
+  activityRows,
+  filterActivity,
   formatClock,
   mergeNetworkLines,
   networkName,
@@ -331,46 +333,15 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
     : 0;
   const progressPct = range ? percentAt(playhead, range) : 0;
 
-  const activityRows = useMemo(() => {
-    const rows: Array<{
-      key: string;
-      at: string;
-      kind: 'action' | 'thought';
-      title: string;
-      text: string;
-      stepId?: string;
-    }> = [];
-    for (const step of sortSteps(steps)) {
-      if (step.thought)
-        rows.push({
-          key: `${step.id}:thought`,
-          at: step.createdAt,
-          kind: 'thought',
-          title: '想法',
-          text: step.thought,
-          stepId: step.id,
-        });
-      rows.push({
-        key: `${step.id}:action`,
-        at: step.createdAt,
-        kind: 'action',
-        title: `${stepLabel(step)} · ${step.summary}`,
-        text: step.targetDescription || step.summary,
-        stepId: step.id,
-      });
-    }
-    return rows.sort((left, right) => left.at.localeCompare(right.at));
-  }, [steps]);
+  const rows = useMemo(
+    () => activityRows(steps, (step) => `${stepLabel(step)} · ${step.summary}`),
+    [steps],
+  );
 
-  const visibleActivity = useMemo(() => {
-    const query = activityQuery.trim().toLowerCase();
-    return activityRows.filter((row) => {
-      if (activityKind !== 'all' && row.kind !== activityKind) return false;
-      if (query && !`${row.title} ${row.text}`.toLowerCase().includes(query))
-        return false;
-      return true;
-    });
-  }, [activityRows, activityKind, activityQuery]);
+  const visibleActivity = useMemo(
+    () => filterActivity(rows, { query: activityQuery, kind: activityKind }),
+    [rows, activityKind, activityQuery],
+  );
 
   const visibleConsole = useMemo(
     () =>
@@ -701,7 +672,7 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
         <div className="lqa-recording-panel-tabs" role="tablist">
           {(
             [
-              ['activity', '活动', activityRows.length],
+              ['activity', '活动', rows.length],
               ['console', '控制台', consoleLines.length],
               ['network', '网络', network.length],
             ] as const
@@ -788,7 +759,18 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
                           {row.kind === 'thought' ? '想法' : '动作'}
                         </span>
                       </td>
-                      <td title={row.text}>{row.title}</td>
+                      <td
+                        className={row.kind === 'thought' ? 'is-thought' : ''}
+                        title={row.text}
+                      >
+                        {row.kind === 'thought' ? (
+                          <span className="lqa-recording-thought">
+                            {row.title}
+                          </span>
+                        ) : (
+                          row.title
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

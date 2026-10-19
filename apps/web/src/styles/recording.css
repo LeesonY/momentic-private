@@ -397,6 +397,22 @@
   white-space: nowrap;
 }
 
+/* A thought row shows the thought itself, up to two lines, like Mo's THOUGHT
+ * message column; the full text stays in the cell's title. */
+.lqa-recording-table td.is-thought {
+  white-space: normal;
+}
+
+.lqa-recording-thought {
+  display: -webkit-box;
+  overflow: hidden;
+  text-align: left;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
 .lqa-recording-table td.is-error {
   color: var(--color-danger-text);
 }
