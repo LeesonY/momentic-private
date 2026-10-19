@@ -36,6 +36,7 @@ const files = [
   'packages/orchestrator/test/db-pool-retry.test.mjs',
   'packages/model-gateway/test/rate-limit-retry.test.mjs',
   'packages/model-gateway/test/decision-note.test.mjs',
+  'packages/model-gateway/test/compact-decision-shape.test.mjs',
   'apps/worker/test/preflight-model.test.mjs',
   'apps/worker/test/session-permission.test.mjs',
   'apps/worker/test/browser-action-scope.test.mjs',

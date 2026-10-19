@@ -512,7 +512,18 @@ export function unwrapProviderOutput(raw: string): string {
         return raw;
       }
     }
-    return JSON.stringify({ toolCalls, done: false });
+    // Native tool calls carry no decision object. The assistant's own text is
+    // the only place a note can come from, so keep it as the annotation (the
+    // gateway would otherwise store `note: null` for every native-tools step).
+    const note =
+      typeof message.content === 'string' && message.content.trim()
+        ? message.content.trim().slice(0, 1000)
+        : null;
+    return JSON.stringify({
+      ...(note ? { note } : {}),
+      toolCalls,
+      done: false,
+    });
   }
   return typeof message.content === 'string' ? message.content : raw;
 }
@@ -1788,41 +1799,60 @@ function jsonObjectConstraint(input: CallInput): string {
   // json_object prompt can exceed the 4k-token request limit *before* a
   // provider call. Keep the full schema in the local AJV validator and the
   // tool-contract/permission checks; only compact the prompt's description.
+  const required = Array.isArray(input.outputSchema['required'])
+    ? (input.outputSchema['required'] as unknown[])
+    : [];
   const decisionShape =
     input.purpose !== 'assert' &&
     input.outputSchema['type'] === 'object' &&
-    Array.isArray(input.outputSchema['required']) &&
-    (input.outputSchema['required'] as unknown[]).includes('toolCalls') &&
-    (input.outputSchema['required'] as unknown[]).includes('done');
+    required.includes('toolCalls') &&
+    required.includes('done');
+  // The frozen decision schema requires the `note` annotation. The compact
+  // description is the only place the model is told the output shape in
+  // json_object mode, so it has to name it too — otherwise "no other fields"
+  // tells the model the opposite of the role prompt and steps lose their
+  // thoughts. `note` goes first so the reason is written before the actions.
+  const noteRequired = decisionShape && required.includes('note');
+  const compactSchema = decisionShape
+    ? {
+        type: 'object',
+        required: noteRequired
+          ? ['note', 'done', 'toolCalls']
+          : ['done', 'toolCalls'],
+        additionalProperties: false,
+        properties: {
+          ...(noteRequired
+            ? {
+                note: {
+                  type: ['string', 'null'],
+                  description: '一句话中文说明这一步做什么、依据哪个观察',
+                },
+              }
+            : {}),
+          done: { type: 'boolean' },
+          toolCalls: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['name', 'args'],
+              properties: {
+                name: { type: 'string' },
+                args: { type: 'object' },
+              },
+            },
+          },
+        },
+      }
+    : input.outputSchema;
   return [
     '输出一个 JSON 对象，不要 Markdown，不要解释。',
     decisionShape
-      ? '必须返回 {"done":boolean,"toolCalls":[{"name":工具名,"args":参数对象}]}；无工具调用时 toolCalls=[]。仅使用列出的工具名称及其参数，禁止增加其他字段。'
+      ? noteRequired
+        ? '必须返回 {"note":"一句话说明这一步做什么","done":boolean,"toolCalls":[{"name":工具名,"args":参数对象}]}；note 是必填字段（可以写一句中文说明这一步的目的和依据），无工具调用时 toolCalls=[]。仅使用列出的工具名称及其参数，不要增加上面没有列出的字段。'
+        : '必须返回 {"done":boolean,"toolCalls":[{"name":工具名,"args":参数对象}]}；无工具调用时 toolCalls=[]。仅使用列出的工具名称及其参数，禁止增加其他字段。'
       : '该对象必须满足 outputSchema。',
     '若调用工具，toolCalls 的参数必须满足同名 parameters。',
-    `outputSchema=${JSON.stringify(
-      decisionShape
-        ? {
-            type: 'object',
-            required: ['done', 'toolCalls'],
-            additionalProperties: false,
-            properties: {
-              done: { type: 'boolean' },
-              toolCalls: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  required: ['name', 'args'],
-                  properties: {
-                    name: { type: 'string' },
-                    args: { type: 'object' },
-                  },
-                },
-              },
-            },
-          }
-        : input.outputSchema,
-    )}`,
+    `outputSchema=${JSON.stringify(compactSchema)}`,
     `tools=${JSON.stringify(tools)}`,
   ].join('\n');
 }
