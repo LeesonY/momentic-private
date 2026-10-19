@@ -75,28 +75,35 @@ test('all phase ordering and saved waiting phase', () => {
     transition({ status: 'running', phase: 'execute' }, 'completed'),
   );
 });
-test('session defaults widen only tokens, calls, wall-clock and per-case actions; regression keeps the old limits', () => {
+test('session defaults widen wall-clock, actions, tokens and per-case actions; regression keeps the old limits', () => {
   assert.deepEqual(SESSION_DEFAULT_LIMITS, {
     ...DEFAULT_LIMITS,
-    maxActiveSeconds: 1800,
+    maxActiveSeconds: 3600,
+    maxActions: 200,
     maxActionsPerCase: 24,
     maxModelCalls: 300,
-    maxTotalTokens: 1500000,
+    maxTotalTokens: 3000000,
   });
   for (const key of Object.keys(DEFAULT_LIMITS))
     if (
       ![
         'maxActiveSeconds',
+        'maxActions',
         'maxActionsPerCase',
         'maxModelCalls',
         'maxTotalTokens',
       ].includes(key)
     )
       assert.equal(SESSION_DEFAULT_LIMITS[key], DEFAULT_LIMITS[key], key);
-  // The shared contract still allows the raised values.
+  // The widened values still fit the shared contract ceilings.
   assert.ok(SESSION_DEFAULT_LIMITS.maxTotalTokens <= 5000000);
   assert.ok(SESSION_DEFAULT_LIMITS.maxModelCalls <= 500);
   assert.ok(SESSION_DEFAULT_LIMITS.maxActiveSeconds <= 3600);
+  assert.ok(SESSION_DEFAULT_LIMITS.maxActions <= 1000);
+  // Regression is untouched: 120 actions and the original wall clock.
+  assert.equal(DEFAULT_LIMITS.maxActions, 120);
+  assert.equal(DEFAULT_LIMITS.maxActiveSeconds, 600);
+  assert.equal(DEFAULT_LIMITS.maxTotalTokens, 300000);
 });
 test('reservation boundary: exact limit, over limit, held reservations, negative/noninteger/unknown', () => {
   assert.equal(

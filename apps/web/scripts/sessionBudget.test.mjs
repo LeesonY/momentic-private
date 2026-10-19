@@ -120,11 +120,11 @@ const startForm = (harness) =>
   harness.nodes().find((node) => node.type === 'form');
 
 test('editable session defaults mirror the server session defaults', () => {
-  assert.equal(SESSION_BUDGET_DEFAULTS.maxActiveSeconds, 1800);
+  assert.equal(SESSION_BUDGET_DEFAULTS.maxActiveSeconds, 3600);
   assert.equal(SESSION_BUDGET_DEFAULTS.maxCases, 8);
   assert.equal(SESSION_BUDGET_DEFAULTS.maxPages, 6);
   assert.equal(SESSION_BUDGET_DEFAULTS.maxDepth, 2);
-  assert.equal(SESSION_BUDGET_DEFAULTS.maxActions, 120);
+  assert.equal(SESSION_BUDGET_DEFAULTS.maxActions, 200);
   assert.equal(SESSION_BUDGET_DEFAULTS.maxActionsPerCase, 24);
   assert.equal(SESSION_BUDGET_DEFAULTS.concurrency, 2);
 });
@@ -150,7 +150,7 @@ test('defaults stay within the contract ceilings shown in the inputs', async () 
   );
 });
 
-test('new session sends only user-editable budget fields with 1800s default', async () => {
+test('new session sends only user-editable budget fields with 3600s default', async () => {
   const harness = homeHarness();
   textarea(harness).props.onChange({
     target: { value: '测试 https://demo.example.com/checkout 的下单流程' },
@@ -171,7 +171,8 @@ test('new session sends only user-editable budget fields with 1800s default', as
     'maxDepth',
     'maxPages',
   ]);
-  assert.equal(budget.maxActiveSeconds, 1800);
+  assert.equal(budget.maxActiveSeconds, 3600);
+  assert.equal(budget.maxActions, 200);
   assert.equal(budget.maxActionsPerCase, 24);
 });
 

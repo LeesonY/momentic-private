@@ -189,7 +189,7 @@ API cookie 为 HttpOnly、Secure、SameSite，并验证 Origin/CSRF；后台 sec
 
 在锁定 budget 行的事务中检查 counters+reservation≤limit；发出真实请求前预约一次 call 和最大输出 tokens；收到 usage 后核销。缺少 usage 用本地估算器并记录来源；不能当作零。actions、reproductions 和并发同样原子预约/释放，租约恢复负责过期资源归并。
 
-模型调用的预留按用途设上限（plan 16k、summarize/decide 8k、assert 4k、probe 1k），只把模型配置的 `maxOutputTokens` 当作天花板，不再按它全额预留：deepseek-v4.1-flash 配置 32k 时，44 次调用、已用 25 万 tokens 的运行会在还剩约 4 万时就因单次预留过大而报 BUDGET_EXCEEDED。预留值同时下发为本次请求的输出上限（调用方可以再降低、不能抬高），因此实际用量不会超过预留；结算仍按报告/估算的真实用量。回归运行继续使用 `DEFAULT_LIMITS`；Mo 会话（`POST /runs` 及 follow-up 未显式指定预算时）使用更宽的会话默认值：maxTotalTokens 1,500,000、maxModelCalls 300、maxActiveSeconds 1800，其余预算项不变。
+模型调用的预留按用途设上限（plan 16k、summarize/decide 8k、assert 4k、probe 1k），只把模型配置的 `maxOutputTokens` 当作天花板，不再按它全额预留：deepseek-v4.1-flash 配置 32k 时，44 次调用、已用 25 万 tokens 的运行会在还剩约 4 万时就因单次预留过大而报 BUDGET_EXCEEDED。预留值同时下发为本次请求的输出上限（调用方可以再降低、不能抬高），因此实际用量不会超过预留；结算仍按报告/估算的真实用量。回归运行继续使用 `DEFAULT_LIMITS`；Mo 会话（`POST /runs` 及 follow-up 未显式指定预算时）使用更宽的会话默认值：maxActiveSeconds 3600（契约上限）、maxActions 200、maxTotalTokens 3,000,000、maxModelCalls 300、maxActionsPerCase 24，其余预算项不变。这套值按 2026-10-19 在 66 上的实测（会话 `9731bd60`：8 条用例 + 1 次重试 + 1 次复现先用完 30 分钟，activeSeconds 1800/1800，而复现被取消时 actions 已 104/120、tokens 1,355,519/1,500,000）调整：把被取消的复现（约 5–10 步）和一次重试（≤24 步）做完会同时越过 120 步和 1.5M tokens。
 
 ## 9. 证据、报告和事件
 

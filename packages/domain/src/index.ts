@@ -91,18 +91,27 @@ export const DEFAULT_LIMITS: BudgetLimits = Object.freeze({
 /**
  * A Mo-style session signs every executor/reproducer in itself (each sign-in
  * calls the model), queues exclusive accounts, reviews reports over several
- * planning rounds and can re-run cases after a question. Measured sessions used
- * 255k-259k tokens over 44 calls and stopped on tokens, not time, so sessions
- * get more tokens, calls and wall-clock while regression keeps DEFAULT_LIMITS.
- * Only the three session-specific limits change; the rest stay identical.
+ * planning rounds, retries a case and reproduces a defect in a fresh context.
+ *
+ * Measured on 2026-10-19, session `9731bd60` on 66: eight cases plus one retry
+ * and one reproduction used up the 30-minute wall clock (activeSeconds
+ * 1800/1800) and the reproduction was cancelled, while actions 104/120,
+ * modelCalls 167/300, tokens 1,355,519/1,500,000 and reproductions 1/3 were
+ * still under their limits. Finishing the cancelled reproduction (5-10 steps)
+ * and one retry (<=24 steps) would have crossed both 120 actions and 1.5M
+ * tokens, so sessions get a longer wall clock, more actions and more tokens
+ * while regression keeps DEFAULT_LIMITS.
  */
 export const SESSION_DEFAULT_LIMITS: BudgetLimits = Object.freeze({
   ...DEFAULT_LIMITS,
-  maxActiveSeconds: 1800,
+  // The contract ceiling; the measured session needed more than 1800s.
+  maxActiveSeconds: 3600,
   // Mo-style agents also handle post-login landings and their own retries.
   maxActionsPerCase: 24,
   maxModelCalls: 300,
-  maxTotalTokens: 1500000,
+  maxTotalTokens: 3000000,
+  // 104 actions for 8 cases + retry + reproduction already exceeded 120.
+  maxActions: 200,
 });
 export const EMPTY_USED: BudgetUsed = {
   activeSeconds: 0,

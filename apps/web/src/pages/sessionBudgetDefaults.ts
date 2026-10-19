@@ -1,12 +1,12 @@
 /**
  * Editable session budget defaults for the new-session composer.
  *
- * Mirrors the server's SESSION_DEFAULT_LIMITS (packages/domain/src/index.ts,
- * merged to deploy/mo-next-66 in 631540e): `{ ...DEFAULT_LIMITS,
- * maxActiveSeconds: 1800, maxActionsPerCase: 24, maxModelCalls: 300,
- * maxTotalTokens: 1500000 }`.
- * This branch predates that merge, so the constant is copied here with the
- * source noted; switch to importing it from @localqa/domain once available.
+ * Mirrors the server's SESSION_DEFAULT_LIMITS (packages/domain/src/index.ts):
+ * `{ ...DEFAULT_LIMITS, maxActiveSeconds: 3600, maxActionsPerCase: 24,
+ * maxModelCalls: 300, maxTotalTokens: 3000000, maxActions: 200 }`.
+ * The web app cannot import @localqa/domain (it is server-side and not a web
+ * dependency), so the values are copied here; keep them in sync with the source
+ * — `sessionBudget.test.mjs` asserts the numbers the composer shows.
  *
  * Only user-editable fields are listed. Non-editable limits
  * (maxModelCalls, maxReproductions, maxTotalTokens) are never sent from the
@@ -16,8 +16,8 @@ export const SESSION_BUDGET_DEFAULTS = {
   maxCases: 8,
   maxPages: 6,
   maxDepth: 2,
-  maxActiveSeconds: 1800,
-  maxActions: 120,
+  maxActiveSeconds: 3600,
+  maxActions: 200,
   maxActionsPerCase: 24,
   concurrency: 2,
 };
