@@ -1,3 +1,4 @@
+import type { Artifact } from '@localqa/contracts';
 import { defaultApiClient } from './index.ts';
 import type {
   ConsoleLine,
@@ -85,19 +86,47 @@ export async function loadTaskRecording(
   }
 }
 
+export type EvidenceDecision =
+  | { download: true; warning: string | null }
+  | { download: false; reason: string };
+
+/**
+ * Whether an evidence artifact may be downloaded, and what to say about it.
+ *
+ * A degraded artifact is still replayed: hitting the size cap cuts a recording
+ * short, it does not break the part that was recorded, so it plays with the
+ * artifact's own error as the hint. Missing/failed evidence has nothing to
+ * show. A failed redaction is refused outright, whatever the status says — the
+ * point of redaction is that unredacted bytes never reach the browser.
+ */
+export function evidencePolicy(
+  artifact: Pick<Artifact, 'status' | 'redaction' | 'error'>,
+): EvidenceDecision {
+  const detail = artifact.error?.trim();
+  if (artifact.redaction === 'failed')
+    return { download: false, reason: '录像证据脱敏失败，已拒绝回放' };
+  if (artifact.status === 'available') return { download: true, warning: null };
+  if (artifact.status === 'degraded')
+    return {
+      download: true,
+      warning: detail || '录像证据不完整（录制被截断）',
+    };
+  return { download: false, reason: detail || '录像证据不可用' };
+}
+
 /** Download one evidence artifact, keeping the existing ownership checks. */
 async function downloadEvidence(
   artifactId: string,
   runId: string | null,
-): Promise<Blob> {
+): Promise<{ blob: Blob; warning: string | null }> {
   const artifact = await defaultApiClient.getArtifact(artifactId);
   if (runId && artifact.runId !== runId)
     throw new Error('录像证据不属于这个会话');
-  if (artifact.status !== 'available')
-    throw new Error(artifact.error ?? '录像证据不可用');
+  const decision = evidencePolicy(artifact);
+  if (!decision.download) throw new Error(decision.reason);
   const blob = await defaultApiClient.downloadArtifact(artifactId);
   if (!blob.size) throw new Error('录像证据是空的');
-  return blob;
+  return { blob, warning: decision.warning };
 }
 
 const GZIP_MAGIC = [0x1f, 0x8b];
@@ -127,6 +156,8 @@ export interface RecordingPayload {
   events: unknown[];
   consoleLines: ConsoleLine[];
   networkLines: NetworkLine[];
+  /** Degraded evidence that still replays, with the reason to show. */
+  warnings: string[];
 }
 
 /** Fetch every part of a recording that is present, tolerating a missing one. */
@@ -134,9 +165,11 @@ export async function loadRecordingPayload(
   recording: RecordingInfo,
   runId: string | null = null,
 ): Promise<RecordingPayload> {
+  const warnings: string[] = [];
   const read = async <T>(artifactId: string | null): Promise<T[]> => {
     if (!artifactId) return [];
-    const blob = await downloadEvidence(artifactId, runId);
+    const { blob, warning } = await downloadEvidence(artifactId, runId);
+    if (warning && !warnings.includes(warning)) warnings.push(warning);
     const parsed = await readJsonBlob<T[]>(blob);
     return Array.isArray(parsed) ? parsed : [];
   };
@@ -147,5 +180,5 @@ export async function loadRecordingPayload(
   ]);
   if (!events.length && recording.rrwebArtifactId)
     throw new Error('录像里没有可回放的事件');
-  return { events, consoleLines, networkLines };
+  return { events, consoleLines, networkLines, warnings };
 }

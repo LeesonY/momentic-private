@@ -5,7 +5,11 @@
 // fixture the mock client serves).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { normalizeRecording, readJsonBlob } from '../src/api/recording.ts';
+import {
+  evidencePolicy,
+  normalizeRecording,
+  readJsonBlob,
+} from '../src/api/recording.ts';
 import { MOCK_RRWEB_GZIP_BASE64 } from '../src/mocks/recording.ts';
 import {
   filterConsole,
@@ -335,5 +339,64 @@ test('clock, url-at-time and step ordering helpers behave', () => {
   assert.deepEqual(
     sortSteps([{ seq: 2 }, { seq: 1 }, { seq: 3 }]).map((step) => step.seq),
     [1, 2, 3],
+  );
+});
+
+test('degraded evidence still replays, with its own reason', () => {
+  const base = { status: 'available', redaction: 'applied', error: null };
+  assert.deepEqual(evidencePolicy(base), { download: true, warning: null });
+  // A recording cut at the size cap is short, not broken: play it and say so.
+  assert.deepEqual(
+    evidencePolicy({
+      ...base,
+      status: 'degraded',
+      error: '录制达到 20 MB 上限，已截断到前 1.8 秒',
+    }),
+    { download: true, warning: '录制达到 20 MB 上限，已截断到前 1.8 秒' },
+  );
+  // Degraded without a reason still plays, with a generic hint.
+  assert.deepEqual(evidencePolicy({ ...base, status: 'degraded' }), {
+    download: true,
+    warning: '录像证据不完整（录制被截断）',
+  });
+  assert.deepEqual(
+    evidencePolicy({ ...base, status: 'degraded', error: '   ' }),
+    { download: true, warning: '录像证据不完整（录制被截断）' },
+    'a blank reason is no reason',
+  );
+});
+
+test('missing or failed evidence is refused with the artifact message', () => {
+  const base = { status: 'available', redaction: 'applied', error: null };
+  for (const status of ['missing', 'failed']) {
+    assert.deepEqual(evidencePolicy({ ...base, status }), {
+      download: false,
+      reason: '录像证据不可用',
+    });
+    assert.deepEqual(
+      evidencePolicy({ ...base, status, error: '写入证据时磁盘已满' }),
+      { download: false, reason: '写入证据时磁盘已满' },
+    );
+  }
+});
+
+test('a failed redaction is never downloaded, whatever the status', () => {
+  for (const status of ['available', 'degraded', 'missing', 'failed']) {
+    const decision = evidencePolicy({
+      status,
+      redaction: 'failed',
+      error: '脱敏超时',
+    });
+    assert.equal(decision.download, false, status);
+    assert.match(decision.reason, /脱敏/);
+  }
+  // not_needed is the same as applied.
+  assert.equal(
+    evidencePolicy({
+      status: 'available',
+      redaction: 'not_needed',
+      error: null,
+    }).download,
+    true,
   );
 });

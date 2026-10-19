@@ -17,6 +17,8 @@ export interface TaskRecordingState {
   playable: boolean;
   recording: RecordingInfo | null;
   payload: RecordingPayload | null;
+  /** Degraded evidence (e.g. a recording cut at the size cap) and its reason. */
+  warnings: string[];
   /** The task's steps, for the activity tab and the steps timeline. */
   steps: ReplayStep[];
   error: string | null;
@@ -27,6 +29,7 @@ const IDLE: TaskRecordingState = {
   playable: false,
   recording: null,
   payload: null,
+  warnings: [],
   steps: [],
   error: null,
 };
@@ -63,6 +66,7 @@ export function useTaskRecording(
             playable: false,
             recording,
             payload: null,
+            warnings: [],
             steps: [],
             error: null,
           });
@@ -72,6 +76,7 @@ export function useTaskRecording(
           events: [],
           consoleLines: [],
           networkLines: [],
+          warnings: [],
         };
         let error: string | null = null;
         try {
@@ -93,6 +98,7 @@ export function useTaskRecording(
           playable: payload.events.length > 0,
           recording,
           payload,
+          warnings: payload.warnings,
           steps,
           error,
         });

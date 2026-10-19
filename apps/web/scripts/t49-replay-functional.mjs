@@ -143,9 +143,30 @@ try {
     'no recording, no player',
   );
 
+  // Degraded evidence — a recording cut at the size cap — still replays, with
+  // the artifact's own reason instead of "cannot play".
+  await page.goto(
+    `${origin}#/workbench?runId=run_mock_001_completed&tab=screen&taskId=task_mock_exec_20_2`,
+  );
+  const degraded = page.getByTestId('screen-recording');
+  await degraded.waitFor();
+  const warning = await page
+    .getByTestId('screen-recording-warning')
+    .innerText();
+  assert.match(warning, /录像不完整/);
+  assert.match(warning, /20 MB 上限/);
+  const degradedFrame = page.frameLocator(
+    '[data-testid="screen-recording-stage"] iframe',
+  );
+  await degradedFrame.locator('h1').waitFor();
+  assert.equal(
+    await degradedFrame.locator('h1').innerText(),
+    '柔性灰度管理平台',
+  );
+
   assert.deepEqual(errors, [], 'no page errors while replaying');
   console.log(
-    'T49_REPLAY_UI_ACCEPTED replay + markers + tabs + full recording',
+    'T49_REPLAY_UI_ACCEPTED replay + markers + tabs + degraded + full recording',
   );
 } finally {
   await browser.close();

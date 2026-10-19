@@ -57,6 +57,25 @@ export const mockRecordingInfo: TaskRecording = {
 const at = (offsetMs: number): string =>
   new Date(Date.parse(MOCK_RECORDING_STARTED_AT) + offsetMs).toISOString();
 
+/**
+ * A recording that hit the 20 MB cap: the recorder cut it short, so the
+ * artifact is `degraded` while the part that was recorded still replays. The
+ * player must say why instead of refusing to play (`evidencePolicy`).
+ */
+export const MOCK_DEGRADED_TASK_ID = 'task_mock_exec_20_2';
+export const MOCK_RRWEB_DEGRADED_ARTIFACT_ID =
+  'artifact_mock_rrweb_degraded_01';
+export const MOCK_RRWEB_DEGRADED_ERROR =
+  '录制达到 20 MB 上限，已截断到前 1.8 秒';
+
+export const mockDegradedRecordingInfo: TaskRecording = {
+  ...mockRecordingInfo,
+  taskId: MOCK_DEGRADED_TASK_ID,
+  status: 'degraded',
+  rrwebArtifactId: MOCK_RRWEB_DEGRADED_ARTIFACT_ID,
+  error: MOCK_RRWEB_DEGRADED_ERROR,
+};
+
 export const mockConsoleLines: ConsoleEntry[] = [
   { at: at(120), level: 'log', source: 'console', text: '页面加载完成' },
   {

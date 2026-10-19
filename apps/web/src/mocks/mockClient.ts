@@ -7,11 +7,14 @@ import type {
 } from '../api/types.ts';
 import {
   MOCK_CONSOLE_ARTIFACT_ID,
+  MOCK_DEGRADED_TASK_ID,
   MOCK_NETWORK_ARTIFACT_ID,
   MOCK_RECORDING_TASK_ID,
   MOCK_RRWEB_ARTIFACT_ID,
+  MOCK_RRWEB_DEGRADED_ARTIFACT_ID,
   MOCK_RRWEB_GZIP_BASE64,
   mockConsoleLines,
+  mockDegradedRecordingInfo,
   mockNetworkLines,
   mockRecordingInfo,
   mockRecordingSteps,
@@ -1083,6 +1086,8 @@ export class MockApiClient implements ApiClient {
    */
   public async getTaskRecording(taskId: string): Promise<TaskRecording> {
     if (taskId === MOCK_RECORDING_TASK_ID) return { ...mockRecordingInfo };
+    if (taskId === MOCK_DEGRADED_TASK_ID)
+      return { ...mockDegradedRecordingInfo };
     const task = mockTasks.find((candidate) => candidate.id === taskId);
     if (task && ['queued', 'running', 'waiting'].includes(task.status))
       return {
@@ -1211,7 +1216,10 @@ export class MockApiClient implements ApiClient {
   }
 
   public async downloadArtifact(artifactId: string): Promise<Blob> {
-    if (artifactId === MOCK_RRWEB_ARTIFACT_ID) {
+    if (
+      artifactId === MOCK_RRWEB_ARTIFACT_ID ||
+      artifactId === MOCK_RRWEB_DEGRADED_ARTIFACT_ID
+    ) {
       // The same bytes the Worker writes: gzipped rrweb events.
       const binary = atob(MOCK_RRWEB_GZIP_BASE64);
       const bytes = new Uint8Array(binary.length);

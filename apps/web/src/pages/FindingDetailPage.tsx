@@ -250,6 +250,7 @@ export const FindingDetailPage: React.FC = () => {
               events={replay.payload?.events ?? []}
               consoleLines={replay.payload?.consoleLines ?? []}
               networkLines={replay.payload?.networkLines ?? []}
+              warnings={replay.warnings}
               steps={replay.steps}
               window={{
                 startAt: recording.startedAt,

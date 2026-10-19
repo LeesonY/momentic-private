@@ -46,6 +46,8 @@ export interface RecordingPlayerProps {
   events: unknown[];
   consoleLines?: ConsoleLine[];
   networkLines?: ConsoleLine[] | NetworkLine[];
+  /** Degraded evidence the player still replays (a recording cut at the cap). */
+  warnings?: string[];
   steps?: ReplayStep[];
   /** Defect replay: only this slice is on the axis, the events stay whole. */
   window?: RecordingWindow | null;
@@ -105,6 +107,7 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
   events,
   consoleLines = [],
   networkLines = [],
+  warnings = [],
   steps = [],
   window: replayWindow = null,
   reproSteps = [],
@@ -376,6 +379,15 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
     return durations.length ? Math.max(...durations) : 1;
   }, [network]);
 
+  const hintText = useMemo(() => {
+    const parts = warnings.map((warning) => warning.trim()).filter(Boolean);
+    if (parts.length > 0)
+      return status.tone === 'warning'
+        ? `录像不完整：${parts.join('；')}`
+        : parts.join('；');
+    return status.detail;
+  }, [status.detail, status.tone, warnings]);
+
   const activeStepId = useMemo(() => {
     let found: string | undefined;
     for (const block of blocks) {
@@ -406,6 +418,13 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
             {status.detail}
           </Alert>
         )}
+        {warnings
+          .filter((warning) => warning.trim().length > 0)
+          .map((warning) => (
+            <Alert key={warning} tone="warning" testId={`${testId}-warning`}>
+              {warning}
+            </Alert>
+          ))}
         {fallback}
       </section>
     );
@@ -435,10 +454,14 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
             </button>
           )}
         </span>
-        {status.detail && (
-          <span className="lqa-recording-warning" role="status">
+        {hintText && (
+          <span
+            className="lqa-recording-warning"
+            role="status"
+            data-testid={`${testId}-warning`}
+          >
             <AppIcon name="alert-triangle" size={13} />
-            {status.detail}
+            {hintText}
           </span>
         )}
       </header>
