@@ -230,9 +230,12 @@ export class SessionRecorder {
         );
         // Record request entry
         this.appendNetworkEntry({
+          at: new Date().toISOString(),
           url: sanitizedUrl.slice(0, 8192),
           method: req.method().slice(0, 20),
           status: null,
+          failed: false,
+          durationMs: null,
           resourceType: req.resourceType().slice(0, 40),
           summary: `[REQ] ${req.method()} ${sanitizedUrl}`.slice(0, 1000),
         });
@@ -248,9 +251,12 @@ export class SessionRecorder {
           this.redactAuthenticationText(res.url()),
         );
         this.appendNetworkEntry({
+          at: new Date().toISOString(),
           url: sanitizedUrl.slice(0, 8192),
           method: res.request().method().slice(0, 20),
           status: res.status(),
+          failed: !res.ok(),
+          durationMs: null,
           resourceType: res.request().resourceType().slice(0, 40),
           summary:
             `[${res.status()}] ${res.request().method()} ${sanitizedUrl}`.slice(
@@ -273,9 +279,12 @@ export class SessionRecorder {
           req.failure()?.errorText || 'Unknown',
         );
         this.appendNetworkEntry({
+          at: new Date().toISOString(),
           url: sanitizedUrl.slice(0, 8192),
           method: req.method().slice(0, 20),
           status: null,
+          failed: true,
+          durationMs: null,
           resourceType: req.resourceType().slice(0, 40),
           summary:
             `[FAILED] ${req.method()} ${sanitizedUrl} - ${failure}`.slice(
@@ -293,7 +302,7 @@ export class SessionRecorder {
     entry = {
       ...entry,
       url: this.redactAuthenticationText(entry.url),
-      summary: this.redactAuthenticationText(entry.summary),
+      summary: this.redactAuthenticationText(entry.summary ?? ''),
     };
     if (this.networkEntries.length >= this.maxNetworkBuffer) {
       this.networkEntries.shift();

@@ -30,6 +30,7 @@ export type Contract =
   | CaseRecord
   | CaseRecordPage
   | ConfigDeleteConfirm
+  | ConsoleEntry
   | CredentialMaterial
   | Criterion
   | CriterionResult
@@ -157,6 +158,7 @@ export type Contract =
   | TaskComplete
   | TaskIntent
   | TaskPage
+  | TaskRecording
   | ToolCall
   | ToolResult
   | TriageCommit
@@ -423,6 +425,20 @@ export type Finding = {
   triageDisposition: "open" | "accepted" | "duplicate" | "works_as_intended" | "cannot_reproduce" | "closed";
   version: number;
   duplicateOf?: string | null;
+  recording?: {
+    reproductionId: string;
+    taskId: string;
+    startedAt: string;
+    endedAt: string;
+    /**
+     * @minItems 0
+     * @maxItems 30
+     */
+    steps: {
+      index: number;
+      at: string;
+    }[];
+  } | null;
 };
 export type ModelPart =
   | {
@@ -701,11 +717,14 @@ export interface SnapshotNode {
   focused?: boolean;
 }
 export interface NetworkEntry {
-  url: string;
+  at: string;
   method: string;
-  status: number | null;
+  url: string;
   resourceType: string;
-  summary: string;
+  status: number | null;
+  failed: boolean;
+  durationMs: number | null;
+  summary?: string;
 }
 export interface BudgetLimits {
   maxCases: number;
@@ -886,6 +905,12 @@ export interface CaseRecordPage {
 export interface ConfigDeleteConfirm {
   expectedVersion: number;
   confirmName: string;
+}
+export interface ConsoleEntry {
+  at: string;
+  level: "log" | "info" | "warn" | "error";
+  source: "console" | "pageerror";
+  text: string;
 }
 export interface CredentialMaterial {
   mode: "none" | "form" | "storage_state" | "agent";
@@ -1967,6 +1992,7 @@ export interface Step {
   createdAt: string;
   finishedAt: string | null;
   reasonCode?: string | null;
+  thought?: string | null;
   regressionSource?: RegressionStepSource;
 }
 export interface StepPage {
@@ -1990,6 +2016,20 @@ export interface TaskPage {
    */
   items: Task[];
   nextCursor: string | null;
+}
+export interface TaskRecording {
+  taskId: string;
+  status: "recording" | "available" | "degraded" | "missing";
+  rrwebArtifactId: string | null;
+  consoleArtifactId: string | null;
+  networkArtifactId: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  viewport: {
+    width: number;
+    height: number;
+  } | null;
+  error: string | null;
 }
 export interface ToolResult {
   requestId: string;
@@ -2082,6 +2122,7 @@ export interface ContractTypes {
   CaseRecord: CaseRecord;
   CaseRecordPage: CaseRecordPage;
   ConfigDeleteConfirm: ConfigDeleteConfirm;
+  ConsoleEntry: ConsoleEntry;
   CredentialMaterial: CredentialMaterial;
   Criterion: Criterion;
   CriterionResult: CriterionResult;
@@ -2209,6 +2250,7 @@ export interface ContractTypes {
   TaskComplete: TaskComplete;
   TaskIntent: TaskIntent;
   TaskPage: TaskPage;
+  TaskRecording: TaskRecording;
   ToolCall: ToolCall;
   ToolResult: ToolResult;
   TriageCommit: TriageCommit;

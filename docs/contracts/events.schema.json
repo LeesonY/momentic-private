@@ -1950,6 +1950,65 @@
               "type": "null"
             }
           ]
+        },
+        "recording": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "reproductionId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "taskId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "startedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "endedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "index": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "at": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "index",
+                      "at"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "maxItems": 30,
+                  "minItems": 0
+                }
+              },
+              "required": [
+                "reproductionId",
+                "taskId",
+                "startedAt",
+                "endedAt",
+                "steps"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -2088,6 +2147,17 @@
             {
               "type": "string",
               "maxLength": 80
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "thought": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 500
             },
             {
               "type": "null"

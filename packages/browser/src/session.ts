@@ -275,7 +275,7 @@ export class BrowserSessionImpl implements BrowserSession {
       networkSummary: snapshot.networkSummary.map((entry) => ({
         ...entry,
         url: text(entry.url),
-        summary: text(entry.summary),
+        summary: text(entry.summary ?? ''),
       })),
     };
   }

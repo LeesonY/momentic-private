@@ -52,8 +52,8 @@ for (const [path, methods] of Object.entries(openApi.paths)) {
   }
 }
 
-if (operations.length !== 98) {
-  throw new Error(`Expected 98 public operations, found ${operations.length}`);
+if (operations.length !== 99) {
+  throw new Error(`Expected 99 public operations, found ${operations.length}`);
 }
 
 const opNames = operations.map((op) => op.operationId);
@@ -110,6 +110,7 @@ import type {
   TaskPage,
   Step,
   StepPage,
+  TaskRecording,
   RunEventPage,
   Finding,
   FindingPage,
@@ -223,6 +224,7 @@ export type {
   TaskPage,
   Step,
   StepPage,
+  TaskRecording,
   RunEventPage,
   Finding,
   FindingPage,
@@ -401,6 +403,7 @@ export interface ApiClient {
   listCaseAttempts(caseId: string, query?: PaginationQuery): Promise<CaseAttemptPage>;
   listRunTasks(runId: string, query?: PaginationQuery): Promise<TaskPage>;
   listTaskSteps(taskId: string, query?: PaginationQuery): Promise<StepPage>;
+  getTaskRecording(taskId: string): Promise<TaskRecording>;
   getStep(stepId: string): Promise<Step>;
   listEventHistory(runId: string, query?: ListEventHistoryQuery): Promise<RunEventPage>;
 
@@ -532,6 +535,7 @@ import type {
   TaskPage,
   Step,
   StepPage,
+  TaskRecording,
   RunEventPage,
   Finding,
   FindingPage,
@@ -1198,6 +1202,14 @@ export class HttpApiClient implements ApiClient {
       \`/tasks/\${encodeURIComponent(taskId)}/steps\${qs}\`,
       { method: 'GET' },
       'StepPage',
+    );
+  }
+
+  public async getTaskRecording(taskId: string): Promise<TaskRecording> {
+    return this.request<TaskRecording>(
+      \`/tasks/\${encodeURIComponent(taskId)}/recording\`,
+      { method: \x27GET\x27 },
+      \x27TaskRecording\x27,
     );
   }
 

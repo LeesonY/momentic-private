@@ -917,29 +917,46 @@
     "NetworkEntry": {
       "type": "object",
       "properties": {
-        "url": {
+        "at": {
           "type": "string",
-          "maxLength": 8192
+          "format": "date-time"
         },
         "method": {
           "type": "string",
           "maxLength": 20
         },
+        "url": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "resourceType": {
+          "type": "string",
+          "maxLength": 40
+        },
         "status": {
           "anyOf": [
             {
               "type": "integer",
-              "minimum": 100,
-              "maximum": 599
+              "minimum": 0
             },
             {
               "type": "null"
             }
           ]
         },
-        "resourceType": {
-          "type": "string",
-          "maxLength": 40
+        "failed": {
+          "type": "boolean"
+        },
+        "durationMs": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "summary": {
           "type": "string",
@@ -947,11 +964,13 @@
         }
       },
       "required": [
-        "url",
+        "at",
         "method",
-        "status",
+        "url",
         "resourceType",
-        "summary"
+        "status",
+        "failed",
+        "durationMs"
       ],
       "additionalProperties": false
     },
@@ -1888,6 +1907,65 @@
             {
               "type": "string",
               "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "recording": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "reproductionId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "taskId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "startedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "endedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "index": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "at": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "index",
+                      "at"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "maxItems": 30,
+                  "minItems": 0
+                }
+              },
+              "required": [
+                "reproductionId",
+                "taskId",
+                "startedAt",
+                "endedAt",
+                "steps"
+              ],
+              "additionalProperties": false
             },
             {
               "type": "null"

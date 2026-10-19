@@ -49,6 +49,7 @@ import type {
   TaskPage,
   Step,
   StepPage,
+  TaskRecording,
   RunEventPage,
   Finding,
   FindingPage,
@@ -162,6 +163,7 @@ export type {
   TaskPage,
   Step,
   StepPage,
+  TaskRecording,
   RunEventPage,
   Finding,
   FindingPage,
@@ -275,6 +277,7 @@ export type PublicOperationName =
   | 'getCase'
   | 'listCaseAttempts'
   | 'listTaskSteps'
+  | 'getTaskRecording'
   | 'getStep'
   | 'listEventHistory'
   | 'getFinding'
@@ -437,6 +440,7 @@ export interface ApiClient {
   listCaseAttempts(caseId: string, query?: PaginationQuery): Promise<CaseAttemptPage>;
   listRunTasks(runId: string, query?: PaginationQuery): Promise<TaskPage>;
   listTaskSteps(taskId: string, query?: PaginationQuery): Promise<StepPage>;
+  getTaskRecording(taskId: string): Promise<TaskRecording>;
   getStep(stepId: string): Promise<Step>;
   listEventHistory(runId: string, query?: ListEventHistoryQuery): Promise<RunEventPage>;
 

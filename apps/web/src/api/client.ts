@@ -48,6 +48,7 @@ import type {
   TaskPage,
   Step,
   StepPage,
+  TaskRecording,
   RunEventPage,
   Finding,
   FindingPage,
@@ -714,6 +715,14 @@ export class HttpApiClient implements ApiClient {
       `/tasks/${encodeURIComponent(taskId)}/steps${qs}`,
       { method: 'GET' },
       'StepPage',
+    );
+  }
+
+  public async getTaskRecording(taskId: string): Promise<TaskRecording> {
+    return this.request<TaskRecording>(
+      `/tasks/${encodeURIComponent(taskId)}/recording`,
+      { method: 'GET' },
+      'TaskRecording',
     );
   }
 

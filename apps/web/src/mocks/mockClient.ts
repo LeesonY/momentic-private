@@ -49,6 +49,7 @@ import type {
   FindingPage,
   Step,
   StepPage,
+  TaskRecording,
   RunEventPage,
   Artifact,
   Report,
@@ -1058,6 +1059,22 @@ export class MockApiClient implements ApiClient {
       (s) => s.caseId === taskIdOrCaseId || s.taskId === taskIdOrCaseId,
     );
     return paginateMock(matched.length > 0 ? matched : mockSteps, query);
+  }
+
+  public async getTaskRecording(
+    taskId: string,
+  ): Promise<TaskRecording> {
+    return {
+      taskId,
+      status: "missing",
+      rrwebArtifactId: null,
+      consoleArtifactId: null,
+      networkArtifactId: null,
+      startedAt: null,
+      endedAt: null,
+      viewport: null,
+      error: null,
+    };
   }
 
   public async getStep(stepId: string): Promise<Step> {

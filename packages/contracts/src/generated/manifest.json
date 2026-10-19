@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "sourceHashes": {
-    "domain.schema.json": "9617ec5e19d004b858b16e09de83e205ce5f2bd86f106b02ff56889e5cdf70c9",
-    "events.schema.json": "46a6baa5d119e2a16bfc3af33066ae2d70982a3e7c09d353d126a4cbd28b4344",
-    "openapi.json": "3a9b6c9609726b8d6e432b770d8f907dd1f351ac8d0febb79fad9985ec4d64c0",
+    "domain.schema.json": "0a5a9b567ad9d2e343b1e71744bfd6dd331a59521fba983fa54b96d8c32f1de0",
+    "events.schema.json": "a9bc1ccf96130609339f369f90c3c3ad027499468eac9e2cdbfb7cda3aabe1d9",
+    "openapi.json": "e4f5054f7d670e3fef304d07e8b68370c34b81d553886bd40112a04d9807cc91",
     "regression.schema.json": "3311ab392986b0253fc833e5eb97eecefd6f612b767ed308fd8edd75a086b39f",
-    "report.schema.json": "18b1a580fa8706abe79520af87ca2b0d0545d0966559a96fce3987a34f4d3d8d",
-    "tools.schema.json": "9d22ee0f49967b3252fc9c00b7c31e1eeb6cbdcad71bcc7874a2fb17fc67f5d9"
+    "report.schema.json": "3a02e8b47c9007e7f43232ca1b5f7f1e2f664605f7f2951ea58880acea74c2fb",
+    "tools.schema.json": "6cab88575b7d4631fdb5b52b48372569f6ef17bb3851dcd196ca492a7ec11003"
   },
   "definitions": [
     "ActionPermit",
@@ -38,6 +38,7 @@
     "CaseRecord",
     "CaseRecordPage",
     "ConfigDeleteConfirm",
+    "ConsoleEntry",
     "CredentialMaterial",
     "Criterion",
     "CriterionResult",
@@ -165,6 +166,7 @@
     "TaskComplete",
     "TaskIntent",
     "TaskPage",
+    "TaskRecording",
     "ToolCall",
     "ToolResult",
     "TriageCommit",

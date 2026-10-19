@@ -2499,6 +2499,65 @@
                 "type": "null"
               }
             ]
+          },
+          "recording": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "reproductionId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "startedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "endedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "steps": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "index": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "index",
+                        "at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 30,
+                    "minItems": 0
+                  }
+                },
+                "required": [
+                  "reproductionId",
+                  "taskId",
+                  "startedAt",
+                  "endedAt",
+                  "steps"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -5151,6 +5210,17 @@
               }
             ]
           },
+          "thought": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "regressionSource": {
             "$ref": "#/$defs/RegressionStepSource"
           }
@@ -5348,32 +5418,85 @@
         ],
         "additionalProperties": false
       },
+      "ConsoleEntry": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "log",
+              "info",
+              "warn",
+              "error"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "console",
+              "pageerror"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "at",
+          "level",
+          "source",
+          "text"
+        ],
+        "additionalProperties": false
+      },
       "NetworkEntry": {
         "type": "object",
         "properties": {
-          "url": {
+          "at": {
             "type": "string",
-            "maxLength": 8192
+            "format": "date-time"
           },
           "method": {
             "type": "string",
             "maxLength": 20
           },
+          "url": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "resourceType": {
+            "type": "string",
+            "maxLength": 40
+          },
           "status": {
             "anyOf": [
               {
                 "type": "integer",
-                "minimum": 100,
-                "maximum": 599
+                "minimum": 0
               },
               {
                 "type": "null"
               }
             ]
           },
-          "resourceType": {
-            "type": "string",
-            "maxLength": 40
+          "failed": {
+            "type": "boolean"
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "summary": {
             "type": "string",
@@ -5381,11 +5504,13 @@
           }
         },
         "required": [
-          "url",
+          "at",
           "method",
-          "status",
+          "url",
           "resourceType",
-          "summary"
+          "status",
+          "failed",
+          "durationMs"
         ],
         "additionalProperties": false
       },
@@ -5396,6 +5521,127 @@
         },
         "maxItems": 100,
         "minItems": 0
+      },
+      "TaskRecording": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "recording",
+              "available",
+              "degraded",
+              "missing"
+            ]
+          },
+          "rrwebArtifactId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "consoleArtifactId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "networkArtifactId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "endedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "viewport": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "width": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "taskId",
+          "status",
+          "rrwebArtifactId",
+          "consoleArtifactId",
+          "networkArtifactId",
+          "startedAt",
+          "endedAt",
+          "viewport",
+          "error"
+        ],
+        "additionalProperties": false
       },
       "BrowserSnapshot": {
         "type": "object",
@@ -10867,6 +11113,65 @@
                 "type": "null"
               }
             ]
+          },
+          "recording": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "reproductionId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "startedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "endedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "steps": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "index": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "index",
+                        "at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 30,
+                    "minItems": 0
+                  }
+                },
+                "required": [
+                  "reproductionId",
+                  "taskId",
+                  "startedAt",
+                  "endedAt",
+                  "steps"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -11005,6 +11310,17 @@
               {
                 "type": "string",
                 "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "thought": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
               },
               {
                 "type": "null"
@@ -13978,6 +14294,53 @@
                 "application/json": {
                   "schema": {
                     "$ref": "#/components/schemas/StepPage"
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Stable, redacted error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/v1/tasks/{taskId}/recording": {
+        "get": {
+          "operationId": "getTaskRecording",
+          "tags": [
+            "P0"
+          ],
+          "summary": "getTaskRecording",
+          "security": [
+            {
+              "cookieAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "taskId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "getTaskRecording",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/TaskRecording"
                   }
                 }
               }
@@ -19689,6 +20052,65 @@
                   "type": "null"
                 }
               ]
+            },
+            "recording": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "reproductionId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "startedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "steps": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "index": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "index",
+                          "at"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "maxItems": 30,
+                      "minItems": 0
+                    }
+                  },
+                  "required": [
+                    "reproductionId",
+                    "taskId",
+                    "startedAt",
+                    "endedAt",
+                    "steps"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -22341,6 +22763,17 @@
                 }
               ]
             },
+            "thought": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "regressionSource": {
               "$ref": "#/components/schemas/RegressionStepSource"
             }
@@ -22538,32 +22971,85 @@
           ],
           "additionalProperties": false
         },
+        "ConsoleEntry": {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "level": {
+              "type": "string",
+              "enum": [
+                "log",
+                "info",
+                "warn",
+                "error"
+              ]
+            },
+            "source": {
+              "type": "string",
+              "enum": [
+                "console",
+                "pageerror"
+              ]
+            },
+            "text": {
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          "required": [
+            "at",
+            "level",
+            "source",
+            "text"
+          ],
+          "additionalProperties": false
+        },
         "NetworkEntry": {
           "type": "object",
           "properties": {
-            "url": {
+            "at": {
               "type": "string",
-              "maxLength": 8192
+              "format": "date-time"
             },
             "method": {
               "type": "string",
               "maxLength": 20
             },
+            "url": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "resourceType": {
+              "type": "string",
+              "maxLength": 40
+            },
             "status": {
               "anyOf": [
                 {
                   "type": "integer",
-                  "minimum": 100,
-                  "maximum": 599
+                  "minimum": 0
                 },
                 {
                   "type": "null"
                 }
               ]
             },
-            "resourceType": {
-              "type": "string",
-              "maxLength": 40
+            "failed": {
+              "type": "boolean"
+            },
+            "durationMs": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "summary": {
               "type": "string",
@@ -22571,11 +23057,13 @@
             }
           },
           "required": [
-            "url",
+            "at",
             "method",
-            "status",
+            "url",
             "resourceType",
-            "summary"
+            "status",
+            "failed",
+            "durationMs"
           ],
           "additionalProperties": false
         },
@@ -22586,6 +23074,127 @@
           },
           "maxItems": 100,
           "minItems": 0
+        },
+        "TaskRecording": {
+          "type": "object",
+          "properties": {
+            "taskId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "recording",
+                "available",
+                "degraded",
+                "missing"
+              ]
+            },
+            "rrwebArtifactId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "consoleArtifactId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "networkArtifactId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "startedAt": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "endedAt": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "viewport": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "width": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "height": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "width",
+                    "height"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "error": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 1000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "taskId",
+            "status",
+            "rrwebArtifactId",
+            "consoleArtifactId",
+            "networkArtifactId",
+            "startedAt",
+            "endedAt",
+            "viewport",
+            "error"
+          ],
+          "additionalProperties": false
         },
         "BrowserSnapshot": {
           "type": "object",
@@ -27941,6 +28550,65 @@
                 "type": "null"
               }
             ]
+          },
+          "recording": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "reproductionId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "startedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "endedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "steps": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "index": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "index",
+                        "at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 30,
+                    "minItems": 0
+                  }
+                },
+                "required": [
+                  "reproductionId",
+                  "taskId",
+                  "startedAt",
+                  "endedAt",
+                  "steps"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -29408,29 +30076,46 @@
       "NetworkEntry": {
         "type": "object",
         "properties": {
-          "url": {
+          "at": {
             "type": "string",
-            "maxLength": 8192
+            "format": "date-time"
           },
           "method": {
             "type": "string",
             "maxLength": 20
           },
+          "url": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "resourceType": {
+            "type": "string",
+            "maxLength": 40
+          },
           "status": {
             "anyOf": [
               {
                 "type": "integer",
-                "minimum": 100,
-                "maximum": 599
+                "minimum": 0
               },
               {
                 "type": "null"
               }
             ]
           },
-          "resourceType": {
-            "type": "string",
-            "maxLength": 40
+          "failed": {
+            "type": "boolean"
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "summary": {
             "type": "string",
@@ -29438,11 +30123,13 @@
           }
         },
         "required": [
-          "url",
+          "at",
           "method",
-          "status",
+          "url",
           "resourceType",
-          "summary"
+          "status",
+          "failed",
+          "durationMs"
         ],
         "additionalProperties": false
       },
@@ -30379,6 +31066,65 @@
               {
                 "type": "string",
                 "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recording": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "reproductionId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "startedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "endedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "steps": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "index": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "index",
+                        "at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 30,
+                    "minItems": 0
+                  }
+                },
+                "required": [
+                  "reproductionId",
+                  "taskId",
+                  "startedAt",
+                  "endedAt",
+                  "steps"
+                ],
+                "additionalProperties": false
               },
               {
                 "type": "null"

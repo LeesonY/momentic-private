@@ -95,6 +95,14 @@ D["Task"] = obj({"id": UUID, "runId": UUID, "role": enum("coordinator", "explore
 D["Artifact"] = obj({"id": UUID, "projectId": UUID, "runId": UUID, "kind": enum("screenshot", "trace", "rrweb", "network", "console", "export", "other"), "status": enum("available", "degraded", "missing", "failed"), "bytes": nullable(integer()), "sha256": nullable(text(64, pattern="^[0-9a-f]{64}$")), "contentUrl": nullable({"type": "string", "format": "uri-reference"}), "redaction": enum("applied", "not_needed", "failed"), "error": nullable(text(1000)), "createdAt": DATE})
 D["Finding"] = obj({"id": UUID, "runId": UUID, "caseIds": arr(UUID, 30), "kind": enum("functional", "static"), "status": enum("suspected", "confirmed", "unconfirmed", "blocked"), "title": text(200), "severity": enum("critical", "high", "medium", "low", "info"), "expected": text(), "actual": text(), "expectedSource": enum("generic_smoke", "user_spec", "project_knowledge", "saved_case", "inferred"), "reproSteps": arr(text(1500), 30), "evidenceRefs": arr(UUID, 1000), "reproductionRef": nullable(UUID), "triageDisposition": enum("open", "accepted", "duplicate", "works_as_intended", "cannot_reproduce", "closed"), "version": VER})
 D["Finding"]["properties"]["duplicateOf"] = nullable(UUID)
+# Reproduction recording metadata for replay and step mapping in Mo.
+D["Finding"]["properties"]["recording"] = nullable(obj({
+    "reproductionId": UUID,
+    "taskId": UUID,
+    "startedAt": DATE,
+    "endedAt": DATE,
+    "steps": arr(obj({"index": integer(), "at": DATE}), 30),
+}))
 # A functional bug is confirmed by an independent reproduction, as in Mo.
 D["Finding"]["allOf"] = [{"if": {"properties": {"kind": {"const": "functional"}, "status": {"const": "confirmed"}}, "required": ["kind", "status"]}, "then": {"properties": {"reproductionRef": UUID, "evidenceRefs": arr(UUID, 1000, 1)}}}]
 D["Reproduction"] = obj({"id": UUID, "findingId": UUID, "taskId": UUID, "outcome": enum("reproduced", "not_reproduced", "blocked"), "freshContext": {"const": True}, "summary": text(), "evidenceRefs": arr(UUID, 30), "createdAt": DATE})
@@ -211,6 +219,8 @@ D["Step"] = obj({"id": UUID, "runId": UUID, "taskId": UUID, "caseId": nullable(U
 # Why a browser action failed, for post-hoc diagnosis. Optional: only failed or
 # denied actions carry it, and it is a bounded code, never input text or URLs.
 D["Step"]["properties"]["reasonCode"] = nullable(text(80))
+# The model thought or reasoning for this step in Mo-style activity logs.
+D["Step"]["properties"]["thought"] = nullable(text(500))
 D["CaseAttempt"] = obj({"id": UUID, "caseId": UUID, "taskId": UUID, "attemptNumber": VER, "status": enum("queued", "running", "completed", "interrupted", "cancelled"), "verdict": nullable(ref("Verdict")), "startedAt": nullable(DATE), "finishedAt": nullable(DATE)})
 D["Bounds"] = obj({"left": {"type": "number"}, "top": {"type": "number"}, "width": {"type": "number", "minimum": 0}, "height": {"type": "number", "minimum": 0}})
 D["SnapshotNode"] = obj({"nodeId": text(120, minLength=1), "frameId": text(120), "role": text(120), "name": text(1000), "text": text(2000), "visible": BOOL, "enabled": BOOL, "bounds": ref("Bounds")})
@@ -233,8 +243,21 @@ D["SnapshotNode"]["properties"]["enterButtonNodeId"] = text(120, minLength=1)
 # The element that currently has keyboard focus in this frame. Keyboard cases
 # (Tab order, Enter submits) are otherwise unverifiable from a snapshot.
 D["SnapshotNode"]["properties"]["focused"] = BOOL
-D["NetworkEntry"] = obj({"url": text(8192), "method": text(20), "status": nullable(integer(100, 599)), "resourceType": text(40), "summary": text(1000)})
+D["ConsoleEntry"] = obj({"at": DATE, "level": enum("log", "info", "warn", "error"), "source": enum("console", "pageerror"), "text": text(500)})
+D["NetworkEntry"] = obj({"at": DATE, "method": text(20), "url": text(2000), "resourceType": text(40), "status": nullable(integer()), "failed": BOOL, "durationMs": nullable(integer())})
+D["NetworkEntry"]["properties"]["summary"] = text(1000)
 D["NetworkEntries"] = arr(ref("NetworkEntry"), 100)
+D["TaskRecording"] = obj({
+    "taskId": UUID,
+    "status": enum("recording", "available", "degraded", "missing"),
+    "rrwebArtifactId": nullable(UUID),
+    "consoleArtifactId": nullable(UUID),
+    "networkArtifactId": nullable(UUID),
+    "startedAt": nullable(DATE),
+    "endedAt": nullable(DATE),
+    "viewport": nullable(obj({"width": integer(), "height": integer()})),
+    "error": nullable(text(1000)),
+})
 D["BrowserSnapshot"] = obj({"snapshotId": UUID, "pageId": UUID, "frameIds": arr(text(120), 100), "displayUrl": text(8192), "title": text(500), "responseStatus": nullable(integer(100, 599)), "capturedAt": DATE, "stateVersion": VER, "viewport": obj({"width": integer(100, 10000), "height": integer(100, 10000)}), "nodes": arr(ref("SnapshotNode"), 1000), "screenshotRef": nullable(UUID), "networkSummary": ref("NetworkEntries"), "consoleSummary": arr(text(1000), 50), "truncated": BOOL, "redacted": BOOL})
 # Optional and only set when false: the page was still changing when the
 # observation was captured (the settle cap was reached).
@@ -468,6 +491,7 @@ for suffix, name in [("cases", "CaseRecord"), ("tasks", "Task"), ("findings", "F
 operation(P+"/cases/{caseId}", "get", "getCase", "CaseRecord")
 operation(P+"/cases/{caseId}/attempts", "get", "listCaseAttempts", "CaseAttemptPage", queries=[("cursor", False, text(2000)), ("limit", False, integer(1, 100))])
 operation(P+"/tasks/{taskId}/steps", "get", "listTaskSteps", "StepPage", queries=[("cursor", False, text(2000)), ("limit", False, integer(1, 100))])
+operation(P+"/tasks/{taskId}/recording", "get", "getTaskRecording", "TaskRecording")
 operation(P+"/steps/{stepId}", "get", "getStep", "Step")
 operation(P+"/runs/{runId}/event-history", "get", "listEventHistory", "RunEventPage", queries=[("afterSeq", False, integer()), ("limit", False, integer(1, 100))])
 operation(P+"/findings/{findingId}", "get", "getFinding", "Finding")
