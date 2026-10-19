@@ -335,7 +335,7 @@ const SESSION_SUMMARY_PROMPT = [
   'caseComments 只能引用输入里已有的 caseId，不能改写任何结论。coverageGaps 列出没有执行、受阻、预期不明以及预算或权限限制的部分。',
 ].join('\n');
 
-function reportPrompt(reproducing: boolean): string {
+export function reportPrompt(reproducing: boolean): string {
   return [
     'role=agent_report',
     reproducing
@@ -349,7 +349,7 @@ function reportPrompt(reproducing: boolean): string {
     'summary：一两句话说明做了什么、看到了什么。verified：已经确认符合预期的点。gaps：没能确认的点和原因。',
     ...(reproducing
       ? [
-          '可选 reproStepActions=[{index,seq}]：index 是 suspectedBug.reproSteps 的第几条（从 1 开始），seq 是 actions 里完成或观察到这条复现步骤的实际动作编号，不是数组下标。index 递增，seq 单调不减，必须来自本任务已有动作；无法对应或动作没有 seq 时省略，禁止猜编号。不合法锚点只会被丢弃，不影响报告结论。',
+          'reproStepActions=[{index,seq}]：尽量给每条复现步骤都标出它在 actions 里对应的动作——index 是 suspectedBug.reproSteps 的第几条（从 1 开始），seq 是该动作的编号，不是数组下标。操作类步骤（点击、输入、跳转、提交）标到真正执行它的那个动作；观察或检查类步骤（等待加载完成、看地址栏、看提示文字或校验结果）标到观察到它的那个 capture 或 observe 动作；「打开入口地址 / 进入首页」标到对应的 navigate。index 递增，seq 单调不减，必须来自本任务已有动作，禁止编造不存在的编号；只有确实没有任何动作能对应的步骤才省略。不合法锚点只会被丢弃，不影响报告结论。',
         ]
       : []),
     '最终页面观察里除了控件，还有页面上看得见的文字节点（nodeId、role=statictext/paragraph/label、relatedNodeId 指向相关控件）、控件的当前值 value（敏感值为 [redacted]，空串就是空的）、控件自己的占位提示 placeholder，以及控件的错误状态 invalid。占位符只在 placeholder 里；与占位符同文的 statictext 是页面上真实渲染的文字，不是占位符。',

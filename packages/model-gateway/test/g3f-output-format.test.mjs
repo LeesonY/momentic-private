@@ -319,6 +319,7 @@ test('canonical ToolCall check still rejects a non-uuid after a schema without f
 
   const valid = {
     done: false,
+    note: '点击按钮',
     toolCalls: [
       {
         name: 'click',

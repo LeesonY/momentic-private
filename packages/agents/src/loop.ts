@@ -11,12 +11,15 @@ const toolDefs = documents['tools.schema.json'].$defs;
 export const DECISION_SCHEMA: Record<string, unknown> = {
   type: 'object',
   additionalProperties: false,
-  required: ['toolCalls', 'done'],
+  // `note` is required so the model is told to annotate every decision (the
+  // activity list shows it next to the action). It is also nullable, and the
+  // model gateway fills `note: null` before validating, so a model that skips it
+  // still executes: an annotation must never cost a repair round or the action.
+  required: ['toolCalls', 'done', 'note'],
   properties: {
-    // Optional annotation, never a prerequisite for executing a valid action.
     // No schema maxLength: overlong notes are truncated before persistence,
     // not rejected by the model gateway (which would discard the decision).
-    note: { type: 'string' },
+    note: { type: ['string', 'null'] },
     done: { type: 'boolean' },
     toolCalls: {
       type: 'array',

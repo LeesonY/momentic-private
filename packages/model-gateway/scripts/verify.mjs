@@ -2222,10 +2222,16 @@ test('tool parameters are inlined and an untested profile is still probed', asyn
 test('dispatcher validates tool results and registered reason codes', async () => {
   const ajv = new Ajv({ allErrors: true, strict: false });
   const validate = ajv.compile(DECISION_SCHEMA);
-  assert.equal(validate({ done: false, toolCalls: [{ foo: 1 }] }), false);
+  // `note` is required in the schema the model sees; the gateway fills it with
+  // null before validating, so a decision fixture may say either.
+  assert.equal(
+    validate({ done: false, toolCalls: [{ foo: 1 }], note: null }),
+    false,
+  );
   assert.equal(
     validate({
       done: false,
+      note: null,
       toolCalls: [{ name: 'observe', args: { pageId: FIXTURE.pageId } }],
     }),
     true,

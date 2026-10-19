@@ -174,8 +174,14 @@ test('anchors from another task or outside the recording are not fabricated', ()
   assert.equal(result.endedAt, at(60));
 });
 
-test('decision note is optional and overlong text is truncated instead of rejecting the decision', () => {
-  assert.ok(!DECISION_SCHEMA.required.includes('note'));
+test('the decision note is required for the model but never rejects a decision; long text is truncated', () => {
+  // The model is told to annotate every decision (the activity list shows it)…
+  assert.ok(DECISION_SCHEMA.required.includes('note'));
+  // …and `note: null` is allowed so the gateway can fill a missing note rather
+  // than repair or discard an otherwise valid decision (model-gateway
+  // decision-note.test.mjs).
+  assert.deepEqual(DECISION_SCHEMA.properties.note.type, ['string', 'null']);
+  // No maxLength: an overlong note is truncated before persistence.
   assert.equal(DECISION_SCHEMA.properties.note.maxLength, undefined);
   assert.equal(cleanDecisionNote(undefined, []), null);
   assert.equal(cleanDecisionNote('', []), null);

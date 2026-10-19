@@ -1197,7 +1197,7 @@ export function createGateway(options: {
         const parsed = parseJson(response.raw);
         return finish('ok', null, parsed, null);
       }
-      let parsed = parseWithSchema(response.raw, validator);
+      let parsed = parseWithSchema(response.raw, validator, input.outputSchema);
       if (!parsed.ok) {
         outputShapeTrace.push(classifyOutputShape(response.raw));
         schemaErrorTrace.push(...parsed.errors);
@@ -1213,7 +1213,7 @@ export function createGateway(options: {
         response = await sendWithUsage(messages);
         const repairedStop = stopForProvider(response);
         if (repairedStop) return repairedStop;
-        parsed = parseWithSchema(response.raw, validator);
+        parsed = parseWithSchema(response.raw, validator, input.outputSchema);
         if (!parsed.ok) {
           outputShapeTrace.push(classifyOutputShape(response.raw));
           schemaErrorTrace.push(...parsed.errors);
@@ -1666,25 +1666,60 @@ function formatRepairInstruction(
     kind === 'invalid_json'
       ? '上一条不是合法的完整 JSON。重新生成，不要续写上一条不完整的字符串或括号；所有属性名及字符串值使用双引号，禁止尾逗号。'
       : '上一条虽然是 JSON，但不符合批准的 outputSchema。只按原冻结 Schema 重新生成，字段类型及必填字段不得更改。';
+  const required = Array.isArray(input.outputSchema['required'])
+    ? (input.outputSchema['required'] as unknown[])
+    : [];
   const decision =
     input.purpose === 'decide' &&
-    Array.isArray(input.outputSchema['required']) &&
-    (input.outputSchema['required'] as unknown[]).includes('toolCalls') &&
-    (input.outputSchema['required'] as unknown[]).includes('done');
+    required.includes('toolCalls') &&
+    required.includes('done');
+  // The frozen schema may also require the `note` annotation; the rewrite has to
+  // name it, or the model would drop it and fail the same schema again.
+  const noteRequired = decision && required.includes('note');
   return [
     REPAIR_MARK,
     syntax,
     '必须输出一个完整且可直接 JSON.parse 的 JSON 对象；不要 Markdown、代码块、解释、前后缀或推理文本。',
     decision
-      ? '严格只用两个顶层字段：{"done":boolean,"toolCalls":[{"name":"工具名","args":{}}]}。如无工具调用则 toolCalls=[]；工具名称和参数必须来自原请求批准的 tools，不能臆造目标、参数或权限。'
+      ? `严格只用这些顶层字段：{"done":boolean,"toolCalls":[{"name":"工具名","args":{}}]${noteRequired ? ',"note":"一句话说明这一步做什么"' : ''}}。如无工具调用则 toolCalls=[]；工具名称和参数必须来自原请求批准的 tools，不能臆造目标、参数或权限。`
       : '必须完全满足原请求已经批准的 outputSchema，不能改写测试期望。',
     '这是原授权请求最多一次的结构化重写，不允许增加工具执行或自行修改断言。',
   ].join('\n');
 }
 
+/**
+ * A decision schema marks `note` required so the model is instructed to always
+ * annotate its decisions, but the annotation is documentation: a model that
+ * omits it must still execute. Fill `note: null` (the schema allows null) before
+ * validating, so a missing note is neither a repair round nor a discarded action.
+ */
+function fillMissingRequiredAnnotation(
+  value: unknown,
+  schema: Record<string, unknown> | null | undefined,
+): unknown {
+  if (!schema || !value || typeof value !== 'object' || Array.isArray(value))
+    return value;
+  const required = Array.isArray(schema['required']) ? schema['required'] : [];
+  if (!required.includes('note')) return value;
+  const properties = schema['properties'];
+  if (!properties || typeof properties !== 'object') return value;
+  const note = (properties as Record<string, unknown>)['note'];
+  if (!note || typeof note !== 'object') return value;
+  const type = (note as Record<string, unknown>)['type'];
+  const nullable = Array.isArray(type)
+    ? type.includes('null')
+    : type === 'null' || type === undefined;
+  if (!nullable) return value;
+  const record = value as Record<string, unknown>;
+  // A present null already validates; only an absent key needs filling.
+  if (Object.hasOwn(record, 'note')) return value;
+  return { ...record, note: null };
+}
+
 function parseWithSchema(
   raw: string,
   validator: ReturnType<typeof ajv.compile> | null,
+  schema?: Record<string, unknown>,
 ):
   | { ok: true; value: unknown }
   | {
@@ -1703,6 +1738,7 @@ function parseWithSchema(
     if (fence) value = parseJson(fence[1]!);
   }
   if (value === null) return { ok: false, kind: 'invalid_json', errors: [] };
+  value = fillMissingRequiredAnnotation(value, schema);
   if (!validator || !validator(value))
     return {
       ok: false,
