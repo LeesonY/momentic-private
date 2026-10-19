@@ -1,5 +1,5 @@
 import { sanitizeText } from '@localqa/browser';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { SessionAgent, type SessionContext } from './session-agent.js';
 import { parseSessionDecision } from './session-planning.js';
 import { linkMergedFindingEvidence } from './session-findings.js';
@@ -53,6 +53,7 @@ import {
   type AuthProfile,
   type ActionResult,
   type CredentialMaterial,
+  type TaskRecording,
 } from '@localqa/contracts';
 import {
   Database,
@@ -112,6 +113,16 @@ export interface JobRow {
   lease_until: Date | null;
   result: Record<string, unknown> | null;
   result_hash: string | null;
+}
+type StoppedRecordingJobRow = JobRow & {
+  finished_at: Date | null;
+  run_status: Run['status'];
+  run_termination_reason: Run['terminationReason'];
+};
+/** Bytes are written by ArtifactStore before this metadata transaction. */
+export interface StoppedRecordingArtifact {
+  artifact: Artifact;
+  bytes: Uint8Array;
 }
 export interface Work {
   run: Run;
@@ -1787,18 +1798,19 @@ export class Coordinator {
       const sessionManaged =
         run.executionMode === 'smoke' &&
         (await this.sessions.read(client, run)) !== null;
-      const signedOutCase = sessionManaged && (
-        (job.role === 'explorer' && !job.case_id &&
+      const signedOutCase =
+        sessionManaged &&
+        ((job.role === 'explorer' &&
+          !job.case_id &&
           job.result?.['signedOut'] === true) ||
-        (job.case_id
-          ? (
-              await client.query<{ document: { requiresLogin?: boolean } }>(
-                'SELECT document FROM run_cases WHERE id=$1 AND project_id=$2 AND run_id=$3',
-                [job.case_id, scope.projectId, run.id],
-              )
-            ).rows[0]?.document.requiresLogin === false
-          : false)
-      );
+          (job.case_id
+            ? (
+                await client.query<{ document: { requiresLogin?: boolean } }>(
+                  'SELECT document FROM run_cases WHERE id=$1 AND project_id=$2 AND run_id=$3',
+                  [job.case_id, scope.projectId, run.id],
+                )
+              ).rows[0]?.document.requiresLogin === false
+            : false));
       if (
         run.effectiveConfig.authProfileVersion !== null &&
         !signedOutCase &&
@@ -2106,7 +2118,9 @@ export class Coordinator {
           // An optional annotation must never weaken secret protection or
           // turn a valid browser decision into a malformed model response.
           thought = null;
-        } finally { saved.length = 0; }
+        } finally {
+          saved.length = 0;
+        }
       }
       const step = parseContract('Step', {
         id: randomUUID(),
@@ -2345,6 +2359,150 @@ export class Coordinator {
         artifact,
       );
       return artifact;
+    });
+  }
+  /**
+   * Lock the last lease's job for a post-abort recording write. The fencing
+   * token is the authority: a later lease increments it, so an older worker
+   * cannot pass this check. A job that is still healthy and running is not
+   * writable; cancellation, a termination reason, a context change or a
+   * just-expired lease are the only abort states accepted here.
+   */
+  private async lockStoppedRecordingJob(
+    client: PoolClient,
+    scope: WorkerScope,
+    proof: LeaseProof,
+  ): Promise<StoppedRecordingJobRow> {
+    const job = (
+      await client.query<StoppedRecordingJobRow>(
+        `SELECT j.*,r.context_version AS context_version,r.status AS run_status,r.termination_reason AS run_termination_reason
+         FROM jobs j JOIN runs r ON r.project_id=j.project_id AND r.id=j.run_id
+         WHERE j.project_id=$1 AND j.id=$2 AND j.fencing_token=$3
+           AND r.execution_mode='smoke'
+           AND j.role IN ('explorer','executor','reproducer')
+         FOR UPDATE OF j`,
+        [scope.projectId, proof.taskId, proof.fencingToken],
+      )
+    ).rows[0];
+    if (!job) throw new StorageError('LEASE_EXPIRED');
+    if (
+      job.result &&
+      Object.prototype.hasOwnProperty.call(job.result, 'taskRecording')
+    )
+      throw new StorageError('IDEMPOTENCY_CONFLICT');
+    const now = Date.now();
+    const windowMs = 5 * 60_000;
+    const finishedAt = job.finished_at?.getTime() ?? null;
+    const leaseUntil = job.lease_until?.getTime() ?? null;
+    if (['cancelled', 'interrupted', 'failed'].includes(job.status)) {
+      if (finishedAt === null || finishedAt < now - windowMs)
+        throw new StorageError('POLICY_DENIED');
+      return job;
+    }
+    const aborting =
+      job.status === 'running' &&
+      (['cancelling', 'cancelled', 'failed'].includes(job.run_status) ||
+        [
+          'budget_limit',
+          'model_failure',
+          'setup_failure',
+          'user_cancel',
+        ].includes(job.run_termination_reason ?? '') ||
+        proof.contextVersion !== job.context_version ||
+        (leaseUntil !== null &&
+          leaseUntil <= now &&
+          leaseUntil >= now - windowMs));
+    if (!aborting) throw new StorageError('POLICY_DENIED');
+    return job;
+  }
+
+  /** Resolve the run directory for a stopped recording before writing bytes. */
+  async stoppedRecordingTarget(
+    scope: WorkerScope,
+    proof: LeaseProof,
+  ): Promise<{ runId: string }> {
+    return this.tx(async (client) => {
+      const job = await this.lockStoppedRecordingJob(client, scope, proof);
+      return { runId: job.run_id };
+    });
+  }
+
+  /**
+   * Attach the already-written stopped-recording artifacts and their
+   * TaskRecording snapshot in one transaction. This is not a finish: job/case
+   * statuses, verdicts and findings are untouched.
+   */
+  async saveStoppedRecording(
+    scope: WorkerScope,
+    proof: LeaseProof,
+    entries: readonly StoppedRecordingArtifact[],
+    recording: TaskRecording,
+  ): Promise<void> {
+    const parsedRecording = parseContract('TaskRecording', recording);
+    if (
+      parsedRecording.taskId !== proof.taskId ||
+      !['degraded', 'missing'].includes(parsedRecording.status) ||
+      entries.length === 0
+    )
+      throw new StorageError('VALIDATION_ERROR');
+    await this.tx(async (client) => {
+      const job = await this.lockStoppedRecordingJob(client, scope, proof);
+      const inserted = new Map<string, Artifact['kind']>();
+      for (const entry of entries) {
+        const input = parseContract('Artifact', entry.artifact);
+        if (
+          input.projectId !== scope.projectId ||
+          input.runId !== job.run_id ||
+          input.taskId !== job.id ||
+          !['rrweb', 'console', 'network'].includes(input.kind) ||
+          !['available', 'degraded'].includes(input.status) ||
+          input.redaction !== 'applied' ||
+          entry.bytes.byteLength > 25 * 1024 * 1024 ||
+          input.bytes !== entry.bytes.byteLength ||
+          createHash('sha256').update(entry.bytes).digest('hex') !==
+            input.sha256 ||
+          inserted.has(input.id)
+        )
+          throw new StorageError('VALIDATION_ERROR');
+        const artifact = parseContract('Artifact', {
+          ...input,
+          projectId: scope.projectId,
+          runId: job.run_id,
+          taskId: job.id,
+          caseId: job.case_id,
+          contentUrl: `/api/v1/projects/${scope.projectId}/runs/${job.run_id}/artifacts/${input.id}/content`,
+        });
+        await client.query(
+          "INSERT INTO artifacts(id,project_id,run_id,task_id,step_id,case_id,snapshot_id,document,retain_until) VALUES($1,$2,$3,$4,$5,$6,$7,$8,clock_timestamp()+interval '30 days')",
+          [
+            artifact.id,
+            scope.projectId,
+            job.run_id,
+            job.id,
+            artifact.stepId,
+            artifact.caseId,
+            artifact.snapshotId,
+            artifact,
+          ],
+        );
+        await client.query(
+          "INSERT INTO artifact_references(project_id,artifact_id,ref_kind,ref_id) VALUES($1,$2,'task',$3) ON CONFLICT DO NOTHING",
+          [scope.projectId, artifact.id, job.id],
+        );
+        inserted.set(artifact.id, artifact.kind);
+      }
+      for (const [id, kind] of [
+        [parsedRecording.rrwebArtifactId, 'rrweb'],
+        [parsedRecording.consoleArtifactId, 'console'],
+        [parsedRecording.networkArtifactId, 'network'],
+      ] as const) {
+        if (id !== null && inserted.get(id) !== kind)
+          throw new StorageError('VALIDATION_ERROR');
+      }
+      await client.query(
+        "UPDATE jobs SET result=COALESCE(result,'{}'::jsonb)||$2::jsonb WHERE id=$1",
+        [job.id, JSON.stringify({ taskRecording: parsedRecording })],
+      );
     });
   }
   async finish(
@@ -2795,9 +2953,14 @@ export class Coordinator {
             );
           const f = parseContract('Finding', row.document);
           const recording = await reproductionRecordingIn(client, {
-            projectId: scope.projectId, runId: run.id, taskId: job.id,
-            reproductionId: reproduction.id, finding: f, outcome,
-            taskRecording: result['taskRecording'], anchors: report?.reproStepActions,
+            projectId: scope.projectId,
+            runId: run.id,
+            taskId: job.id,
+            reproductionId: reproduction.id,
+            finding: f,
+            outcome,
+            taskRecording: result['taskRecording'],
+            anchors: report?.reproStepActions,
           });
           const updated = {
             ...f,

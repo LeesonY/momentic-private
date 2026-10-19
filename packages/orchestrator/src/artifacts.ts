@@ -2,14 +2,14 @@ import { lstat, mkdir, open, readFile, rename, rm } from 'node:fs/promises';
 import { resolve, sep } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { crc32, inflateSync } from 'node:zlib';
-import type { Artifact } from '@localqa/contracts';
+import type { Artifact, TaskRecording } from '@localqa/contracts';
 import { parseContract } from '@localqa/contracts';
 import {
   StorageError,
   type WorkerScope,
   type LeaseProof,
 } from '@localqa/storage';
-import type { Coordinator } from './core.js';
+import type { Coordinator, StoppedRecordingArtifact } from './core.js';
 const IMAGE_BYTE_LIMIT = 25 * 1024 * 1024;
 /** Uncompressed scanlines. Larger claims are rejected before inflate. */
 const PNG_DECODED_LIMIT = 32 * 1024 * 1024;
@@ -311,6 +311,81 @@ export class ArtifactStore {
       /* Retain bytes on ambiguous DB commit; orphan reconciliation is safer than deleting referenced evidence. */ throw error;
     }
   }
+  /**
+   * Write evidence for a browser task that was stopped before finish. The
+   * normal upload path needs a live lease; this one is fenced by the last
+   * lease's token and is accepted only after cancellation/expiry.
+   */
+  async uploadStopped(
+    coordinator: Coordinator,
+    scope: WorkerScope,
+    proof: LeaseProof,
+    entries: readonly StoppedRecordingArtifact[],
+    recording: TaskRecording,
+  ): Promise<void> {
+    const parsedRecording = parseContract('TaskRecording', recording);
+    if (
+      parsedRecording.taskId !== proof.taskId ||
+      !['degraded', 'missing'].includes(parsedRecording.status) ||
+      entries.length === 0
+    )
+      throw new StorageError('VALIDATION_ERROR');
+    const validated = entries.map(({ artifact, bytes }) => {
+      const input = parseContract('Artifact', artifact);
+      if (
+        input.projectId !== scope.projectId ||
+        input.taskId !== proof.taskId ||
+        !['rrweb', 'console', 'network'].includes(input.kind) ||
+        !['available', 'degraded'].includes(input.status) ||
+        input.redaction !== 'applied' ||
+        bytes.byteLength > 25 * 1024 * 1024 ||
+        input.bytes !== bytes.byteLength ||
+        createHash('sha256').update(bytes).digest('hex') !== input.sha256
+      )
+        throw new StorageError('VALIDATION_ERROR');
+      return { input, bytes };
+    });
+    const { runId } = await coordinator.stoppedRecordingTarget(scope, proof);
+    if (validated.some(({ input }) => input.runId !== runId))
+      throw new StorageError('VALIDATION_ERROR');
+    const directory = resolve(this.root, scope.projectId, runId);
+    await mkdir(directory, { recursive: true, mode: 0o700 });
+    const written: string[] = [];
+    try {
+      for (const { input, bytes } of validated) {
+        const path = resolve(directory, input.id);
+        if (!path.startsWith(`${directory}${sep}`))
+          throw new StorageError('VALIDATION_ERROR');
+        const temporary = resolve(directory, `.${randomUUID()}`);
+        const handle = await open(temporary, 'wx', 0o600);
+        try {
+          await handle.writeFile(bytes);
+          await handle.sync();
+        } finally {
+          await handle.close();
+        }
+        try {
+          await rename(temporary, path);
+          written.push(path);
+        } catch (error) {
+          await rm(temporary, { force: true });
+          throw error;
+        }
+      }
+    } catch (error) {
+      await Promise.all(written.map((path) => rm(path, { force: true })));
+      throw error;
+    }
+    /* Retain bytes on an ambiguous DB commit; orphan reconciliation is safer
+       than deleting evidence the transaction may have referenced. */
+    await coordinator.saveStoppedRecording(
+      scope,
+      proof,
+      validated.map(({ input, bytes }) => ({ artifact: input, bytes })),
+      parsedRecording,
+    );
+  }
+
   async get(
     projectId: string,
     runId: string,

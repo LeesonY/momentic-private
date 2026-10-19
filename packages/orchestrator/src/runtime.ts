@@ -8,6 +8,7 @@ import type {
   BrowserSnapshot,
   AuthProfile,
   CredentialMaterial,
+  TaskRecording,
 } from '@localqa/contracts';
 import {
   StorageError,
@@ -15,7 +16,12 @@ import {
   type WorkerScope,
 } from '@localqa/storage';
 import type { CallRecord } from '@localqa/model-gateway';
-import type { Coordinator, Work, ActionGrant } from './core.js';
+import type {
+  Coordinator,
+  Work,
+  ActionGrant,
+  StoppedRecordingArtifact,
+} from './core.js';
 import {
   BoundModel,
   type DecisionPayload,
@@ -161,7 +167,13 @@ export class RuntimeClient {
     source?: import('@localqa/contracts').RegressionStepSource,
     decisionNote?: unknown,
   ): Promise<ActionGrant> {
-    return this.#coordinator.grantAction(this.#scope, proof, call, source, decisionNote);
+    return this.#coordinator.grantAction(
+      this.#scope,
+      proof,
+      call,
+      source,
+      decisionNote,
+    );
   }
   record(
     proof: LeaseProof,
@@ -192,6 +204,20 @@ export class RuntimeClient {
       proof,
       artifact,
       bytes,
+    );
+  }
+  /** Attach evidence captured before a cancelled/expired browser task. */
+  saveStoppedRecording(
+    proof: LeaseProof,
+    artifacts: readonly StoppedRecordingArtifact[],
+    recording: TaskRecording,
+  ): Promise<void> {
+    return this.#artifacts.uploadStopped(
+      this.#coordinator,
+      this.#scope,
+      proof,
+      artifacts,
+      recording,
     );
   }
   finish(

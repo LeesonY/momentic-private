@@ -40,6 +40,7 @@ const files = [
   'apps/worker/test/session-denial-recovery.test.mjs',
   'apps/worker/test/session-case-limit.test.mjs',
   'apps/worker/test/recording.test.mjs',
+  'apps/worker/test/stopped-recording-abort.test.mjs',
   'apps/worker/test/session-tool-parity.test.mjs',
   'apps/worker/test/observation-window.test.mjs',
   'apps/worker/test/observation-text-diff.test.mjs',
