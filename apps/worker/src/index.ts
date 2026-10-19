@@ -7,6 +7,7 @@ import {
   BrowserSessionImpl,
   type BrowserPort,
   type BrowserSession,
+  type SessionRecording,
 } from '@localqa/browser';
 import {
   isActionDenialCode,
@@ -17,6 +18,7 @@ import {
   type ModelMessage,
   type JsonValue,
   type Artifact,
+  type TaskRecording,
 } from '@localqa/contracts';
 import { evaluateTechnical, PageGraph, DomainError } from '@localqa/domain';
 import {
@@ -57,6 +59,11 @@ import { createActionDenialCounter } from './action-denial-count.js';
 import { withApprovedBrowserAuth } from './auth-import-task.js';
 import { finishPermissionLockedQuestion } from './session-permission.js';
 import { hasReadableMainContent } from './technical-smoke.js';
+import {
+  missingRecording,
+  packRrwebRecording,
+  recordingArtifact,
+} from './recording.js';
 import { observeWindow } from './observation-window.js';
 import {
   textChanges,
@@ -774,6 +781,35 @@ export class Worker {
       let approvedLoginPage: URL | null = null;
       let approvedLoginTestIds: readonly string[] | null = null;
       let intentionalLoginPage = false;
+      let persistedRecording: TaskRecording | undefined;
+      let recordingAttempted = false;
+      /** Persist rrweb/console/network before the finish transaction that
+       * writes a finding, so the recording metadata is available to it. */
+      const recordingForFinish = async (): Promise<
+        TaskRecording | undefined
+      > => {
+        if (recordingAttempted) return persistedRecording;
+        if (
+          !session ||
+          work.run.executionMode !== 'smoke' ||
+          !['explorer', 'executor', 'reproducer'].includes(work.task.role)
+        )
+          return undefined;
+        recordingAttempted = true;
+        try {
+          persistedRecording = await this.persistTaskRecording(
+            proof,
+            work,
+            session,
+          );
+        } catch (error) {
+          persistedRecording = missingRecording(
+            work.task.id,
+            `Recording persistence failed: ${(error as Error).message || 'unknown error'}`,
+          );
+        }
+        return persistedRecording;
+      };
       const executeBrowserWork = async (): Promise<boolean> => {
         // Metadata-only Console/Network diagnostics are safe even in
         // authenticated flows: no page text, URLs or secrets leave the worker.
@@ -1672,8 +1708,15 @@ export class Worker {
                   type: 'text',
                   text: `DISPATCHED ${JSON.stringify({ executed: false, reasonCode })}`,
                 },
-                { type: 'text', text: [denialGuidance(reasonCode),
-                  countActionDenial(call, before, reasonCode)].filter(Boolean).join('\n') },
+                {
+                  type: 'text',
+                  text: [
+                    denialGuidance(reasonCode),
+                    countActionDenial(call, before, reasonCode),
+                  ]
+                    .filter(Boolean)
+                    .join('\n'),
+                },
               ];
               // A stale observation is a platform condition, not the model's
               // mistake: refresh it once so the next decision starts from a
@@ -1748,11 +1791,13 @@ export class Worker {
         }
         if (!snapshot) throw new DomainError('NO_OBSERVATION');
         if (work.stage === 'explore') {
+          const taskRecording = await recordingForFinish();
           await this.runtime.finish(proof, {
             stage: 'explore',
             pages: graph.pages,
             coverage: 'Only observed in-scope pages, not the whole site',
             modelActionDenials: modelActionDenialCount,
+            ...(taskRecording ? { taskRecording } : {}),
             ...(modelActionDenialCount
               ? {
                   modelActionDenialReasons,
@@ -1839,12 +1884,14 @@ export class Worker {
             evidenceRefs: [captured.id],
           };
         });
+        const taskRecording = await recordingForFinish();
         await this.runtime.finish(
           proof,
           {
             stage: work.stage,
             oracle: 'agent_report',
             agentReport: report as unknown as JsonValue,
+            ...(taskRecording ? { taskRecording } : {}),
             ...(modelActionDenialCount
               ? {
                   modelActionDenials: modelActionDenialCount,
@@ -1884,9 +1931,20 @@ export class Worker {
               work.run.executionMode !== 'smoke' ||
               signal.aborted ||
               RUN_LEVEL_STOPS.has(code)
-            )
+            ) {
+              // A cancelled or lease-lost task has no finish transaction; save
+              // whatever was recorded while the lease is still usable.
+              await recordingForFinish();
               throw error;
-            await this.reportBlocked(proof, work, code, blockedDetail(code));
+            }
+            await this.reportBlocked(
+              proof,
+              work,
+              code,
+              blockedDetail(code),
+              undefined,
+              await recordingForFinish(),
+            );
             reported = true;
             return true;
           }
@@ -1899,11 +1957,14 @@ export class Worker {
               work,
               error.reasonCode,
               `浏览器操作失败（${error.reasonCode}），没能继续。`,
+              undefined,
+              await recordingForFinish(),
             );
             reported = true;
             return true;
           }
           reported = true;
+          const taskRecording = await recordingForFinish();
           await this.runtime.finish(
             proof,
             {
@@ -1912,6 +1973,7 @@ export class Worker {
               warnings: [
                 'Browser action failed; remaining work was not verified',
               ],
+              ...(taskRecording ? { taskRecording } : {}),
             },
             work.definition?.criteria.map((criterion) => ({
               criterionId: criterion.id,
@@ -1960,6 +2022,9 @@ export class Worker {
             writeScope: work.run.effectiveConfig.writeScope,
             artifactsDir: directory,
             enableTrace: false,
+            enableRecording:
+              work.run.executionMode === 'smoke' &&
+              ['explorer', 'executor', 'reproducer'].includes(work.task.role),
             navigationTimeoutMs: 5000,
           });
           session = created;
@@ -2001,6 +2066,7 @@ export class Worker {
               'AUTH_FAILED',
               `登录未成功，没有执行：${reason}`,
               { reasonCode: outcome.reasonCode, text: reason },
+              await recordingForFinish(),
             );
             return true;
           }
@@ -2020,6 +2086,7 @@ export class Worker {
             'AUTH_FAILED',
             `登录未成功，没有执行：${reason}`,
             { reasonCode: code, text: reason },
+            await recordingForFinish(),
           );
           return true;
         }
@@ -2078,6 +2145,8 @@ export class Worker {
             browserWorkStarted
               ? '执行中断，没能提交这项工作的结果。'
               : '无法载入本次登录状态，没有执行。',
+            undefined,
+            await recordingForFinish(),
           );
         }
         return true;
@@ -2093,6 +2162,9 @@ export class Worker {
         writeScope: work.run.effectiveConfig.writeScope,
         artifactsDir: directory,
         enableTrace: false,
+        enableRecording:
+          work.run.executionMode === 'smoke' &&
+          ['explorer', 'executor', 'reproducer'].includes(work.task.role),
         navigationTimeoutMs: 5000,
       });
       if (
@@ -2157,6 +2229,108 @@ export class Worker {
       await session?.close().catch(() => {});
     }
   }
+  /** Persist replay/console/network evidence before the finish transaction. */
+  private async persistTaskRecording(
+    proof: LeaseProof,
+    work: Work,
+    session: BrowserSession,
+  ): Promise<TaskRecording> {
+    const taskId = work.task.id;
+    let data: SessionRecording | null;
+    try {
+      await session.flushRecording?.();
+      data = session.getRecording?.() ?? null;
+    } catch (error) {
+      return missingRecording(
+        taskId,
+        `Recording unavailable: ${(error as Error).message || 'unknown error'}`,
+      );
+    }
+    if (!data)
+      return missingRecording(
+        taskId,
+        'Recording is not available for this task.',
+      );
+    const errors: string[] = data.error ? [data.error] : [];
+    const notes = [...data.notes];
+    let status: TaskRecording['status'] =
+      data.status === 'degraded' ? 'degraded' : 'available';
+    const upload = async (
+      kind: 'rrweb' | 'console' | 'network',
+      bytes: Uint8Array,
+      artifactStatus: 'available' | 'degraded',
+      error: string | null,
+    ): Promise<string | null> => {
+      try {
+        const artifact = recordingArtifact({
+          projectId: work.run.projectId,
+          runId: work.run.id,
+          taskId,
+          caseId: work.definition?.id ?? null,
+          kind,
+          bytes,
+          status: artifactStatus,
+          error,
+        });
+        const saved = await this.runtime.upload(proof, artifact, bytes);
+        return saved.id;
+      } catch (uploadError) {
+        errors.push(
+          `${kind} evidence upload failed: ${(uploadError as Error).message || 'unknown error'}`,
+        );
+        return null;
+      }
+    };
+    const packed = packRrwebRecording(data.events);
+    if (packed.status === 'degraded') {
+      status = 'degraded';
+      if (packed.error) errors.push(packed.error);
+    }
+    let rrwebArtifactId: string | null = null;
+    if (packed.bytes) {
+      rrwebArtifactId = await upload(
+        'rrweb',
+        packed.bytes,
+        packed.status === 'degraded' ? 'degraded' : 'available',
+        packed.error,
+      );
+      if (!rrwebArtifactId) status = 'degraded';
+    } else if (packed.status === 'missing') status = 'missing';
+    else status = 'degraded';
+    const consoleArtifactId = await upload(
+      'console',
+      Buffer.from(JSON.stringify(data.consoleEntries)),
+      'available',
+      null,
+    );
+    const networkArtifactId = await upload(
+      'network',
+      Buffer.from(JSON.stringify(data.networkEntries)),
+      'available',
+      null,
+    );
+    if (rrwebArtifactId && (!consoleArtifactId || !networkArtifactId))
+      status = 'degraded';
+    if (!rrwebArtifactId) status = 'missing';
+    const originalEnd = data.endedAt ? Date.parse(data.endedAt) : null;
+    const endedAt =
+      packed.lastTimestamp !== null &&
+      (originalEnd === null || packed.lastTimestamp !== originalEnd)
+        ? new Date(packed.lastTimestamp).toISOString()
+        : data.endedAt;
+    return {
+      taskId,
+      status,
+      rrwebArtifactId,
+      consoleArtifactId,
+      networkArtifactId,
+      startedAt: data.startedAt,
+      endedAt,
+      viewport: data.viewport,
+      error:
+        [...errors, ...notes].filter(Boolean).join('; ').slice(0, 1000) || null,
+    };
+  }
   /** Mo-style: work an agent could not do is reported blocked, not a run failure. */
   private async reportBlocked(
     proof: LeaseProof,
@@ -2164,6 +2338,7 @@ export class Worker {
     code: string,
     detail: string,
     signInFailure?: { reasonCode: string; text: string },
+    taskRecording?: TaskRecording,
   ): Promise<void> {
     // Constant codes only: the next time a case is blocked, the real cause is
     // in the logs instead of only in the generic user-facing text.
@@ -2181,6 +2356,7 @@ export class Worker {
         coverage: 'Not explored',
         warnings: [detail],
         ...(signInFailure ? { signInFailure } : {}),
+        ...(taskRecording ? { taskRecording } : {}),
       });
       return;
     }
@@ -2199,6 +2375,7 @@ export class Worker {
           bug: null,
         },
         ...(signInFailure ? { signInFailure } : {}),
+        ...(taskRecording ? { taskRecording } : {}),
       },
       work.definition.criteria.map((criterion) => ({
         criterionId: criterion.id,
@@ -2307,7 +2484,9 @@ export class Worker {
       throw new DomainError('VALIDATION_ERROR');
     const prompt =
       role === 'assertion' ? renderAssertionPrompt() : renderPrompt(role);
-    const interactionNote = ['explorer', 'executor', 'reproducer'].includes(role)
+    const interactionNote = ['explorer', 'executor', 'reproducer'].includes(
+      role,
+    )
       ? '\n敏感框允许点击聚焦和 Tab、Shift+Tab、Escape、方向键；Enter 按等效按钮判断。只有平台明确交付的未登录用例/未登录探索可用 type_text 输入明显虚构的测试值，已保存凭据仍禁止。不要反复重试被拒目标。'
       : '';
     const record = await this.runtime.model(
@@ -2316,7 +2495,10 @@ export class Worker {
       {
         purpose: role === 'planner' ? 'plan' : 'decide',
         messages: [
-          { role: 'system', content: [{ type: 'text', text: prompt.text + interactionNote }] },
+          {
+            role: 'system',
+            content: [{ type: 'text', text: prompt.text + interactionNote }],
+          },
           ...messages,
         ],
         outputSchema: DECISION_SCHEMA as unknown as Record<string, unknown>,

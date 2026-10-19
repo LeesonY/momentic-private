@@ -6,7 +6,7 @@ import type {
   BrowserSnapshot,
   Artifact,
 } from '@localqa/contracts';
-import type { BrowserSessionOptions } from './types.js';
+import type { BrowserSessionOptions, SessionRecording } from './types.js';
 
 /**
  * BrowserSession represents an isolated browser context dedicated to a specific task.
@@ -52,6 +52,12 @@ export interface BrowserSession {
    * Captures a screenshot artifact with sensitive data redacted.
    */
   captureScreenshot(options?: { fullPage?: boolean }): Promise<Artifact>;
+
+  /** Flush any pending rrweb batch before snapshotting the recording. */
+  flushRecording?(): Promise<void>;
+
+  /** rrweb events plus timestamped console/network evidence, when enabled. */
+  getRecording?(): SessionRecording | null;
 
   /**
    * Aborts active actions in this session with a reason.

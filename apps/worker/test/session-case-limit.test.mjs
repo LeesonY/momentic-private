@@ -62,6 +62,9 @@ async function runCase({
   maxActionsPerCase = 4,
   grant,
   finishError,
+  recording = null,
+  recordingThrows = false,
+  recordingUploadFails = false,
 }) {
   const ids = {
     project: randomUUID(),
@@ -168,7 +171,12 @@ async function runCase({
       });
     },
     async upload(_proof, artifact) {
-      uploads.push(artifact.id);
+      if (
+        recordingUploadFails &&
+        ['rrweb', 'console', 'network'].includes(artifact.kind)
+      )
+        throw new Error('recording upload failed');
+      uploads.push(artifact);
       return artifact;
     },
     async finish(_proof, result, results) {
@@ -190,6 +198,10 @@ async function runCase({
         activePageId: '22222222-2222-4222-8222-222222222222',
         getPageById() {
           return undefined;
+        },
+        getRecording() {
+          if (recordingThrows) throw new Error('recording unavailable');
+          return recording;
         },
         async executeTool(call) {
           if (call.name === 'capture') {
@@ -703,4 +715,174 @@ test('a failed finish is logged with its code before the blocked report', async 
     .find((line) => line.includes('worker.case.blocked'));
   assert.ok(logged, 'the blocked case is logged with its code');
   assert.equal(JSON.parse(logged).code, 'VALIDATION_ERROR');
+});
+
+test('recording evidence is uploaded before finish and passed as TaskRecording', async () => {
+  const recording = {
+    events: [
+      { type: 4, data: { href: 'http://fixture.local/home' }, timestamp: 1000 },
+      { type: 2, data: { node: { type: 0, childNodes: [] } }, timestamp: 1001 },
+    ],
+    consoleEntries: [
+      {
+        at: '2026-10-18T06:53:00.000Z',
+        level: 'log',
+        source: 'console',
+        text: 'console marker',
+      },
+    ],
+    networkEntries: [
+      {
+        at: '2026-10-18T06:53:00.000Z',
+        method: 'GET',
+        url: 'http://fixture.local/home',
+        resourceType: 'document',
+        status: 200,
+        failed: false,
+        durationMs: 5,
+      },
+    ],
+    status: 'recording',
+    error: null,
+    notes: [],
+    startedAt: '2026-10-18T06:53:00.000Z',
+    endedAt: '2026-10-18T06:53:01.000Z',
+    viewport: { width: 1280, height: 720 },
+  };
+  const { finishes, uploads } = await runCase({
+    allowedActions: 2,
+    decisions: [{ done: true, toolCalls: [] }],
+    report: {
+      status: 'passed',
+      summary: '完成',
+      verified: [],
+      gaps: [],
+      criteria: [
+        { criterionId: 'home_visible', result: 'passed', reason: 'ok' },
+        { criterionId: 'menus_checked', result: 'passed', reason: 'ok' },
+      ],
+      bug: null,
+    },
+    recording,
+  });
+  assert.deepEqual(
+    uploads
+      .map((artifact) => artifact.kind)
+      .filter((kind) => kind !== 'screenshot')
+      .sort(),
+    ['console', 'network', 'rrweb'],
+  );
+  const settled = finishes.at(-1);
+  assert.equal(settled.result.taskRecording.status, 'available');
+  assert.ok(settled.result.taskRecording.rrwebArtifactId);
+  assert.ok(settled.result.taskRecording.consoleArtifactId);
+  assert.ok(settled.result.taskRecording.networkArtifactId);
+  assert.deepEqual(settled.result.taskRecording.viewport, {
+    width: 1280,
+    height: 720,
+  });
+});
+
+test('a recording persistence failure is missing evidence, not a failed task', async () => {
+  const { finishes, uploads } = await runCase({
+    allowedActions: 2,
+    decisions: [{ done: true, toolCalls: [] }],
+    report: {
+      status: 'passed',
+      summary: '完成',
+      verified: [],
+      gaps: [],
+      criteria: [
+        { criterionId: 'home_visible', result: 'passed', reason: 'ok' },
+        { criterionId: 'menus_checked', result: 'passed', reason: 'ok' },
+      ],
+      bug: null,
+    },
+    recordingThrows: true,
+  });
+  assert.equal(finishes.length, 1);
+  assert.equal(finishes[0].result.taskRecording.status, 'missing');
+  assert.match(
+    finishes[0].result.taskRecording.error,
+    /Recording unavailable: recording unavailable/,
+  );
+  assert.equal(
+    uploads.some((artifact) => artifact.kind === 'rrweb'),
+    false,
+  );
+});
+
+test('a recording upload failure keeps the task and marks evidence degraded', async () => {
+  const recording = {
+    events: [
+      { type: 4, data: { href: 'http://fixture.local/' }, timestamp: 1 },
+    ],
+    consoleEntries: [],
+    networkEntries: [],
+    status: 'recording',
+    error: null,
+    notes: [],
+    startedAt: '2026-10-18T06:53:00.000Z',
+    endedAt: '2026-10-18T06:53:01.000Z',
+    viewport: { width: 1280, height: 720 },
+  };
+  const { finishes } = await runCase({
+    allowedActions: 2,
+    decisions: [{ done: true, toolCalls: [] }],
+    report: {
+      status: 'passed',
+      summary: '完成',
+      verified: [],
+      gaps: [],
+      criteria: [
+        { criterionId: 'home_visible', result: 'passed', reason: 'ok' },
+        { criterionId: 'menus_checked', result: 'passed', reason: 'ok' },
+      ],
+      bug: null,
+    },
+    recording,
+    recordingUploadFails: true,
+  });
+  assert.equal(finishes.length, 1);
+  assert.equal(finishes[0].result.taskRecording.status, 'missing');
+  assert.match(
+    finishes[0].result.taskRecording.error,
+    /rrweb evidence upload failed: recording upload failed/,
+  );
+});
+
+test('a degraded browser recording is passed through as TaskRecording degraded', async () => {
+  const recording = {
+    events: [
+      { type: 4, data: { href: 'http://fixture.local/' }, timestamp: 1 },
+    ],
+    consoleEntries: [],
+    networkEntries: [],
+    status: 'degraded',
+    error: 'rrweb recording failed: binding failed',
+    notes: ['Console entries were truncated to the latest 2000.'],
+    startedAt: '2026-10-18T06:53:00.000Z',
+    endedAt: '2026-10-18T06:53:01.000Z',
+    viewport: { width: 1280, height: 720 },
+  };
+  const { finishes } = await runCase({
+    allowedActions: 2,
+    decisions: [{ done: true, toolCalls: [] }],
+    report: {
+      status: 'passed',
+      summary: '完成',
+      verified: [],
+      gaps: [],
+      criteria: [
+        { criterionId: 'home_visible', result: 'passed', reason: 'ok' },
+        { criterionId: 'menus_checked', result: 'passed', reason: 'ok' },
+      ],
+      bug: null,
+    },
+    recording,
+  });
+  const taskRecording = finishes.at(-1).result.taskRecording;
+  assert.equal(taskRecording.status, 'degraded');
+  assert.match(taskRecording.error, /binding failed/);
+  assert.match(taskRecording.error, /truncated to the latest 2000/);
 });

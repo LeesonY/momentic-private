@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import { before, after, test as nodeTest } from 'node:test';
-import { randomUUID, randomBytes } from 'node:crypto';
-import { mkdtempSync, writeFileSync, rmSync, existsSync } from 'node:fs';
+import { createHash, randomUUID, randomBytes } from 'node:crypto';
+import {
+  mkdirSync,
+  mkdtempSync,
+  writeFileSync,
+  rmSync,
+  existsSync,
+} from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -1430,4 +1437,158 @@ test('bounded dependency traversal: repeated DAG passes, exact 100-step budget a
   for (const p of [project.id, otherProject.id])
     await seedModule(p, 'life-oversized', oversized);
   await duplicateProbe('document-over-limit', [ref('life-oversized')], 422, 1);
+});
+
+test('task recording endpoint exposes persisted artifacts and serves rrweb gzip', async () => {
+  const runId = randomUUID();
+  const taskId = randomUUID();
+  const rrwebId = randomUUID();
+  const consoleId = randomUUID();
+  const networkId = randomUUID();
+  const createdAt = new Date().toISOString();
+  const events = [
+    { type: 4, data: { href: 'https://example.test/home' }, timestamp: 1 },
+    { type: 2, data: { node: { type: 0, childNodes: [] } }, timestamp: 2 },
+  ];
+  const gz = gzipSync(Buffer.from(JSON.stringify(events)));
+  const taskRecording = {
+    taskId,
+    status: 'available',
+    rrwebArtifactId: rrwebId,
+    consoleArtifactId: consoleId,
+    networkArtifactId: networkId,
+    startedAt: '2026-10-18T06:53:00.000Z',
+    endedAt: '2026-10-18T06:53:01.000Z',
+    viewport: { width: 1280, height: 720 },
+    error: null,
+  };
+  await superuserQuery(
+    `INSERT INTO runs(id,project_id,creator_id,display_url,status,phase,completion,effective_config,budget_used)
+     VALUES($1,$2,$3,'https://example.test','completed','execute','complete','{}'::jsonb,'{}'::jsonb)`,
+    [runId, project.id, actor.userId],
+  );
+  await superuserQuery(
+    `INSERT INTO jobs(id,project_id,run_id,unique_key,role,status,document,result)
+     VALUES($1,$2,$3,$4,'executor','succeeded','{}'::jsonb,$5::jsonb)`,
+    [
+      taskId,
+      project.id,
+      runId,
+      `recording-${tag}`,
+      JSON.stringify({ stage: 'execute', taskRecording }),
+    ],
+  );
+  const artifact = (id, kind, bytes, digest) => ({
+    id,
+    projectId: project.id,
+    runId,
+    kind,
+    status: 'available',
+    bytes,
+    sha256: digest,
+    contentUrl: null,
+    redaction: 'applied',
+    error: null,
+    createdAt,
+    taskId,
+    stepId: null,
+    caseId: null,
+    snapshotId: null,
+  });
+  const consoleBytes = Buffer.from(
+    JSON.stringify([
+      {
+        at: createdAt,
+        level: 'log',
+        source: 'console',
+        text: 'console marker',
+      },
+    ]),
+  );
+  const networkBytes = Buffer.from(
+    JSON.stringify([
+      {
+        at: createdAt,
+        method: 'GET',
+        url: 'https://example.test/home',
+        resourceType: 'document',
+        status: 200,
+        failed: false,
+        durationMs: 5,
+      },
+    ]),
+  );
+  for (const [id, kind, bytes] of [
+    [rrwebId, 'rrweb', gz],
+    [consoleId, 'console', consoleBytes],
+    [networkId, 'network', networkBytes],
+  ]) {
+    await superuserQuery(
+      `INSERT INTO artifacts(id,project_id,run_id,task_id,document,retain_until)
+       VALUES($1,$2,$3,$4,$5::jsonb,now()+interval '30 days')`,
+      [
+        id,
+        project.id,
+        runId,
+        taskId,
+        JSON.stringify(
+          artifact(
+            id,
+            kind,
+            bytes.byteLength,
+            createHash('sha256').update(bytes).digest('hex'),
+          ),
+        ),
+      ],
+    );
+  }
+  mkdirSync(join(dir, 'artifacts', project.id, runId), { recursive: true });
+  writeFileSync(join(dir, 'artifacts', project.id, runId, rrwebId), gz);
+
+  const res = await request(`/tasks/${taskId}/recording`);
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.deepEqual(res.body, taskRecording);
+
+  const content = await fetch(`${url}/api/v1/artifacts/${rrwebId}/content`, {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(content.status, 200);
+  assert.equal(content.headers.get('content-type'), 'application/gzip');
+  assert.deepEqual(Buffer.from(await content.arrayBuffer()), gz);
+
+  const runningTaskId = randomUUID();
+  await superuserQuery(
+    `INSERT INTO jobs(id,project_id,run_id,unique_key,role,status,document)
+     VALUES($1,$2,$3,$4,'executor','running','{}'::jsonb)`,
+    [runningTaskId, project.id, runId, `recording-running-${tag}`],
+  );
+  const live = await request(`/tasks/${runningTaskId}/recording`);
+  assert.equal(live.status, 200, JSON.stringify(live.body));
+  assert.equal(live.body.status, 'recording');
+  assert.equal(live.body.rrwebArtifactId, null);
+
+  const missing = await request(`/tasks/${randomUUID()}/recording`);
+  assert.equal(missing.status, 404);
+
+  const outsider = await new AccountsRepository(db).create(actor, {
+    email: `recording-outsider-${tag}@localqa.test`,
+    displayName: 'Recording Outsider',
+    password: 'OutsiderPassword123!',
+    globalRole: 'member',
+  });
+  const outsiderLogin = await fetch(`${url}/api/v1/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: outsider.email,
+      password: 'OutsiderPassword123!',
+    }),
+  });
+  const outsiderCookie = outsiderLogin.headers.get('set-cookie').split(';')[0];
+  const denied = await request(
+    `/tasks/${taskId}/recording`,
+    null,
+    outsiderCookie,
+  );
+  assert.equal(denied.status, 404);
 });

@@ -14,7 +14,8 @@ import type {
   Artifact,
 } from '@localqa/contracts';
 import type { BrowserPort, BrowserSession } from './port.js';
-import type { BrowserSessionOptions } from './types.js';
+import type { BrowserSessionOptions, SessionRecording } from './types.js';
+import { getRrwebScript } from './rrweb-script.js';
 import { PolicyInterceptor } from './policy.js';
 import { SessionRecorder, isValidUuid } from './recorder.js';
 import { WaitAndRecoveryManager } from './waiter.js';
@@ -25,6 +26,54 @@ import {
   resolveCachedRegressionLocator,
 } from './regression-locator.js';
 
+const RRWEB_RECORDER_SCRIPT = `
+(() => {
+  // Only the top document records. This keeps cross-origin (and same-origin)
+  // iframe contents out of the replay instead of starting a second recorder.
+  if (window.top !== window) return;
+  let buffer = [];
+  const flush = () => {
+    if (!buffer.length) return;
+    const batch = buffer;
+    buffer = [];
+    try { window.__localqa_rrweb_emit(batch); } catch {}
+  };
+  window.__localqa_rrweb_stop = null;
+  window.__localqa_rrweb_flush = flush;
+  window.addEventListener('pagehide', flush);
+  window.addEventListener('beforeunload', flush);
+  setInterval(flush, 1000);
+  const start = () => {
+    if (window.__localqa_rrweb_stop || !window.rrweb || typeof window.rrweb.record !== 'function') return;
+    try {
+      window.__localqa_rrweb_stop = window.rrweb.record({
+        emit(event) {
+          if (event && event.type === 4 && event.data && typeof event.data.href === 'string') {
+            try {
+              const parsed = new URL(event.data.href);
+              if (parsed.protocol === 'http:' || parsed.protocol === 'https:')
+                event.data.href = parsed.origin + parsed.pathname;
+            } catch {}
+          }
+          buffer.push(event);
+        },
+        maskAllInputs: true,
+        recordCanvas: false,
+        blockSelector: 'input[type="hidden"]',
+        maskInputFn: () => '***',
+        inlineStylesheet: true,
+        collectFonts: false,
+        recordCrossOriginIframes: false,
+      });
+    } catch {
+      window.__localqa_rrweb_stop = null;
+    }
+  };
+  if (document.readyState === 'complete') setTimeout(start, 0);
+  else window.addEventListener('load', () => setTimeout(start, 0), { once: true });
+})();
+`;
+
 export class BrowserSessionImpl implements BrowserSession {
   public readonly id: string;
   public readonly taskId: string;
@@ -34,6 +83,16 @@ export class BrowserSessionImpl implements BrowserSession {
   private readonly context: BrowserContext;
   private readonly page: Page;
   private readonly recorder: SessionRecorder;
+  private readonly recordingEnabled: boolean;
+  private readonly maxRecordingBytes: number;
+  private readonly recordingViewport: { width: number; height: number };
+  private rrwebEvents: unknown[] = [];
+  private rrwebRawBytes = 0;
+  private recordingStatus: 'recording' | 'available' | 'degraded' = 'recording';
+  private recordingError: string | null = null;
+  private recordingStartedAt: number | null = null;
+  private recordingEndedAt: number | null = null;
+  private recordingStopped = false;
   private readonly policy: PolicyInterceptor;
   private readonly waiter: WaitAndRecoveryManager;
   private readonly executor: ToolExecutor;
@@ -87,6 +146,10 @@ export class BrowserSessionImpl implements BrowserSession {
       writeScope: options.writeScope,
     });
 
+    this.recordingEnabled = options.enableRecording === true;
+    this.maxRecordingBytes = options.maxRecordingBytes ?? 20 * 1024 * 1024;
+    this.recordingViewport = options.viewport ?? { width: 1280, height: 720 };
+
     this.recorder = new SessionRecorder({
       projectId: options.projectId,
       runId: options.runId,
@@ -113,6 +176,110 @@ export class BrowserSessionImpl implements BrowserSession {
         this.pageIds.delete(newPage);
       });
     });
+  }
+
+  /** Context binding target: bounded batches of rrweb events from any page. */
+  public addRrwebEvents(batch: unknown): void {
+    if (!this.recordingEnabled || this.recordingStopped) return;
+    if (!Array.isArray(batch)) return;
+    try {
+      for (const item of batch) {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+        const event = item as { timestamp?: unknown };
+        if (
+          typeof event.timestamp !== 'number' ||
+          !Number.isFinite(event.timestamp)
+        )
+          continue;
+        // Cross-document streams can restart their clock; keep one monotonic
+        // timeline so replay and anchors cannot move backwards.
+        const timestamp = Math.max(
+          event.timestamp,
+          (this.recordingEndedAt ?? 0) + 1,
+        );
+        (event as { timestamp: number }).timestamp = timestamp;
+        this.recordingStartedAt ??= timestamp;
+        this.recordingEndedAt = timestamp;
+        this.rrwebEvents.push(event);
+        this.rrwebRawBytes += JSON.stringify(event).length;
+        if (this.rrwebRawBytes > this.maxRecordingBytes) {
+          this.recordingStatus = 'degraded';
+          this.recordingError = `rrweb recording exceeded ${this.maxRecordingBytes} bytes; recording stopped and the recorded part was kept.`;
+          this.stopRrwebRecording();
+          break;
+        }
+      }
+    } catch (error) {
+      this.recordingStatus = 'degraded';
+      this.recordingError = `rrweb recording failed: ${(error as Error).message || 'unknown error'}`;
+      this.stopRrwebRecording();
+    }
+  }
+
+  public markRecordingDegraded(message: string): void {
+    this.recordingStatus = 'degraded';
+    this.recordingError = message;
+    this.stopRrwebRecording();
+  }
+
+  private stopRrwebRecording(): void {
+    if (!this.recordingEnabled || this.recordingStopped) return;
+    this.recordingStopped = true;
+    for (const page of this.pages.values()) {
+      void page
+        .evaluate(() => {
+          const stop = (window as { __localqa_rrweb_stop?: unknown })
+            .__localqa_rrweb_stop;
+          if (typeof stop === 'function') stop();
+        })
+        .catch(() => {});
+    }
+  }
+
+  /** Ask every page to flush its pending rrweb batch before snapshotting. */
+  public async flushRecording(): Promise<void> {
+    if (!this.recordingEnabled || this.recordingStopped) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        Promise.all(
+          [...this.pages.values()].map((page) =>
+            page
+              .evaluate(() => {
+                const flush = (window as { __localqa_rrweb_flush?: unknown })
+                  .__localqa_rrweb_flush;
+                if (typeof flush === 'function') return flush();
+              })
+              .catch(() => {}),
+          ),
+        ),
+        // A crashed or wedged page must not hold the task finish open.
+        new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, 2000);
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  public getRecording(): SessionRecording | null {
+    if (!this.recordingEnabled) return null;
+    return {
+      events: this.rrwebEvents.map((event) => ({ ...(event as object) })),
+      consoleEntries: this.recorder.getRecordingConsoleEntries(),
+      networkEntries: this.recorder.getRecordingNetworkEntries(),
+      status: this.recordingStatus,
+      error: this.recordingError,
+      notes: this.recorder.getRecordingNotes(),
+      startedAt: this.recordingStartedAt
+        ? new Date(this.recordingStartedAt).toISOString()
+        : null,
+      endedAt: this.recordingEndedAt
+        ? new Date(this.recordingEndedAt).toISOString()
+        : null,
+      viewport: { ...this.recordingViewport },
+    };
   }
 
   public getPageById(id: string): Page | undefined {
@@ -296,6 +463,8 @@ export class BrowserSessionImpl implements BrowserSession {
   public async close(): Promise<void> {
     if (this.isClosed) return;
     this.isClosed = true;
+    await this.flushRecording();
+    this.stopRrwebRecording();
 
     try {
       await this.recorder.stopTrace(this.context);
@@ -453,6 +622,32 @@ export class BrowserManager implements BrowserPort {
       pageId,
     );
     this.sessions.set(sessionId, session);
+
+    if (options.enableRecording) {
+      try {
+        await context.exposeBinding(
+          '__localqa_rrweb_emit',
+          (_source, batch: unknown) => {
+            try {
+              session.addRrwebEvents(batch);
+            } catch (error) {
+              session.markRecordingDegraded(
+                `rrweb recording failed: ${(error as Error).message || 'unknown error'}`,
+              );
+            }
+          },
+        );
+        // Both scripts run before any page script, in registration order: the
+        // rrweb UMD bundle first, then the recorder that starts on load.
+        await context.addInitScript({ content: getRrwebScript() });
+        await context.addInitScript({ content: RRWEB_RECORDER_SCRIPT });
+      } catch (error) {
+        // Missing/broken recording must not make the browser task fail.
+        session.markRecordingDegraded(
+          `rrweb recording setup failed: ${(error as Error).message || 'unknown error'}`,
+        );
+      }
+    }
 
     return session;
   }

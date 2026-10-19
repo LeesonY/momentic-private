@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { Artifact, NetworkEntry } from '@localqa/contracts';
+import type { Artifact, ConsoleEntry, NetworkEntry } from '@localqa/contracts';
 import { validateContract } from '@localqa/contracts';
 import { sanitizeUrl, sanitizeText } from './redaction.js';
 import type { RecorderOptions } from './types.js';
@@ -24,6 +24,14 @@ export class SessionRecorder {
 
   private consoleLogs: string[] = [];
   private networkEntries: NetworkEntry[] = [];
+  /** Timestamped, bounded evidence for TaskRecording (separate from the
+   * human/model-facing summaries, which may keep more query detail). */
+  private consoleEntries: ConsoleEntry[] = [];
+  private recordingNetworkEntries: NetworkEntry[] = [];
+  private readonly maxRecordingEntries = 2000;
+  private consoleRecordingTruncated = false;
+  private networkRecordingTruncated = false;
+  private readonly requestStartedAt = new WeakMap<Request, number>();
   private privateAuthentication = false;
   private readonly sensitiveValues: string[] = [];
 
@@ -32,11 +40,15 @@ export class SessionRecorder {
     this.privateAuthentication = true;
     this.consoleLogs = [];
     this.networkEntries = [];
+    this.consoleEntries = [];
+    this.recordingNetworkEntries = [];
   }
 
   public endPrivateAuthentication(): void {
     this.consoleLogs = [];
     this.networkEntries = [];
+    this.consoleEntries = [];
+    this.recordingNetworkEntries = [];
     this.privateAuthentication = false;
   }
 
@@ -192,7 +204,10 @@ export class SessionRecorder {
     page.on('console', (msg) => {
       if (this.privateAuthentication) return;
       try {
-        const text = sanitizeText(this.redactAuthenticationText(msg.text()));
+        const rawText = msg.text();
+        const redacted = this.redactAuthenticationText(rawText);
+        const text = sanitizeText(redacted);
+        const recordingText = redacted === rawText ? text : '[REDACTED]';
         const entry = `[${msg.type()}] ${text}`;
         if (this.consoleLogs.length >= this.maxConsoleBuffer) {
           this.consoleLogs.shift();
@@ -201,6 +216,19 @@ export class SessionRecorder {
           );
         }
         this.consoleLogs.push(entry.slice(0, 1000));
+        this.appendRecordingConsole({
+          at: new Date().toISOString(),
+          level:
+            msg.type() === 'error'
+              ? 'error'
+              : msg.type() === 'warning'
+                ? 'warn'
+                : msg.type() === 'info'
+                  ? 'info'
+                  : 'log',
+          source: 'console',
+          text: recordingText.slice(0, 500),
+        });
       } catch {
         // Ignore logging failures
       }
@@ -209,7 +237,11 @@ export class SessionRecorder {
     page.on('pageerror', (err) => {
       if (this.privateAuthentication) return;
       try {
-        const entry = `[error] ${sanitizeText(this.redactAuthenticationText(err.message || String(err)))}`;
+        const rawText = err.message || String(err);
+        const redacted = this.redactAuthenticationText(rawText);
+        const text = sanitizeText(redacted);
+        const recordingText = redacted === rawText ? text : '[REDACTED]';
+        const entry = `[error] ${text}`;
         if (this.consoleLogs.length >= this.maxConsoleBuffer) {
           this.consoleLogs.shift();
           this.recordDegradation(
@@ -217,6 +249,12 @@ export class SessionRecorder {
           );
         }
         this.consoleLogs.push(entry.slice(0, 1000));
+        this.appendRecordingConsole({
+          at: new Date().toISOString(),
+          level: 'error',
+          source: 'pageerror',
+          text: recordingText.slice(0, 500),
+        });
       } catch {
         // Error handling and logging must not propagate to page execution.
       }
@@ -228,6 +266,7 @@ export class SessionRecorder {
         const sanitizedUrl = sanitizeUrl(
           this.redactAuthenticationText(req.url()),
         );
+        this.requestStartedAt.set(req, Date.now());
         // Record request entry
         this.appendNetworkEntry({
           at: new Date().toISOString(),
@@ -256,7 +295,7 @@ export class SessionRecorder {
           method: res.request().method().slice(0, 20),
           status: res.status(),
           failed: !res.ok(),
-          durationMs: null,
+          durationMs: this.durationFor(res.request()),
           resourceType: res.request().resourceType().slice(0, 40),
           summary:
             `[${res.status()}] ${res.request().method()} ${sanitizedUrl}`.slice(
@@ -284,7 +323,7 @@ export class SessionRecorder {
           method: req.method().slice(0, 20),
           status: null,
           failed: true,
-          durationMs: null,
+          durationMs: this.durationFor(req),
           resourceType: req.resourceType().slice(0, 40),
           summary:
             `[FAILED] ${req.method()} ${sanitizedUrl} - ${failure}`.slice(
@@ -309,6 +348,67 @@ export class SessionRecorder {
       this.recordDegradation('Network buffer limit reached (1000 entries max)');
     }
     this.networkEntries.push(entry);
+    this.appendRecordingNetworkEntry(entry);
+  }
+
+  private durationFor(request: Request): number | null {
+    const started = this.requestStartedAt.get(request);
+    if (started === undefined) return null;
+    this.requestStartedAt.delete(request);
+    return Math.max(0, Date.now() - started);
+  }
+
+  private appendRecordingConsole(entry: ConsoleEntry): void {
+    if (this.privateAuthentication) return;
+    if (this.consoleEntries.length >= this.maxRecordingEntries) {
+      this.consoleEntries.shift();
+      this.consoleRecordingTruncated = true;
+    }
+    this.consoleEntries.push(entry);
+  }
+
+  private appendRecordingNetworkEntry(entry: NetworkEntry): void {
+    if (this.privateAuthentication) return;
+    let url: string;
+    try {
+      const parsed = new URL(entry.url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) return;
+      url = `${parsed.origin}${parsed.pathname}`.slice(0, 2000);
+    } catch {
+      return;
+    }
+    if (this.recordingNetworkEntries.length >= this.maxRecordingEntries) {
+      this.recordingNetworkEntries.shift();
+      this.networkRecordingTruncated = true;
+    }
+    this.recordingNetworkEntries.push({
+      at: entry.at,
+      method: entry.method.slice(0, 20),
+      url,
+      resourceType: entry.resourceType.slice(0, 40),
+      status: entry.status,
+      failed: entry.failed,
+      durationMs: entry.durationMs,
+    });
+  }
+
+  public getRecordingConsoleEntries(): ConsoleEntry[] {
+    return this.consoleEntries.map((entry) => ({ ...entry }));
+  }
+
+  public getRecordingNetworkEntries(): NetworkEntry[] {
+    return this.recordingNetworkEntries.map((entry) => ({ ...entry }));
+  }
+
+  public getRecordingNotes(): string[] {
+    return [
+      ...(this.consoleRecordingTruncated
+        ? ['Console entries were truncated to the latest 2000.']
+        : []),
+      ...(this.networkRecordingTruncated
+        ? ['Network entries were truncated to the latest 2000.']
+        : []),
+    ];
   }
 
   private recordDegradation(reason: string): void {

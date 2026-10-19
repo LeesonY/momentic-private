@@ -16,6 +16,7 @@ import type {
   Artifact,
   Reproduction,
   ModelUsage,
+  TaskRecording,
 } from '@localqa/contracts';
 import {
   StorageError,
@@ -242,6 +243,88 @@ export function registerExecutionRoutes(router: Router): void {
     ctx.res.statusCode = 200;
     return parseContract('StepPage', page);
   });
+
+  // GET /api/v1/tasks/{taskId}/recording
+  router.get(
+    '/api/v1/tasks/{taskId}/recording',
+    async (ctx: RequestContext) => {
+      await requireAuth(ctx);
+      const taskId = ctx.params.taskId!;
+      const recording = await ctx.api.db.actor(ctx.actor!, async (client) => {
+        const job = (
+          await client.query<{
+            status: string;
+            result: unknown;
+            project_id: string;
+            run_id: string;
+          }>('SELECT status,result,project_id,run_id FROM jobs WHERE id=$1', [
+            taskId,
+          ])
+        ).rows[0];
+        if (!job) throw new StorageError('NOT_FOUND');
+        const artifacts = (
+          await client.query<{ id: string; document: unknown }>(
+            `SELECT id,document FROM artifacts
+           WHERE project_id=$1 AND run_id=$2 AND task_id=$3
+             AND document->>'kind' IN ('rrweb','console','network')
+             AND document->>'status' IN ('available','degraded')
+             AND document->>'redaction' IN ('applied','not_needed')
+           ORDER BY document->>'createdAt' DESC,id DESC`,
+            [job.project_id, job.run_id, taskId],
+          )
+        ).rows;
+        const byKind = new Map<
+          string,
+          { id: string; status: Artifact['status'] }
+        >();
+        for (const row of artifacts) {
+          const artifact = parseContract('Artifact', row.document);
+          if (!byKind.has(artifact.kind))
+            byKind.set(artifact.kind, {
+              id: artifact.id,
+              status: artifact.status,
+            });
+        }
+        let stored: TaskRecording | null = null;
+        try {
+          const value =
+            job.result && typeof job.result === 'object'
+              ? (job.result as Record<string, unknown>)['taskRecording']
+              : null;
+          if (value) stored = parseContract('TaskRecording', value);
+        } catch {
+          stored = null;
+        }
+        if (stored && stored.taskId !== taskId) stored = null;
+        const rrweb = byKind.get('rrweb') ?? null;
+        const consoleArtifact = byKind.get('console') ?? null;
+        const network = byKind.get('network') ?? null;
+        const running = ['queued', 'running', 'waiting'].includes(job.status);
+        const status = rrweb
+          ? stored?.status === 'degraded' || rrweb.status === 'degraded'
+            ? 'degraded'
+            : 'available'
+          : running
+            ? 'recording'
+            : 'missing';
+        return parseContract('TaskRecording', {
+          taskId,
+          status,
+          rrwebArtifactId: rrweb?.id ?? null,
+          consoleArtifactId: consoleArtifact?.id ?? null,
+          networkArtifactId: network?.id ?? null,
+          startedAt: stored?.startedAt ?? null,
+          endedAt: stored?.endedAt ?? null,
+          viewport: stored?.viewport ?? null,
+          error:
+            stored?.error ??
+            (status === 'missing' ? 'No recording for this task.' : null),
+        });
+      });
+      ctx.res.statusCode = 200;
+      return recording;
+    },
+  );
 
   // GET /api/v1/steps/{stepId}
   router.get('/api/v1/steps/{stepId}', async (ctx: RequestContext) => {
@@ -1026,15 +1109,17 @@ export function registerExecutionRoutes(router: Router): void {
       const contentType =
         artifact.kind === 'screenshot'
           ? 'image/png'
-          : artifact.kind === 'network' || artifact.kind === 'console'
-            ? 'application/json'
-            : artifact.kind === 'export'
-              ? exportFormat === 'json'
-                ? 'application/json'
-                : exportFormat === 'markdown'
-                  ? 'text/markdown; charset=utf-8'
-                  : 'application/zip'
-              : 'application/octet-stream';
+          : artifact.kind === 'rrweb'
+            ? 'application/gzip'
+            : artifact.kind === 'network' || artifact.kind === 'console'
+              ? 'application/json'
+              : artifact.kind === 'export'
+                ? exportFormat === 'json'
+                  ? 'application/json'
+                  : exportFormat === 'markdown'
+                    ? 'text/markdown; charset=utf-8'
+                    : 'application/zip'
+                : 'application/octet-stream';
 
       const range = ctx.headers['range'];
       let start = 0;
@@ -1083,7 +1168,7 @@ export function registerExecutionRoutes(router: Router): void {
         ...(range === undefined
           ? {}
           : { 'Content-Range': `bytes ${start}-${end}/${bytes.length}` }),
-        'Content-Disposition': `inline; filename="${artifactId}.${artifact.kind === 'screenshot' ? 'png' : exportFormat === 'json' ? 'json' : exportFormat === 'markdown' ? 'md' : exportFormat === 'zip' ? 'zip' : 'bin'}"`,
+        'Content-Disposition': `inline; filename="${artifactId}.${artifact.kind === 'screenshot' ? 'png' : artifact.kind === 'rrweb' ? 'json.gz' : exportFormat === 'json' ? 'json' : exportFormat === 'markdown' ? 'md' : exportFormat === 'zip' ? 'zip' : 'bin'}"`,
       });
       ctx.res.end(chunk);
       return undefined;

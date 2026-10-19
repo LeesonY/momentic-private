@@ -199,6 +199,8 @@ ArtifactStore 实现 put/get/delete/checksum；P0 API 拥有证据卷，Worker �
 
 trace/rrweb 在临时受控空间完成脱敏验证后才入库和开放下载。不能安全处理的格式停用并显式降级，保留脱敏截图/事件；不假设记录器天然不会采集认证内容。第三方遥测默认关闭，API 日志默认不记录请求/响应正文。
 
+会话运行中的 explorer / executor / reproducer 浏览器任务全程录制（含任务自己的登录阶段）：rrweb 事件流以 gzip 压缩的 `eventWithTime[]` 保存为 `kind=rrweb` artifact，`content-type: application/gzip`；控制台与网络分别保存为 `ConsoleEntry[]` / `NetworkEntry[]` 的 JSON artifact（`kind=console` / `kind=network`）。脱敏规则：`maskAllInputs`，密码框与隐藏输入的值不进入任何事件，meta 事件的 href 去掉 query 和 fragment，不录 canvas，不录跨域 iframe；网络只保留 method、origin+path、resourceType、status、是否失败和耗时，不保留请求/响应头、正文或 cookie；控制台文本截到 500 字符并经过保存凭据检查。单个任务 rrweb 压缩后上限 20 MB，超过即停止录制、保留已录部分并标记 `degraded`；控制台和网络各保留最近 2000 条，截断写入 `TaskRecording.error`。任务结束前先上传证据，再把 `TaskRecording` 快照交给 finish；录像缺失或降级时明确标注 `missing`/`degraded`，不生成虚假回放链接。
+
 事件提交到 PostgreSQL 后才推送。每 run 使用严格递增 seq，SSE id 为 seq；Last-Event-ID 恢复遗漏事件。若事件已过期，返回 `EVENTS_EXPIRED`，前端重新取得状态快照。事件重复按 seq 去重，不假设 HTTP 推送恰好一次。
 
 报告由最终有效 verdict/原计划/复现/证据事实构造，不让模型自由写统计。给出 pass、issues、blocked、inconclusive、notRun、attempted、evaluated 和 coverage gaps。导出使用创建时快照，ZIP 逐个记录 missing/too_large/redacted 等材料状态；离线 HTML/Markdown 不加载外部 CDN。

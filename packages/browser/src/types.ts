@@ -71,6 +71,38 @@ export interface BrowserSessionOptions {
   navigationTimeoutMs?: number | undefined;
   enableTrace?: boolean | undefined;
   artifactsDir?: string | undefined;
+  /** Capture rrweb replay and timestamped console/network evidence for this task. */
+  enableRecording?: boolean | undefined;
+  /** Raw rrweb event cap; tests lower it. Compressed output is capped separately. */
+  maxRecordingBytes?: number | undefined;
+}
+
+/** What a browser session accumulated for a task recording. */
+export interface SessionRecording {
+  events: unknown[];
+  consoleEntries: Array<{
+    at: string;
+    level: 'log' | 'info' | 'warn' | 'error';
+    source: 'console' | 'pageerror';
+    text: string;
+  }>;
+  networkEntries: Array<{
+    at: string;
+    method: string;
+    url: string;
+    resourceType: string;
+    status: number | null;
+    failed: boolean;
+    durationMs: number | null;
+    summary?: string;
+  }>;
+  status: 'recording' | 'available' | 'degraded';
+  error: string | null;
+  /** Non-fatal truncation notes; they belong in TaskRecording.error. */
+  notes: string[];
+  startedAt: string | null;
+  endedAt: string | null;
+  viewport: ViewportSize;
 }
 
 export interface ActionTargetMetadata {
