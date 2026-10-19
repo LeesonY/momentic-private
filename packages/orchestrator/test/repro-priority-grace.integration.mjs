@@ -260,6 +260,24 @@ test(
         };
       }
 
+      function stoppedBundle(f, lease) {
+        const entries = ['rrweb', 'console', 'network'].map((kind) => {
+          const bytes = kind === 'rrweb' ? gzipSync(Buffer.from('[]')) : Buffer.from('[]');
+          return { bytes, artifact: {
+            id: randomUUID(), projectId: f.project.id, runId: f.run.id, taskId: lease.task.id,
+            caseId: lease.task.caseId ?? null, stepId: null, snapshotId: null, kind,
+            status: 'degraded', bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'),
+            contentUrl: null, redaction: 'applied', error: null, createdAt: new Date().toISOString(),
+          } };
+        });
+        return { entries, recording: {
+          taskId: lease.task.id, status: 'degraded', rrwebArtifactId: entries[0].artifact.id,
+          consoleArtifactId: entries[1].artifact.id, networkArtifactId: entries[2].artifact.id,
+          startedAt: new Date(Date.now() - 1000).toISOString(), endedAt: new Date().toISOString(),
+          viewport: null, error: 'Stopped by budget limit',
+        } };
+      }
+
       await t.test(
         'same-run reproducer overtakes older executor/explorer without a cross-run FIFO promotion',
         async () => {
@@ -339,6 +357,7 @@ test(
       async function runningReproduction(
         cutoff = true,
         previousFailure = false,
+        reportOtherStop = true,
       ) {
         const f = await setup();
         const original = await f.runtime.claim();
@@ -405,8 +424,10 @@ test(
         );
         // The stopped explorer may report cancellation before tick sees it.
         // Its generic Worker stop reason must not erase budget_limit.
-        await coordinator.stopTask(f.scope, proof(other), 'worker_failure');
-        assert.equal((await f.row()).terminationReason, 'budget_limit');
+        if (reportOtherStop) {
+          await coordinator.stopTask(f.scope, proof(other), 'worker_failure');
+          assert.equal((await f.row()).terminationReason, 'budget_limit');
+        }
         await coordinator.tick(f.project.id);
         const grace = (
           await sql(
@@ -434,6 +455,7 @@ test(
         return {
           ...f,
           reproduction,
+          other,
           finding,
           grace: grace[0].redacted_summary,
         };
@@ -442,8 +464,23 @@ test(
       await t.test(
         'running reproduction can heartbeat, act and confirm with recording during time grace; no dispatch or retry',
         async () => {
-          const f = await runningReproduction(true, true);
+          const f = await runningReproduction(true, true, false);
           const p = proof(f.reproduction);
+          const healthy = stoppedBundle(f, f.reproduction);
+          await assert.rejects(f.runtime.saveStoppedRecording(p, healthy.entries, healthy.recording),
+            (error) => error.code === 'POLICY_DENIED');
+          // The metadata transaction rechecks authority too, not just the
+          // ArtifactStore preflight before it writes bytes.
+          await assert.rejects(coordinator.saveStoppedRecording(f.scope, p, healthy.entries, healthy.recording),
+            (error) => error.code === 'POLICY_DENIED');
+          assert.equal((await sql("SELECT result ? 'taskRecording' AS attached FROM jobs WHERE id=$1", [p.taskId])).rows[0].attached, false);
+          const cancelled = (await sql('SELECT status FROM jobs WHERE id=$1', [f.other.task.id])).rows[0];
+          assert.equal(cancelled.status, 'cancelled');
+          const otherBundle = stoppedBundle(f, f.other);
+          await f.runtime.saveStoppedRecording(proof(f.other), otherBundle.entries, otherBundle.recording);
+          const otherStored = (await sql('SELECT status,result FROM jobs WHERE id=$1', [f.other.task.id])).rows[0];
+          assert.equal(otherStored.status, 'cancelled');
+          assert.equal(otherStored.result.taskRecording.status, 'degraded');
           const grant = await f.runtime.grant(p, { name: 'observe', args: {} });
           await f.runtime.record(p, grant, 'succeeded', null);
           const screenshot = await f.upload(
@@ -598,6 +635,11 @@ test(
             ])
           ).rows[0];
           assert.equal(job.status, 'cancelled');
+          const stopped = stoppedBundle(f, f.reproduction);
+          await f.runtime.saveStoppedRecording(proof(f.reproduction), stopped.entries, stopped.recording);
+          const stored = (await sql('SELECT status,result FROM jobs WHERE id=$1', [f.reproduction.task.id])).rows[0];
+          assert.equal(stored.status, 'cancelled');
+          assert.equal(stored.result.taskRecording.status, 'degraded');
           const run = await f.row();
           assert.equal(run.status, 'completed');
           assert.equal(run.terminationReason, 'budget_limit');
@@ -676,6 +718,14 @@ test(
             [f.reproduction.task.id],
           );
           await coordinator.tick(f.project.id);
+          const stopped = stoppedBundle(f, f.reproduction);
+          const oldProof = proof(f.reproduction);
+          await assert.rejects(f.runtime.saveStoppedRecording({ ...oldProof, fencingToken: oldProof.fencingToken - 1 }, stopped.entries, stopped.recording),
+            (error) => error.code === 'LEASE_EXPIRED');
+          await f.runtime.saveStoppedRecording(oldProof, stopped.entries, stopped.recording);
+          assert.equal((await sql('SELECT result FROM jobs WHERE id=$1', [oldProof.taskId])).rows[0].result.taskRecording.status, 'degraded');
+          await assert.rejects(f.runtime.saveStoppedRecording(oldProof, stopped.entries, stopped.recording),
+            (error) => error.code === 'IDEMPOTENCY_CONFLICT');
           assert.equal(
             (
               await sql(

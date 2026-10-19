@@ -119,6 +119,7 @@ type StoppedRecordingJobRow = JobRow & {
   finished_at: Date | null;
   run_status: Run['status'];
   run_termination_reason: Run['terminationReason'];
+  recording_now: Date;
 };
 /** Bytes are written by ArtifactStore before this metadata transaction. */
 export interface StoppedRecordingArtifact {
@@ -2379,7 +2380,7 @@ export class Coordinator {
   ): Promise<StoppedRecordingJobRow> {
     const job = (
       await client.query<StoppedRecordingJobRow>(
-        `SELECT j.*,r.context_version AS context_version,r.status AS run_status,r.termination_reason AS run_termination_reason
+        `SELECT j.*,r.context_version AS context_version,r.status AS run_status,r.termination_reason AS run_termination_reason,clock_timestamp() AS recording_now
          FROM jobs j JOIN runs r ON r.project_id=j.project_id AND r.id=j.run_id
          WHERE j.project_id=$1 AND j.id=$2 AND j.fencing_token=$3
            AND r.execution_mode='smoke'
@@ -2394,7 +2395,7 @@ export class Coordinator {
       Object.prototype.hasOwnProperty.call(job.result, 'taskRecording')
     )
       throw new StorageError('IDEMPOTENCY_CONFLICT');
-    const now = Date.now();
+    const now = job.recording_now.getTime();
     const windowMs = 5 * 60_000;
     const finishedAt = job.finished_at?.getTime() ?? null;
     const leaseUntil = job.lease_until?.getTime() ?? null;
@@ -2402,6 +2403,17 @@ export class Coordinator {
       if (finishedAt === null || finishedAt < now - windowMs)
         throw new StorageError('POLICY_DENIED');
       return job;
+    }
+    // budget_limit alone does not mean this reproducer is stopped: it may
+    // still hold its original lease inside the bounded time-budget grace.
+    // Do not poison its normal finish with a premature degraded recording.
+    if (job.status === 'running' && job.run_status === 'running' &&
+      job.run_termination_reason === 'budget_limit' &&
+      proof.contextVersion === job.context_version &&
+      leaseUntil !== null && leaseUntil > now) {
+      const run = await runDTO(client, scope.projectId, job.run_id);
+      if (await this.inReproductionGrace(client, run, job))
+        throw new StorageError('POLICY_DENIED');
     }
     const aborting =
       job.status === 'running' &&
