@@ -94,7 +94,7 @@ complete 表示正常结束且计划已全部尝试并收尾，不等于全部�
 
 新自动探索运行按 Momentic Mo 的方式进行：Session agent（主 AI）负责覆盖规划、写用例（前置条件、步骤、验收标准）、派发探索与执行任务、读取各代理的报告，再决定补测、向用户提问或收尾，整体受运行预算限制。验收标准由主 AI 编写；引用用户需求或项目知识的要注明来源，引用核对不上的标记为 inferred，不再整份拒绝。每条用例由执行代理在自己的浏览器里先登录，再在同一 context 中完成，并提交报告作为结论（passed / issue_found / blocked，附已验证项和缺口）；复现代理同样在自己的全新浏览器里独立登录。登录失败只把该用例/复现工作判为 blocked，原因写入其报告的 summary/gaps，主 AI 从各条报告读取，不阻断其他用例；平台不再用固定规则或单独的断言调用复核。功能缺陷由独立复现代理从干净状态复现成功后才确认。单个代理的失败（登录状态失效、模型调用失败、浏览器操作失败）只让它负责的那项工作判为受阻，不终止整次运行；预算耗尽、取消和租约丢失仍按运行级处理。主 AI 提问时会话等待用户回复（最长 24 小时，等待不计入活跃时间）。服务端分配用例身份、校验范围、去重；最终文字总结由模型生成，统计由代码按各用例结论计算。规划历史与覆盖缺口持久化在 run_sessions，并通过 session.updated 与报告展示；已批准回归基线保留原有的固定判定执行路径。
 6. 冻结计划；创建 executor 任务。会话运行绑定登录配置时，任务在自己的浏览器内登录后原地执行，不跨任务传递登录态；回归运行仍从运行级获准状态导入开始。跨用例共享业务写入状态不是默认机制。
-7. 失败区分 issue_found/blocked/inconclusive。功能疑似问题最多触发 maxReproductions 次独立复现，其余保持 suspected。
+7. 失败区分 issue_found/blocked/inconclusive。功能疑似问题最多触发 maxReproductions 次独立复现，其余保持 suspected。同会话已就绪的 reproducer 优先于排队中的 executor/explorer（含独占账号等待），不抢占已运行任务，也不提升到其他会话的 FIFO 位置之前。
 8. Finalizer 聚合事实、执行清理、生成报告。所有没有执行到的计划和未覆盖控件明确列出。
 
 预期来源：generic_smoke、user_spec、project_knowledge、saved_case、inferred。generic_smoke 可以验证入口、内容、导航等技术契约；inferred 不能独立支持“某业务规则有 Bug”的 confirmed 结论。user_spec/knowledge 也必须注明版本和具体依据，不能把不相关文本当规则。
@@ -190,6 +190,8 @@ API cookie 为 HttpOnly、Secure、SameSite，并验证 Origin/CSRF；后台 sec
 在锁定 budget 行的事务中检查 counters+reservation≤limit；发出真实请求前预约一次 call 和最大输出 tokens；收到 usage 后核销。缺少 usage 用本地估算器并记录来源；不能当作零。actions、reproductions 和并发同样原子预约/释放，租约恢复负责过期资源归并。
 
 模型调用的预留按用途设上限（plan 16k、summarize/decide 8k、assert 4k、probe 1k），只把模型配置的 `maxOutputTokens` 当作天花板，不再按它全额预留：deepseek-v4.1-flash 配置 32k 时，44 次调用、已用 25 万 tokens 的运行会在还剩约 4 万时就因单次预留过大而报 BUDGET_EXCEEDED。预留值同时下发为本次请求的输出上限（调用方可以再降低、不能抬高），因此实际用量不会超过预留；结算仍按报告/估算的真实用量。回归运行继续使用 `DEFAULT_LIMITS`；Mo 会话（`POST /runs` 及 follow-up 未显式指定预算时）使用更宽的会话默认值：maxActiveSeconds 3600（契约上限）、maxActions 200、maxTotalTokens 3,000,000、maxModelCalls 300、maxActionsPerCase 24，其余预算项不变。这套值按 2026-10-19 在 66 上的实测（会话 `9731bd60`：8 条用例 + 1 次重试 + 1 次复现先用完 30 分钟，activeSeconds 1800/1800，而复现被取消时 actions 已 104/120、tokens 1,355,519/1,500,000）调整：把被取消的复现（约 5–10 步）和一次重试（≤24 步）做完会同时越过 120 步和 1.5M tokens。
+
+活跃时长耗尽时，仅截止时已运行且持有有效租约的会话复现任务获得最多 180 秒宽限（`REPRODUCTION_BUDGET_GRACE_SECONDS`）；窗口按数据库时间固定且绑定原 fencing token，不派新任务、不重试，其他任务停止，动作/模型调用/token 与单用例上限仍是硬限制。复现完成后照常确认缺陷并以 budget_limit 收尾，超宽限按原取消路径处理；used.activeSeconds 记录真实宽限用时，可超过配置上限。
 
 ## 9. 证据、报告和事件
 

@@ -12,6 +12,7 @@ import type {
 } from '@localqa/contracts';
 import {
   StorageError,
+  runDTO,
   type LeaseProof,
   type WorkerScope,
 } from '@localqa/storage';
@@ -104,22 +105,25 @@ export class RuntimeClient {
       seconds,
     );
     return this.#coordinator.tx(async (client) => {
-      const { run } = await this.#coordinator.validateLease(
+      const { run: previous, job } = await this.#coordinator.validateLease(
         client,
         this.#scope,
         proof,
         true,
       );
-      await this.#coordinator.pulse(client, this.#scope.projectId, run.id);
+      await this.#coordinator.pulse(client, this.#scope.projectId, previous.id);
+      const current = await runDTO(client, this.#scope.projectId, previous.id);
+      const run = await this.#coordinator.checkTimeBudget(client, current);
+      const grace = await this.#coordinator.inReproductionGrace(client, run, job);
       // A session outlives the initial 45s lease only while this exact Worker
       // keeps a valid fenced heartbeat. Never renew on stop/cancel/scope
       // changes; the browser's authority must be re-fetched privately.
       if (
         !heartbeat.cancelRequested &&
         run.status === 'running' &&
-        !['budget_limit', 'model_failure', 'setup_failure'].includes(
+        (grace || !['budget_limit', 'model_failure', 'setup_failure'].includes(
           run.terminationReason ?? '',
-        )
+        ))
       )
         await this.#coordinator.authExecution.renewForHeartbeat(
           client,
@@ -130,9 +134,9 @@ export class RuntimeClient {
         ...heartbeat,
         cancelRequested:
           heartbeat.cancelRequested ||
-          ['budget_limit', 'model_failure', 'setup_failure'].includes(
+          (!grace && ['budget_limit', 'model_failure', 'setup_failure'].includes(
             run.terminationReason ?? '',
-          ),
+          )),
       };
     });
   }

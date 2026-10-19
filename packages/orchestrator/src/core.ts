@@ -4,6 +4,7 @@ import { SessionAgent, type SessionContext } from './session-agent.js';
 import { parseSessionDecision } from './session-planning.js';
 import { linkMergedFindingEvidence } from './session-findings.js';
 import { parseAgentReport, verdictFromReport } from './agent-report.js';
+import { graceDeadline, graceEligibleRun, REPRODUCTION_BUDGET_GRACE_SECONDS } from './reproduction-grace.js';
 import { cleanDecisionNote } from './decision-note.js';
 import { reproductionRecordingIn } from './reproduction-recording-store.js';
 import { settledStep } from './step-settlement.js';
@@ -776,9 +777,12 @@ export class Coordinator {
       'SELECT id FROM runs WHERE project_id=$1 AND id=$2 FOR UPDATE',
       [scope.projectId, job.run_id],
     );
-    const run = await runDTO(client, scope.projectId, job.run_id);
+    let run = await runDTO(client, scope.projectId, job.run_id);
+    if (!allowStopping && job.role === 'reproducer' && graceEligibleRun(run))
+      run = await this.checkTimeBudget(client, run);
+    const grace = !allowStopping && await this.inReproductionGrace(client, run, job);
     if (
-      !allowStopping &&
+      !allowStopping && !grace &&
       run.budgetUsed.activeSeconds >=
         run.effectiveConfig.budget.maxActiveSeconds &&
       !['recover', 'finalize'].includes(
@@ -790,7 +794,7 @@ export class Coordinator {
       run.contextVersion !== proof.contextVersion ||
       (!allowStopping &&
         (run.status !== 'running' ||
-          (['budget_limit', 'model_failure', 'setup_failure'].includes(
+          (!grace && ['budget_limit', 'model_failure', 'setup_failure'].includes(
             run.terminationReason ?? '',
           ) &&
             !['recover', 'finalize'].includes(
@@ -3084,6 +3088,48 @@ export class Coordinator {
       }
     });
   }
+  /** Caller holds the run lock. Persist the one cutoff window in immutable
+   * audit_log, not a new migration or a worker-supplied result field. */
+  async checkTimeBudget(client: PoolClient, run: Run): Promise<Run> {
+    if (run.status !== 'running' || (run.terminationReason && run.terminationReason !== 'worker_failure') ||
+      run.budgetUsed.activeSeconds < run.effectiveConfig.budget.maxActiveSeconds) return run;
+    if (graceEligibleRun(run) && await this.sessions.read(client, run)) {
+      const clock = (await client.query<{ now: Date; sample: { sampleAt: number; carry: number } | null }>(
+        `SELECT clock_timestamp() AS now,(SELECT redacted_summary FROM audit_log
+         WHERE project_id=$1 AND object_id=$2 AND action='active.sample'
+         ORDER BY created_at DESC,id DESC LIMIT 1) AS sample`, [run.projectId, run.id],
+      )).rows[0]!;
+      const deadline = graceDeadline(run.budgetUsed.activeSeconds + (clock.sample?.carry ?? 0),
+        run.effectiveConfig.budget.maxActiveSeconds, new Date(clock.sample?.sampleAt ?? clock.now));
+      const cutoff = new Date(Date.parse(deadline) - REPRODUCTION_BUDGET_GRACE_SECONDS * 1000).toISOString();
+      const eligible = (await client.query<{ id: string; fencing_token: string }>(
+        `SELECT id,fencing_token FROM jobs WHERE project_id=$1 AND run_id=$2
+         AND role='reproducer' AND document->>'summary'='reproduce'
+         AND status='running' AND started_at<=$3::timestamptz AND lease_until>clock_timestamp()`,
+        [run.projectId, run.id, cutoff],
+      )).rows;
+      await client.query(
+        `INSERT INTO audit_log(project_id,actor_id,action,object_id,result,redacted_summary,created_at)
+         VALUES($1,actor_id(),'reproduction.grace',$2,'ok',$3,clock_timestamp())`,
+        [run.projectId, run.id, { deadline, tasks: eligible }],
+      );
+    }
+    return this.change(client, run, 'running', run.phase, 'budget_limit');
+  }
+  async inReproductionGrace(client: PoolClient, run: Run, job: JobRow): Promise<boolean> {
+    if (run.status !== 'running' || run.terminationReason !== 'budget_limit' ||
+      job.status !== 'running' || job.role !== 'reproducer' ||
+      job.document.summary !== 'reproduce') return false;
+    const row = (await client.query<{
+      redacted_summary: { deadline: string; tasks: { id: string; fencing_token: string }[] };
+      now: Date;
+    }>(`SELECT redacted_summary,clock_timestamp() AS now FROM audit_log
+         WHERE project_id=$1 AND object_id=$2 AND action='reproduction.grace'
+         ORDER BY created_at DESC,id DESC LIMIT 1`, [run.projectId, run.id])).rows[0];
+    return Boolean(row && Date.parse(row.redacted_summary.deadline) > row.now.getTime() &&
+      row.redacted_summary.tasks.some((task) => task.id === job.id &&
+        String(task.fencing_token) === String(job.fencing_token)));
+  }
   async pulse(
     client: PoolClient,
     projectId: string,
@@ -3117,7 +3163,7 @@ export class Coordinator {
     const whole = Math.floor(seconds);
     if (whole)
       await client.query(
-        "UPDATE run_budgets SET used=jsonb_set(used,'{activeSeconds}',to_jsonb(LEAST((limits->>'maxActiveSeconds')::integer,(used->>'activeSeconds')::integer+$3::integer))) WHERE project_id=$1 AND run_id=$2",
+        "UPDATE run_budgets SET used=jsonb_set(used,'{activeSeconds}',to_jsonb((used->>'activeSeconds')::integer+$3::integer)) WHERE project_id=$1 AND run_id=$2",
         [projectId, runId, whole],
       );
     await client.query(
@@ -3420,19 +3466,7 @@ export class Coordinator {
         if (TERMINAL.has(run.status)) continue;
         await this.pulse(client, projectId, id);
         run = await runDTO(client, projectId, id);
-        if (
-          run.budgetUsed.activeSeconds >=
-            run.effectiveConfig.budget.maxActiveSeconds &&
-          run.status === 'running' &&
-          !run.terminationReason
-        )
-          run = await this.change(
-            client,
-            run,
-            'running',
-            run.phase,
-            'budget_limit',
-          );
+        run = await this.checkTimeBudget(client, run);
         if (
           ['budget_limit', 'model_failure', 'setup_failure'].includes(
             run.terminationReason ?? '',
@@ -3440,11 +3474,12 @@ export class Coordinator {
         ) {
           for (const j of jobs.filter(
             (j) =>
-              ['queued', 'running'].includes(j.status) &&
-              !['recover', 'finalize'].includes(
+              ['queued', 'running', 'waiting'].includes(j.status) &&
+              (run.terminationReason === 'budget_limit' || !['recover', 'finalize'].includes(
                 String(j.result?.['stage'] ?? j.document.summary),
-              ),
+              )),
           )) {
+            if (await this.inReproductionGrace(client, run, j)) continue;
             await this.interrupt(client, run, j, 'cancelled');
             j.status = 'cancelled';
           }
@@ -3499,7 +3534,7 @@ export class Coordinator {
           continue;
         }
         for (const j of jobs.filter(
-          (j) => j.status === 'interrupted' && j.case_id,
+          (j) => j.status === 'interrupted' && j.case_id && run.terminationReason !== 'budget_limit',
         )) {
           const hasVerdict = (
             await client.query(
@@ -3938,8 +3973,13 @@ export class Coordinator {
     await this.tx(async (client) => {
       const { job, run } = await this.validateLease(client, scope, proof, true);
       if (run.status === 'cancelling' || TERMINAL.has(run.status)) return;
-      await this.interrupt(client, run, job, 'interrupted');
-      await this.change(client, run, 'running', run.phase, reason);
+      const current = reason === 'budget_limit' && job.role !== 'reproducer'
+        ? await this.checkTimeBudget(client, run) : run;
+      await this.interrupt(client, current, job, 'interrupted');
+      // Heartbeat cancellation of other agents must not turn a budget stop
+      // into worker_failure while its already-running reproduction drains.
+      await this.change(client, current, 'running', current.phase,
+        current.terminationReason === 'budget_limit' ? 'budget_limit' : reason);
     });
   }
   /**

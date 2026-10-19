@@ -66,6 +66,7 @@ type JobRow = {
   document: Task;
   context_version: number;
   run_status: string;
+  run_termination_reason?: string | null;
   started_at?: Date | null;
   finished_at?: Date | null;
   lease_active?: boolean;
@@ -102,6 +103,20 @@ export async function claimTask(
       `SELECT j.*,r.context_version,r.status run_status FROM jobs j JOIN runs r ON r.id=j.run_id
        JOIN projects p ON p.id=j.project_id AND p.deleted_at IS NULL
        WHERE j.project_id=$1 AND j.status='queued' AND j.available_at<=clock_timestamp() AND r.status IN ('queued','running')
+       AND COALESCE(r.termination_reason,'') <> 'budget_limit'
+       AND NOT EXISTS (SELECT 1 FROM run_budgets cutoff WHERE cutoff.run_id=r.id
+         AND (cutoff.used->>'activeSeconds')::integer >= (cutoff.limits->>'maxActiveSeconds')::integer)
+       -- Do not promote this run across other runs' FIFO positions. Merely
+       -- withhold its queued executors/explorers until its reproducer claims.
+       -- This is also the exclusive-account waiting queue: blocked account
+       -- users stay queued below, so the same local priority applies there.
+       AND (j.role NOT IN ('executor','explorer') OR NOT EXISTS (
+         SELECT 1 FROM jobs priority
+         WHERE priority.project_id=j.project_id AND priority.run_id=j.run_id
+           AND priority.role='reproducer' AND priority.document->>'summary'='reproduce'
+           AND priority.status='queued'
+           AND priority.available_at<=clock_timestamp()
+       ))
        ${
          admission
            ? `AND (($2::boolean AND j.role IN ('coordinator','finalizer')) OR ($3::boolean AND j.role NOT IN ('coordinator','finalizer')))
@@ -395,7 +410,7 @@ export class LeaseRepository {
     isAdmin: boolean,
   ): Promise<{ requeued: number; interrupted: number }> {
     const rows = await client.query<JobRow>(
-      "SELECT j.*,r.context_version,r.status run_status FROM jobs j JOIN runs r ON r.id=j.run_id WHERE j.project_id=$1 AND j.status='running' AND j.lease_until<=clock_timestamp() FOR UPDATE OF j SKIP LOCKED",
+      "SELECT j.*,r.context_version,r.status run_status,r.termination_reason AS run_termination_reason FROM jobs j JOIN runs r ON r.id=j.run_id WHERE j.project_id=$1 AND j.status='running' AND j.lease_until<=clock_timestamp() FOR UPDATE OF j SKIP LOCKED",
       [scope.projectId],
     );
     let requeued = 0,
@@ -411,7 +426,8 @@ export class LeaseRepository {
         ).rowCount,
       );
       const canRetry =
-        !isAuthTask && !acted && ['queued', 'running'].includes(job.run_status);
+        !isAuthTask && !acted && job.run_termination_reason !== 'budget_limit' &&
+        ['queued', 'running'].includes(job.run_status);
       await client.query(
         "UPDATE jobs SET status=$2,worker_id=NULL,lease_until=NULL,started_at=CASE WHEN $2='queued' THEN NULL ELSE started_at END,finished_at=CASE WHEN $2='queued' THEN NULL ELSE clock_timestamp() END WHERE id=$1",
         [job.id, canRetry ? 'queued' : 'interrupted'],
