@@ -135,8 +135,19 @@ test('recording keeps replay snapshots but no input, hidden or URL secrets', asy
       assert.ok(Number.isFinite(Date.parse(entry.at)));
       assert.ok(entry.text.length <= 500);
     }
-    assert.ok(
-      recording.networkEntries.some((entry) => entry.url.endsWith('/api/data')),
+    assert.equal(
+      recording.networkEntries.filter((entry) =>
+        entry.url.endsWith('/api/data'),
+      ).length,
+      2,
+      'each of the two page loads makes one request entry',
+    );
+    assert.equal(
+      recording.networkEntries.filter((entry) =>
+        entry.url.endsWith('/api/fail'),
+      ).length,
+      2,
+      'each failed request is one recording entry',
     );
     for (const entry of recording.networkEntries) {
       assert.equal(entry.url.includes('?'), false);

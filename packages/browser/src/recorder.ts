@@ -32,6 +32,11 @@ export class SessionRecorder {
   private consoleRecordingTruncated = false;
   private networkRecordingTruncated = false;
   private readonly requestStartedAt = new WeakMap<Request, number>();
+  /** One recording entry per request, updated in place when it completes. */
+  private readonly recordingNetworkByRequest = new WeakMap<
+    Request,
+    NetworkEntry
+  >();
   private privateAuthentication = false;
   private readonly sensitiveValues: string[] = [];
 
@@ -267,7 +272,8 @@ export class SessionRecorder {
           this.redactAuthenticationText(req.url()),
         );
         this.requestStartedAt.set(req, Date.now());
-        // Record request entry
+        this.startRecordingNetworkEntry(req);
+        // Record the human/model-facing summary entry.
         this.appendNetworkEntry({
           at: new Date().toISOString(),
           url: sanitizedUrl.slice(0, 8192),
@@ -289,13 +295,19 @@ export class SessionRecorder {
         const sanitizedUrl = sanitizeUrl(
           this.redactAuthenticationText(res.url()),
         );
+        const durationMs = this.durationFor(res.request());
+        this.finishRecordingNetworkEntry(res.request(), {
+          status: res.status(),
+          failed: !res.ok(),
+          durationMs,
+        });
         this.appendNetworkEntry({
           at: new Date().toISOString(),
           url: sanitizedUrl.slice(0, 8192),
           method: res.request().method().slice(0, 20),
           status: res.status(),
           failed: !res.ok(),
-          durationMs: this.durationFor(res.request()),
+          durationMs,
           resourceType: res.request().resourceType().slice(0, 40),
           summary:
             `[${res.status()}] ${res.request().method()} ${sanitizedUrl}`.slice(
@@ -317,13 +329,19 @@ export class SessionRecorder {
         const failure = this.redactAuthenticationText(
           req.failure()?.errorText || 'Unknown',
         );
+        const durationMs = this.durationFor(req);
+        this.finishRecordingNetworkEntry(req, {
+          status: null,
+          failed: true,
+          durationMs,
+        });
         this.appendNetworkEntry({
           at: new Date().toISOString(),
           url: sanitizedUrl.slice(0, 8192),
           method: req.method().slice(0, 20),
           status: null,
           failed: true,
-          durationMs: this.durationFor(req),
+          durationMs,
           resourceType: req.resourceType().slice(0, 40),
           summary:
             `[FAILED] ${req.method()} ${sanitizedUrl} - ${failure}`.slice(
@@ -348,7 +366,6 @@ export class SessionRecorder {
       this.recordDegradation('Network buffer limit reached (1000 entries max)');
     }
     this.networkEntries.push(entry);
-    this.appendRecordingNetworkEntry(entry);
   }
 
   private durationFor(request: Request): number | null {
@@ -367,29 +384,47 @@ export class SessionRecorder {
     this.consoleEntries.push(entry);
   }
 
-  private appendRecordingNetworkEntry(entry: NetworkEntry): void {
-    if (this.privateAuthentication) return;
-    let url: string;
+  private recordingNetworkUrl(raw: string): string | null {
     try {
-      const parsed = new URL(entry.url);
-      if (!['http:', 'https:'].includes(parsed.protocol)) return;
-      url = `${parsed.origin}${parsed.pathname}`.slice(0, 2000);
+      const parsed = new URL(this.redactAuthenticationText(raw));
+      if (!['http:', 'https:'].includes(parsed.protocol)) return null;
+      return `${parsed.origin}${parsed.pathname}`.slice(0, 2000);
     } catch {
-      return;
+      return null;
     }
+  }
+
+  private startRecordingNetworkEntry(req: Request): void {
+    if (this.privateAuthentication) return;
+    const url = this.recordingNetworkUrl(req.url());
+    if (!url) return;
     if (this.recordingNetworkEntries.length >= this.maxRecordingEntries) {
       this.recordingNetworkEntries.shift();
       this.networkRecordingTruncated = true;
     }
-    this.recordingNetworkEntries.push({
-      at: entry.at,
-      method: entry.method.slice(0, 20),
+    const entry: NetworkEntry = {
+      at: new Date().toISOString(),
+      method: req.method().slice(0, 20),
       url,
-      resourceType: entry.resourceType.slice(0, 40),
-      status: entry.status,
-      failed: entry.failed,
-      durationMs: entry.durationMs,
-    });
+      resourceType: req.resourceType().slice(0, 40),
+      status: null,
+      failed: false,
+      durationMs: null,
+    };
+    this.recordingNetworkEntries.push(entry);
+    this.recordingNetworkByRequest.set(req, entry);
+  }
+
+  private finishRecordingNetworkEntry(
+    req: Request,
+    result: Pick<NetworkEntry, 'status' | 'failed' | 'durationMs'>,
+  ): void {
+    const entry = this.recordingNetworkByRequest.get(req);
+    if (!entry) return;
+    this.recordingNetworkByRequest.delete(req);
+    entry.status = result.status;
+    entry.failed = result.failed;
+    entry.durationMs = result.durationMs;
   }
 
   public getRecordingConsoleEntries(): ConsoleEntry[] {
