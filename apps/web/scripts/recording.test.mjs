@@ -538,6 +538,44 @@ test('reproduction markers read the player clock, not the wall clock', () => {
   assert.ok(markers[1].leftPct > 0 && markers[1].leftPct <= 100);
 });
 
+test('a defect slice keeps the player clock, which starts at the recording', () => {
+  // The recording starts at 09:16:41.702, the defect slice at 09:17:26.663 and
+  // its 6th step is at 09:17:32.331 — the player shows 0:50 there, so the
+  // marker must read 0:50, not 0:05 since the slice began.
+  const recordingStart = Date.parse('2026-10-19T09:16:41.702Z');
+  const sliceStart = Date.parse('2026-10-19T09:17:26.663Z');
+  const stepAt = '2026-10-19T09:17:32.331Z';
+  const slice = timelineRange(
+    {
+      startAt: new Date(sliceStart).toISOString(),
+      endAt: new Date(sliceStart + 20_000).toISOString(),
+    },
+    { startAt: null, endAt: null },
+  );
+  const marks = [{ index: 6, at: stepAt }];
+  const clockReading = formatClock(Date.parse(stepAt) - recordingStart);
+
+  const relativeToRecording = reproMarkers(
+    marks,
+    ['a', 'b', 'c', 'd', 'e', '点击结算'],
+    slice,
+    recordingStart,
+  );
+  assert.equal(
+    relativeToRecording[0].title,
+    `第 6 步：点击结算  ${clockReading}`,
+  );
+  assert.equal(clockReading, '0:50');
+  // The default (no explicit origin) still means "the left edge of the axis".
+  assert.equal(
+    reproMarkers(marks, ['a', 'b', 'c', 'd', 'e', '点击结算'], slice)[0].title,
+    '第 6 步：点击结算  0:05',
+  );
+  // …but the marker still sits near the left of the sliced axis.
+  assert.ok(relativeToRecording[0].leftPct > 25);
+  assert.ok(relativeToRecording[0].leftPct < 40);
+});
+
 test('a request recorded twice becomes one network row', () => {
   const line = (offsetMs, extra) => ({
     at: at(offsetMs),

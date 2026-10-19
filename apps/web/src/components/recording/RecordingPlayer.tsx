@@ -305,9 +305,24 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
     () => (range ? problemTicks(consoleLines, network, range) : []),
     [consoleLines, network, range],
   );
+  // A marker reads the player clock, whose zero is the start of the whole
+  // recording (`meta.startMs`), not the left edge of a defect's slice.
+  const clockOriginMs = useMemo(() => {
+    if (meta) return meta.startMs;
+    const started = recording.startedAt ? Date.parse(recording.startedAt) : NaN;
+    return Number.isFinite(started) ? started : null;
+  }, [meta, recording.startedAt]);
   const markers = useMemo(
-    () => (range ? reproMarkers(reproMarks, reproSteps, range) : []),
-    [reproMarks, reproSteps, range],
+    () =>
+      range
+        ? reproMarkers(
+            reproMarks,
+            reproSteps,
+            range,
+            clockOriginMs ?? range.startMs,
+          )
+        : [],
+    [reproMarks, reproSteps, range, clockOriginMs],
   );
 
   const totalSpan = meta?.totalMs ?? 0;

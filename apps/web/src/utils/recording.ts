@@ -186,12 +186,21 @@ export interface ReproMarker extends Tick {
   index: number;
 }
 
-/** Numbered markers for the defect's own reproduction steps. */
+/**
+ * Numbered markers for the defect's own reproduction steps.
+ *
+ * `clockOriginMs` is where the player clock reads 0, which is the start of the
+ * whole recording — not `range.startMs`, the left edge of the axis. A defect
+ * replays a slice of a longer recording, so a marker inside the slice must read
+ * the same time the player shows when it seeks there (Mo: 「第 3 步：… 2:32」).
+ */
 export function reproMarkers(
   marks: readonly ReproStepMark[],
   reproSteps: readonly string[],
   range: TimelineRange,
+  clockOriginMs: number = range.startMs,
 ): ReproMarker[] {
+  const origin = Number.isFinite(clockOriginMs) ? clockOriginMs : range.startMs;
   return [...marks]
     .filter((mark) => inRange(mark.at, range))
     .sort((left, right) => left.index - right.index)
@@ -199,9 +208,9 @@ export function reproMarkers(
       index: mark.index,
       at: mark.at,
       leftPct: percentAt(mark.at, range),
-      // The playhead clock, not the wall clock: Mo reads "2:32" here, so a
-      // marker time can be compared with the player.
-      title: `第 ${mark.index} 步：${(reproSteps[mark.index - 1] ?? '').slice(0, 300)}  ${formatClock(Date.parse(mark.at) - range.startMs)}`,
+      // The playhead clock, not the wall clock, so a marker time can be compared
+      // with the clock over the player.
+      title: `第 ${mark.index} 步：${(reproSteps[mark.index - 1] ?? '').slice(0, 300)}  ${formatClock(Date.parse(mark.at) - origin)}`,
     }));
 }
 
