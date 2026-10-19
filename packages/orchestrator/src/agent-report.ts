@@ -1,5 +1,9 @@
 import { sanitizeText } from '@localqa/browser';
 import type { Verdict } from '@localqa/contracts';
+import {
+  parseReproStepActions,
+  type ReproStepAction,
+} from './reproduction-recording.js';
 
 /**
  * Mo-style case report. The executing (or reproducing) agent submits it after
@@ -17,14 +21,18 @@ export interface AgentReport {
     reason: string;
   }[];
   bug: { title: string; expected: string; actual: string } | null;
+  /** Optional reproducer anchors; absence never invalidates a case report. */
+  reproStepActions?: ReproStepAction[];
 }
 
-/** Every field required (null when unused), so strict JSON-schema modes accept it. */
+/** Existing verdict fields remain required. Replay metadata is optional and
+ * permissive: a malformed anchor must not invalidate the report itself. */
 export const AGENT_REPORT_SCHEMA: Record<string, unknown> = {
   type: 'object',
   additionalProperties: false,
   required: ['status', 'summary', 'verified', 'gaps', 'criteria', 'bug'],
   properties: {
+    reproStepActions: { type: 'array', items: {} },
     status: { type: 'string', enum: ['passed', 'issue_found', 'blocked'] },
     summary: { type: 'string' },
     verified: { type: 'array', items: { type: 'string' } },
@@ -96,8 +104,10 @@ export function parseAgentReport(value: unknown): AgentReport | null {
     row['bug'] && typeof row['bug'] === 'object' && !Array.isArray(row['bug'])
       ? (row['bug'] as Record<string, unknown>)
       : null;
+  const anchors = parseReproStepActions(row['reproStepActions']);
   return {
     status,
+    ...(anchors.length ? { reproStepActions: anchors } : {}),
     summary: text(row['summary'], 2000),
     verified: list(row['verified'], 30, 2000),
     gaps: list(row['gaps'], 30, 2000),

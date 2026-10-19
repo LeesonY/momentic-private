@@ -7,6 +7,199 @@ import {
   parseAgentReport,
   verdictFromReport,
 } from '../dist/agent-report.js';
+import {
+  mapReproductionRecording,
+  parseReproStepActions,
+} from '../dist/reproduction-recording.js';
+import { cleanDecisionNote } from '../dist/decision-note.js';
+import { DECISION_SCHEMA } from '@localqa/agents';
+import { createRequire } from 'node:module';
+const Ajv = createRequire(
+  new URL('../../model-gateway/package.json', import.meta.url),
+)('ajv');
+
+const at = (seconds) =>
+  new Date(Date.UTC(2026, 9, 16, 12, 0, seconds)).toISOString();
+const recordingInput = (overrides = {}) => ({
+  kind: 'functional',
+  outcome: 'reproduced',
+  reproductionId: 'repro-1',
+  taskId: 'reproducer-1',
+  recording: {
+    taskId: 'reproducer-1',
+    status: 'available',
+    rrwebArtifactId: 'rrweb-1',
+    startedAt: at(0),
+    endedAt: at(60),
+  },
+  steps: [
+    { taskId: 'reproducer-1', seq: 2, createdAt: at(10), finishedAt: at(12) },
+    { taskId: 'reproducer-1', seq: 5, createdAt: at(30), finishedAt: at(35) },
+  ],
+  anchors: [
+    { index: 1, seq: 2 },
+    { index: 2, seq: 5 },
+  ],
+  reproStepCount: 2,
+  ...overrides,
+});
+
+test('reproducer anchors accept actual task seq values, including several steps at one action', () => {
+  assert.deepEqual(
+    parseReproStepActions(
+      [
+        { index: 1, seq: 2 },
+        { index: 2, seq: 2 },
+      ],
+      2,
+      [{ seq: 2 }],
+    ),
+    [
+      { index: 1, seq: 2 },
+      { index: 2, seq: 2 },
+    ],
+  );
+});
+
+test('out-of-range, missing, duplicate and backwards anchors are discarded independently', () => {
+  const input = [
+    null,
+    { index: 0, seq: 2 },
+    { index: 1, seq: 2 },
+    { index: 2, seq: 1 },
+    { index: 2, seq: 999 },
+    { index: 1, seq: 5 },
+    { index: 2, seq: 5 },
+    { index: 3, seq: 5 },
+  ];
+  assert.deepEqual(parseReproStepActions(input, 2, [{ seq: 2 }, { seq: 5 }]), [
+    { index: 1, seq: 2 },
+    { index: 2, seq: 5 },
+  ]);
+  for (const value of [undefined, null, {}, 'bad', []])
+    assert.deepEqual(parseReproStepActions(value), []);
+});
+
+test('bad optional anchors do not invalidate an otherwise useful agent report', () => {
+  const report = parseAgentReport({
+    ...blocked,
+    reproStepActions: [null, { index: 1, seq: 2 }, { index: 2, seq: -1 }],
+  });
+  assert.equal(report.status, 'blocked');
+  assert.deepEqual(report.reproStepActions, [{ index: 1, seq: 2 }]);
+  assert.equal(parseAgentReport(blocked).reproStepActions, undefined);
+  const validate = new Ajv({ strict: false }).compile(AGENT_REPORT_SCHEMA);
+  assert.equal(
+    validate({
+      ...blocked,
+      criteria: [],
+      reproStepActions: [null, { seq: 'bad' }],
+    }),
+    true,
+  );
+});
+
+test('recording anchors map finishedAt and add bounded three-second context', () => {
+  assert.deepEqual(mapReproductionRecording(recordingInput()), {
+    reproductionId: 'repro-1',
+    taskId: 'reproducer-1',
+    startedAt: at(7),
+    endedAt: at(38),
+    steps: [
+      { index: 1, at: at(12) },
+      { index: 2, at: at(35) },
+    ],
+  });
+  const input = recordingInput();
+  input.steps[0].createdAt = at(1);
+  input.steps[1].finishedAt = at(59);
+  assert.equal(mapReproductionRecording(input).startedAt, at(0));
+  assert.equal(mapReproductionRecording(input).endedAt, at(60));
+});
+
+test('no anchors uses the full recording and missing finishedAt falls back to createdAt', () => {
+  const input = recordingInput({ anchors: undefined });
+  assert.deepEqual(mapReproductionRecording(input), {
+    reproductionId: 'repro-1',
+    taskId: 'reproducer-1',
+    startedAt: at(0),
+    endedAt: at(60),
+    steps: [],
+  });
+  input.anchors = [{ index: 1, seq: 2 }];
+  input.steps[0].finishedAt = null;
+  assert.deepEqual(mapReproductionRecording(input).steps, [
+    { index: 1, at: at(10) },
+  ]);
+});
+
+test('static, unconfirmed, missing and unusable recordings never produce a replay link', () => {
+  for (const override of [
+    { kind: 'static' },
+    { outcome: 'blocked' },
+    { outcome: 'not_reproduced' },
+    { recording: null },
+  ])
+    assert.equal(mapReproductionRecording(recordingInput(override)), null);
+  const original = recordingInput().recording;
+  for (const patch of [
+    { status: 'missing' },
+    { status: 'recording' },
+    { status: 'degraded', rrwebArtifactId: null },
+    { taskId: 'executor-1' },
+    { startedAt: null },
+    { endedAt: 'bad' },
+    { endedAt: at(-1) },
+  ])
+    assert.equal(
+      mapReproductionRecording(
+        recordingInput({ recording: { ...original, ...patch } }),
+      ),
+      null,
+    );
+  assert.ok(
+    mapReproductionRecording(
+      recordingInput({ recording: { ...original, status: 'degraded' } }),
+    ),
+  );
+});
+
+test('anchors from another task or outside the recording are not fabricated', () => {
+  const input = recordingInput();
+  input.steps[0].taskId = 'executor-1';
+  input.steps[1].finishedAt = at(70);
+  const result = mapReproductionRecording(input);
+  assert.deepEqual(result.steps, []);
+  assert.equal(result.startedAt, at(0));
+  assert.equal(result.endedAt, at(60));
+});
+
+test('decision note is optional and overlong text is truncated instead of rejecting the decision', () => {
+  assert.ok(!DECISION_SCHEMA.required.includes('note'));
+  assert.equal(DECISION_SCHEMA.properties.note.maxLength, undefined);
+  assert.equal(cleanDecisionNote(undefined, []), null);
+  assert.equal(cleanDecisionNote('', []), null);
+  assert.equal(cleanDecisionNote({ note: 'bad' }, []), null);
+  assert.equal(
+    cleanDecisionNote('  先检查  错误提示\n再继续。 ', []),
+    '先检查 错误提示 再继续。',
+  );
+  assert.equal(Array.from(cleanDecisionNote('字'.repeat(800), [])).length, 300);
+});
+
+test('saved credentials discard the entire note, including a match beyond the truncation boundary', () => {
+  const saved = ['fixture-private-value'];
+  for (const note of [
+    'fixture-private-value',
+    '尝试 fixture-private-value 后观察',
+    '字'.repeat(800) + saved[0],
+  ])
+    assert.equal(cleanDecisionNote(note, saved), null);
+  assert.equal(
+    cleanDecisionNote('不包含保存值的目的说明。', saved),
+    '不包含保存值的目的说明。',
+  );
+});
 
 const blocked = {
   status: 'blocked',
@@ -20,7 +213,7 @@ const blocked = {
   bug: null,
 };
 
-test('the report schema requires every field, so strict providers accept it', () => {
+test('existing verdict fields stay required while replay anchors remain optional', () => {
   assert.deepEqual(AGENT_REPORT_SCHEMA.required, [
     'status',
     'summary',

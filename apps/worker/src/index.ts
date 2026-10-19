@@ -345,6 +345,7 @@ function reportPrompt(reproducing: boolean): string {
     '账号或密码被拒、缺少测试数据、操作被权限策略拦下，都是 blocked，不是产品缺陷。',
     'status=passed 只在每条验收标准都判为 passed 时使用；有标准没法判定就照实写 unknown 并写进 gaps，平台会按 inconclusive 记录，不要为了看起来完成而写 passed。',
     'summary：一两句话说明做了什么、看到了什么。verified：已经确认符合预期的点。gaps：没能确认的点和原因。',
+    ...(reproducing ? ['可选 reproStepActions=[{index,seq}]：index 是 suspectedBug.reproSteps 的第几条（从 1 开始），seq 是 actions 里完成或观察到这条复现步骤的实际动作编号，不是数组下标。index 递增，seq 单调不减，必须来自本任务已有动作；无法对应或动作没有 seq 时省略，禁止猜编号。不合法锚点只会被丢弃，不影响报告结论。'] : []),
     '最终页面观察里除了控件，还有页面上看得见的文字节点（nodeId、role=statictext/paragraph/label、relatedNodeId 指向相关控件）、控件的当前值 value（敏感值为 [redacted]，空串就是空的）、控件自己的占位提示 placeholder，以及控件的错误状态 invalid。占位符只在 placeholder 里；与占位符同文的 statictext 是页面上真实渲染的文字，不是占位符。',
     'finalObservation 是提交报告前重新采集的当前页面，不是最后一个动作那一刻的状态；sinceLastAction 是最后一个动作之后到现在新出现/消失的文字（「文字（所属控件）」）。判断页面现在是否有提示、提示是否已经消失，以 finalObservation 和 sinceLastAction 为准，不要用 actions[] 里更早的观察。',
     '操作记录 actions[] 里 textChanges 记录了这一步之后新出现/消失的文字（例如「点击后新出现：请输入账号（账号框）」），它比最终页面更能说明页面是否对操作做出了提示。说“页面没有提示/没有回显”之前先看这些文字、value 和 textChanges；只看到 placeholder 或节点被裁剪不算没有提示。',
@@ -2443,6 +2444,7 @@ export class Worker {
                             title: work.finding.title,
                             expected: work.finding.expected,
                             actual: work.finding.actual,
+                            reproSteps: work.finding.reproSteps,
                           },
                         }
                       : {}),

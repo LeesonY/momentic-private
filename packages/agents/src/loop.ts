@@ -13,6 +13,10 @@ export const DECISION_SCHEMA: Record<string, unknown> = {
   additionalProperties: false,
   required: ['toolCalls', 'done'],
   properties: {
+    // Optional annotation, never a prerequisite for executing a valid action.
+    // No schema maxLength: overlong notes are truncated before persistence,
+    // not rejected by the model gateway (which would discard the decision).
+    note: { type: 'string' },
     done: { type: 'boolean' },
     toolCalls: {
       type: 'array',
