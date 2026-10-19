@@ -249,8 +249,9 @@ export class RuntimeClient {
     proof: LeaseProof,
     reason:
       'budget_limit' | 'worker_failure' | 'model_failure' | 'setup_failure',
+    failure?: { code: string; outcome?: string },
   ): Promise<void> {
-    return this.#coordinator.stopTask(this.#scope, proof, reason);
+    return this.#coordinator.stopTask(this.#scope, proof, reason, failure);
   }
   input(
     proof: LeaseProof,

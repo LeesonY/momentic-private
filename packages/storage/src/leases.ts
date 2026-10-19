@@ -425,9 +425,20 @@ export class LeaseRepository {
           )
         ).rowCount,
       );
+      // Reproductions get a new fenced task/context, not an unbounded requeue
+      // of this task. The coordinator owns the per-finding retry/budget limit.
       const canRetry =
-        !isAuthTask && !acted && job.run_termination_reason !== 'budget_limit' &&
+        !isAuthTask &&
+        job.document.role !== 'reproducer' &&
+        !acted &&
+        job.run_termination_reason !== 'budget_limit' &&
         ['queued', 'running'].includes(job.run_status);
+      if (job.document.role === 'reproducer') {
+        await client.query(
+          `UPDATE jobs SET result=COALESCE(result,'{}'::jsonb)||$2::jsonb WHERE id=$1`,
+          [job.id, { failure: { code: 'LEASE_EXPIRED', detail: '租约丢失，任务未完成' } }],
+        );
+      }
       await client.query(
         "UPDATE jobs SET status=$2,worker_id=NULL,lease_until=NULL,started_at=CASE WHEN $2='queued' THEN NULL ELSE started_at END,finished_at=CASE WHEN $2='queued' THEN NULL ELSE clock_timestamp() END WHERE id=$1",
         [job.id, canRetry ? 'queued' : 'interrupted'],

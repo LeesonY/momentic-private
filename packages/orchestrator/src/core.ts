@@ -1,4 +1,5 @@
 import { sanitizeText } from '@localqa/browser';
+import { taskFailure, TRANSIENT_REPRODUCTION_FAILURES } from '@localqa/domain';
 import { createHash, randomUUID } from 'node:crypto';
 import { SessionAgent, type SessionContext } from './session-agent.js';
 import { parseSessionDecision } from './session-planning.js';
@@ -2528,6 +2529,8 @@ export class Coordinator {
     results?: CriterionResult[],
     reason?: string,
   ): Promise<void> {
+    // Hash the submitted payload, not the server-normalized diagnostics.
+    const resultHash = hashPayload({ result, results: results ?? null, reason: reason ?? null });
     await this.tx(async (client) => {
       const existing = (
         await client.query<JobRow>(
@@ -2545,12 +2548,7 @@ export class Coordinator {
         throw new StorageError('POLICY_DENIED');
       if (existing && ['succeeded', 'failed'].includes(existing.status)) {
         if (
-          existing.result_hash !==
-          hashPayload({
-            result,
-            results: results ?? null,
-            reason: reason ?? null,
-          })
+          existing.result_hash !== resultHash
         )
           throw new StorageError('IDEMPOTENCY_CONFLICT');
         return;
@@ -2558,6 +2556,18 @@ export class Coordinator {
       const { job, run } = await this.validateLease(client, scope, proof);
       if (job.document.summary === 'auth')
         throw new StorageError('POLICY_DENIED');
+      const supplied = result['failure'] as { detail?: unknown } | undefined;
+      result = { ...result };
+      delete result['failure'];
+      if (reason && parseAgentReport(result['agentReport'])?.status === 'blocked') {
+        const outcome = typeof supplied?.detail === 'string'
+          ? supplied.detail.split(':')[0] : undefined;
+        const failure = taskFailure(reason, outcome);
+        result = { ...result, failure,
+          ...(supplied ? { agentReport: { ...parseAgentReport(result['agentReport'])!,
+            summary: failure.detail, gaps: [failure.detail] } } : {}),
+        };
+      }
       if (result['stage'] !== job.result?.['stage'])
         throw new StorageError('VALIDATION_ERROR');
       if (await this.sessions.read(client, run)) {
@@ -2938,13 +2948,23 @@ export class Coordinator {
               : status === 'passed' && independentEvidence
                 ? 'not_reproduced'
                 : 'blocked';
+          const failure = result['failure'] as { code: string; detail: string } | undefined;
+          const retry = outcome === 'blocked' && failure
+            ? await this.retryReproduction(client, run, job, failure) : false;
+          // A deterministic blocked verdict on attempt two must still retain
+          // the first transient failure; its own report explains the blocker.
+          const blockedFailure = outcome === 'blocked'
+            ? failure ?? taskFailure('REPRODUCTION_BLOCKED') : undefined;
+          const failureSummary = blockedFailure
+            ? (await this.reproductionFailureSummary(client, run, job, blockedFailure)) +
+              (!failure && report?.summary ? `\n${report.summary}` : '') : null;
           const reproduction = parseContract('Reproduction', {
             id: randomUUID(),
             findingId,
             taskId: job.id,
             outcome,
             freshContext: true,
-            summary: report?.summary || `Independent reproduction: ${outcome}`,
+            summary: failureSummary || report?.summary || `Independent reproduction: ${outcome}`,
             evidenceRefs: refs,
             createdAt: new Date().toISOString(),
           });
@@ -2981,13 +3001,14 @@ export class Coordinator {
           const updated = {
             ...f,
             recording,
+            ...(failureSummary && !retry ? { actual: `${f.actual}\n${failureSummary}` } : {}),
             // Reproduced by an independent agent from a clean start: confirmed.
             status:
               outcome === 'reproduced' && independentEvidence
                 ? 'confirmed'
                 : outcome === 'not_reproduced'
                   ? 'unconfirmed'
-                  : 'blocked',
+                  : retry ? 'suspected' : 'blocked',
             reproductionRef: reproduction.id,
             version: f.version + 1,
           };
@@ -3036,11 +3057,7 @@ export class Coordinator {
           [
             job.id,
             { ...job.result, ...result },
-            hashPayload({
-              result,
-              results: results ?? null,
-              reason: reason ?? null,
-            }),
+            resultHash,
           ],
         )
       ).rows[0];
@@ -3546,8 +3563,19 @@ export class Coordinator {
           continue;
         }
         for (const j of jobs.filter(
-          (j) => j.status === 'interrupted' && j.case_id && run.terminationReason !== 'budget_limit',
+          (j) => j.status === 'interrupted' && j.case_id &&
+            (j.role === 'reproducer' || run.terminationReason !== 'budget_limit'),
         )) {
+          if (j.role === 'reproducer') {
+            const pending = (await client.query(
+              `SELECT 1 FROM findings f WHERE f.id=$1 AND f.project_id=$2 AND f.status='suspected'
+               AND NOT EXISTS (SELECT 1 FROM jobs n WHERE n.project_id=f.project_id AND n.run_id=f.run_id
+                 AND n.role='reproducer' AND n.result->>'findingId'=f.id::text AND n.attempt>$3)`,
+              [j.result?.['findingId'], projectId, j.document.attempt],
+            )).rowCount;
+            if (pending) await this.interrupt(client, run, j, 'interrupted');
+            continue;
+          }
           const hasVerdict = (
             await client.query(
               'SELECT 1 FROM case_attempts a JOIN verdicts v ON v.attempt_id=a.id WHERE a.project_id=$1 AND a.task_id=$2',
@@ -3756,6 +3784,7 @@ export class Coordinator {
     run: Run,
     jobs: JobRow[],
     reviewedTaskIds?: readonly string[],
+    retryFindingId?: string,
   ): Promise<number> {
     const findings = (
       await client.query<{
@@ -3777,9 +3806,9 @@ export class Coordinator {
         f.document.triageDisposition !== 'duplicate' &&
         !f.document.duplicateOf &&
         (!reviewed || reviewed.has(f.original_task_id)) &&
-        !jobs.some(
+        (retryFindingId ? f.id === retryFindingId : !jobs.some(
           (j) => j.role === 'reproducer' && j.result?.['findingId'] === f.id,
-        ),
+        )),
     );
     let created = 0;
     for (const f of candidates) {
@@ -3809,7 +3838,7 @@ export class Coordinator {
         'reproduce',
         f.id,
         f.case_id,
-        1,
+        retryFindingId ? 2 : 1,
         {
           findingId: f.id,
           entryUrl:
@@ -3829,12 +3858,50 @@ export class Coordinator {
     }
     return created;
   }
+  private async reproductionFailureSummary(
+    client: PoolClient, run: Run, job: JobRow, failure: { code: string; detail: string },
+  ): Promise<string> {
+    const previous = (await client.query<JobRow>(
+      "SELECT * FROM jobs WHERE project_id=$1 AND run_id=$2 AND role='reproducer' AND result->>'findingId'=$3 AND id<>$4 ORDER BY attempt,id",
+      [run.projectId, run.id, job.result?.['findingId'], job.id],
+    )).rows;
+    return [...previous.map((j) => ({ attempt: j.document.attempt, failure: j.result?.['failure'] as typeof failure | undefined })),
+      { attempt: job.document.attempt, failure }]
+      .filter((a) => a.failure)
+      .map((a) => `复现尝试 ${a.attempt}：${a.failure!.code} — ${a.failure!.detail}`).join('\n');
+  }
+  private async retryReproduction(
+    client: PoolClient, run: Run, job: JobRow, failure: { code: string; detail: string },
+  ): Promise<boolean> {
+    await this.pulse(client, run.projectId, run.id);
+    const current = await runDTO(client, run.projectId, run.id);
+    if (current.status !== 'running' || current.terminationReason ||
+      !['execute', 'reproduce'].includes(current.phase) || graceEligibleRun(current) ||
+      !TRANSIENT_REPRODUCTION_FAILURES.has(failure.code) ||
+      failure.detail.startsWith('refused:') || job.result?.['interruptionReason'] === 'user_input') return false;
+    const jobs = (await client.query<JobRow>(
+      'SELECT * FROM jobs WHERE project_id=$1 AND run_id=$2', [run.projectId, run.id],
+    )).rows;
+    const attempts = jobs.filter((j) => j.role === 'reproducer' &&
+      j.result?.['findingId'] === job.result?.['findingId']);
+    if (attempts.some((j) => j.id !== job.id && j.document.attempt > job.document.attempt &&
+      ['queued', 'running', 'waiting'].includes(j.status))) return true;
+    if (attempts.length >= 2) return false;
+    return (await this.enqueueReproductions(client, current, jobs, undefined,
+      String(job.result?.['findingId']))) > 0;
+  }
   async interrupt(
     client: PoolClient,
     run: Run,
     job: JobRow,
     status: 'cancelled' | 'interrupted',
   ): Promise<void> {
+    if (job.role === 'reproducer' && !['interrupted', 'cancelled'].includes(job.status)) {
+      const failure = (job.result?.['failure'] as { code: string; detail: string } | undefined)
+        ?? taskFailure(status === 'interrupted' ? 'TASK_INTERRUPTED' : 'CANCELLED');
+      job.result = { ...job.result, failure };
+      await client.query("UPDATE jobs SET result=result||$2::jsonb WHERE id=$1", [job.id, { failure }]);
+    }
     await client.query(
       `UPDATE auth_otp_challenges SET status='expired',
        ciphertext=NULL,nonce=NULL,auth_tag=NULL,key_version=NULL
@@ -3919,10 +3986,12 @@ export class Coordinator {
         [reservation.id],
       );
     }
-    await client.query(
-      'UPDATE jobs SET status=$2, lease_until=NULL, finished_at=clock_timestamp() WHERE id=$1',
-      [job.id, status],
-    );
+    if (!['interrupted', 'cancelled'].includes(job.status)) {
+      await client.query(
+        'UPDATE jobs SET status=$2, lease_until=NULL, finished_at=clock_timestamp() WHERE id=$1',
+        [job.id, status],
+      );
+    }
     await client.query(
       'UPDATE task_leases SET released_at=clock_timestamp() WHERE task_id=$1',
       [job.id],
@@ -3935,6 +4004,10 @@ export class Coordinator {
       job.role === 'reproducer' &&
       typeof job.result?.['findingId'] === 'string'
     ) {
+      const failure = (job.result?.['failure'] as { code: string; detail: string } | undefined)
+        ?? taskFailure(status === 'interrupted' ? 'TASK_INTERRUPTED' : 'CANCELLED');
+      const retry = await this.retryReproduction(client, run, job, failure);
+      const failureSummary = await this.reproductionFailureSummary(client, run, job, failure);
       const row = (
         await client.query<{
           id: string;
@@ -3946,10 +4019,11 @@ export class Coordinator {
           [run.projectId, run.id, job.result['findingId']],
         )
       ).rows[0];
-      if (row) {
+      if (row && !retry) {
         const finding = parseContract('Finding', {
           ...row.document,
           status: 'blocked',
+          actual: `${row.document.actual}\n${failureSummary}`,
           reproductionRef: null,
           version: row.document.version + 1,
         });
@@ -3981,13 +4055,24 @@ export class Coordinator {
     scope: WorkerScope,
     proof: LeaseProof,
     reason: NonNullable<Run['terminationReason']>,
+    failure?: { code: string; outcome?: string },
   ): Promise<void> {
     await this.tx(async (client) => {
       const { job, run } = await this.validateLease(client, scope, proof, true);
       if (run.status === 'cancelling' || TERMINAL.has(run.status)) return;
       const current = reason === 'budget_limit' && job.role !== 'reproducer'
         ? await this.checkTimeBudget(client, run) : run;
+      if (job.role === 'reproducer') {
+        job.result = { ...job.result, failure: taskFailure(
+          failure?.code ?? (reason === 'budget_limit' ? 'BUDGET_EXCEEDED' :
+          reason === 'model_failure' ? 'MODEL_FAILURE' :
+          reason === 'worker_failure' ? 'TASK_INTERRUPTED' : 'SETUP_FAILURE'),
+          failure?.outcome,
+        ) };
+      }
       await this.interrupt(client, current, job, 'interrupted');
+      if (job.role === 'reproducer' && !current.terminationReason &&
+        ['worker_failure', 'model_failure'].includes(reason)) return;
       // Heartbeat cancellation of other agents must not turn a budget stop
       // into worker_failure while its already-running reproduction drains.
       await this.change(client, current, 'running', current.phase,

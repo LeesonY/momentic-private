@@ -1,3 +1,4 @@
+export { taskFailure, TRANSIENT_REPRODUCTION_FAILURES } from './task-failure.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import {

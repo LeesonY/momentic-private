@@ -111,6 +111,7 @@ const files = [
   'apps/worker/test/regression-recovery.test.mjs',
   'apps/worker/test/t27-approved-action-min.test.mjs',
   'apps/worker/test/t29-decision-cause.test.mjs',
+  'apps/worker/test/repro-failure-detail.test.mjs',
   'apps/api/test/cors.test.mjs',
   'apps/api/test/sse-poll-concurrency.test.mjs',
   'apps/api/test/repair-suggestions-route.test.mjs',

@@ -20,7 +20,7 @@ import {
   type Artifact,
   type TaskRecording,
 } from '@localqa/contracts';
-import { evaluateTechnical, PageGraph, DomainError } from '@localqa/domain';
+import { evaluateTechnical, PageGraph, DomainError, taskFailure, TRANSIENT_REPRODUCTION_FAILURES } from '@localqa/domain';
 import {
   RuntimeClient,
   DECISION_SCHEMA,
@@ -144,6 +144,10 @@ function denialGuidance(reasonCode: string): string {
   if (reasonCode === 'VALIDATION_ERROR')
     return '动作参数不符合工具契约，没有执行。请按工具定义修正参数。';
   return '这个动作没有执行。看 reasonCode 换一个可行的操作，或如实结束并说明。';
+}
+
+class ModelTaskFailure extends DomainError {
+  constructor(code: string, readonly outcome: string) { super(code); }
 }
 
 /** Why an agent's work stopped, in words for the user and the session agent. */
@@ -1973,9 +1977,11 @@ export class Worker {
               proof,
               work,
               code,
-              blockedDetail(code),
+              error instanceof ModelTaskFailure
+                ? taskFailure(code, error.outcome).detail : blockedDetail(code),
               undefined,
               await recordingForFinish(),
+              taskFailure(code, error instanceof ModelTaskFailure ? error.outcome : undefined),
             );
             reported = true;
             return true;
@@ -2095,10 +2101,11 @@ export class Worker {
             await this.reportBlocked(
               proof,
               work,
-              'AUTH_FAILED',
+              work.task.role === 'reproducer' && TRANSIENT_REPRODUCTION_FAILURES.has(outcome.reasonCode) ? outcome.reasonCode : 'AUTH_FAILED',
               `登录未成功，没有执行：${reason}`,
               { reasonCode: outcome.reasonCode, text: reason },
               await recordingForFinish(),
+              work.task.role === 'reproducer' && TRANSIENT_REPRODUCTION_FAILURES.has(outcome.reasonCode) ? taskFailure(outcome.reasonCode) : undefined,
             );
             return true;
           }
@@ -2115,10 +2122,11 @@ export class Worker {
           await this.reportBlocked(
             proof,
             work,
-            'AUTH_FAILED',
+            work.task.role === 'reproducer' && TRANSIENT_REPRODUCTION_FAILURES.has(code) ? code : 'AUTH_FAILED',
             `登录未成功，没有执行：${reason}`,
             { reasonCode: code, text: reason },
             await recordingForFinish(),
+            work.task.role === 'reproducer' && TRANSIENT_REPRODUCTION_FAILURES.has(code) ? taskFailure(code) : undefined,
           );
           return true;
         }
@@ -2239,7 +2247,8 @@ export class Worker {
                 'RATE_LIMITED',
               ].includes(code)
             ? 'model_failure'
-            : code === 'LEASE_EXPIRED' || code === 'CANCELLED'
+            : code === 'LEASE_EXPIRED' || code === 'CANCELLED' ||
+                (lease.task.role === 'reproducer' && TRANSIENT_REPRODUCTION_FAILURES.has(code))
               ? 'worker_failure'
               : 'setup_failure';
       // Constant codes only: never page text, model output or credentials.
@@ -2251,7 +2260,9 @@ export class Worker {
           reason,
         }),
       );
-      await this.runtime.stop(proof, reason).catch(() => {});
+      await this.runtime.stop(proof, reason, {
+        code, ...(error instanceof ModelTaskFailure ? { outcome: error.outcome } : {}),
+      }).catch(() => {});
       // A stopped task has no finish transaction. Persist the recording now,
       // after stop() so a normal cancellation is already terminal, and while
       // the last fenced lease is still the authority.
@@ -2402,6 +2413,7 @@ export class Worker {
     detail: string,
     signInFailure?: { reasonCode: string; text: string },
     taskRecording?: TaskRecording,
+    failure?: { code: string; detail: string },
   ): Promise<void> {
     // Constant codes only: the next time a case is blocked, the real cause is
     // in the logs instead of only in the generic user-facing text.
@@ -2429,6 +2441,7 @@ export class Worker {
       {
         stage: work.stage,
         oracle: 'agent_report',
+        ...(failure ? { failure } : {}),
         agentReport: {
           status: 'blocked',
           summary: detail,
@@ -2531,10 +2544,19 @@ export class Worker {
           ? error.code
           : null;
       if (signal.aborted || (code && RUN_LEVEL_STOPS.has(code))) throw error;
+      if (role === 'reproducer') throw new DomainError(code ?? 'WORKER_FAILURE');
       return null;
     }
-    if (!['ok', 'repaired'].includes(record.requestResult)) return null;
-    return parseAgentReport(record.data);
+    if (!['ok', 'repaired'].includes(record.requestResult)) {
+      if (role === 'reproducer') throw new ModelTaskFailure(
+        record.errorCode === 'VALIDATION_ERROR' ? 'MODEL_FAILURE' : (record.errorCode ?? 'MODEL_FAILURE'),
+        record.requestResult,
+      );
+      return null;
+    }
+    const report = parseAgentReport(record.data);
+    if (!report && role === 'reproducer') throw new ModelTaskFailure('MODEL_FAILURE', 'malformed');
+    return report;
   }
   async decide(
     proof: LeaseProof,
@@ -2579,10 +2601,11 @@ export class Worker {
       !returnFailureRecord &&
       !['ok', 'repaired'].includes(record.requestResult)
     )
-      throw new DomainError(
+      throw new ModelTaskFailure(
         record.errorCode === 'VALIDATION_ERROR'
           ? 'MODEL_FAILURE'
           : (record.errorCode ?? 'MODEL_FAILURE'),
+        record.requestResult,
       );
     return record;
   }

@@ -250,6 +250,7 @@ test('worker login failure blocks only its case and normally finishes the task',
     { modelError: new Error(password) },
     { cleanupError: true },
     { role: 'reproducer', blockedReason: '页面提示账号已停用' },
+    { role: 'reproducer', allocateError: new DomainError('RATE_LIMITED') },
   ]) {
     const fixture = signInFixture(config);
     try {
@@ -265,7 +266,8 @@ test('worker login failure blocks only its case and normally finishes the task',
       assert.equal(result.stage, fixture.work.stage);
       assert.equal(result.agentReport.status, 'blocked');
       assert.equal(result.agentReport.bug, null);
-      assert.equal(code, 'AUTH_FAILED');
+      assert.equal(code, config.role === 'reproducer' && config.allocateError ? 'RATE_LIMITED' : 'AUTH_FAILED');
+      if (code === 'RATE_LIMITED') assert.equal(result.failure.code, 'RATE_LIMITED');
       assert.match(result.agentReport.gaps[0], /登录未成功，没有执行/);
       // The session planner needs the reason text and count without reading the
       // case report; the marker is a sanitized loginReportText projection.
