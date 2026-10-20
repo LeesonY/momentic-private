@@ -133,6 +133,7 @@ export function registerModelRoutes(router: Router): void {
     },
   );
 
+  // All model profiles share the same 120s probe budget.
   // POST /api/v1/model-profiles/{modelProfileId}/probe
   router.post(
     '/api/v1/model-profiles/{modelProfileId}/probe',
@@ -169,7 +170,7 @@ export function registerModelRoutes(router: Router): void {
       const probeRecord = await createFrozenGateway(
         frozen,
         ctx.api.modelTransport,
-      ).capabilityProbe(profileId, 30000);
+      ).capabilityProbe(profileId, 120_000);
       if (
         probeRecord.requestResult !== 'ok' ||
         probeRecord.errorCode ||
