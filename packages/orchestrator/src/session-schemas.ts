@@ -55,6 +55,7 @@ export function sessionModelContext(
     remainingPages: context.remainingPages,
     concurrency: context.concurrency,
     activeTasks: context.activeTasks,
+    answeredQuestions: context.answeredQuestions,
     sources: context.sources.slice(0, 8).map((source) => ({
       ...source,
       text: source.text.slice(0, source.kind === 'user_spec' ? 2400 : 1000),

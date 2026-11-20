@@ -23,9 +23,17 @@ const clean = (value: string) =>
     /((?:密码|口令|password|secret|api[_ -]?key)\s*[:：=]\s*)\S+/gi,
     '$1[redacted]',
   );
+
+export interface AnsweredQuestion {
+  question: string;
+  options?: string[];
+  answer: string;
+}
+
 export interface SessionContext {
   session: SessionReport;
   sources: SessionSource[];
+  answeredQuestions: AnsweredQuestion[];
   observations: Array<
     Pick<
       BrowserSnapshot,
@@ -229,9 +237,46 @@ export class SessionAgent {
     const assertionCapabilities = profile
       ? parseContract('ModelProfile', profile.document).capabilities
       : { structuredOutput: false, nativeTools: false, imageInput: false };
+
+    // Both run_messages and the input.resolved event are committed in the same
+    // resolveClarification transaction; their created_at columns both use DEFAULT now()
+    // and match identically.
+    const answeredRows = (
+      await client.query<{
+        document: { prompt?: string; options?: string[] };
+        redacted_text: string | null;
+      }>(
+        `SELECT i.document, m.redacted_text
+         FROM input_requests i
+         JOIN run_events e ON e.project_id=i.project_id AND e.run_id=i.run_id AND e.type='input.resolved' AND e.payload->>'id'=i.id::text
+         LEFT JOIN run_messages m ON m.project_id=i.project_id AND m.run_id=i.run_id AND m.actor_id IS NOT NULL AND m.created_at=e.created_at
+         WHERE i.project_id=$1 AND i.run_id=$2 AND i.document->>'kind'='clarification' AND i.document->>'status'='resolved'
+         ORDER BY e.seq DESC LIMIT 3`,
+        [run.projectId, run.id],
+      )
+    ).rows;
+
+    const answeredQuestions: AnsweredQuestion[] = answeredRows
+      .reverse()
+      .map((row) => {
+        const prompt = clean(row.document.prompt || '').slice(0, 500);
+        const answer = row.redacted_text?.trim()
+          ? clean(row.redacted_text.trim())
+          : '（用户已确认，未补充文字）';
+        return {
+          question: prompt,
+          ...(Array.isArray(row.document.options) && row.document.options.length
+            ? { options: row.document.options }
+            : {}),
+          answer,
+        };
+      })
+      .filter((q) => q.question.length > 0);
+
     return {
       session,
       sources,
+      answeredQuestions,
       observations,
       cases,
       findings,
@@ -410,8 +455,21 @@ export class SessionAgent {
             : 'finalizing',
       planningStopped: planningOnly || fallbackToTechnicalSmoke,
       plan: clean(accepted.rationale),
-      ...(!context.session.title && accepted.title?.trim()
-        ? { title: clean(accepted.title).slice(0, 60) }
+      ...(!context.session.title
+        ? (() => {
+            const explicit = accepted.title?.trim()
+              ? clean(accepted.title).slice(0, 60)
+              : null;
+            if (explicit) return { title: explicit };
+            const fallback = Array.from(
+              (
+                clean(context.session.objective || '').split(/[\r\n]+/)[0] ?? ''
+              ).trim(),
+            )
+              .slice(0, 20)
+              .join('');
+            return fallback ? { title: fallback } : {};
+          })()
         : {}),
       caseIds: [...context.session.caseIds, ...caseIds],
       exploredUrls: [
